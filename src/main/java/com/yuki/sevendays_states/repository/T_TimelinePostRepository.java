@@ -7,8 +7,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface T_TimelinePostRepository extends JpaRepository<T_TimelinePost, Long> {
-  Page<T_TimelinePost> findAllByOrderByPublishedAtDescIdDesc(Pageable pageable);
+  Page<T_TimelinePost> findAllByVisibleTrueOrderByPublishedAtDescIdDesc(Pageable pageable);
   boolean existsBySourceHash(String sourceHash);
   boolean existsByActorPlayerIdAndPostTypeAndPublishedAtAfter(
       Long actorPlayerId, String postType, OffsetDateTime after);
+  boolean existsByPostTypeAndPublishedAtAfter(String postType, OffsetDateTime after);
 }

@@ -58,6 +58,9 @@ public class T_TimelinePost {
   @Column(name = "priority", nullable = false)
   private int priority;
 
+  @Column(name = "visible", nullable = false)
+  private boolean visible = true;
+
   @Column(name = "created_at", nullable = false)
   private OffsetDateTime createdAt;
 

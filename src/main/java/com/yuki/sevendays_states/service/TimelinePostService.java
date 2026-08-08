@@ -42,7 +42,8 @@ public class TimelinePostService {
   public FeedPage feed(Authentication authentication, int offset) {
     int safeOffset = Math.max(0, Math.min(offset, 600));
     int pageNumber = safeOffset / PAGE_SIZE;
-    var page = postRepository.findAllByOrderByPublishedAtDescIdDesc(PageRequest.of(pageNumber, PAGE_SIZE));
+    var page = postRepository.findAllByVisibleTrueOrderByPublishedAtDescIdDesc(
+        PageRequest.of(pageNumber, PAGE_SIZE));
     M_WebAccount current = currentAccountService.current(authentication).orElse(null);
     List<PostView> posts = page.getContent().stream().map(post -> toView(post, current)).toList();
     return new FeedPage(posts, safeOffset + posts.size(), page.hasNext());
@@ -125,9 +126,14 @@ public class TimelinePostService {
       String detail, String coordinate, String sourceType, Long sourceId, String sourceHash) {
     if (sourceHash == null || postRepository.existsBySourceHash(sourceHash)) return;
     if (!selected(type, sourceHash)) return;
-    if (!type.isImmediate() && playerId != null && type.cooldownMinutes() > 0
-        && postRepository.existsByActorPlayerIdAndPostTypeAndPublishedAtAfter(
-            playerId, type.name(), occurredAt.minusMinutes(type.cooldownMinutes()))) return;
+    if (type.cooldownMinutes() > 0) {
+      OffsetDateTime after = occurredAt.minusMinutes(type.cooldownMinutes());
+      boolean coolingDown = playerId == null
+          ? postRepository.existsByPostTypeAndPublishedAtAfter(type.name(), after)
+          : postRepository.existsByActorPlayerIdAndPostTypeAndPublishedAtAfter(
+              playerId, type.name(), after);
+      if (coolingDown) return;
+    }
     save(type, "GAME", playerId, displayName(playerName), messageFactory.message(type, playerName, detail, sourceHash),
         coordinate, sourceType, sourceId, sourceHash, type.publishChance(), occurredAt);
   }

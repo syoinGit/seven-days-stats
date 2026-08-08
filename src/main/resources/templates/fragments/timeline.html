@@ -2,7 +2,8 @@
 <html lang="ja" xmlns:th="http://www.thymeleaf.org">
 <body>
 <th:block th:fragment="page">
-  <li class="feed-item" th:each="item : ${timelinePage.items}" data-timeline-item>
+  <li class="feed-item" th:each="item : ${timelinePage.items}" data-timeline-item
+      th:classappend="${' tone-' + item.tone}">
     <div class="feed-avatar" th:text="${#strings.substring(item.actor, 0, 1)}">W</div>
     <div class="feed-body">
       <header>
@@ -12,16 +13,23 @@
         <time th:text="${item.occurredAt ?: '-'}">time</time>
       </header>
       <p class="event-message" th:text="${item.message}">荒野で何かが起きた</p>
-      <footer class="social-actions">
-        <form class="reaction-form" method="post" th:action="@{/posts/{id}/react(id=${item.postId})}"
-              th:if="${loggedIn and !currentViewer}" th:each="reaction : ${item.reactions}">
-          <input type="hidden" name="reaction" th:value="${reaction.key.name()}">
-          <button class="like-button" th:classappend="${item.currentReaction == reaction.key.name()}"
-                  type="submit"><span th:text="${reaction.key.emoji()}">👍</span>
-            <span th:text="${reaction.value}">0</span></button>
-        </form>
-        <span th:if="${!loggedIn or currentViewer}" class="like-count" th:each="reaction : ${item.reactions}"
-              th:text="${reaction.key.emoji() + ' ' + reaction.value}">👍 0</span>
+      <footer class="social-actions" th:if="${(loggedIn and !currentViewer) or item.reactionCount() > 0 or item.ownPost}">
+        <details class="reaction-menu" th:if="${(loggedIn and !currentViewer) or item.reactionCount() > 0}">
+          <summary aria-label="リアクションを表示">
+            <span aria-hidden="true">☺</span><b th:if="${item.reactionCount() > 0}" th:text="${item.reactionCount()}">0</b>
+          </summary>
+          <div class="reaction-options">
+            <form class="reaction-form" method="post" th:action="@{/posts/{id}/react(id=${item.postId})}"
+                  th:if="${loggedIn and !currentViewer}" th:each="reaction : ${item.reactions}">
+              <input type="hidden" name="reaction" th:value="${reaction.key.name()}">
+              <button class="like-button" th:classappend="${item.currentReaction == reaction.key.name()}"
+                      type="submit"><span th:text="${reaction.key.emoji()}">👍</span>
+                <span th:text="${reaction.value}">0</span></button>
+            </form>
+            <span th:if="${!loggedIn or currentViewer}" class="like-count" th:each="reaction : ${item.reactions}"
+                  th:unless="${reaction.value == 0}" th:text="${reaction.key.emoji() + ' ' + reaction.value}">👍 1</span>
+          </div>
+        </details>
         <form class="delete-post-form" method="post" th:action="@{/posts/{id}/delete(id=${item.postId})}"
               th:if="${item.ownPost}">
           <button class="delete-post-button" type="submit">削除</button>

@@ -1,10 +1,11 @@
 package com.yuki.sevendays_states.entity;
 
-/** A feed category used for selecting copy, never for visual colouring. */
+/** A feed category used for selection, copy variation and visual tone. */
 public enum TimelinePostType {
   LOGIN(100, 0),
   LOGOUT(100, 0),
   PLAYER_DEATH(100, 0),
+  BLOOD_MOON(100, 1440),
   WORLD_EVENT(82, 2),
   VEHICLE(45, 8),
   SLEEPER(38, 8),
