@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.inOrder;
 
 import com.yuki.sevendays_states.config.AiAnalysisProperties;
+import com.yuki.sevendays_states.entity.AiPostType;
 import com.yuki.sevendays_states.web.WatchpointAiObservationService;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -17,6 +18,51 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class WatchpointAiPublishingServiceTests {
+
+  @Test
+  void analysisTypesArePersistedButNeverBroadcastToGame() {
+    for (AiPostType type : List.of(
+        AiPostType.PLAYER_ANALYSIS, AiPostType.SERVER_ANALYSIS, AiPostType.DAILY_SUMMARY)) {
+      WatchpointAiObservationService observations = mock(WatchpointAiObservationService.class);
+      BedrockWatchpointClient bedrock = mock(BedrockWatchpointClient.class);
+      AiCommentService comments = mock(AiCommentService.class);
+      SevenDaysTelnetCommandClient telnet = mock(SevenDaysTelnetCommandClient.class);
+      var request = mock(WatchpointAiObservationService.AnalysisRequest.class);
+      var saved = new AiCommentService.AiCommentEntry(
+          20L, null, "WATCHPOINT観測記録", "分析本文", OffsetDateTime.now(ZoneOffset.UTC),
+          "AWS_BEDROCK", null, List.of(), type, null, true);
+      when(observations.buildRequest(type, 0)).thenReturn(request);
+      when(bedrock.generate(request)).thenReturn(
+          new BedrockWatchpointClient.GeneratedPost("分析本文", List.of("current-totals")));
+      when(comments.publishGenerated(
+          "WATCHPOINT観測記録", "分析本文", "AWS_BEDROCK", type, null)).thenReturn(saved);
+
+      var result = new WatchpointAiPublishingService(
+          properties(true), observations, bedrock, comments, telnet).publishNow(type);
+
+      assertThat(result.status()).isEqualTo(WatchpointAiPublishingService.PublishStatus.PUBLISHED);
+      verify(comments).publishGenerated(
+          "WATCHPOINT観測記録", "分析本文", "AWS_BEDROCK", type, null);
+      verify(telnet, never()).broadcast(org.mockito.ArgumentMatchers.any());
+    }
+  }
+
+  @Test
+  void bedrockFailureIsContainedAndCycleIsSkipped() {
+    WatchpointAiObservationService observations = mock(WatchpointAiObservationService.class);
+    BedrockWatchpointClient bedrock = mock(BedrockWatchpointClient.class);
+    AiCommentService comments = mock(AiCommentService.class);
+    SevenDaysTelnetCommandClient telnet = mock(SevenDaysTelnetCommandClient.class);
+    var request = mock(WatchpointAiObservationService.AnalysisRequest.class);
+    when(observations.buildRequest()).thenReturn(request);
+    when(bedrock.generate(request)).thenThrow(new RuntimeException("bedrock unavailable"));
+
+    var result = new WatchpointAiPublishingService(
+        properties(true), observations, bedrock, comments, telnet).publishNow();
+
+    assertThat(result.status()).isEqualTo(WatchpointAiPublishingService.PublishStatus.FAILED);
+    verify(telnet, never()).broadcast(org.mockito.ArgumentMatchers.any());
+  }
 
   @Test
   void generatesThenPersistsValidatedObservation() {

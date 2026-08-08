@@ -55,43 +55,12 @@
       <a th:href="@{/login}">ログイン</a>
     </aside>
 
-    <ol class="feed" id="timeline">
-      <li th:if="${#lists.isEmpty(timeline)}" class="empty">まだ冒険記録がありません。</li>
-      <li class="feed-item" th:each="item : ${timeline}" data-timeline-item
-          th:classappend="${' tone-' + item.tone}">
-        <div class="feed-avatar" th:text="${#strings.substring(item.actor, 0, 1)}">W</div>
-        <div class="feed-body">
-          <header>
-            <a class="feed-actor" th:if="${item.itemType == 'POST' and !currentViewer}"
-               th:href="@{/players/{id}(id=${item.playerId})}" th:text="${item.actor}">survivor</a>
-            <strong th:if="${item.itemType == 'POST' and currentViewer}" th:text="${item.actor}">survivor</strong>
-            <strong th:if="${item.itemType != 'POST'}" th:text="${item.actor}">observer</strong>
-            <span class="tag" th:text="${item.kind}">EVENT</span>
-            <time th:text="${item.occurredAt ?: '-'}">time</time>
-          </header>
-          <p class="event-message" th:text="${item.message}">荒野で何かが起きた</p>
-          <footer class="social-actions" th:if="${item.itemType == 'POST'}">
-            <form class="like-form" method="post" th:action="@{/posts/{id}/like(id=${item.postId})}"
-                  th:attr="data-like-url=@{/posts/{id}/like.json(id=${item.postId})}"
-                  th:if="${loggedIn and !currentViewer}">
-              <button class="like-button" th:classappend="${item.likedByCurrentAccount} ? ' liked'"
-                      th:attr="aria-pressed=${item.likedByCurrentAccount}" type="submit">
-                <span aria-hidden="true">♥</span> <span class="like-value" th:text="${item.likeCount}">0</span>
-              </button>
-            </form>
-            <span th:if="${!loggedIn or currentViewer}" class="like-count"><span aria-hidden="true">♥</span> <span th:text="${item.likeCount}">0</span></span>
-            <form class="delete-post-form" method="post" th:action="@{/posts/{id}/delete(id=${item.postId})}"
-                  th:if="${item.ownPost}">
-              <button class="delete-post-button" type="submit">削除</button>
-            </form>
-          </footer>
-          <footer th:if="${item.itemType == 'EVENT' and !#strings.isEmpty(item.coordinate)}">
-            <span>LOC</span><b th:text="${item.coordinate}">0, 0, 0</b>
-          </footer>
-        </div>
-      </li>
+    <ol class="feed" id="timeline" th:attr="data-timeline-url=@{/dashboard/timeline}">
+      <li th:if="${#lists.isEmpty(timelinePage.items)}" class="empty">まだ冒険記録がありません。</li>
+      <th:block th:replace="~{fragments/timeline :: page}"></th:block>
     </ol>
-    <div class="timeline-loader" data-timeline-loader hidden><span class="live-pulse"></span><b>さらに観測記録を読み込む</b><small data-timeline-progress></small></div>
+    <div class="timeline-loader" data-timeline-loader th:hidden="${!timelinePage.hasMore}"
+         th:attr="data-next-offset=${timelinePage.nextOffset}"><span class="live-pulse"></span><b>過去の観測を読み込む</b><small data-timeline-progress></small></div>
   </section>
 
   <aside class="status-sidebar">

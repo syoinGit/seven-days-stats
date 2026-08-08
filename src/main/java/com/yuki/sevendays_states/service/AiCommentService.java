@@ -1,6 +1,7 @@
 package com.yuki.sevendays_states.service;
 
 import com.yuki.sevendays_states.entity.T_AiComment;
+import com.yuki.sevendays_states.entity.AiPostType;
 import com.yuki.sevendays_states.repository.T_AiCommentRepository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AiCommentService {
 
   private final T_AiCommentRepository repository;
+  private final TimelinePostService timelinePostService;
 
   @Value("${app.ai-comment.editor-key:}")
   private String editorKey;
@@ -80,11 +82,17 @@ public class AiCommentService {
     comment.setDiaryDate(diaryDate);
     comment.setPublishedAt(OffsetDateTime.now(ZoneOffset.UTC));
     comment.setSourceType("MANUAL_BETA");
-    return toEntry(repository.save(comment));
+    return publishToTimeline(repository.save(comment));
   }
 
   @Transactional
   public AiCommentEntry publishGenerated(String title, String body, String sourceType) {
+    return publishGenerated(title, body, sourceType, AiPostType.NORMAL, null);
+  }
+
+  @Transactional
+  public AiCommentEntry publishGenerated(
+      String title, String body, String sourceType, AiPostType postType, Long targetPlayerId) {
     String normalizedTitle = normalize(title);
     String normalizedBody = normalize(body);
     String normalizedSource = normalize(sourceType);
@@ -102,7 +110,18 @@ public class AiCommentService {
     comment.setBody(normalizedBody);
     comment.setPublishedAt(OffsetDateTime.now(ZoneOffset.UTC));
     comment.setSourceType(normalizedSource);
-    return toEntry(repository.save(comment));
+    comment.setPostType(postType.name());
+    comment.setTargetPlayerId(targetPlayerId);
+    comment.setAiGenerated(true);
+    return publishToTimeline(repository.save(comment));
+  }
+
+  public long generatedTimelineCountSince(OffsetDateTime from) {
+    return repository.countByAiGeneratedTrueAndDiaryDateIsNullAndPublishedAtGreaterThanEqual(from);
+  }
+
+  public boolean hasPostTypeSince(AiPostType postType, OffsetDateTime from) {
+    return repository.existsByPostTypeAndPublishedAtGreaterThanEqual(postType.name(), from);
   }
 
   @Transactional
@@ -144,18 +163,36 @@ public class AiCommentService {
     comment.setBody(normalizedBody);
     comment.setPublishedAt(OffsetDateTime.now(ZoneOffset.UTC));
     comment.setSourceType("AWS_BEDROCK_DIARY");
-    return toEntry(repository.save(comment));
+    comment.setAiGenerated(true);
+    return publishToTimeline(repository.save(comment));
   }
 
   private String normalize(String value) {
     return value == null ? "" : value.strip();
   }
 
+  private AiCommentEntry publishToTimeline(T_AiComment comment) {
+    AiCommentEntry entry = toEntry(comment);
+    if (entry.diaryDate() == null) {
+      timelinePostService.publishWatchpoint(entry.id(), entry.targetPlayerId(), entry.publishedAt(), entry.body());
+    }
+    return entry;
+  }
+
   private AiCommentEntry toEntry(T_AiComment comment) {
     return new AiCommentEntry(
         comment.getId(), comment.getDiaryDate(), comment.getTitle(), comment.getBody(),
         comment.getPublishedAt(), comment.getSourceType(), comment.getSummary(),
-        splitTags(comment.getTags()));
+        splitTags(comment.getTags()), parsePostType(comment.getPostType()),
+        comment.getTargetPlayerId(), comment.isAiGenerated());
+  }
+
+  private AiPostType parsePostType(String value) {
+    try {
+      return AiPostType.valueOf(value == null ? AiPostType.NORMAL.name() : value);
+    } catch (IllegalArgumentException ignored) {
+      return AiPostType.NORMAL;
+    }
   }
 
   private List<String> splitTags(String tags) {
@@ -170,6 +207,15 @@ public class AiCommentService {
       OffsetDateTime publishedAt,
       String sourceType,
       String summary,
-      List<String> tags) {
+      List<String> tags,
+      AiPostType postType,
+      Long targetPlayerId,
+      boolean aiGenerated) {
+    public AiCommentEntry(
+        Long id, LocalDate diaryDate, String title, String body, OffsetDateTime publishedAt,
+        String sourceType, String summary, List<String> tags) {
+      this(id, diaryDate, title, body, publishedAt, sourceType, summary, tags,
+          AiPostType.NORMAL, null, sourceType != null && sourceType.startsWith("AWS_BEDROCK"));
+    }
   }
 }

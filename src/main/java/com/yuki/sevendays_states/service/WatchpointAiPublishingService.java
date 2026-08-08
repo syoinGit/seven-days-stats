@@ -1,15 +1,21 @@
 package com.yuki.sevendays_states.service;
 
 import com.yuki.sevendays_states.config.AiAnalysisProperties;
+import com.yuki.sevendays_states.entity.AiPostType;
 import com.yuki.sevendays_states.web.WatchpointAiObservationService;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /** Coordinates observation, generation, validation, and persistence without holding a DB transaction during AWS I/O. */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class WatchpointAiPublishingService {
 
   public static final String SOURCE_TYPE = "AWS_BEDROCK";
@@ -20,6 +26,9 @@ public class WatchpointAiPublishingService {
   private final BedrockWatchpointClient bedrockClient;
   private final AiCommentService aiCommentService;
   private final SevenDaysTelnetCommandClient telnetCommandClient;
+
+  @Value("${app.ai-analysis.max-posts-per-day:10}")
+  private int maxPostsPerDay;
 
   public PublishResult publishIfDue() {
     if (!properties.bedrockEnabled()) {
@@ -33,26 +42,71 @@ public class WatchpointAiPublishingService {
     if (recentlyPublished) {
       return new PublishResult(PublishStatus.NOT_DUE, null);
     }
-    WatchpointAiObservationService.AnalysisRequest request = observationService.buildRequest();
+    OffsetDateTime dayStart = startOfToday();
+    long todayCount = aiCommentService.generatedTimelineCountSince(dayStart);
+    if (todayCount >= Math.max(1, maxPostsPerDay)) {
+      return new PublishResult(PublishStatus.DAILY_LIMIT, null);
+    }
+    AiPostType postType = nextPostType(todayCount, dayStart);
+    WatchpointAiObservationService.AnalysisRequest request = postType == AiPostType.NORMAL
+        ? observationService.buildRequest()
+        : observationService.buildRequest(postType, (int) todayCount);
     if (!hasActivity(request)) {
       return new PublishResult(PublishStatus.NO_ACTIVITY, null);
     }
-    return publish(request);
+    if (postType == AiPostType.PLAYER_ANALYSIS
+        && request.observation().survivors().isEmpty()) {
+      return new PublishResult(PublishStatus.NO_ACTIVITY, null);
+    }
+    return publishSafely(request, postType);
   }
 
   public PublishResult publishNow() {
     if (!properties.bedrockEnabled()) {
       return new PublishResult(PublishStatus.DISABLED, null);
     }
-    return publish(observationService.buildRequest());
+    return publishSafely(observationService.buildRequest(), AiPostType.NORMAL);
   }
 
-  private PublishResult publish(WatchpointAiObservationService.AnalysisRequest request) {
-    BedrockWatchpointClient.GeneratedPost generated = bedrockClient.generate(request);
-    AiCommentService.AiCommentEntry saved =
-        aiCommentService.publishGenerated(TITLE, generated.body(), SOURCE_TYPE);
-    telnetCommandClient.broadcast("WATCHPOINT: " + saved.body());
-    return new PublishResult(PublishStatus.PUBLISHED, saved);
+  public PublishResult publishNow(AiPostType postType) {
+    if (!properties.bedrockEnabled()) {
+      return new PublishResult(PublishStatus.DISABLED, null);
+    }
+    return publishSafely(observationService.buildRequest(postType, 0), postType);
+  }
+
+  private PublishResult publishSafely(
+      WatchpointAiObservationService.AnalysisRequest request, AiPostType postType) {
+    try {
+      BedrockWatchpointClient.GeneratedPost generated = bedrockClient.generate(request);
+      AiCommentService.AiCommentEntry saved = postType == AiPostType.NORMAL
+          ? aiCommentService.publishGenerated(TITLE, generated.body(), SOURCE_TYPE)
+          : aiCommentService.publishGenerated(TITLE, generated.body(), SOURCE_TYPE, postType, null);
+      if (postType.isGameBroadcastEnabled()) {
+        telnetCommandClient.broadcast("WATCHPOINT: " + saved.body());
+      }
+      return new PublishResult(PublishStatus.PUBLISHED, saved);
+    } catch (RuntimeException exception) {
+      log.error("WATCHPOINT {} generation failed; this cycle is skipped.", postType, exception);
+      return new PublishResult(PublishStatus.FAILED, null);
+    }
+  }
+
+  private AiPostType nextPostType(long todayCount, OffsetDateTime dayStart) {
+    int localHour = OffsetDateTime.now(ZoneId.of("Asia/Tokyo")).getHour();
+    if (localHour >= 23 && !aiCommentService.hasPostTypeSince(AiPostType.DAILY_SUMMARY, dayStart)) {
+      return AiPostType.DAILY_SUMMARY;
+    }
+    if (todayCount > 0 && todayCount % 3 == 2) {
+      return (todayCount / 3) % 2 == 0
+          ? AiPostType.PLAYER_ANALYSIS : AiPostType.SERVER_ANALYSIS;
+    }
+    return AiPostType.NORMAL;
+  }
+
+  private OffsetDateTime startOfToday() {
+    ZoneId tokyo = ZoneId.of("Asia/Tokyo");
+    return LocalDate.now(tokyo).atStartOfDay(tokyo).toOffsetDateTime();
   }
 
   private boolean hasActivity(WatchpointAiObservationService.AnalysisRequest request) {
@@ -72,6 +126,8 @@ public class WatchpointAiPublishingService {
     PUBLISHED,
     NOT_DUE,
     NO_ACTIVITY,
+    DAILY_LIMIT,
+    FAILED,
     DISABLED
   }
 

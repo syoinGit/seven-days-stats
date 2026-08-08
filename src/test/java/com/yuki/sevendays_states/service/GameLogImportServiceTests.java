@@ -13,6 +13,8 @@ import com.yuki.sevendays_states.repository.T_VehicleCurrentStateRepository;
 import com.yuki.sevendays_states.repository.T_VehiclePositionTransactionRepository;
 import com.yuki.sevendays_states.repository.T_PlayerStatusRepository;
 import com.yuki.sevendays_states.repository.T_WorldEventTransactionRepository;
+import com.yuki.sevendays_states.repository.T_TimelinePostReactionRepository;
+import com.yuki.sevendays_states.repository.T_TimelinePostRepository;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -81,8 +83,16 @@ class GameLogImportServiceTests {
   @Autowired
   private T_PlayerStatusRepository playerStatusRepository;
 
+  @Autowired
+  private T_TimelinePostRepository timelinePostRepository;
+
+  @Autowired
+  private T_TimelinePostReactionRepository timelineReactionRepository;
+
   @BeforeEach
   void deleteTransactions() {
+    timelineReactionRepository.deleteAll();
+    timelinePostRepository.deleteAll();
     playerJoinRepository.deleteAll();
     playerCurrentStateRepository.deleteAll();
     playerLeaveRepository.deleteAll();
@@ -134,6 +144,25 @@ class GameLogImportServiceTests {
     assertThat(sleeperRepository.count()).isEqualTo(2);
     assertThat(worldEventRepository.count()).isEqualTo(1);
     assertThat(vehiclePositionRepository.count()).isEqualTo(1);
+    assertThat(timelinePostRepository.findAll())
+        .extracting(post -> post.getPostType() + ":" + post.getActorName())
+        .contains("LOGIN:DDD烈火王テムジン", "LOGOUT:DDD烈火王テムジン");
+  }
+
+  @Test
+  void createsOneImmediateLoginPostWithAReadableVariantAndNoDuplicate() throws Exception {
+    Path log = writeLog("""
+        2026-07-26T08:18:02 1147.256 INF PlayerSpawnedInWorld (reason: JoinMultiplayer, position: -162, 52, -857): EntityID=331, PltfmId='Steam_76561198123350583', CrossId='EOS_xxx', OwnerID='Steam_xxx', PlayerName='PlayerA', ClientNumber='3'
+        """);
+
+    logImportService.importLogFile(log);
+    logImportService.importLogFile(log);
+
+    assertThat(timelinePostRepository.findAll()).singleElement().satisfies(post -> {
+      assertThat(post.getPostType()).isEqualTo("LOGIN");
+      assertThat(post.getMessage()).contains("PlayerAがログインした");
+      assertThat(post.getSourceType()).isEqualTo("PLAYER_JOIN");
+    });
   }
 
   @Test

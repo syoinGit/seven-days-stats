@@ -25,7 +25,7 @@ jobs:
           cache: maven
 
       - name: Build
-        run: ./mvnw clean package -DskipTests
+        run: ./mvnw clean package
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -41,3 +41,15 @@ jobs:
 
           aws s3 cp "$JAR" \
             s3://rubinco-deploy-artifacts/watchpoint/app.jar
+
+      - name: Deploy via SSM
+        run: |
+          aws ssm send-command \
+            --instance-ids i-07f5fc4469269d315 \
+            --document-name AWS-RunShellScript \
+            --comment "Deploy WATCHPOINT" \
+            --parameters commands='[
+              "aws s3 cp s3://rubinco-deploy-artifacts/watchpoint/app.jar /home/ec2-user/watchpoint/app.jar",
+              "sudo systemctl restart sevendays-states.service",
+              "sudo systemctl status sevendays-states.service --no-pager"
+            ]'

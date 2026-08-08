@@ -13,6 +13,7 @@ import com.yuki.sevendays_states.entity.T_SleeperTransaction;
 import com.yuki.sevendays_states.entity.T_VehicleCurrentState;
 import com.yuki.sevendays_states.entity.T_VehiclePositionTransaction;
 import com.yuki.sevendays_states.entity.T_WorldEventTransaction;
+import com.yuki.sevendays_states.entity.TimelinePostType;
 import com.yuki.sevendays_states.log.dto.EntityKillLogEvent;
 import com.yuki.sevendays_states.log.dto.LevelXpSummaryLogEvent;
 import com.yuki.sevendays_states.log.dto.ParsedLogLine;
@@ -106,6 +107,7 @@ public class GameLogImportService {
   private final PlayerStatusService playerStatusService;
   private final T_VehicleCurrentStateRepository vehicleCurrentStateRepository;
   private final T_VehiclePositionTransactionRepository vehiclePositionRepository;
+  private final TimelinePostService timelinePostService;
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   private final GameLogLineParser lineParser = new GameLogLineParser();
@@ -307,6 +309,9 @@ public class GameLogImportService {
     row.setSourceFile(sourceFile);
     row.setSourceLogHash(hash);
     playerJoinRepository.save(row);
+    timelinePostService.publishGameEvent(TimelinePostType.LOGIN, playerId, event.playerName(),
+        event.occurredAt(), "", coordinate(event.positionX(), event.positionY(), event.positionZ()),
+        "PLAYER_JOIN", row.getId(), "PLAYER_JOIN:" + hash);
     counter.playerJoins++;
     return playerId;
   }
@@ -333,6 +338,8 @@ public class GameLogImportService {
     row.setSourceFile(sourceFile);
     row.setSourceLogHash(hash);
     playerLeaveRepository.save(row);
+    timelinePostService.publishGameEvent(TimelinePostType.LOGOUT, player == null ? null : player.getId(),
+        event.playerName(), event.occurredAt(), "", "", "PLAYER_LEAVE", row.getId(), "PLAYER_LEAVE:" + hash);
     counter.playerLeaves++;
   }
 
@@ -361,6 +368,10 @@ public class GameLogImportService {
     row.setSourceFile(sourceFile);
     row.setSourceLogHash(hash);
     entityKillRepository.save(row);
+    timelinePostService.publishGameEvent(TimelinePostType.KILL, row.getPlayerId(), event.playerName(),
+        event.occurredAt(), event.targetEntityType(),
+        coordinate(row.getPlayerPositionX(), row.getPlayerPositionY(), row.getPlayerPositionZ()),
+        "ENTITY_KILL", row.getId(), "ENTITY_KILL:" + hash);
     counter.entityKills++;
   }
 
@@ -370,6 +381,22 @@ public class GameLogImportService {
     }
     String normalized = name.toLowerCase(java.util.Locale.ROOT);
     return normalized.startsWith("zombie") || normalized.startsWith("animal");
+  }
+
+  private String coordinate(Integer x, Integer y, Integer z) {
+    return x == null || y == null || z == null ? "" : x + ", " + y + ", " + z;
+  }
+
+  private String worldEventText(String eventType, String detail) {
+    String event = switch (eventType == null ? "" : eventType) {
+      case "AIR_DROP" -> "補給物資が投下された。";
+      case "WANDERING_HORDE" -> "徘徊ホードが発生した。";
+      case "SCOUT_HORDE" -> "スクリーマーの気配がした。";
+      case "SCREAMER_SPAWN" -> "スクリーマーが出現した。";
+      case "BLOOD_MOON" -> "ブラッドムーン予定が更新された。";
+      default -> "世界でイベントが発生した。";
+    };
+    return detail == null || detail.isBlank() ? event : event + " " + detail;
   }
 
   private void saveLevelXpSummary(
@@ -451,6 +478,11 @@ public class GameLogImportService {
     row.setSourceFile(sourceFile);
     row.setSourceLogHash(hash);
     sleeperRepository.save(row);
+    if (!"SLEEPER_RESTORE".equals(event.transactionType())) {
+      timelinePostService.publishGameEvent(TimelinePostType.SLEEPER, row.getPlayerId(), row.getPlayerName(),
+          event.occurredAt(), event.entityClass(), coordinate(event.positionX(), event.positionY(), event.positionZ()),
+          "SLEEPER", row.getId(), "SLEEPER:" + hash);
+    }
     inferredPlayer.ifPresent(player -> {
       if (player.trustedForPositionUpdate()) {
         savePlayerPosition(
@@ -835,6 +867,12 @@ public class GameLogImportService {
     row.setSourceLogHash(hash);
     row.setRawLine(event.rawLine());
     worldEventRepository.save(row);
+    TimelinePostType postType = "PLAYER_DEATH".equals(event.eventType())
+        ? TimelinePostType.PLAYER_DEATH : TimelinePostType.WORLD_EVENT;
+    timelinePostService.publishGameEvent(postType, row.getPlayerId(), row.getActorPlayerName(), event.occurredAt(),
+        worldEventText(event.eventType(), event.detailText()),
+        coordinate(row.getPositionX(), row.getPositionY(), row.getPositionZ()),
+        "WORLD_EVENT", row.getId(), "WORLD_EVENT:" + hash);
     counter.worldEvents++;
   }
 

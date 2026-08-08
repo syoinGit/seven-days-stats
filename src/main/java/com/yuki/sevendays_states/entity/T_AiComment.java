@@ -40,6 +40,15 @@ public class T_AiComment {
   @Column(name = "source_type", nullable = false, length = 30)
   private String sourceType;
 
+  @Column(name = "post_type", nullable = false, length = 30)
+  private String postType = AiPostType.NORMAL.name();
+
+  @Column(name = "target_player_id")
+  private Long targetPlayerId;
+
+  @Column(name = "ai_generated", nullable = false)
+  private boolean aiGenerated;
+
   @Column(name = "summary", length = 500)
   private String summary;
 
@@ -56,6 +65,9 @@ public class T_AiComment {
     }
     if (sourceType == null) {
       sourceType = "MANUAL_BETA";
+    }
+    if (postType == null) {
+      postType = AiPostType.NORMAL.name();
     }
     if (createdAt == null) {
       createdAt = OffsetDateTime.now();
