@@ -96,6 +96,7 @@ class AiCommentServiceTests {
       assertThat(post.getPostType()).isEqualTo("WATCHPOINT");
       assertThat(post.getSourceId()).isEqualTo(generated.id());
       assertThat(post.getMessage()).isEqualTo("生存者の活動を確認。");
+      assertThat(post.getActorName()).isEqualTo("WATCHPOINT");
     });
   }
 
@@ -111,6 +112,11 @@ class AiCommentServiceTests {
       assertThat(entity.getPostType()).isEqualTo("PLAYER_ANALYSIS");
       assertThat(entity.isAiGenerated()).isTrue();
     });
+    assertThat(timelinePostRepository.findAll()).singleElement()
+        .satisfies(post -> {
+          assertThat(post.getActorName()).isEqualTo("観測分析局");
+          assertThat(post.getPostType()).isEqualTo("PLAYER_ANALYSIS");
+        });
   }
 
   @Test
@@ -126,6 +132,12 @@ class AiCommentServiceTests {
       assertThat(diary.summary()).isEqualTo("病院を中心に探索した一日。");
       assertThat(diary.tags()).containsExactly("探索", "病院");
       assertThat(diary.sourceType()).isEqualTo("AWS_BEDROCK_DIARY");
+    });
+    assertThat(timelinePostRepository.findAll()).singleElement().satisfies(post -> {
+      assertThat(post.getPostType()).isEqualTo("DIARY");
+      assertThat(post.getActorName()).isEqualTo("冒険記録局");
+      assertThat(post.getLinkUrl()).isEqualTo("/diaries/2026-08-03");
+      assertThat(post.getLinkLabel()).isEqualTo("日記を読む");
     });
   }
 }

@@ -46,6 +46,12 @@ public class T_TimelinePost {
   @Column(name = "coordinate", length = 80)
   private String coordinate;
 
+  @Column(name = "link_url", length = 300)
+  private String linkUrl;
+
+  @Column(name = "link_label", length = 80)
+  private String linkLabel;
+
   @Column(name = "source_type", nullable = false, length = 40)
   private String sourceType;
 

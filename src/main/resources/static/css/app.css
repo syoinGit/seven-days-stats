@@ -243,7 +243,9 @@ a { color: inherit; }
 .reaction-menu summary b { font-size: 9px; }
 .reaction-options { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 12; display: flex; gap: 6px; padding: 7px; border: 1px solid var(--line); background: #0b1011; box-shadow: var(--shadow); }
 
-.status-sidebar { padding: 18px; }
+.status-sidebar { position: sticky; top: 124px; align-self: start; max-height: calc(100vh - 136px); overflow-y: auto; padding: 18px; }
+.timeline-card-link { display: inline-flex; margin-top: 11px; padding: 7px 10px; border: 1px solid var(--signal); color: var(--signal); font-size: 10px; font-weight: 900; text-decoration: none; }
+.timeline-card-link:hover { color: #101313; background: var(--signal); }
 .side-module, .panel, .player-card, .metric-card, .leader-card, .vehicle-card { border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow); }
 .side-module { display: block; margin-bottom: 15px; padding: 15px; text-decoration: none; }
 .side-module h2 { margin: 5px 0 0; font-size: 15px; }
@@ -531,6 +533,7 @@ dd { margin: 4px 0 0; color: #c4c7c1; font-size: 11px; overflow-wrap: anywhere; 
   .rail a { flex: 0 0 auto; margin: 0; }
   .feed-column { border-right: 0; }
   .status-sidebar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .status-sidebar { position: static; max-height: none; overflow: visible; }
   .side-module { margin: 0; }
   .status-sidebar .side-module:nth-child(2) { grid-row: span 2; }
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
