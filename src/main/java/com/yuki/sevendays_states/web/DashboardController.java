@@ -180,8 +180,46 @@ public class DashboardController {
   }
 
   static TimelinePage timelinePage(TimelinePostService.FeedPage page) {
-    return new TimelinePage(page.posts().stream().map(TimelineItem::post).toList(),
+    return new TimelinePage(mergePresencePosts(page.posts().stream().map(TimelineItem::post).toList()),
         page.nextOffset(), page.hasMore());
+  }
+
+  static List<TimelineItem> mergePresencePosts(List<TimelineItem> items) {
+    List<TimelineItem> merged = new ArrayList<>();
+    for (int index = 0; index < items.size();) {
+      TimelineItem first = items.get(index);
+      if (!"LOGIN".equals(first.kind()) && !"LOGOUT".equals(first.kind())) {
+        merged.add(first);
+        index++;
+        continue;
+      }
+      List<TimelineItem> group = new ArrayList<>();
+      group.add(first);
+      LocalDateTime firstAt = parseTimelineTime(first.occurredAt());
+      int cursor = index + 1;
+      while (cursor < items.size()) {
+        TimelineItem candidate = items.get(cursor);
+        LocalDateTime candidateAt = parseTimelineTime(candidate.occurredAt());
+        if (!first.kind().equals(candidate.kind()) || firstAt == null || candidateAt == null
+            || Math.abs(java.time.Duration.between(firstAt, candidateAt).toMinutes()) > EVENT_WINDOW_MINUTES) {
+          break;
+        }
+        group.add(candidate);
+        cursor++;
+      }
+      if (group.size() == 1) {
+        merged.add(first);
+      } else {
+        String names = group.stream().map(TimelineItem::actor).distinct()
+            .collect(java.util.stream.Collectors.joining("、"));
+        String action = "LOGIN".equals(first.kind()) ? "荒野へログインしました。" : "荒野からログアウトしました。";
+        merged.add(new TimelineItem("POST", first.postId(), null, "接続監視", first.kind(),
+            first.occurredAt(), names + " が" + action, "", first.tone(), first.tag(), "", "",
+            first.reactions(), first.currentReaction(), false));
+      }
+      index = cursor;
+    }
+    return List.copyOf(merged);
   }
 
   /**
@@ -405,6 +443,9 @@ public class DashboardController {
       String message,
       String coordinate,
       String tone,
+      String tag,
+      String linkUrl,
+      String linkLabel,
       Map<ReactionType, Long> reactions,
       String currentReaction,
       boolean ownPost) {
@@ -418,6 +459,7 @@ public class DashboardController {
         String occurredAt, String message, String coordinate, String tone,
         Long likeCount, boolean likedByCurrentAccount, boolean ownPost) {
       this(itemType, postId, playerId, actor, kind, occurredAt, message, coordinate, tone,
+          kind, "", "",
           likeCount == null ? Map.of() : Map.of(ReactionType.NICE, likeCount),
           likedByCurrentAccount ? ReactionType.NICE.name() : null, ownPost);
     }
@@ -425,26 +467,49 @@ public class DashboardController {
     static TimelineItem event(DashboardViewService.TravelEntry event) {
       return new TimelineItem(
           "EVENT", null, null, event.actor(), event.kind(), event.occurredAt(),
-          event.message(), event.coordinate(), event.tone(), Map.of(), null, false);
+          event.message(), event.coordinate(), event.tone(), event.kind(), "", "", Map.of(), null, false);
     }
 
     static TimelineItem post(PlayerSocialService.PostView post) {
       return new TimelineItem(
           "POST", post.id(), post.playerId(), post.playerName(), "つぶやき", post.createdAt(),
-          post.body(), "", "community", post.reactions(), post.currentReaction(), post.own());
+          post.body(), "", "community", "投稿", "", "", post.reactions(), post.currentReaction(), post.own());
     }
 
     static TimelineItem aiComment(AiCommentService.AiCommentEntry comment) {
       return new TimelineItem(
-          "AI", null, comment.targetPlayerId(), "WATCHPOINT", comment.postType().displayLabel(),
+          "AI", null, comment.targetPlayerId(),
+          comment.postType() == com.yuki.sevendays_states.entity.AiPostType.NORMAL ? "WATCHPOINT" : "観測分析局",
+          comment.postType().displayLabel(),
           DISPLAY_TIME_FORMATTER.format(comment.publishedAt()),
-          comment.body(), "", "ai", Map.of(), null, false);
+          comment.body(), "", "ai", timelineTag("WATCHPOINT"), "", "", Map.of(), null, false);
     }
 
     static TimelineItem post(TimelinePostService.PostView post) {
+      Long actorPlayerId = switch (post.postType() == null ? "" : post.postType()) {
+        case "WATCHPOINT", "PLAYER_ANALYSIS", "SERVER_ANALYSIS", "DAILY_SUMMARY" -> null;
+        default -> post.playerId();
+      };
       return new TimelineItem(
-          "POST", post.id(), post.playerId(), post.actor(), "", post.occurredAt(), post.message(),
-          post.coordinate(), timelineTone(post.postType()), post.reactions(), post.currentReaction(), post.ownPost());
+          "POST", post.id(), actorPlayerId, post.actor(), post.postType(), post.occurredAt(), post.message(),
+          post.coordinate(), timelineTone(post.postType()), timelineTag(post.postType()),
+          post.linkUrl(), post.linkLabel(), post.reactions(), post.currentReaction(), post.ownPost());
+    }
+
+    private static String timelineTag(String postType) {
+      return switch (postType == null ? "" : postType) {
+        case "LOGIN", "LOGOUT" -> "接続情報";
+        case "KILL", "PLAYER_DEATH" -> "討伐情報";
+        case "BLOOD_MOON" -> "緊急警報";
+        case "WORLD_EVENT" -> "世界情報";
+        case "SLEEPER" -> "探索情報";
+        case "VEHICLE" -> "移動情報";
+        case "PLAYER_MESSAGE" -> "投稿";
+        case "DIARY" -> "冒険日記";
+        case "WATCHPOINT" -> "AI観測";
+        case "PLAYER_ANALYSIS", "SERVER_ANALYSIS", "DAILY_SUMMARY" -> "分析情報";
+        default -> "観測情報";
+      };
     }
 
     private static String timelineTone(String postType) {
@@ -456,7 +521,8 @@ public class DashboardController {
         case "WORLD_EVENT", "SLEEPER" -> "warning";
         case "VEHICLE" -> "movement";
         case "PLAYER_MESSAGE" -> "community";
-        case "WATCHPOINT" -> "ai";
+        case "DIARY" -> "exploration";
+        case "WATCHPOINT", "PLAYER_ANALYSIS", "SERVER_ANALYSIS", "DAILY_SUMMARY" -> "ai";
         default -> "neutral";
       };
     }

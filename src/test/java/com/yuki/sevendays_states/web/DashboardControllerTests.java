@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -213,9 +214,29 @@ class DashboardControllerTests {
     String template = Files.readString(Path.of("src/main/resources/templates/fragments/timeline.html"));
 
     assertThat(template)
-        .contains("tone-", "reaction-menu", "<details")
-        .doesNotContain("class=\"tag\"")
-        .doesNotContain("item.kind}");
+        .contains("tone-", "reaction-menu", "<details", "class=\"tag\"", "item.tag");
+  }
+
+  @Test
+  void mergesNearbyLoginPostsButKeepsLogoutSeparate() {
+    var loginA = timelinePost(1L, "A", "LOGIN", "2026-08-05 19:40:00");
+    var loginB = timelinePost(2L, "B", "LOGIN", "2026-08-05 19:38:00");
+    var logout = timelinePost(3L, "C", "LOGOUT", "2026-08-05 19:37:00");
+
+    List<DashboardController.TimelineItem> merged = DashboardController.mergePresencePosts(
+        List.of(loginA, loginB, logout));
+
+    assertThat(merged).hasSize(2);
+    assertThat(merged.getFirst().actor()).isEqualTo("接続監視");
+    assertThat(merged.getFirst().message()).contains("A", "B", "ログイン");
+    assertThat(merged.get(1).kind()).isEqualTo("LOGOUT");
+  }
+
+  private static DashboardController.TimelineItem timelinePost(
+      Long id, String actor, String kind, String occurredAt) {
+    return new DashboardController.TimelineItem(
+        "POST", id, null, actor, kind, occurredAt, actor + " activity", "", "login",
+        "接続情報", "", "", Map.of(), null, false);
   }
 
   @Test

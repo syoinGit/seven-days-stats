@@ -10,9 +10,12 @@
         <a class="feed-actor" th:if="${item.playerId != null and !currentViewer}"
            th:href="@{/players/{id}(id=${item.playerId})}" th:text="${item.actor}">survivor</a>
         <strong th:if="${item.playerId == null or currentViewer}" th:text="${item.actor}">observer</strong>
+        <span class="tag" th:text="${item.tag}">観測情報</span>
         <time th:text="${item.occurredAt ?: '-'}">time</time>
       </header>
       <p class="event-message" th:text="${item.message}">荒野で何かが起きた</p>
+      <a class="timeline-card-link" th:if="${!#strings.isEmpty(item.linkUrl)}"
+         th:href="${item.linkUrl}" th:text="${item.linkLabel}">詳しく見る</a>
       <footer class="social-actions" th:if="${(loggedIn and !currentViewer) or item.reactionCount() > 0 or item.ownPost}">
         <details class="reaction-menu" th:if="${(loggedIn and !currentViewer) or item.reactionCount() > 0}">
           <summary aria-label="リアクションを表示">

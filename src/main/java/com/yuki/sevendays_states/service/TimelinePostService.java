@@ -1,5 +1,6 @@
 package com.yuki.sevendays_states.service;
 
+import com.yuki.sevendays_states.entity.AiPostType;
 import com.yuki.sevendays_states.entity.M_Player;
 import com.yuki.sevendays_states.entity.M_WebAccount;
 import com.yuki.sevendays_states.entity.ReactionType;
@@ -10,6 +11,7 @@ import com.yuki.sevendays_states.repository.M_PlayerRepository;
 import com.yuki.sevendays_states.repository.T_TimelinePostReactionRepository;
 import com.yuki.sevendays_states.repository.T_TimelinePostRepository;
 import com.yuki.sevendays_states.util.DisplayTimeFormatter;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.EnumMap;
 import java.util.List;
@@ -63,7 +65,7 @@ public class TimelinePostService {
     if (player == null) return PlayerSocialService.ActionResult.failure("紐付いたゲームプレイヤーが見つかりません。");
     OffsetDateTime now = OffsetDateTime.now();
     save(TimelinePostType.PLAYER_MESSAGE, "PLAYER", player.getId(), player.getPlayerName(), body, "",
-        "PLAYER_POST", null, "PLAYER_POST:" + account.get().getId() + ":" + now.toInstant(), 100, now);
+        "", "", "PLAYER_POST", null, "PLAYER_POST:" + account.get().getId() + ":" + now.toInstant(), 100, now);
     return PlayerSocialService.ActionResult.success("投稿しました。");
   }
 
@@ -134,18 +136,38 @@ public class TimelinePostService {
               playerId, type.name(), after);
       if (coolingDown) return;
     }
-    save(type, "GAME", playerId, displayName(playerName), messageFactory.message(type, playerName, detail, sourceHash),
-        coordinate, sourceType, sourceId, sourceHash, type.publishChance(), occurredAt);
+    String actorName = type == TimelinePostType.BLOOD_MOON ? "緊急警報" : displayName(playerName);
+    save(type, "GAME", playerId, actorName, messageFactory.message(type, playerName, detail, sourceHash),
+        coordinate, "", "", sourceType, sourceId, sourceHash, type.publishChance(), occurredAt);
   }
 
   @Transactional
-  public void publishWatchpoint(Long commentId, Long targetPlayerId, OffsetDateTime publishedAt, String body) {
+  public void publishWatchpoint(Long commentId, Long targetPlayerId, OffsetDateTime publishedAt,
+      String body, AiPostType aiPostType) {
     if (commentId == null) return;
     String sourceHash = "AI_COMMENT:" + commentId;
     if (!postRepository.existsBySourceHash(sourceHash)) {
-      save(TimelinePostType.WATCHPOINT, "WATCHPOINT", targetPlayerId, "WATCHPOINT", body, "",
+      String actor = aiPostType == AiPostType.NORMAL ? "WATCHPOINT" : "観測分析局";
+      TimelinePostType timelineType = switch (aiPostType) {
+        case NORMAL -> TimelinePostType.WATCHPOINT;
+        case PLAYER_ANALYSIS -> TimelinePostType.PLAYER_ANALYSIS;
+        case SERVER_ANALYSIS -> TimelinePostType.SERVER_ANALYSIS;
+        case DAILY_SUMMARY -> TimelinePostType.DAILY_SUMMARY;
+      };
+      save(timelineType, "WATCHPOINT", targetPlayerId, actor, body, "", "", "",
           "AI_COMMENT", commentId, sourceHash, 100, publishedAt);
     }
+  }
+
+  @Transactional
+  public void publishDiary(Long commentId, LocalDate diaryDate, OffsetDateTime publishedAt,
+      String title) {
+    if (commentId == null || diaryDate == null) return;
+    String sourceHash = "DIARY:" + commentId + ":" + publishedAt.toInstant();
+    save(TimelinePostType.DIARY, "ARCHIVE", null, "冒険記録局",
+        diaryDate + " の冒険日記「" + displayName(title) + "」を記録しました。",
+        "", "/diaries/" + diaryDate, "日記を読む", "AI_DIARY", commentId, sourceHash, 100,
+        publishedAt);
   }
 
   private boolean selected(TimelinePostType type, String sourceHash) {
@@ -153,7 +175,8 @@ public class TimelinePostService {
   }
 
   private void save(TimelinePostType type, String actorType, Long actorPlayerId, String actorName,
-      String message, String coordinate, String sourceType, Long sourceId, String sourceHash,
+      String message, String coordinate, String linkUrl, String linkLabel,
+      String sourceType, Long sourceId, String sourceHash,
       int priority, OffsetDateTime publishedAt) {
     T_TimelinePost post = new T_TimelinePost();
     post.setPostType(type.name());
@@ -162,6 +185,8 @@ public class TimelinePostService {
     post.setActorName(displayName(actorName));
     post.setMessage(message);
     post.setCoordinate(coordinate == null ? "" : coordinate);
+    post.setLinkUrl(linkUrl == null ? "" : linkUrl);
+    post.setLinkLabel(linkLabel == null ? "" : linkLabel);
     post.setSourceType(sourceType);
     post.setSourceId(sourceId);
     post.setSourceHash(sourceHash);
@@ -184,6 +209,7 @@ public class TimelinePostService {
         .map(T_TimelinePostReaction::getReactionType).orElse(null);
     return new PostView(post.getId(), post.getActorPlayerId(), post.getActorName(), post.getMessage(),
         displayTimeFormatter.format(post.getPublishedAt()), post.getCoordinate(), post.getPostType(),
+        post.getLinkUrl(), post.getLinkLabel(),
         reactions, currentReaction,
         current != null && current.getPlayerId() != null && current.getPlayerId().equals(post.getActorPlayerId())
             && "PLAYER_MESSAGE".equals(post.getPostType()));
@@ -194,6 +220,7 @@ public class TimelinePostService {
   public record FeedPage(List<PostView> posts, int nextOffset, boolean hasMore) { }
 
   public record PostView(Long id, Long playerId, String actor, String message, String occurredAt,
-                         String coordinate, String postType, Map<ReactionType, Long> reactions,
+                         String coordinate, String postType, String linkUrl, String linkLabel,
+                         Map<ReactionType, Long> reactions,
                          String currentReaction, boolean ownPost) { }
 }

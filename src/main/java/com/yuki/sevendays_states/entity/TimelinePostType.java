@@ -10,8 +10,12 @@ public enum TimelinePostType {
   VEHICLE(45, 8),
   SLEEPER(38, 8),
   KILL(24, 12),
+  DIARY(100, 0),
   PLAYER_MESSAGE(100, 0),
-  WATCHPOINT(100, 0);
+  WATCHPOINT(100, 0),
+  PLAYER_ANALYSIS(100, 0),
+  SERVER_ANALYSIS(100, 0),
+  DAILY_SUMMARY(100, 0);
 
   private final int publishChance;
   private final int cooldownMinutes;

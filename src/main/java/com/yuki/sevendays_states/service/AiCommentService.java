@@ -174,7 +174,10 @@ public class AiCommentService {
   private AiCommentEntry publishToTimeline(T_AiComment comment) {
     AiCommentEntry entry = toEntry(comment);
     if (entry.diaryDate() == null) {
-      timelinePostService.publishWatchpoint(entry.id(), entry.targetPlayerId(), entry.publishedAt(), entry.body());
+      timelinePostService.publishWatchpoint(entry.id(), entry.targetPlayerId(), entry.publishedAt(),
+          entry.body(), entry.postType());
+    } else {
+      timelinePostService.publishDiary(entry.id(), entry.diaryDate(), entry.publishedAt(), entry.title());
     }
     return entry;
   }
