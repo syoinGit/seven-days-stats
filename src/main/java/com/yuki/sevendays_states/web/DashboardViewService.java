@@ -41,8 +41,13 @@ public class DashboardViewService {
   private final DisplayTimeFormatter displayTimeFormatter = new DisplayTimeFormatter();
 
   public DashboardView dashboard() {
+    return dashboard(true);
+  }
+
+  /** Legacy event projection is retained for reporting screens/tests; the live feed has its own read model. */
+  public DashboardView dashboard(boolean includeLegacyTimeline) {
     List<PlayerStatus> playerStatuses = playerStatuses();
-    List<TravelEntry> travelEntries = travelEntries();
+    List<TravelEntry> travelEntries = includeLegacyTimeline ? travelEntries() : List.of();
     List<VehicleStatus> vehicleStatuses = vehicleStatuses();
     ServerState serverState = withOnlinePlayerCount(latestServerState());
     WorldTimeStatus worldTime = latestWorldTime();

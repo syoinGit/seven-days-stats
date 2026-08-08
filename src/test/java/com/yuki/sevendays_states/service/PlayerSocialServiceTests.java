@@ -8,6 +8,8 @@ import com.yuki.sevendays_states.repository.M_PlayerRepository;
 import com.yuki.sevendays_states.repository.M_WebAccountRepository;
 import com.yuki.sevendays_states.repository.T_PlayerPostLikeRepository;
 import com.yuki.sevendays_states.repository.T_PlayerPostRepository;
+import com.yuki.sevendays_states.repository.T_TimelinePostReactionRepository;
+import com.yuki.sevendays_states.repository.T_TimelinePostRepository;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +42,12 @@ class PlayerSocialServiceTests {
 
   @Autowired
   private T_PlayerPostLikeRepository likeRepository;
+
+  @Autowired
+  private T_TimelinePostRepository timelinePostRepository;
+
+  @Autowired
+  private T_TimelinePostReactionRepository timelineReactionRepository;
 
   private Authentication authentication;
 
@@ -86,7 +94,7 @@ class PlayerSocialServiceTests {
     socialService.toggleLike(authentication, postId);
 
     assertThat(socialService.deletePost(authentication, postId).success()).isTrue();
-    assertThat(postRepository.existsById(postId)).isFalse();
-    assertThat(likeRepository.countByPostId(postId)).isZero();
+    assertThat(timelinePostRepository.existsById(postId)).isFalse();
+    assertThat(timelineReactionRepository.findAllByTimelinePostId(postId)).isEmpty();
   }
 }

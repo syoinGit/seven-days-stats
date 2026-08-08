@@ -30,7 +30,7 @@ public class WebSecurityConfig {
             .requestMatchers("/maintenance/**").hasRole("ADMIN")
             .requestMatchers(
                 HttpMethod.POST, "/players/*/status", "/posts", "/posts/*/like",
-                "/posts/*/like.json", "/posts/*/delete")
+                "/posts/*/like.json", "/posts/*/react", "/posts/*/delete")
             .hasAnyRole("PLAYER", "ADMIN")
             .anyRequest().authenticated())
         .formLogin(form -> form

@@ -1,0 +1,13 @@
+ALTER TABLE T_AI_COMMENT ADD COLUMN post_type VARCHAR(30) NOT NULL DEFAULT 'NORMAL';
+ALTER TABLE T_AI_COMMENT ADD COLUMN target_player_id BIGINT REFERENCES M_PLAYER(id);
+ALTER TABLE T_AI_COMMENT ADD COLUMN ai_generated BOOLEAN NOT NULL DEFAULT FALSE;
+
+UPDATE T_AI_COMMENT
+SET ai_generated = source_type LIKE 'AWS_BEDROCK%';
+
+CREATE INDEX idx_t_ai_comment_post_type_published
+    ON T_AI_COMMENT(post_type, published_at DESC);
+CREATE INDEX idx_t_ai_comment_target_player
+    ON T_AI_COMMENT(target_player_id, published_at DESC);
+
+ALTER TABLE T_PLAYER_POST_LIKE ADD COLUMN reaction_type VARCHAR(20) NOT NULL DEFAULT 'HEART';

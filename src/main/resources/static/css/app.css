@@ -226,6 +226,7 @@ a { color: inherit; }
 .timeline-login-prompt { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 18px 18px; padding: 11px 13px; border: 1px dashed var(--line); color: var(--muted); font-size: 10px; }
 .timeline-login-prompt a { color: var(--signal); font-weight: 900; white-space: nowrap; }
 .social-actions .like-button span, .social-actions .like-count span { color: inherit; }
+.reaction-form { margin: 0; }
 .social-actions { display: flex; align-items: center; gap: 8px; }
 .social-actions form { margin: 0; }
 

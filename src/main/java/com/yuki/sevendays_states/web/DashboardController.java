@@ -4,7 +4,7 @@ import com.yuki.sevendays_states.service.AiCommentService;
 import com.yuki.sevendays_states.service.CurrentWebAccountService;
 import com.yuki.sevendays_states.service.PlayerSocialService;
 import com.yuki.sevendays_states.service.PlayerStatusService;
-import com.yuki.sevendays_states.service.WatchpointAiPublishingService;
+import com.yuki.sevendays_states.service.TimelinePostService;
 import com.yuki.sevendays_states.service.WatchpointDiaryPublishingService;
 import com.yuki.sevendays_states.util.DisplayTimeFormatter;
 import java.time.LocalDate;
@@ -15,6 +15,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import com.yuki.sevendays_states.entity.ReactionType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -36,7 +37,7 @@ public class DashboardController {
   private static final DateTimeFormatter TIMELINE_TIME =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
   private static final int EVENT_WINDOW_MINUTES = 5;
-  private static final int INITIAL_TIMELINE_ITEMS = 18;
+  private static final int INITIAL_TIMELINE_ITEMS = 12;
   private static final int RECENT_POST_MINUTES = 60;
   private static final DisplayTimeFormatter DISPLAY_TIME_FORMATTER = new DisplayTimeFormatter();
 
@@ -47,6 +48,7 @@ public class DashboardController {
   private final PlayerStatusService playerStatusService;
   private final CurrentWebAccountService currentAccountService;
   private final PlayerSocialService playerSocialService;
+  private final TimelinePostService timelinePostService;
   private final WatchpointDiaryPublishingService diaryPublishingService;
 
   @GetMapping("/")
@@ -58,13 +60,24 @@ public class DashboardController {
 
   @GetMapping("/dashboard")
   public String index(Model model, Authentication authentication) {
-    DashboardViewService.DashboardView dashboard = dashboardViewService.dashboard();
+    DashboardViewService.DashboardView dashboard = dashboardViewService.dashboard(false);
     model.addAttribute("dashboard", dashboard);
-    model.addAttribute("timeline", timeline(
-        dashboard.travelEntries(),
-        playerSocialService.feed(authentication),
-        aiCommentService.latestBySourceType(WatchpointAiPublishingService.SOURCE_TYPE, 20)));
+    model.addAttribute("timelinePage", timelinePage(timelinePostService.feed(authentication, 0)));
     return "dashboard";
+  }
+
+  /**
+   * The live dashboard initially renders only one small page. Older entries are fetched as an
+   * HTML fragment when the reader reaches the bottom, keeping long-running servers from putting
+   * their entire history into one response or DOM tree.
+   */
+  @GetMapping("/dashboard/timeline")
+  public String olderTimeline(
+      @RequestParam(defaultValue = "0") int offset,
+      Model model,
+      Authentication authentication) {
+    model.addAttribute("timelinePage", timelinePage(timelinePostService.feed(authentication, offset)));
+    return "fragments/timeline :: page";
   }
 
   @PostMapping("/players/{playerId}/status")
@@ -106,6 +119,17 @@ public class DashboardController {
     return "redirect:/dashboard#timeline";
   }
 
+  @PostMapping("/posts/{postId}/react")
+  public String toggleReaction(
+      @PathVariable Long postId,
+      @RequestParam String reaction,
+      Authentication authentication,
+      RedirectAttributes redirectAttributes) {
+    var result = playerSocialService.toggleReaction(authentication, postId, reaction);
+    redirectAttributes.addFlashAttribute(result.success() ? "notice" : "error", result.message());
+    return "redirect:/dashboard#timeline";
+  }
+
   @PostMapping(value = "/posts/{postId}/like.json", produces = MediaType.APPLICATION_JSON_VALUE)
   @ResponseBody
   public PlayerSocialService.LikeResult toggleLikeJson(
@@ -142,6 +166,22 @@ public class DashboardController {
         TimelineItem::occurredAt,
         Comparator.nullsLast(Comparator.reverseOrder())));
     return curatedTimeline(timeline);
+  }
+
+  static TimelinePage timelinePage(
+      List<DashboardViewService.TravelEntry> events,
+      List<PlayerSocialService.PostView> posts,
+      List<AiCommentService.AiCommentEntry> aiComments,
+      int offset) {
+    List<TimelineItem> all = timeline(events, posts, aiComments);
+    int from = Math.max(0, Math.min(offset, all.size()));
+    int to = Math.min(from + INITIAL_TIMELINE_ITEMS, all.size());
+    return new TimelinePage(all.subList(from, to), to, to < all.size());
+  }
+
+  static TimelinePage timelinePage(TimelinePostService.FeedPage page) {
+    return new TimelinePage(page.posts().stream().map(TimelineItem::post).toList(),
+        page.nextOffset(), page.hasMore());
   }
 
   /**
@@ -365,27 +405,46 @@ public class DashboardController {
       String message,
       String coordinate,
       String tone,
-      Long likeCount,
-      boolean likedByCurrentAccount,
+      Map<ReactionType, Long> reactions,
+      String currentReaction,
       boolean ownPost) {
+
+    public TimelineItem(
+        String itemType, Long postId, Long playerId, String actor, String kind,
+        String occurredAt, String message, String coordinate, String tone,
+        Long likeCount, boolean likedByCurrentAccount, boolean ownPost) {
+      this(itemType, postId, playerId, actor, kind, occurredAt, message, coordinate, tone,
+          likeCount == null ? Map.of() : Map.of(ReactionType.NICE, likeCount),
+          likedByCurrentAccount ? ReactionType.NICE.name() : null, ownPost);
+    }
 
     static TimelineItem event(DashboardViewService.TravelEntry event) {
       return new TimelineItem(
           "EVENT", null, null, event.actor(), event.kind(), event.occurredAt(),
-          event.message(), event.coordinate(), event.tone(), null, false, false);
+          event.message(), event.coordinate(), event.tone(), Map.of(), null, false);
     }
 
     static TimelineItem post(PlayerSocialService.PostView post) {
       return new TimelineItem(
           "POST", post.id(), post.playerId(), post.playerName(), "つぶやき", post.createdAt(),
-          post.body(), "", "community", post.likeCount(), post.likedByCurrentAccount(), post.own());
+          post.body(), "", "community", post.reactions(), post.currentReaction(), post.own());
     }
 
     static TimelineItem aiComment(AiCommentService.AiCommentEntry comment) {
       return new TimelineItem(
-          "AI", null, null, "WATCHPOINT", "観測AI", DISPLAY_TIME_FORMATTER.format(comment.publishedAt()),
-          comment.body(), "", "ai", null, false, false);
+          "AI", null, comment.targetPlayerId(), "WATCHPOINT", comment.postType().displayLabel(),
+          DISPLAY_TIME_FORMATTER.format(comment.publishedAt()),
+          comment.body(), "", "ai", Map.of(), null, false);
     }
+
+    static TimelineItem post(TimelinePostService.PostView post) {
+      return new TimelineItem(
+          "POST", post.id(), post.playerId(), post.actor(), "", post.occurredAt(), post.message(),
+          post.coordinate(), "neutral", post.reactions(), post.currentReaction(), post.ownPost());
+    }
+  }
+
+  public record TimelinePage(List<TimelineItem> items, int nextOffset, boolean hasMore) {
   }
 
 }

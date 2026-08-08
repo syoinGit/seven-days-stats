@@ -35,6 +35,10 @@ WATCHPOINT turns collected server logs into a mechanical, wasteland-themed activ
 - Infers exploration when an online player remains within 20 metres for at least three minutes; otherwise the automatic status remains moving/online, while manual statuses take precedence.
 - Sends status changes back to the game through the optional Telnet command client; offline players remain read-only and show their last known location.
 - Mixes player posts and Bedrock-generated WATCHPOINT observations into the adventure timeline; daily journals live in the right sidebar so the central feed stays focused.
+- Publishes typed WATCHPOINT posts (`NORMAL`, survivor/server analysis, and a short daily summary); only `NORMAL` is broadcast to the in-game chat.
+- Uses compact aggregate-only payloads for analysis posts, caps paid timeline generation at 10 posts per JST day by default, and skips empty observation windows.
+- Keeps all game, player, and AI history in the database, renders only the latest 12 timeline items initially, and progressively reveals older items while scrolling.
+- Replaces the single like action with lightweight game-oriented emoji reactions.
 - Uses a public landing page, then requires authentication for the dashboard and all data pages.
 - Supports a read-only `VIEWER` guest login alongside `PLAYER` and `ADMIN` accounts; guest responses anonymize player names and external platform IDs, remove player-dossier links, and never expose mutation controls.
 - Lets administrators issue login accounts, link each account to one game player, and reset non-guest passwords; passwords are stored as BCrypt hashes.
@@ -90,6 +94,7 @@ WATCHPOINT_AI_BEDROCK_ENABLED=false
 WATCHPOINT_AI_AWS_REGION=ap-northeast-1
 WATCHPOINT_AI_BEDROCK_MODEL_ID=jp.anthropic.claude-haiku-4-5-20251001-v1:0
 WATCHPOINT_AI_SCHEDULE_MINUTES=30
+WATCHPOINT_AI_MAX_POSTS_PER_DAY=10
 ```
 
 `AI_COMMENT_EDITOR_KEY` protects diary publishing under `/maintenance/diaries`.

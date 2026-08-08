@@ -1,6 +1,7 @@
 package com.yuki.sevendays_states.web;
 
 import com.yuki.sevendays_states.config.AiAnalysisProperties;
+import com.yuki.sevendays_states.entity.AiPostType;
 import com.yuki.sevendays_states.service.WatchpointSystemPromptProvider;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -39,6 +40,63 @@ public class WatchpointAiObservationService {
   @Transactional(readOnly = true)
   public AnalysisRequest buildRequest() {
     return buildRequest(OffsetDateTime.now(ZoneOffset.UTC));
+  }
+
+  /** Builds a compact, aggregate-first payload for paid analysis generations. */
+  public AnalysisRequest buildRequest(AiPostType postType, int playerOffset) {
+    AnalysisRequest base = buildRequest();
+    if (postType == AiPostType.NORMAL) {
+      return base;
+    }
+    Observation source = postType == AiPostType.DAILY_SUMMARY
+        ? dailyObservation(base.generatedAt(), base.observation().dataPolicy())
+        : base.observation();
+    List<SurvivorActivity> survivors = source.survivors();
+    if (postType == AiPostType.PLAYER_ANALYSIS && !survivors.isEmpty()) {
+      survivors = List.of(survivors.get(Math.floorMod(playerOffset, survivors.size())));
+    } else if (postType != AiPostType.SERVER_ANALYSIS && postType != AiPostType.DAILY_SUMMARY) {
+      survivors = List.of();
+    }
+    if (postType == AiPostType.SERVER_ANALYSIS || postType == AiPostType.DAILY_SUMMARY) {
+      survivors = survivors.stream().limit(5).toList();
+    }
+    Observation compact = new Observation(
+        source.currentWindow(), source.comparisonWindow(), source.world(), source.currentTotals(),
+        source.comparisonTotals(), survivors, List.of(), List.of(), source.dataPolicy());
+    return new AnalysisRequest(
+        "watchpoint.analysis.v1", base.generatedAt(), base.providerHint(), base.systemPrompt(),
+        analysisTask(postType), base.outputContract(), compact);
+  }
+
+  private Observation dailyObservation(OffsetDateTime at, DataPolicy dataPolicy) {
+    java.time.ZoneId tokyo = java.time.ZoneId.of("Asia/Tokyo");
+    OffsetDateTime from = at.atZoneSameInstant(tokyo).toLocalDate()
+        .atStartOfDay(tokyo).toOffsetDateTime();
+    OffsetDateTime previousFrom = from.minusDays(1);
+    Map<String, List<String>> noPois = Map.of();
+    return new Observation(
+        new ObservationWindow(from, at, (int) java.time.Duration.between(from, at).toMinutes()),
+        new ObservationWindow(previousFrom, from, 1440), worldContext(at),
+        activityTotals(from, at), activityTotals(previousFrom, from),
+        survivorActivities(from, at, noPois), List.of(), List.of(), dataPolicy);
+  }
+
+  private String analysisTask(AiPostType postType) {
+    return switch (postType) {
+      case PLAYER_ANALYSIS -> """
+          survivors に含まれる一人の生存者について、集計値から最も興味深い傾向を一つだけ短く述べてください。
+          数字の列挙、感情や因果関係の創作は禁止です。根拠キーは対象 survivor の evidenceKey を返してください。
+          """.strip();
+      case SERVER_ANALYSIS -> """
+          サーバー全体の集計と比較値から、最も興味深い変化を一つだけ短く述べてください。
+          数字の列挙や根拠のない推測は禁止です。current-totals、comparison-totals、world-contextから根拠を返してください。
+          """.strip();
+      case DAILY_SUMMARY -> """
+          今日の観測を閉じる短い総括として、集計から分かる一つの特徴を100〜200文字で述べてください。
+          長い日誌にはせず、数字の列挙や根拠のない創作は禁止です。
+          """.strip();
+      case NORMAL -> TASK.strip();
+    };
   }
 
   AnalysisRequest buildRequest(OffsetDateTime generatedAt) {

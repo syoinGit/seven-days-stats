@@ -35,7 +35,7 @@ class DashboardControllerTests {
     String viewName = controller.index(model, null);
 
     assertThat(viewName).isEqualTo("dashboard");
-    assertThat(model).containsKeys("dashboard", "timeline");
+    assertThat(model).containsKeys("dashboard", "timelinePage");
   }
 
   @Test
@@ -52,6 +52,22 @@ class DashboardControllerTests {
     assertThat(timeline)
         .extracting(DashboardController.TimelineItem::itemType)
         .containsExactly("POST", "EVENT");
+  }
+
+  @Test
+  void timelinePageReturnsOnlyOneSmallPageAndCursorForOlderEntries() {
+    List<DashboardViewService.TravelEntry> events = IntStream.range(0, 30)
+        .mapToObj(index -> travelEntry(
+            "2026-08-05 %02d:%02d:00".formatted(18 + index / 12, (index % 12) * 5),
+            "Player" + index))
+        .toList();
+
+    DashboardController.TimelinePage page = DashboardController.timelinePage(
+        events, List.of(), List.of(), 0);
+
+    assertThat(page.items()).hasSize(12);
+    assertThat(page.nextOffset()).isEqualTo(12);
+    assertThat(page.hasMore()).isTrue();
   }
 
   @Test
@@ -190,6 +206,16 @@ class DashboardControllerTests {
         .doesNotContain("nativeUserId")
         .doesNotContain("sourceLogHash")
         .doesNotContain("sourceFile");
+  }
+
+  @Test
+  void timelineTemplateUsesOneNeutralPostPresentationWithoutTypeBadges() throws Exception {
+    String template = Files.readString(Path.of("src/main/resources/templates/fragments/timeline.html"));
+
+    assertThat(template)
+        .doesNotContain("tone-")
+        .doesNotContain("class=\"tag\"")
+        .doesNotContain("item.kind}");
   }
 
   @Test

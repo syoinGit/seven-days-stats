@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const timelineRefreshNoticeMs = 5 * 60 * 1000;
+  const timelineRefreshNoticeMs = 60 * 1000;
   const refreshButton = document.querySelector("[data-refresh-page]");
   if (refreshButton) {
     refreshButton.addEventListener("click", () => window.location.reload());
@@ -9,34 +9,51 @@ document.addEventListener("DOMContentLoaded", () => {
     }, timelineRefreshNoticeMs);
   }
 
-  const timelineItems = Array.from(document.querySelectorAll("[data-timeline-item]"));
+  // Refresh only while the reader is near the live edge. Never throw someone back
+  // to the top while they are browsing older observations.
+  window.setInterval(() => {
+    const active = document.activeElement;
+    const composing = active && (active.tagName === "TEXTAREA" || active.tagName === "INPUT");
+    if (!document.hidden && !composing && window.scrollY < 300) window.location.reload();
+  }, 60 * 1000);
+
+  const timeline = document.querySelector("#timeline");
   const timelineLoader = document.querySelector("[data-timeline-loader]");
   const timelineProgress = document.querySelector("[data-timeline-progress]");
-  const initialTimelineItems = 18;
-  const timelinePageSize = 15;
-  let visibleTimelineItems = Math.min(initialTimelineItems, timelineItems.length);
+  let loadingOlder = false;
 
-  const renderTimelinePage = () => {
-    visibleTimelineItems = Math.min(visibleTimelineItems, timelineItems.length);
-    timelineItems.forEach((item, index) => { item.hidden = index >= visibleTimelineItems; });
-    if (timelineProgress) timelineProgress.textContent = visibleTimelineItems < timelineItems.length
-      ? `${timelineItems.length - visibleTimelineItems}件の過去ログ`
-      : "観測済み";
-    if (timelineLoader) timelineLoader.hidden = visibleTimelineItems >= timelineItems.length;
-  };
-
-  if (timelineLoader && timelineItems.length > initialTimelineItems) {
-    renderTimelinePage();
-    const loadMore = () => {
-      visibleTimelineItems += timelinePageSize;
-      renderTimelinePage();
+  if (timeline && timelineLoader && !timelineLoader.hidden) {
+    const loadMore = async () => {
+      if (loadingOlder || timelineLoader.hidden) return;
+      loadingOlder = true;
+      timelineLoader.classList.add("is-loading");
+      try {
+        const offset = timelineLoader.dataset.nextOffset || "0";
+        const response = await fetch(`${timeline.dataset.timelineUrl}?offset=${encodeURIComponent(offset)}`, {
+          headers: { Accept: "text/html" }, credentials: "same-origin"
+        });
+        if (!response.ok) throw new Error("Timeline page request failed");
+        const documentPage = new DOMParser().parseFromString(await response.text(), "text/html");
+        const meta = documentPage.querySelector("[data-timeline-page-meta]");
+        const items = documentPage.querySelectorAll("[data-timeline-item]");
+        items.forEach((item) => timeline.append(item));
+        const hasMore = meta?.dataset.hasMore === "true";
+        if (meta?.dataset.nextOffset) timelineLoader.dataset.nextOffset = meta.dataset.nextOffset;
+        timelineLoader.hidden = !hasMore || items.length === 0;
+        if (timelineProgress) timelineProgress.textContent = hasMore ? "さらに過去の記録" : "これより前の記録はありません";
+      } catch (_error) {
+        if (timelineProgress) timelineProgress.textContent = "読み込みに失敗しました。再試行してください。";
+      } finally {
+        loadingOlder = false;
+        timelineLoader.classList.remove("is-loading");
+      }
     };
     timelineLoader.addEventListener("click", loadMore);
     if ("IntersectionObserver" in window) {
       const observer = new IntersectionObserver((entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
           loadMore();
-          if (visibleTimelineItems >= timelineItems.length) observer.disconnect();
+          if (timelineLoader.hidden) observer.disconnect();
         }
       }, { rootMargin: "240px 0px" });
       observer.observe(timelineLoader);

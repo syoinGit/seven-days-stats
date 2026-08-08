@@ -1,6 +1,8 @@
 package com.yuki.sevendays_states.service;
 
 import com.yuki.sevendays_states.repository.T_AiCommentRepository;
+import com.yuki.sevendays_states.repository.T_TimelinePostRepository;
+import com.yuki.sevendays_states.entity.AiPostType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,8 +29,12 @@ class AiCommentServiceTests {
   @Autowired
   private T_AiCommentRepository repository;
 
+  @Autowired
+  private T_TimelinePostRepository timelinePostRepository;
+
   @BeforeEach
   void resetData() {
+    timelinePostRepository.deleteAll();
     repository.deleteAll();
   }
 
@@ -80,6 +86,31 @@ class AiCommentServiceTests {
     assertThat(service.latestBySourceType("AWS_BEDROCK", 20))
         .singleElement()
         .satisfies(comment -> assertThat(comment.body()).isEqualTo("静かな探索が続いています。"));
+  }
+
+  @Test
+  void mirrorsGeneratedAiObservationsIntoTheUnifiedTimeline() {
+    var generated = service.publishGenerated("観測", "生存者の活動を確認。", "AWS_BEDROCK");
+
+    assertThat(timelinePostRepository.findAll()).singleElement().satisfies(post -> {
+      assertThat(post.getPostType()).isEqualTo("WATCHPOINT");
+      assertThat(post.getSourceId()).isEqualTo(generated.id());
+      assertThat(post.getMessage()).isEqualTo("生存者の活動を確認。");
+    });
+  }
+
+  @Test
+  void persistsAiPostTypeAndGeneratedFlag() {
+    var saved = service.publishGenerated(
+        "WATCHPOINT観測記録", "生存者の活動を分析しました。", "AWS_BEDROCK",
+        AiPostType.PLAYER_ANALYSIS, null);
+
+    assertThat(saved.postType()).isEqualTo(AiPostType.PLAYER_ANALYSIS);
+    assertThat(saved.aiGenerated()).isTrue();
+    assertThat(repository.findById(saved.id())).get().satisfies(entity -> {
+      assertThat(entity.getPostType()).isEqualTo("PLAYER_ANALYSIS");
+      assertThat(entity.isAiGenerated()).isTrue();
+    });
   }
 
   @Test

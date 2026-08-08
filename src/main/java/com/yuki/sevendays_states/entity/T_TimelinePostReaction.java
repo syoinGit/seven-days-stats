@@ -16,29 +16,24 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "T_PLAYER_POST_LIKE")
-public class T_PlayerPostLike {
-
+@Table(name = "T_TIMELINE_POST_REACTION")
+public class T_TimelinePostReaction {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @Column(name = "post_id", nullable = false)
-  private Long postId;
+  @Column(name = "timeline_post_id", nullable = false)
+  private Long timelinePostId;
 
   @Column(name = "account_id", nullable = false)
   private Long accountId;
 
   @Column(name = "reaction_type", nullable = false, length = 20)
-  private String reactionType = "HEART";
+  private String reactionType;
 
   @Column(name = "created_at", nullable = false)
   private OffsetDateTime createdAt;
 
   @PrePersist
-  void prePersist() {
-    if (createdAt == null) {
-      createdAt = OffsetDateTime.now();
-    }
-  }
+  void prePersist() { if (createdAt == null) createdAt = OffsetDateTime.now(); }
 }
