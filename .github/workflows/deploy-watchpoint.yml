@@ -49,9 +49,9 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --comment "Deploy WATCHPOINT" \
             --parameters 'commands=[
-              "aws s3 cp s3://rubinco-deploy-artifacts/watchpoint/app.jar /home/ec2-user/watchpoint/app.jar",
-              "sudo systemctl restart sevendays-states.service",
-              "sudo systemctl status sevendays-states.service --no-pager"
+              "aws s3 cp s3://rubinco-deploy-artifacts/watchpoint/app.jar /home/ec2-user/rubinco/apps/watchpoint/app/app.jar",
+              "sudo systemctl restart rubinco-watchpoint.service",
+              "sudo systemctl status rubinco-watchpoint.service --no-pager"
             ]' \
             --query 'Command.CommandId' \
             --output text)
