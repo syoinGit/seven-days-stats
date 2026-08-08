@@ -44,12 +44,24 @@ jobs:
 
       - name: Deploy via SSM
         run: |
-          aws ssm send-command \
-            --instance-ids i-07f5fc4469269d315 \
-            --document-name AWS-RunShellScript \
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "i-07f5fc4469269d315" \
+            --document-name "AWS-RunShellScript" \
             --comment "Deploy WATCHPOINT" \
-            --parameters commands='[
+            --parameters 'commands=[
               "aws s3 cp s3://rubinco-deploy-artifacts/watchpoint/app.jar /home/ec2-user/watchpoint/app.jar",
               "sudo systemctl restart sevendays-states.service",
               "sudo systemctl status sevendays-states.service --no-pager"
-            ]'
+            ]' \
+            --query 'Command.CommandId' \
+            --output text)
+
+          echo "Command ID: $COMMAND_ID"
+
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "i-07f5fc4469269d315"
+
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "i-07f5fc4469269d315"
