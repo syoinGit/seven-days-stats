@@ -409,6 +409,10 @@ public class DashboardController {
       String currentReaction,
       boolean ownPost) {
 
+    public long reactionCount() {
+      return reactions == null ? 0 : reactions.values().stream().mapToLong(Long::longValue).sum();
+    }
+
     public TimelineItem(
         String itemType, Long postId, Long playerId, String actor, String kind,
         String occurredAt, String message, String coordinate, String tone,
@@ -440,7 +444,21 @@ public class DashboardController {
     static TimelineItem post(TimelinePostService.PostView post) {
       return new TimelineItem(
           "POST", post.id(), post.playerId(), post.actor(), "", post.occurredAt(), post.message(),
-          post.coordinate(), "neutral", post.reactions(), post.currentReaction(), post.ownPost());
+          post.coordinate(), timelineTone(post.postType()), post.reactions(), post.currentReaction(), post.ownPost());
+    }
+
+    private static String timelineTone(String postType) {
+      return switch (postType == null ? "" : postType) {
+        case "LOGIN" -> "login";
+        case "LOGOUT" -> "logout";
+        case "KILL", "PLAYER_DEATH" -> "combat";
+        case "BLOOD_MOON" -> "blood-moon";
+        case "WORLD_EVENT", "SLEEPER" -> "warning";
+        case "VEHICLE" -> "movement";
+        case "PLAYER_MESSAGE" -> "community";
+        case "WATCHPOINT" -> "ai";
+        default -> "neutral";
+      };
     }
   }
 

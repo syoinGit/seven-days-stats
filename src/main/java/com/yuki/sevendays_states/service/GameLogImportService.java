@@ -867,8 +867,11 @@ public class GameLogImportService {
     row.setSourceLogHash(hash);
     row.setRawLine(event.rawLine());
     worldEventRepository.save(row);
-    TimelinePostType postType = "PLAYER_DEATH".equals(event.eventType())
-        ? TimelinePostType.PLAYER_DEATH : TimelinePostType.WORLD_EVENT;
+    TimelinePostType postType = switch (event.eventType()) {
+      case "PLAYER_DEATH" -> TimelinePostType.PLAYER_DEATH;
+      case "BLOOD_MOON" -> TimelinePostType.BLOOD_MOON;
+      default -> TimelinePostType.WORLD_EVENT;
+    };
     timelinePostService.publishGameEvent(postType, row.getPlayerId(), row.getActorPlayerName(), event.occurredAt(),
         worldEventText(event.eventType(), event.detailText()),
         coordinate(row.getPositionX(), row.getPositionY(), row.getPositionZ()),

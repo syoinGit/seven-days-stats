@@ -209,11 +209,11 @@ class DashboardControllerTests {
   }
 
   @Test
-  void timelineTemplateUsesOneNeutralPostPresentationWithoutTypeBadges() throws Exception {
+  void timelineTemplateUsesPostTonesWithoutTypeBadgesAndCollapsesReactions() throws Exception {
     String template = Files.readString(Path.of("src/main/resources/templates/fragments/timeline.html"));
 
     assertThat(template)
-        .doesNotContain("tone-")
+        .contains("tone-", "reaction-menu", "<details")
         .doesNotContain("class=\"tag\"")
         .doesNotContain("item.kind}");
   }

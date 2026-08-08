@@ -206,6 +206,22 @@ class GameLogImportServiceTests {
   }
 
   @Test
+  void publishesAtMostOneBloodMoonForecastPerDay() throws Exception {
+    Path log = writeLog("""
+        2026-07-30T10:57:36 36.485 INF BloodMoon SetDay: day 14, last day 7, freq 7, range 0
+        2026-07-30T11:57:36 96.485 INF BloodMoon SetDay: day 14, last day 7, freq 7, range 0
+        """);
+
+    logImportService.importLogFile(log);
+
+    assertThat(worldEventRepository.findAll()).hasSize(2);
+    assertThat(timelinePostRepository.findAll())
+        .filteredOn(post -> "BLOOD_MOON".equals(post.getPostType()))
+        .singleElement()
+        .satisfies(post -> assertThat(post.getMessage()).contains("\n"));
+  }
+
+  @Test
   void importsVehicleOwnerAndMovementDistance() throws Exception {
     Path log = writeLog("""
         2026-07-27T11:31:26 3921.931 INF Executing command 'lp' by Telnet from 172.18.0.1:40132
