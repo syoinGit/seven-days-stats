@@ -61,7 +61,7 @@ class TimelineMessageFactoryTests {
     assertThat(TimelinePostType.SERVER_ANALYSIS.avatarPath()).contains("/img/world-intel-avatar.png");
     assertThat(TimelinePostType.AIR_DROP.systemActorName()).contains("WORLD INTEL");
     assertThat(TimelinePostType.HORDE_ALERT.systemActorName()).contains("HORDE WATCH");
-    assertThat(TimelinePostType.HORDE_ALERT.avatarPath()).isEmpty();
+    assertThat(TimelinePostType.HORDE_ALERT.avatarPath()).contains("/img/horde-watch-avatar.png");
   }
 
   @Test

@@ -67,6 +67,7 @@ public enum TimelinePostType {
     return switch (this) {
       case LOGIN, LOGOUT -> Optional.of("/img/connection-monitor-avatar.png");
       case BLOOD_MOON -> Optional.of("/img/blood-moon-alert-avatar.png");
+      case HORDE_ALERT -> Optional.of("/img/horde-watch-avatar.png");
       case AIR_DROP, WORLD_EVENT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY, DIARY ->
           Optional.of("/img/world-intel-avatar.png");
       case WATCHPOINT -> Optional.of("/img/watchpoint-avatar.png");
