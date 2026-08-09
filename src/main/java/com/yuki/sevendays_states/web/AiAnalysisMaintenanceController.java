@@ -2,10 +2,8 @@ package com.yuki.sevendays_states.web;
 
 import com.yuki.sevendays_states.config.AiAnalysisProperties;
 import com.yuki.sevendays_states.config.SurvivorKarenProperties;
-import com.yuki.sevendays_states.config.SurvivorMarkProperties;
 import com.yuki.sevendays_states.service.AiCommentService;
 import com.yuki.sevendays_states.service.SurvivorKarenPublishingService;
-import com.yuki.sevendays_states.service.SurvivorMarkPublishingService;
 import com.yuki.sevendays_states.service.WatchpointAiPublishingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,8 +25,6 @@ public class AiAnalysisMaintenanceController {
   private final AiCommentService aiCommentService;
   private final SurvivorKarenProperties karenProperties;
   private final SurvivorKarenPublishingService karenPublishingService;
-  private final SurvivorMarkProperties markProperties;
-  private final SurvivorMarkPublishingService markPublishingService;
   private final ObjectMapper objectMapper;
 
   @GetMapping("/maintenance/ai-analysis/test")
@@ -43,8 +39,6 @@ public class AiAnalysisMaintenanceController {
     model.addAttribute("karenImageEnabled", karenProperties.imageConfigured());
     model.addAttribute("karenAwsRegion", karenProperties.awsRegion());
     model.addAttribute("karenModelId", karenProperties.imageModelId());
-    model.addAttribute("markEnabled", markProperties.enabled() && markProperties.postEnabled()
-        && markProperties.bedrockEnabled());
     model.addAttribute("latestComment",
         aiCommentService.latestBySourceType(WatchpointAiPublishingService.SOURCE_TYPE).orElse(null));
     try {
@@ -100,28 +94,4 @@ public class AiAnalysisMaintenanceController {
     return "redirect:/maintenance/ai-analysis/test";
   }
 
-  @PostMapping("/maintenance/ai-analysis/test/mark")
-  public String generateMark(RedirectAttributes redirectAttributes) {
-    try {
-      SurvivorMarkPublishingService.PublishResult result = markPublishingService.publishTodayIfPossible();
-      switch (result.status()) {
-        case PUBLISHED -> redirectAttributes.addFlashAttribute(
-            "notice", "サバイバーマークが探索記録を公開しました。");
-        case NO_CANDIDATE -> redirectAttributes.addFlashAttribute(
-            "error", "2〜5日前のログに、投稿できる探索候補がありません。");
-        case ALREADY_PUBLISHED -> redirectAttributes.addFlashAttribute(
-            "notice", "サバイバーマークはこの候補を既に投稿済みです。");
-        case DISABLED -> redirectAttributes.addFlashAttribute(
-            "error", "サバイバーマーク投稿が無効です。環境変数を確認してください。");
-        case TOO_EARLY, NOT_DUE -> redirectAttributes.addFlashAttribute(
-            "notice", "手動投稿では通常発生しない待機状態です。");
-        case FAILED -> redirectAttributes.addFlashAttribute(
-            "error", "Bedrockでの短文生成に失敗しました。IAM・モデル利用許可・サーバーログを確認してください。");
-      }
-    } catch (RuntimeException exception) {
-      log.error("Manual Survivor Mark publishing failed.", exception);
-      redirectAttributes.addFlashAttribute("error", "サバイバーマーク投稿に失敗しました。サーバーログを確認してください。");
-    }
-    return "redirect:/maintenance/ai-analysis/test";
-  }
 }

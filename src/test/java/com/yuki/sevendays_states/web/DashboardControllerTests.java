@@ -281,14 +281,15 @@ class DashboardControllerTests {
   }
 
   @Test
-  void adminNavigationIncludesDiaryMaintenanceAndKarenTestAction() throws Exception {
+  void adminNavigationIncludesDiaryMaintenanceAndSurvivorTestActions() throws Exception {
     String navigation = Files.readString(
         Path.of("src/main/resources/templates/fragments/navigation.html"));
     String bedrockTest = Files.readString(
         Path.of("src/main/resources/templates/ai-analysis-test.html"));
 
     assertThat(navigation)
-        .contains("@{/maintenance/diaries}", "日誌メンテ", "diary-maintenance");
+        .contains("@{/maintenance/diaries}", "日誌メンテ", "diary-maintenance",
+            "@{/maintenance/survivor-mark/test}", "Markテスト");
     assertThat(bedrockTest)
         .contains("@{/maintenance/ai-analysis/test/karen}", "Karenの新規投稿");
   }

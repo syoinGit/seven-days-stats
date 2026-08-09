@@ -6,10 +6,8 @@ import static org.mockito.Mockito.when;
 
 import com.yuki.sevendays_states.config.AiAnalysisProperties;
 import com.yuki.sevendays_states.config.SurvivorKarenProperties;
-import com.yuki.sevendays_states.config.SurvivorMarkProperties;
 import com.yuki.sevendays_states.service.AiCommentService;
 import com.yuki.sevendays_states.service.SurvivorKarenPublishingService;
-import com.yuki.sevendays_states.service.SurvivorMarkPublishingService;
 import com.yuki.sevendays_states.service.WatchpointAiPublishingService;
 import java.time.LocalDate;
 import java.util.Optional;
@@ -24,7 +22,6 @@ class AiAnalysisMaintenanceControllerTests {
   private WatchpointAiObservationService observationService;
   private AiCommentService aiCommentService;
   private SurvivorKarenPublishingService karenPublishingService;
-  private SurvivorMarkPublishingService markPublishingService;
   private AiAnalysisMaintenanceController controller;
 
   @BeforeEach
@@ -39,12 +36,9 @@ class AiAnalysisMaintenanceControllerTests {
         mock(WatchpointAiPublishingService.class);
     aiCommentService = mock(AiCommentService.class);
     karenPublishingService = mock(SurvivorKarenPublishingService.class);
-    markPublishingService = mock(SurvivorMarkPublishingService.class);
     controller = new AiAnalysisMaintenanceController(
         properties, observationService, publishingService, aiCommentService,
-        karenProperties, karenPublishingService,
-        new SurvivorMarkProperties(true, true, true, 14, 2, 5, 30),
-        markPublishingService, new ObjectMapper());
+        karenProperties, karenPublishingService, new ObjectMapper());
   }
 
   @Test
@@ -58,7 +52,6 @@ class AiAnalysisMaintenanceControllerTests {
     assertThat(model).containsEntry("karenImageEnabled", true);
     assertThat(model).containsEntry("karenAwsRegion", "us-east-1");
     assertThat(model).containsEntry("karenModelId", "nova-canvas-test");
-    assertThat(model).containsEntry("markEnabled", true);
   }
 
   @Test

@@ -32,11 +32,6 @@
     <div><p>今日のKaren投稿を新規作成します。同日分は重複せず、画像は設定と生成間隔の条件を満たす場合だけBedrockで生成します。<br><small th:if="${karenImageEnabled}" th:text="${'IMAGE REGION: ' + karenAwsRegion}">IMAGE REGION</small></p><form method="post" th:action="@{/maintenance/ai-analysis/test/karen}"><button type="submit" th:disabled="${!karenEnabled}">Karenに今すぐ投稿させる</button></form></div>
   </article>
 
-  <article class="panel ai-test-action">
-    <div class="panel-head"><h2>サバイバーマークの探索記録</h2><small>BEDROCK TEXT / 1 DAY</small></div>
-    <div><p>画像は生成せず、2〜5日前に確定したログだけをBedrockへ渡して短い探索記録を1日1件生成します。現在位置・プレイヤー名は使いません。</p><form method="post" th:action="@{/maintenance/ai-analysis/test/mark}"><button type="submit" th:disabled="${!markEnabled}">マークに探索記録を投稿させる</button></form></div>
-  </article>
-
   <article class="panel registered-diary" th:if="${latestComment != null}">
     <div class="panel-head"><h2>最後に生成された投稿</h2><small th:text="${latestComment.publishedAt}">time</small></div>
     <h3 th:text="${latestComment.title}">WATCHPOINT観測記録</h3><p th:text="${latestComment.body}">body</p>
