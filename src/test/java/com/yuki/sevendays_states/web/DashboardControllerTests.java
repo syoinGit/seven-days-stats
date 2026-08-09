@@ -224,6 +224,17 @@ class DashboardControllerTests {
   }
 
   @Test
+  void everyPageDeclaresTheSiteIcons() throws Exception {
+    try (var templates = Files.list(Path.of("src/main/resources/templates"))) {
+      assertThat(templates.filter(path -> path.toString().endsWith(".html")))
+          .allSatisfy(path -> assertThat(Files.readString(path))
+              .contains("/img/site-icon-64.png", "/img/apple-touch-icon.png"));
+    }
+    assertThat(Path.of("src/main/resources/static/img/site-icon-64.png")).exists();
+    assertThat(Path.of("src/main/resources/static/img/apple-touch-icon.png")).exists();
+  }
+
+  @Test
   void mergesNearbyLoginPostsButKeepsLogoutSeparate() {
     var loginA = timelinePost(1L, "A", "LOGIN", "2026-08-05 19:40:00");
     var loginB = timelinePost(2L, "B", "LOGIN", "2026-08-05 19:38:00");
