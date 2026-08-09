@@ -59,5 +59,17 @@ class TimelineMessageFactoryTests {
     assertThat(TimelinePostType.LOGIN.avatarPath()).contains("/img/connection-monitor-avatar.png");
     assertThat(TimelinePostType.BLOOD_MOON.avatarPath()).contains("/img/blood-moon-alert-avatar.png");
     assertThat(TimelinePostType.SERVER_ANALYSIS.avatarPath()).contains("/img/world-intel-avatar.png");
+    assertThat(TimelinePostType.AIR_DROP.systemActorName()).contains("WORLD INTEL");
+    assertThat(TimelinePostType.HORDE_ALERT.systemActorName()).contains("HORDE WATCH");
+    assertThat(TimelinePostType.HORDE_ALERT.avatarPath()).isEmpty();
+  }
+
+  @Test
+  void airDropAndHordeUseIndependentCopy() {
+    assertThat(factory.message(TimelinePostType.AIR_DROP, null,
+        "補給物資が投下された。", "air-drop")).contains("補給物資").doesNotContain("ホード");
+    assertThat(factory.message(TimelinePostType.HORDE_ALERT, null,
+        "生存者Aの近くで徘徊ホードが発生した！", "horde"))
+        .contains("生存者A", "徘徊ホード").doesNotContain("補給物資");
   }
 }
