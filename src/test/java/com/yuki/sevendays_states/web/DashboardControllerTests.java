@@ -215,8 +215,11 @@ class DashboardControllerTests {
 
     assertThat(template)
         .contains("tone-", "reaction-menu", "<details", "class=\"tag\"", "item.tag",
-            "watchpoint-avatar.png", "item.watchpointPost()");
+            "item.avatarUrl()", "system-avatar");
     assertThat(Path.of("src/main/resources/static/img/watchpoint-avatar.png")).exists();
+    assertThat(Path.of("src/main/resources/static/img/blood-moon-alert-avatar.png")).exists();
+    assertThat(Path.of("src/main/resources/static/img/world-intel-avatar.png")).exists();
+    assertThat(Path.of("src/main/resources/static/img/connection-monitor-avatar.png")).exists();
   }
 
   @Test
@@ -229,7 +232,7 @@ class DashboardControllerTests {
         List.of(loginA, loginB, logout));
 
     assertThat(merged).hasSize(2);
-    assertThat(merged.getFirst().actor()).isEqualTo("接続監視");
+    assertThat(merged.getFirst().actor()).isEqualTo("CONNECTION MONITOR");
     assertThat(merged.getFirst().message()).contains("A", "B", "ログイン");
     assertThat(merged.get(1).kind()).isEqualTo("LOGOUT");
   }

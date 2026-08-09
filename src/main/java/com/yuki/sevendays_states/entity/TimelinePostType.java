@@ -42,8 +42,32 @@ public enum TimelinePostType {
 
   public boolean linksActorToPlayer() {
     return switch (this) {
-      case WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY, DIARY, BLOOD_MOON -> false;
+      case LOGIN, LOGOUT, WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY,
+          DIARY, BLOOD_MOON, WORLD_EVENT -> false;
       default -> true;
+    };
+  }
+
+  public Optional<String> systemActorName() {
+    return switch (this) {
+      case LOGIN, LOGOUT -> Optional.of("CONNECTION MONITOR");
+      case BLOOD_MOON -> Optional.of("BLOOD MOON ALERT");
+      case WORLD_EVENT -> Optional.of("WORLD INTEL");
+      case WATCHPOINT -> Optional.of("WATCHPOINT");
+      case PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY -> Optional.of("観測分析局");
+      case DIARY -> Optional.of("冒険記録局");
+      default -> Optional.empty();
+    };
+  }
+
+  public Optional<String> avatarPath() {
+    return switch (this) {
+      case LOGIN, LOGOUT -> Optional.of("/img/connection-monitor-avatar.png");
+      case BLOOD_MOON -> Optional.of("/img/blood-moon-alert-avatar.png");
+      case WORLD_EVENT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY, DIARY ->
+          Optional.of("/img/world-intel-avatar.png");
+      case WATCHPOINT -> Optional.of("/img/watchpoint-avatar.png");
+      default -> Optional.empty();
     };
   }
 

@@ -4,9 +4,9 @@
 <th:block th:fragment="page">
   <li class="feed-item" th:each="item : ${timelinePage.items}" data-timeline-item
       th:classappend="${' tone-' + item.tone}">
-    <img class="feed-avatar watchpoint-avatar" th:if="${item.watchpointPost()}"
-         th:src="@{/img/watchpoint-avatar.png}" alt="WATCHPOINT">
-    <div class="feed-avatar" th:unless="${item.watchpointPost()}"
+    <img class="feed-avatar system-avatar" th:if="${!#strings.isEmpty(item.avatarUrl())}"
+         th:src="${item.avatarUrl()}" th:alt="${item.actor}">
+    <div class="feed-avatar" th:unless="${!#strings.isEmpty(item.avatarUrl())}"
          th:text="${#strings.substring(item.actor, 0, 1)}">W</div>
     <div class="feed-body">
       <header>
