@@ -3,6 +3,7 @@ package com.yuki.sevendays_states.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.yuki.sevendays_states.entity.TimelinePostType;
+import com.yuki.sevendays_states.entity.AiPostType;
 import java.util.HashSet;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
@@ -43,5 +44,16 @@ class TimelineMessageFactoryTests {
     assertThat(factory.message(TimelinePostType.BLOOD_MOON, null, null, "blood-moon"))
         .startsWith("ブラッドムーン予定が更新された。\n")
         .hasLineCount(2);
+  }
+
+  @Test
+  void timelineTypeOwnsItsPresentationAndAiMapping() {
+    assertThat(TimelinePostType.BLOOD_MOON.tagLabel()).isEqualTo("BLOOD MOON ALERT");
+    assertThat(TimelinePostType.BLOOD_MOON.tone()).isEqualTo("blood-moon");
+    assertThat(TimelinePostType.BLOOD_MOON.linksActorToPlayer()).isFalse();
+    assertThat(TimelinePostType.fromAiPostType(AiPostType.PLAYER_ANALYSIS))
+        .isEqualTo(TimelinePostType.PLAYER_ANALYSIS);
+    assertThat(TimelinePostType.PLAYER_ANALYSIS.isAiGenerated()).isTrue();
+    assertThat(TimelinePostType.parse("UNKNOWN")).isEmpty();
   }
 }

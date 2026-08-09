@@ -148,12 +148,7 @@ public class TimelinePostService {
     String sourceHash = "AI_COMMENT:" + commentId;
     if (!postRepository.existsBySourceHash(sourceHash)) {
       String actor = aiPostType == AiPostType.NORMAL ? "WATCHPOINT" : "観測分析局";
-      TimelinePostType timelineType = switch (aiPostType) {
-        case NORMAL -> TimelinePostType.WATCHPOINT;
-        case PLAYER_ANALYSIS -> TimelinePostType.PLAYER_ANALYSIS;
-        case SERVER_ANALYSIS -> TimelinePostType.SERVER_ANALYSIS;
-        case DAILY_SUMMARY -> TimelinePostType.DAILY_SUMMARY;
-      };
+      TimelinePostType timelineType = TimelinePostType.fromAiPostType(aiPostType);
       save(timelineType, "WATCHPOINT", targetPlayerId, actor, body, "", "", "",
           "AI_COMMENT", commentId, sourceHash, 100, publishedAt);
     }
@@ -207,7 +202,7 @@ public class TimelinePostService {
     String currentReaction = current == null ? null : reactionRepository
         .findByTimelinePostIdAndAccountId(post.getId(), current.getId())
         .map(T_TimelinePostReaction::getReactionType).orElse(null);
-    return new PostView(post.getId(), post.getActorPlayerId(), post.getActorName(), post.getMessage(),
+    return new PostView(post.getId(), post.getActorPlayerId(), post.getActorName(), displayMessage(post),
         displayTimeFormatter.format(post.getPublishedAt()), post.getCoordinate(), post.getPostType(),
         post.getLinkUrl(), post.getLinkLabel(),
         reactions, currentReaction,
@@ -216,6 +211,20 @@ public class TimelinePostService {
   }
 
   private String displayName(String name) { return name == null || name.isBlank() ? "誰か" : name; }
+
+  private String displayMessage(T_TimelinePost post) {
+    String message = post.getMessage() == null ? "" : post.getMessage().strip();
+    if (!TimelinePostType.parse(post.getPostType())
+        .map(TimelinePostType::isAiGenerated).orElse(false) || message.contains("\n")) return message;
+    String sentenceBreaks = message.replaceAll("。(?=\\S)", "。\n");
+    if (!sentenceBreaks.contains("\n") && sentenceBreaks.length() > 55) {
+      int comma = sentenceBreaks.indexOf('、', 28);
+      if (comma > 0 && comma < sentenceBreaks.length() - 1) {
+        return sentenceBreaks.substring(0, comma + 1) + "\n" + sentenceBreaks.substring(comma + 1);
+      }
+    }
+    return sentenceBreaks;
+  }
 
   public record FeedPage(List<PostView> posts, int nextOffset, boolean hasMore) { }
 

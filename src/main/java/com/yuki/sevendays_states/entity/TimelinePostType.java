@@ -1,5 +1,7 @@
 package com.yuki.sevendays_states.entity;
 
+import java.util.Optional;
+
 /** A feed category used for selection, copy variation and visual tone. */
 public enum TimelinePostType {
   LOGIN(100, 0),
@@ -30,4 +32,65 @@ public enum TimelinePostType {
   public int cooldownMinutes() { return cooldownMinutes; }
 
   public boolean isImmediate() { return publishChance == 100; }
+
+  public boolean isAiGenerated() {
+    return switch (this) {
+      case WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY -> true;
+      default -> false;
+    };
+  }
+
+  public boolean linksActorToPlayer() {
+    return switch (this) {
+      case WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY, DIARY, BLOOD_MOON -> false;
+      default -> true;
+    };
+  }
+
+  public String tagLabel() {
+    return switch (this) {
+      case LOGIN -> "ONLINE";
+      case LOGOUT -> "OFFLINE";
+      case KILL, PLAYER_DEATH -> "ELIMINATION";
+      case BLOOD_MOON -> "BLOOD MOON ALERT";
+      case WORLD_EVENT -> "WORLD INTEL";
+      case SLEEPER -> "EXPLORATION";
+      case VEHICLE -> "TRAVEL";
+      case PLAYER_MESSAGE -> "SURVIVOR POST";
+      case DIARY -> "FIELD JOURNAL";
+      case WATCHPOINT -> "AI OBSERVATION";
+      case PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY -> "ANALYSIS";
+    };
+  }
+
+  public String tone() {
+    return switch (this) {
+      case LOGIN -> "login";
+      case LOGOUT -> "logout";
+      case KILL, PLAYER_DEATH -> "combat";
+      case BLOOD_MOON -> "blood-moon";
+      case WORLD_EVENT, SLEEPER -> "warning";
+      case VEHICLE -> "movement";
+      case PLAYER_MESSAGE -> "community";
+      case DIARY -> "exploration";
+      case WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY -> "ai";
+    };
+  }
+
+  public static TimelinePostType fromAiPostType(AiPostType type) {
+    return switch (type) {
+      case NORMAL -> WATCHPOINT;
+      case PLAYER_ANALYSIS -> PLAYER_ANALYSIS;
+      case SERVER_ANALYSIS -> SERVER_ANALYSIS;
+      case DAILY_SUMMARY -> DAILY_SUMMARY;
+    };
+  }
+
+  public static Optional<TimelinePostType> parse(String value) {
+    try {
+      return Optional.of(valueOf(value == null ? "" : value));
+    } catch (IllegalArgumentException exception) {
+      return Optional.empty();
+    }
+  }
 }

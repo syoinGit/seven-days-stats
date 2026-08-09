@@ -6,6 +6,7 @@ import com.yuki.sevendays_states.service.PlayerSocialService;
 import com.yuki.sevendays_states.service.PlayerStatusService;
 import com.yuki.sevendays_states.service.TimelinePostService;
 import com.yuki.sevendays_states.service.WatchpointDiaryPublishingService;
+import com.yuki.sevendays_states.entity.TimelinePostType;
 import com.yuki.sevendays_states.util.DisplayTimeFormatter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -482,49 +483,18 @@ public class DashboardController {
           comment.postType() == com.yuki.sevendays_states.entity.AiPostType.NORMAL ? "WATCHPOINT" : "観測分析局",
           comment.postType().displayLabel(),
           DISPLAY_TIME_FORMATTER.format(comment.publishedAt()),
-          comment.body(), "", "ai", timelineTag("WATCHPOINT"), "", "", Map.of(), null, false);
+          comment.body(), "", TimelinePostType.WATCHPOINT.tone(),
+          TimelinePostType.WATCHPOINT.tagLabel(), "", "", Map.of(), null, false);
     }
 
     static TimelineItem post(TimelinePostService.PostView post) {
-      Long actorPlayerId = switch (post.postType() == null ? "" : post.postType()) {
-        case "WATCHPOINT", "PLAYER_ANALYSIS", "SERVER_ANALYSIS", "DAILY_SUMMARY" -> null;
-        default -> post.playerId();
-      };
+      TimelinePostType type = TimelinePostType.parse(post.postType()).orElse(null);
+      Long actorPlayerId = type == null || type.linksActorToPlayer() ? post.playerId() : null;
       return new TimelineItem(
           "POST", post.id(), actorPlayerId, post.actor(), post.postType(), post.occurredAt(), post.message(),
-          post.coordinate(), timelineTone(post.postType()), timelineTag(post.postType()),
+          post.coordinate(), type == null ? "neutral" : type.tone(),
+          type == null ? "ACTIVITY" : type.tagLabel(),
           post.linkUrl(), post.linkLabel(), post.reactions(), post.currentReaction(), post.ownPost());
-    }
-
-    private static String timelineTag(String postType) {
-      return switch (postType == null ? "" : postType) {
-        case "LOGIN", "LOGOUT" -> "接続情報";
-        case "KILL", "PLAYER_DEATH" -> "討伐情報";
-        case "BLOOD_MOON" -> "緊急警報";
-        case "WORLD_EVENT" -> "世界情報";
-        case "SLEEPER" -> "探索情報";
-        case "VEHICLE" -> "移動情報";
-        case "PLAYER_MESSAGE" -> "投稿";
-        case "DIARY" -> "冒険日記";
-        case "WATCHPOINT" -> "AI観測";
-        case "PLAYER_ANALYSIS", "SERVER_ANALYSIS", "DAILY_SUMMARY" -> "分析情報";
-        default -> "観測情報";
-      };
-    }
-
-    private static String timelineTone(String postType) {
-      return switch (postType == null ? "" : postType) {
-        case "LOGIN" -> "login";
-        case "LOGOUT" -> "logout";
-        case "KILL", "PLAYER_DEATH" -> "combat";
-        case "BLOOD_MOON" -> "blood-moon";
-        case "WORLD_EVENT", "SLEEPER" -> "warning";
-        case "VEHICLE" -> "movement";
-        case "PLAYER_MESSAGE" -> "community";
-        case "DIARY" -> "exploration";
-        case "WATCHPOINT", "PLAYER_ANALYSIS", "SERVER_ANALYSIS", "DAILY_SUMMARY" -> "ai";
-        default -> "neutral";
-      };
     }
   }
 
