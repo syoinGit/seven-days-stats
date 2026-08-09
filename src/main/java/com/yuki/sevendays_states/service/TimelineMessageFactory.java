@@ -4,7 +4,7 @@ import com.yuki.sevendays_states.entity.TimelinePostType;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
-/** Fact-safe, deterministic copy generation with a deliberately pulpy zombie-movie voice. */
+/** Fact-safe, deterministic copy generation with a zombie and horror cinema parody voice. */
 @Component
 public class TimelineMessageFactory {
   private static final List<String> LOGIN_OPEN = List.of(
@@ -16,8 +16,8 @@ public class TimelineMessageFactory {
       "静かな時間はここまで。", "世界は相変わらず歓迎していない。", "無事に帰るまでが探索だ。",
       "お楽しみはこれからだ！", "ドアを閉めろ。念のため二度だ。", "荒廃世界へ、おかえり。", "WATCHPOINTはポップコーンを用意した。");
   private static final List<String> KILL_VERBS = List.of(
-      "討伐", "処刑", "撃破", "始末", "粉砕", "退場させ", "亡き者にし", "永眠させ",
-      "墓場へ送り返し", "映画から降板させ", "沈黙させ", "スクラップにし");
+      "討伐した", "処刑した", "撃破した", "始末した", "粉砕した", "退場させた", "亡き者にした", "永眠させた",
+      "墓場へ送り返した", "映画から降板させた", "沈黙させた", "スクラップにした");
   private static final List<String> KILL_SCENES = List.of(
       "荒野で", "探索先で", "瓦礫の向こうで", "死者の群れのただ中で", "帰り道で",
       "文明の残骸を背に", "世界の片隅で", "逃げ場のない戦場で", "今日という舞台で", "ゾンビ映画さながらに");
@@ -29,14 +29,16 @@ public class TimelineMessageFactory {
       "この映画、主役はまだ交代しない。", "死者の行進に空席ができた。", "脅威を一つ、請求書なしで片づけた。",
       "今のは予告編に使える。", "平和は短い。だが今は祝おう。", "感染者の勤務時間は終了だ。",
       "記録完了。かなり景気のいい一撃だ。", "次のゾンビは考え直した方がいい。");
-  private static final List<String> MEME_STINGERS = List.of(
+  private static final List<String> GENRE_STINGERS = List.of(
       "", "", "", "", "", "", "", "",
-      "現場からは以上です。", "はい、優勝。", "生存ヨシ！", "これは良い仕事。",
-      "フラグは回収されなかった。", "ゾンビ側、解散。", "完全に主人公の動き。", "実質ノーダメージ。",
-      "この展開、嫌いじゃない。", "タイムラインがざわつくやつ。", "RTAなら好タイムだ。", "仕様です。",
-      "知らんけど、生存率は上がった。", "ワンチャンどころか確定演出。", "今日のMVP候補。", "異論はゾンビのみ認める。",
-      "文明、まだいけます。", "その発想はなかった。ゾンビにも。", "よく訓練された生存者だ。", "次回も期待している。",
-      "コメント欄があれば拍手で埋まる。", "これは記録に残るやつ。", "予定調和？いいや、実力だ。", "強い。説明は以上。"
+      "エンドロールには、まだ早い。", "感染拡大の予算が少し削れた。",
+      "ショッピングモールなら、非常口を先に探せ。", "即席武器が役に立つ日ほど、商品棚は遠い。",
+      "研究施設の赤い警報灯は、だいたい歓迎の印じゃない。", "培養槽のある部屋には、なるべく入らない。",
+      "地下室には、映画でも現実でも先に入らない。", "『大丈夫』と言った直後ほど、BGMを疑え。",
+      "カメラが引いたら、背後を確認しよう。", "生還者のクレジットは、まだ流れていない。",
+      "閉じた扉の向こうは、だいたい静かではない。", "チェーンソーの音は、安心材料にならない。",
+      "非常用エレベーターは、非常時ほど信用できない。", "次のシーンへ進む前に、弾倉を確認。",
+      "研究員の置き手紙は、だいたい読まなくていい。", "この街に安全な近道はない。"
   );
   private static final List<String> SLEEPER_END = List.of(
       "静かな探索は、ここで終了！", "不動産の内見には向かない。", "歓迎はだいたい噛みつきから始まる。",
@@ -61,7 +63,7 @@ public class TimelineMessageFactory {
           "立て、生存者。続編が待っている。", "墓石を注文するにはまだ早い。", "監督、リテイクを要求する！", "次のシーンで取り返そう。"), sourceHash, 1);
       case KILL -> actor + "が" + pick(KILL_SCENES, sourceHash, 3) + safeDetail(detail, "感染者") + "を"
           + pick(KILL_VERBS, sourceHash, 1) + "！！\n" + joinPunchlines(
-              pick(KILL_END, sourceHash, 2), pick(MEME_STINGERS, sourceHash, 4));
+              pick(KILL_END, sourceHash, 2), pick(GENRE_STINGERS, sourceHash, 4));
       case SLEEPER -> actor + "が探索先で" + safeDetail(detail, "眠っていた敵") + "を起こした！\n"
           + pick(SLEEPER_END, sourceHash, 2);
       case VEHICLE -> actor + "が" + safeDetail(detail, "乗り物") + "で荒野を駆け抜けた！\n" + pick(List.of(

@@ -26,17 +26,27 @@ class TimelineMessageFactoryTests {
   }
 
   @Test
-  void internetFlavourAppearsSometimesButNotInEveryPost() {
+  void killMessagesUseZombieAndHorrorGenreParodiesInsteadOfInternetMemes() {
     var messages = IntStream.range(0, 500)
         .mapToObj(index -> factory.message(
-            TimelinePostType.KILL, "後輩", "感染者", "meme-source-" + index))
+            TimelinePostType.KILL, "後輩", "感染者", "genre-source-" + index))
         .toList();
 
-    assertThat(messages).anyMatch(message -> message.contains("現場からは以上です。")
-        || message.contains("優勝") || message.contains("RTA") || message.contains("仕様です。"));
-    assertThat(messages).anyMatch(message -> !message.contains("現場からは以上です。")
-        && !message.contains("優勝") && !message.contains("RTA") && !message.contains("仕様です。")
-        && !message.contains("ヨシ！") && !message.contains("フラグ"));
+    assertThat(messages).anyMatch(message -> message.contains("ショッピングモール")
+        || message.contains("研究施設") || message.contains("地下室") || message.contains("エンドロール"));
+    assertThat(messages).allSatisfy(message -> assertThat(message)
+        .doesNotContain("現場からは以上です。", "優勝", "RTA", "仕様です。", "ヨシ！", "MVP", "コメント欄"));
+  }
+
+  @Test
+  void killMessagesAlwaysUseCompletedJapaneseVerbs() {
+    var messages = IntStream.range(0, 1000)
+        .mapToObj(index -> factory.message(
+            TimelinePostType.KILL, "後輩", "zombieJoe", "verb-source-" + index))
+        .toList();
+
+    assertThat(messages).allSatisfy(message -> assertThat(message)
+        .doesNotContain("させ！！", "にし！！", "返し！！"));
   }
 
   @Test
