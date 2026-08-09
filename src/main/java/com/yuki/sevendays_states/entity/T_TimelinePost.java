@@ -52,6 +52,15 @@ public class T_TimelinePost {
   @Column(name = "link_label", length = 80)
   private String linkLabel;
 
+  @Column(name = "image_url", length = 1200)
+  private String imageUrl;
+
+  @Column(name = "base_like_count", nullable = false)
+  private int baseLikeCount;
+
+  @Column(name = "post_subtype", length = 40)
+  private String postSubtype;
+
   @Column(name = "source_type", nullable = false, length = 40)
   private String sourceType;
 

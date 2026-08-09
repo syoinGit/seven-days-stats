@@ -13,6 +13,7 @@ import com.yuki.sevendays_states.repository.T_TimelinePostRepository;
 import com.yuki.sevendays_states.util.DisplayTimeFormatter;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -171,6 +172,31 @@ public class TimelinePostService {
         publishedAt);
   }
 
+  @Transactional(readOnly = true)
+  public boolean existsBySourceHash(String sourceHash) {
+    return sourceHash != null && postRepository.existsBySourceHash(sourceHash);
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<LocalDate> latestKarenImageDate() {
+    return postRepository.findTopByPostTypeAndImageUrlIsNotNullOrderByPublishedAtDesc(
+            TimelinePostType.SURVIVOR_KAREN.name())
+        .map(post -> post.getPublishedAt().atZoneSameInstant(ZoneId.of("Asia/Tokyo")).toLocalDate());
+  }
+
+  @Transactional
+  public boolean publishKaren(
+      LocalDate date, OffsetDateTime publishedAt, String body, String subtype,
+      String imageUrl, int baseLikeCount) {
+    String sourceHash = "SURVIVOR_KAREN:" + date;
+    if (postRepository.existsBySourceHash(sourceHash)) return false;
+    TimelinePostType type = TimelinePostType.SURVIVOR_KAREN;
+    save(type, "NPC", null, type.systemActorName().orElse("サバイバーカレン"), body,
+        "", "", "", "SURVIVOR_KAREN", null, sourceHash, 100, publishedAt,
+        imageUrl, Math.max(0, baseLikeCount), subtype);
+    return true;
+  }
+
   private boolean selected(TimelinePostType type, String sourceHash) {
     return type.isImmediate() || Math.floorMod(sourceHash.hashCode(), 100) < type.publishChance();
   }
@@ -179,6 +205,15 @@ public class TimelinePostService {
       String message, String coordinate, String linkUrl, String linkLabel,
       String sourceType, Long sourceId, String sourceHash,
       int priority, OffsetDateTime publishedAt) {
+    save(type, actorType, actorPlayerId, actorName, message, coordinate, linkUrl, linkLabel,
+        sourceType, sourceId, sourceHash, priority, publishedAt, "", 0, "");
+  }
+
+  private void save(TimelinePostType type, String actorType, Long actorPlayerId, String actorName,
+      String message, String coordinate, String linkUrl, String linkLabel,
+      String sourceType, Long sourceId, String sourceHash,
+      int priority, OffsetDateTime publishedAt, String imageUrl, int baseLikeCount,
+      String postSubtype) {
     T_TimelinePost post = new T_TimelinePost();
     post.setPostType(type.name());
     post.setActorType(actorType);
@@ -188,6 +223,9 @@ public class TimelinePostService {
     post.setCoordinate(coordinate == null ? "" : coordinate);
     post.setLinkUrl(linkUrl == null ? "" : linkUrl);
     post.setLinkLabel(linkLabel == null ? "" : linkLabel);
+    post.setImageUrl(imageUrl == null || imageUrl.isBlank() ? null : imageUrl.strip());
+    post.setBaseLikeCount(Math.max(0, baseLikeCount));
+    post.setPostSubtype(postSubtype == null || postSubtype.isBlank() ? null : postSubtype.strip());
     post.setSourceType(sourceType);
     post.setSourceId(sourceId);
     post.setSourceHash(sourceHash);
@@ -210,7 +248,7 @@ public class TimelinePostService {
         .map(T_TimelinePostReaction::getReactionType).orElse(null);
     return new PostView(post.getId(), post.getActorPlayerId(), post.getActorName(), displayMessage(post),
         displayTimeFormatter.format(post.getPublishedAt()), post.getCoordinate(), post.getPostType(),
-        post.getLinkUrl(), post.getLinkLabel(),
+        post.getLinkUrl(), post.getLinkLabel(), post.getImageUrl(), post.getBaseLikeCount(), post.getPostSubtype(),
         reactions, currentReaction,
         current != null && current.getPlayerId() != null && current.getPlayerId().equals(post.getActorPlayerId())
             && "PLAYER_MESSAGE".equals(post.getPostType()));
@@ -245,6 +283,7 @@ public class TimelinePostService {
 
   public record PostView(Long id, Long playerId, String actor, String message, String occurredAt,
                          String coordinate, String postType, String linkUrl, String linkLabel,
+                         String imageUrl, int baseLikeCount, String postSubtype,
                          Map<ReactionType, Long> reactions,
                          String currentReaction, boolean ownPost) { }
 }

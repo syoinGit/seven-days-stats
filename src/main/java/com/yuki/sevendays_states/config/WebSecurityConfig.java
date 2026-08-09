@@ -55,7 +55,7 @@ public class WebSecurityConfig {
             .contentSecurityPolicy(csp -> csp.policyDirectives(
                 "default-src 'self'; object-src 'none'; base-uri 'self'; "
                     + "frame-ancestors 'none'; frame-src 'none'; form-action 'self'; "
-                    + "img-src 'self' data:; "
+                    + "img-src 'self' data: https:; "
                     + "style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'")))
         .addFilterAfter(guestPrivacyFilter, AuthorizationFilter.class);
     return http.build();

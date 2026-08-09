@@ -65,6 +65,11 @@ class TimelineMessageFactoryTests {
     assertThat(TimelinePostType.AIR_DROP.avatarPath()).contains("/img/air-drop-avatar.png");
     assertThat(TimelinePostType.AIR_DROP.tone()).isEqualTo("supply");
     assertThat(TimelinePostType.DIARY.avatarPath()).contains("/img/field-journal-avatar.png");
+    assertThat(TimelinePostType.SURVIVOR_KAREN.systemActorName()).contains("サバイバーカレン");
+    assertThat(TimelinePostType.SURVIVOR_KAREN.avatarPath())
+        .contains("/img/survivor-karen-avatar.png");
+    assertThat(TimelinePostType.SURVIVOR_KAREN.tagLabel()).isEqualTo("SURVIVOR LIFE");
+    assertThat(TimelinePostType.SURVIVOR_KAREN.isAiGenerated()).isFalse();
   }
 
   @Test

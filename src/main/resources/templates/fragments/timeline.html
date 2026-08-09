@@ -17,9 +17,16 @@
         <time th:text="${item.occurredAt ?: '-'}">time</time>
       </header>
       <p class="event-message" th:text="${item.message}">荒野で何かが起きた</p>
+      <a class="feed-media" th:if="${!#strings.isEmpty(item.imageUrl)}"
+         th:href="${item.imageUrl}" target="_blank" rel="noopener noreferrer"
+         aria-label="投稿画像を拡大表示">
+        <img th:src="${item.imageUrl}" th:alt="${item.actor + 'の投稿画像'}" loading="lazy" decoding="async">
+      </a>
       <a class="timeline-card-link" th:if="${!#strings.isEmpty(item.linkUrl)}"
          th:href="${item.linkUrl}" th:text="${item.linkLabel}">詳しく見る</a>
-      <footer class="social-actions" th:if="${(loggedIn and !currentViewer) or item.reactionCount() > 0 or item.ownPost}">
+      <footer class="social-actions" th:if="${(loggedIn and !currentViewer) or item.reactionCount() > 0 or item.baseLikeCount > 0 or item.ownPost}">
+        <span class="karen-popularity" th:if="${item.baseLikeCount > 0}"
+              th:text="${'♡ ' + #numbers.formatInteger(item.displayLikeCount(), 1, 'COMMA')}">♡ 1,284</span>
         <div class="reaction-counts" th:if="${item.reactionCount() > 0}">
           <span class="reaction-count" th:each="reaction : ${item.reactions}" th:unless="${reaction.value == 0}"
                 th:text="${reaction.key.emoji() + ' ' + reaction.value}">👍 1</span>
