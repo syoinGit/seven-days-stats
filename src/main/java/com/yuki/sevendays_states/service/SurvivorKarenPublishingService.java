@@ -30,7 +30,7 @@ public class SurvivorKarenPublishingService {
     if (!properties.enabled() || !properties.postEnabled()) {
       return new PublishResult(PublishStatus.DISABLED, now.toLocalDate(), null, false);
     }
-    if (now.getHour() < properties.postHour()) {
+    if (now.isBefore(postAt(now.toLocalDate()))) {
       return new PublishResult(PublishStatus.TOO_EARLY, now.toLocalDate(), null, false);
     }
     return publishIfMissing(now.toLocalDate(), now);
@@ -88,6 +88,14 @@ public class SurvivorKarenPublishingService {
           return ChronoUnit.DAYS.between(lastImageDate, date) >= interval;
         })
         .orElseGet(() -> Math.floorMod(date.toEpochDay(), configuredInterval) == 0);
+  }
+
+  /** A stable daily offset looks natural while surviving restarts without a second post. */
+  private OffsetDateTime postAt(LocalDate date) {
+    SplittableRandom random = KarenPostGenerator.random(date, 0x4b4152454e54494dL);
+    int latestOffsetMinutes = Math.max(0, (23 - properties.postHour()) * 60 + 10);
+    return date.atTime(properties.postHour(), 10).atZone(JAPAN).toOffsetDateTime()
+        .plusMinutes(random.nextInt(latestOffsetMinutes + 1));
   }
 
   private String objectKey(LocalDate date, KarenPostTheme theme) {

@@ -13,8 +13,8 @@ public class SurvivorKarenPublishingRunner {
 
   private final SurvivorKarenPublishingService publishingService;
 
-  /** Hourly checks let a restarted server catch up while the date-based source key prevents duplicates. */
-  @Scheduled(cron = "${app.survivor-karen.schedule-cron:0 17 * * * *}", zone = "Asia/Tokyo")
+  /** Frequent checks in the nightly uptime window honour each day's deterministic random slot. */
+  @Scheduled(cron = "${app.survivor-karen.schedule-cron:0 */5 20-23 * * *}", zone = "Asia/Tokyo")
   public void publishDailyPost() {
     try {
       var result = publishingService.publishIfDue();
@@ -23,7 +23,7 @@ public class SurvivorKarenPublishingRunner {
             result.date(), result.theme(), result.imageAttached());
       }
     } catch (RuntimeException exception) {
-      log.error("Survivor Karen daily publishing failed; the next hourly check will retry.", exception);
+      log.error("Survivor Karen daily publishing failed; the next nightly check will retry.", exception);
     }
   }
 }

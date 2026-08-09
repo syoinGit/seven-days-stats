@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
 public class SurvivorMarkPublishingRunner {
   private final SurvivorMarkPublishingService publishingService;
 
-  /** A single scheduled attempt keeps the Bedrock text budget to one normal call per day. */
-  @Scheduled(cron = "${app.survivor-mark.schedule-cron:0 23 14 * * *}", zone = "Asia/Tokyo")
+  /** Frequent checks never create a second post, and wait for Mark's daily random nighttime slot. */
+  @Scheduled(cron = "${app.survivor-mark.schedule-cron:0 */5 20-23 * * *}", zone = "Asia/Tokyo")
   public void publishTrailReport() {
     try {
       var result = publishingService.publishIfDue();
@@ -22,7 +22,7 @@ public class SurvivorMarkPublishingRunner {
             result.date(), result.candidate().key());
       }
     } catch (RuntimeException exception) {
-      log.error("Survivor Mark publishing failed; it will retry at tomorrow's scheduled window.", exception);
+      log.error("Survivor Mark publishing failed; the next nightly check will retry.", exception);
     }
   }
 }

@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
+import java.util.SplittableRandom;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,7 +27,7 @@ public class SurvivorMarkPublishingService {
   public PublishResult publishIfDue() {
     OffsetDateTime now = OffsetDateTime.now(JAPAN);
     if (!enabled()) return new PublishResult(PublishStatus.DISABLED, now.toLocalDate(), null);
-    if (now.getHour() < properties.postHour()) {
+    if (now.isBefore(postAt(now.toLocalDate()))) {
       return new PublishResult(PublishStatus.TOO_EARLY, now.toLocalDate(), null);
     }
     if (!due(now.toLocalDate())) return new PublishResult(PublishStatus.NOT_DUE, now.toLocalDate(), null);
@@ -72,6 +73,14 @@ public class SurvivorMarkPublishingService {
 
   private String subtype(SurvivorMarkCandidateService.Candidate candidate) {
     return candidate.kills() >= 3 || !candidate.zombieTypes().isEmpty() ? "HAZARD" : "TRAIL";
+  }
+
+  /** Mark gets a different stable slot inside the nightly server uptime window each day. */
+  private OffsetDateTime postAt(LocalDate date) {
+    SplittableRandom random = new SplittableRandom(date.toEpochDay() ^ 0x4d41524b54494dL);
+    int latestOffsetMinutes = Math.max(0, (23 - properties.postHour()) * 60 + 10);
+    return date.atTime(properties.postHour(), 10).atZone(JAPAN).toOffsetDateTime()
+        .plusMinutes(random.nextInt(latestOffsetMinutes + 1));
   }
 
   public enum PublishStatus { PUBLISHED, ALREADY_PUBLISHED, TOO_EARLY, NOT_DUE, NO_CANDIDATE, FAILED, DISABLED }

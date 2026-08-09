@@ -77,7 +77,7 @@ public enum TimelinePostType {
           Optional.of("/img/observation-analysis-avatar.png");
       case WATCHPOINT -> Optional.of("/img/watchpoint-avatar.png");
       case SURVIVOR_KAREN -> Optional.of("/img/survivor-karen-avatar.png");
-      case SURVIVOR_MARK -> Optional.of("/img/survivor-mark-avatar.svg");
+      case SURVIVOR_MARK -> Optional.of("/img/survivor-mark-avatar.png");
       default -> Optional.empty();
     };
   }

@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Survivor Mark">
-  <rect width="256" height="256" rx="128" fill="#252a1b"/>
-  <circle cx="128" cy="128" r="105" fill="none" stroke="#a7ae70" stroke-width="8"/>
-  <path d="M82 75h92v20H82zm0 43h92v20H82zm0 43h92v20H82z" fill="#a7ae70"/>
-  <path d="M75 103l21-15 13 15-21 15zm72 43l21-15 13 15-21 15z" fill="#6d7445"/>
-  <text x="128" y="218" text-anchor="middle" fill="#d4d9a3" font-family="monospace" font-size="22" font-weight="bold">MARK</text>
-</svg>
