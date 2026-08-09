@@ -7,7 +7,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Map;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -20,13 +20,23 @@ import tools.jackson.databind.ObjectMapper;
 
 /** Generates one PNG with Nova Canvas and stores it in the configured S3 bucket. */
 @Service
-@RequiredArgsConstructor
 public class ImageGenerationService {
 
   private final BedrockRuntimeClient bedrockRuntimeClient;
   private final S3Client s3Client;
   private final SurvivorKarenProperties properties;
   private final ObjectMapper objectMapper;
+
+  public ImageGenerationService(
+      @Qualifier("karenImageBedrockRuntimeClient") BedrockRuntimeClient bedrockRuntimeClient,
+      S3Client s3Client,
+      SurvivorKarenProperties properties,
+      ObjectMapper objectMapper) {
+    this.bedrockRuntimeClient = bedrockRuntimeClient;
+    this.s3Client = s3Client;
+    this.properties = properties;
+    this.objectMapper = objectMapper;
+  }
 
   public String generateAndStore(String prompt, String negativePrompt, String objectKey, long seed) {
     if (!properties.imageConfigured()) {
