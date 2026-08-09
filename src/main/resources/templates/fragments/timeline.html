@@ -4,7 +4,10 @@
 <th:block th:fragment="page">
   <li class="feed-item" th:each="item : ${timelinePage.items}" data-timeline-item
       th:classappend="${' tone-' + item.tone}">
-    <div class="feed-avatar" th:text="${#strings.substring(item.actor, 0, 1)}">W</div>
+    <img class="feed-avatar watchpoint-avatar" th:if="${item.watchpointPost()}"
+         th:src="@{/img/watchpoint-avatar.png}" alt="WATCHPOINT">
+    <div class="feed-avatar" th:unless="${item.watchpointPost()}"
+         th:text="${#strings.substring(item.actor, 0, 1)}">W</div>
     <div class="feed-body">
       <header>
         <a class="feed-actor" th:if="${item.playerId != null and !currentViewer}"

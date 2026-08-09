@@ -455,6 +455,10 @@ public class DashboardController {
       return reactions == null ? 0 : reactions.values().stream().mapToLong(Long::longValue).sum();
     }
 
+    public boolean watchpointPost() {
+      return TimelinePostType.WATCHPOINT.name().equals(kind);
+    }
+
     public TimelineItem(
         String itemType, Long postId, Long playerId, String actor, String kind,
         String occurredAt, String message, String coordinate, String tone,
@@ -478,13 +482,13 @@ public class DashboardController {
     }
 
     static TimelineItem aiComment(AiCommentService.AiCommentEntry comment) {
+      TimelinePostType type = TimelinePostType.fromAiPostType(comment.postType());
       return new TimelineItem(
           "AI", null, comment.targetPlayerId(),
           comment.postType() == com.yuki.sevendays_states.entity.AiPostType.NORMAL ? "WATCHPOINT" : "観測分析局",
-          comment.postType().displayLabel(),
+          type.name(),
           DISPLAY_TIME_FORMATTER.format(comment.publishedAt()),
-          comment.body(), "", TimelinePostType.WATCHPOINT.tone(),
-          TimelinePostType.WATCHPOINT.tagLabel(), "", "", Map.of(), null, false);
+          comment.body(), "", type.tone(), type.tagLabel(), "", "", Map.of(), null, false);
     }
 
     static TimelineItem post(TimelinePostService.PostView post) {
