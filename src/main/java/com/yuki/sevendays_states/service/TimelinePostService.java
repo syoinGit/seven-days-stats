@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TimelinePostService {
 
   public static final int PAGE_SIZE = 12;
+  public static final int MAX_POST_CHARACTERS = 100;
 
   private final T_TimelinePostRepository postRepository;
   private final T_TimelinePostReactionRepository reactionRepository;
@@ -60,7 +61,9 @@ public class TimelinePostService {
     }
     String body = rawBody == null ? "" : rawBody.strip();
     if (body.isBlank()) return PlayerSocialService.ActionResult.failure("投稿内容を入力してください。");
-    if (body.length() > 1000) return PlayerSocialService.ActionResult.failure("投稿は1000文字以内で入力してください。");
+    if (body.codePointCount(0, body.length()) > MAX_POST_CHARACTERS) {
+      return PlayerSocialService.ActionResult.failure("投稿は100文字以内で入力してください。");
+    }
     M_Player player = playerRepository.findById(account.get().getPlayerId()).orElse(null);
     if (player == null) return PlayerSocialService.ActionResult.failure("紐付いたゲームプレイヤーが見つかりません。");
     OffsetDateTime now = OffsetDateTime.now();
@@ -181,7 +184,7 @@ public class TimelinePostService {
     post.setActorType(actorType);
     post.setActorPlayerId(actorPlayerId);
     post.setActorName(displayName(actorName));
-    post.setMessage(message);
+    post.setMessage(limitMessage(message));
     post.setCoordinate(coordinate == null ? "" : coordinate);
     post.setLinkUrl(linkUrl == null ? "" : linkUrl);
     post.setLinkLabel(linkLabel == null ? "" : linkLabel);
@@ -215,8 +218,17 @@ public class TimelinePostService {
 
   private String displayName(String name) { return name == null || name.isBlank() ? "誰か" : name; }
 
+  private String limitMessage(String message) {
+    String normalized = message == null ? "" : message.strip();
+    if (normalized.codePointCount(0, normalized.length()) <= MAX_POST_CHARACTERS) {
+      return normalized;
+    }
+    int end = normalized.offsetByCodePoints(0, MAX_POST_CHARACTERS - 1);
+    return normalized.substring(0, end).stripTrailing() + "…";
+  }
+
   private String displayMessage(T_TimelinePost post) {
-    String message = post.getMessage() == null ? "" : post.getMessage().strip();
+    String message = limitMessage(post.getMessage());
     if (!TimelinePostType.parse(post.getPostType())
         .map(TimelinePostType::isAiGenerated).orElse(false) || message.contains("\n")) return message;
     String sentenceBreaks = message.replaceAll("。(?=\\S)", "。\n");

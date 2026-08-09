@@ -217,7 +217,7 @@ class GameLogImportServiceTests {
   }
 
   @Test
-  void publishesAtMostOneBloodMoonForecastPerDay() throws Exception {
+  void retainsBloodMoonObservationsWithoutPublishingTimelineForecasts() throws Exception {
     Path log = writeLog("""
         2026-07-30T10:57:36 36.485 INF BloodMoon SetDay: day 14, last day 7, freq 7, range 0
         2026-07-30T11:57:36 96.485 INF BloodMoon SetDay: day 14, last day 7, freq 7, range 0
@@ -225,11 +225,12 @@ class GameLogImportServiceTests {
 
     logImportService.importLogFile(log);
 
-    assertThat(worldEventRepository.findAll()).hasSize(2);
+    assertThat(worldEventRepository.findAll())
+        .hasSize(2)
+        .allSatisfy(event -> assertThat(event.getEventType()).isEqualTo("BLOOD_MOON"));
     assertThat(timelinePostRepository.findAll())
         .filteredOn(post -> "BLOOD_MOON".equals(post.getPostType()))
-        .singleElement()
-        .satisfies(post -> assertThat(post.getMessage()).contains("\n"));
+        .isEmpty();
   }
 
   @Test

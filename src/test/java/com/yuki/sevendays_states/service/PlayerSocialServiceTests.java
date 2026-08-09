@@ -97,4 +97,13 @@ class PlayerSocialServiceTests {
     assertThat(timelinePostRepository.existsById(postId)).isFalse();
     assertThat(timelineReactionRepository.findAllByTimelinePostId(postId)).isEmpty();
   }
+
+  @Test
+  void rejectsPostsLongerThanOneHundredCharacters() {
+    assertThat(socialService.createPost(authentication, "あ".repeat(101)))
+        .satisfies(result -> {
+          assertThat(result.success()).isFalse();
+          assertThat(result.message()).contains("100文字以内");
+        });
+  }
 }

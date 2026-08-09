@@ -105,6 +105,7 @@ class BedrockWatchpointClientTests {
     verify(runtimeClient).converse(captor.capture());
     String userMessage = captor.getValue().messages().getFirst().content().getFirst().text();
     assertThat(userMessage).contains("JSONオブジェクトだけ");
+    assertThat(userMessage).contains("100文字以内");
     assertThat(userMessage).contains("\"body\"");
   }
 
@@ -137,6 +138,6 @@ class BedrockWatchpointClientTests {
     return new WatchpointAiObservationService.AnalysisRequest(
         "watchpoint.observation.v1", now, "AWS_BEDROCK_CONVERSE", "WATCHPOINT system",
         "短文を生成", new WatchpointAiObservationService.OutputContract(
-        "application/json", 240, false, List.of("body", "evidenceKeys"), "test"), observation);
+        "application/json", 100, false, List.of("body", "evidenceKeys"), "test"), observation);
   }
 }
