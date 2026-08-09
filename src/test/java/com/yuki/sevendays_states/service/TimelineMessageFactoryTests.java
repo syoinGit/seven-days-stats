@@ -55,5 +55,9 @@ class TimelineMessageFactoryTests {
         .isEqualTo(TimelinePostType.PLAYER_ANALYSIS);
     assertThat(TimelinePostType.PLAYER_ANALYSIS.isAiGenerated()).isTrue();
     assertThat(TimelinePostType.parse("UNKNOWN")).isEmpty();
+    assertThat(TimelinePostType.LOGIN.systemActorName()).contains("CONNECTION MONITOR");
+    assertThat(TimelinePostType.LOGIN.avatarPath()).contains("/img/connection-monitor-avatar.png");
+    assertThat(TimelinePostType.BLOOD_MOON.avatarPath()).contains("/img/blood-moon-alert-avatar.png");
+    assertThat(TimelinePostType.SERVER_ANALYSIS.avatarPath()).contains("/img/world-intel-avatar.png");
   }
 }

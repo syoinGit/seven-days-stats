@@ -146,7 +146,7 @@ class GameLogImportServiceTests {
     assertThat(vehiclePositionRepository.count()).isEqualTo(1);
     assertThat(timelinePostRepository.findAll())
         .extracting(post -> post.getPostType() + ":" + post.getActorName())
-        .contains("LOGIN:DDD烈火王テムジン", "LOGOUT:DDD烈火王テムジン");
+        .contains("LOGIN:CONNECTION MONITOR", "LOGOUT:CONNECTION MONITOR");
   }
 
   @Test

@@ -136,7 +136,7 @@ public class TimelinePostService {
               playerId, type.name(), after);
       if (coolingDown) return;
     }
-    String actorName = type == TimelinePostType.BLOOD_MOON ? "緊急警報" : displayName(playerName);
+    String actorName = type.systemActorName().orElseGet(() -> displayName(playerName));
     save(type, "GAME", playerId, actorName, messageFactory.message(type, playerName, detail, sourceHash),
         coordinate, "", "", sourceType, sourceId, sourceHash, type.publishChance(), occurredAt);
   }
@@ -147,8 +147,8 @@ public class TimelinePostService {
     if (commentId == null) return;
     String sourceHash = "AI_COMMENT:" + commentId;
     if (!postRepository.existsBySourceHash(sourceHash)) {
-      String actor = aiPostType == AiPostType.NORMAL ? "WATCHPOINT" : "観測分析局";
       TimelinePostType timelineType = TimelinePostType.fromAiPostType(aiPostType);
+      String actor = timelineType.systemActorName().orElse("WATCHPOINT");
       save(timelineType, "WATCHPOINT", targetPlayerId, actor, body, "", "", "",
           "AI_COMMENT", commentId, sourceHash, 100, publishedAt);
     }
@@ -159,7 +159,8 @@ public class TimelinePostService {
       String title) {
     if (commentId == null || diaryDate == null) return;
     String sourceHash = "DIARY:" + commentId + ":" + publishedAt.toInstant();
-    save(TimelinePostType.DIARY, "ARCHIVE", null, "冒険記録局",
+    save(TimelinePostType.DIARY, "ARCHIVE", null,
+        TimelinePostType.DIARY.systemActorName().orElse("冒険記録局"),
         diaryDate + " の冒険日記「" + displayName(title) + "」を記録しました。",
         "", "/diaries/" + diaryDate, "日記を読む", "AI_DIARY", commentId, sourceHash, 100,
         publishedAt);

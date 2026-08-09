@@ -214,7 +214,8 @@ public class DashboardController {
         String names = group.stream().map(TimelineItem::actor).distinct()
             .collect(java.util.stream.Collectors.joining("、"));
         String action = "LOGIN".equals(first.kind()) ? "荒野へログインしました。" : "荒野からログアウトしました。";
-        merged.add(new TimelineItem("POST", first.postId(), null, "接続監視", first.kind(),
+        merged.add(new TimelineItem("POST", first.postId(), null,
+            TimelinePostType.LOGIN.systemActorName().orElse("CONNECTION MONITOR"), first.kind(),
             first.occurredAt(), names + " が" + action, "", first.tone(), first.tag(), "", "",
             first.reactions(), first.currentReaction(), false));
       }
@@ -455,8 +456,8 @@ public class DashboardController {
       return reactions == null ? 0 : reactions.values().stream().mapToLong(Long::longValue).sum();
     }
 
-    public boolean watchpointPost() {
-      return TimelinePostType.WATCHPOINT.name().equals(kind);
+    public String avatarUrl() {
+      return TimelinePostType.parse(kind).flatMap(TimelinePostType::avatarPath).orElse("");
     }
 
     public TimelineItem(
@@ -485,7 +486,7 @@ public class DashboardController {
       TimelinePostType type = TimelinePostType.fromAiPostType(comment.postType());
       return new TimelineItem(
           "AI", null, comment.targetPlayerId(),
-          comment.postType() == com.yuki.sevendays_states.entity.AiPostType.NORMAL ? "WATCHPOINT" : "観測分析局",
+          type.systemActorName().orElse("WATCHPOINT"),
           type.name(),
           DISPLAY_TIME_FORMATTER.format(comment.publishedAt()),
           comment.body(), "", type.tone(), type.tagLabel(), "", "", Map.of(), null, false);
