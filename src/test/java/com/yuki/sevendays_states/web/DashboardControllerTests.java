@@ -279,6 +279,19 @@ class DashboardControllerTests {
   }
 
   @Test
+  void adminNavigationIncludesDiaryMaintenanceAndKarenTestAction() throws Exception {
+    String navigation = Files.readString(
+        Path.of("src/main/resources/templates/fragments/navigation.html"));
+    String bedrockTest = Files.readString(
+        Path.of("src/main/resources/templates/ai-analysis-test.html"));
+
+    assertThat(navigation)
+        .contains("@{/maintenance/diaries}", "日誌メンテ", "diary-maintenance");
+    assertThat(bedrockTest)
+        .contains("@{/maintenance/ai-analysis/test/karen}", "Karenの新規投稿");
+  }
+
+  @Test
   void publicDiaryListReturnsDatabaseBackedView() {
     ConcurrentModel model = new ConcurrentModel();
 

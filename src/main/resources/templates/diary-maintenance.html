@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png"><link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png"><title>DIARY MAINTENANCE | WATCHPOINT</title><link rel="stylesheet" th:href="@{/css/app.css(v='20260809-8')}"></head>
 <body>
 <header class="topbar"><a class="brand" th:href="@{/}"><span class="brand-mark">WP</span><span><b>WATCHPOINT</b><small>DAILY DIARY / BETA</small></span></a><a class="nav-button" th:href="@{/diaries}">公開日記を見る</a></header>
-<main class="detail-shell"><nav th:replace="~{fragments/navigation :: rail('maintenance')}"></nav><section class="layout detail-page">
+<main class="detail-shell"><nav th:replace="~{fragments/navigation :: rail('diary-maintenance')}"></nav><section class="layout detail-page">
   <header class="page-title"><nav class="breadcrumbs"><a th:href="@{/}"><span aria-hidden="true">⌂</span> 冒険記録</a><span>›</span><b><span aria-hidden="true">▤</span> 日別冒険日記</b></nav><p class="eyebrow">MAINTENANCE / DAILY AI DIARY</p><h1>日別冒険日記メンテナンス</h1><p>日本時間の1日ごとに冒険ログを集約します。生成材料をコピーしてAIへ渡し、完成した日記を同じ日付へ登録してください。</p></header>
   <section class="diary-day-list">
     <article class="panel diary-day-card" th:each="day : ${days}">

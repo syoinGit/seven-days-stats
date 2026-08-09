@@ -10,6 +10,7 @@
     <a th:href="@{/exploration}" th:classappend="${activePage == 'exploration'} ? 'active'"><span>04</span>探索済みPOI</a>
     <a th:href="@{/diaries}" th:classappend="${activePage == 'diaries'} ? 'active'"><span>AI</span>冒険日記</a>
     <a th:if="${currentAdmin}" th:href="@{/maintenance/accounts}" th:classappend="${activePage == 'maintenance'} ? 'active'"><span>ADM</span>アカウント管理</a>
+    <a th:if="${currentAdmin}" th:href="@{/maintenance/diaries}" th:classappend="${activePage == 'diary-maintenance'} ? 'active'"><span>ADM</span>日誌メンテ</a>
     <a th:if="${currentAdmin}" th:href="@{/maintenance/ai-analysis/test}" th:classappend="${activePage == 'ai-test'} ? 'active'"><span>AI</span>Bedrockテスト</a>
     <p class="rail-copy">荒廃世界を生きた一日を、<br>記録からもう一度楽しむ。</p>
   </div>
