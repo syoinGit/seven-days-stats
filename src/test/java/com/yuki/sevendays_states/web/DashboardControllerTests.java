@@ -220,6 +220,7 @@ class DashboardControllerTests {
     assertThat(Path.of("src/main/resources/static/img/watchpoint-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/blood-moon-alert-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/world-intel-avatar.png")).exists();
+    assertThat(Path.of("src/main/resources/static/img/observation-analysis-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/connection-monitor-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/horde-watch-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/air-drop-avatar.png")).exists();

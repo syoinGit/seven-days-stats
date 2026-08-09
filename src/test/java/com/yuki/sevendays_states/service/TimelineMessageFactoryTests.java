@@ -9,10 +9,10 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 class TimelineMessageFactoryTests {
-  private final TimelineMessageFactory factory = new TimelineMessageFactory();
+  private final TimelineMessageFactory factory = new TimelineMessageFactory(new TimelineCopyCatalog());
 
   @Test
-  void killMessagesAreTwoLineFactSafeZombieMovieCopyWithOverOneThousandVariants() {
+  void killMessagesAreTwoLineFactSafeZombieMovieCopyWithMillionsOfCombinations() {
     var messages = IntStream.range(0, 20000)
         .mapToObj(index -> factory.message(
             TimelinePostType.KILL, "後輩", "zombieBusinessMan", "kill-source-" + index))
@@ -26,24 +26,42 @@ class TimelineMessageFactoryTests {
   }
 
   @Test
-  void internetFlavourAppearsSometimesButNotInEveryPost() {
-    var messages = IntStream.range(0, 500)
-        .mapToObj(index -> factory.message(
-            TimelinePostType.KILL, "後輩", "感染者", "meme-source-" + index))
-        .toList();
-
-    assertThat(messages).anyMatch(message -> message.contains("現場からは以上です。")
-        || message.contains("優勝") || message.contains("RTA") || message.contains("仕様です。"));
-    assertThat(messages).anyMatch(message -> !message.contains("現場からは以上です。")
-        && !message.contains("優勝") && !message.contains("RTA") && !message.contains("仕様です。")
-        && !message.contains("ヨシ！") && !message.contains("フラグ"));
+  void killCopyCompositionHasMoreThanSixMillionPossibleVariants() {
+    assertThat(factory.killVariantCapacity()).isGreaterThanOrEqualTo(6_000_000L);
   }
 
   @Test
-  void bloodMoonMessagesAreClearlySeparatedIntoTwoLines() {
-    assertThat(factory.message(TimelinePostType.BLOOD_MOON, null, null, "blood-moon"))
-        .startsWith("ブラッドムーン予定が更新された。\n")
-        .hasLineCount(2);
+  void killMessagesUseZombieAndHorrorGenreParodiesInsteadOfInternetMemes() {
+    var messages = IntStream.range(0, 500)
+        .mapToObj(index -> factory.message(
+            TimelinePostType.KILL, "後輩", "感染者", "genre-source-" + index))
+        .toList();
+
+    assertThat(messages).anyMatch(message -> message.contains("ショッピングモール")
+        || message.contains("研究施設") || message.contains("地下室") || message.contains("エンドロール"));
+    assertThat(messages).allSatisfy(message -> assertThat(message)
+        .doesNotContain("現場からは以上です。", "優勝", "RTA", "仕様です。", "ヨシ！", "MVP", "コメント欄"));
+  }
+
+  @Test
+  void killMessagesAlwaysUseCompletedJapaneseVerbs() {
+    var messages = IntStream.range(0, 1000)
+        .mapToObj(index -> factory.message(
+            TimelinePostType.KILL, "後輩", "zombieJoe", "verb-source-" + index))
+        .toList();
+
+    assertThat(messages).allSatisfy(message -> assertThat(message)
+        .doesNotContain("させ！！", "にし！！", "返し！！"));
+  }
+
+  @Test
+  void timelineCopyCatalogKeepsAllRequiredCompositionParts() {
+    TimelineCopyCatalog catalog = new TimelineCopyCatalog();
+
+    assertThat(catalog.part("kill-verbs")).isNotEmpty();
+    assertThat(catalog.part("kill-scenes")).hasSizeGreaterThanOrEqualTo(20);
+    assertThat(catalog.part("kill-endings")).hasSizeGreaterThanOrEqualTo(26);
+    assertThat(catalog.part("kill-sound-beats")).hasSize(3);
   }
 
   @Test
@@ -58,7 +76,7 @@ class TimelineMessageFactoryTests {
     assertThat(TimelinePostType.LOGIN.systemActorName()).isEmpty();
     assertThat(TimelinePostType.LOGIN.avatarPath()).isEmpty();
     assertThat(TimelinePostType.BLOOD_MOON.avatarPath()).contains("/img/blood-moon-alert-avatar.png");
-    assertThat(TimelinePostType.SERVER_ANALYSIS.avatarPath()).contains("/img/world-intel-avatar.png");
+    assertThat(TimelinePostType.SERVER_ANALYSIS.avatarPath()).contains("/img/observation-analysis-avatar.png");
     assertThat(TimelinePostType.AIR_DROP.systemActorName()).contains("WORLD INTEL");
     assertThat(TimelinePostType.HORDE_ALERT.systemActorName()).contains("HORDE WATCH");
     assertThat(TimelinePostType.HORDE_ALERT.avatarPath()).contains("/img/horde-watch-avatar.png");

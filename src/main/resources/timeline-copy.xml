@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<timeline-copy>
+  <part id="kill-verbs">
+    <line>討伐した</line><line>処刑した</line><line>撃破した</line><line>始末した</line>
+    <line>粉砕した</line><line>退場させた</line><line>亡き者にした</line><line>永眠させた</line>
+    <line>墓場へ送り返した</line><line>映画から降板させた</line><line>沈黙させた</line><line>スクラップにした</line>
+  </part>
+  <part id="kill-scenes">
+    <line>荒野で</line><line>探索先で</line><line>瓦礫の向こうで</line><line>死者の群れのただ中で</line>
+    <line>帰り道で</line><line>文明の残骸を背に</line><line>世界の片隅で</line><line>逃げ場のない戦場で</line>
+    <line>今日という舞台で</line><line>ゾンビ映画さながらに</line><line>モール跡の吹き抜けで</line><line>非常灯の下で</line>
+    <line>研究棟らしき廃墟で</line><line>停電したロビーで</line><line>廃病院の外階段で</line><line>ガソリンスタンドの陰で</line>
+    <line>崩れたスーパーマーケットで</line><line>放送の途切れた駅前で</line><line>防災無線の届かない路地で</line><line>雨に濡れた駐車場で</line>
+  </part>
+  <part id="kill-endings">
+    <line>荒廃世界の平和は守られた！</line><line>お楽しみはこれからだ！</line><line>ジュースをおごってやろう。</line>
+    <line>感染者側には残念なお知らせだ。</line><line>今日も人類が一本取った！</line><line>エンドロールにはまだ早い。</line>
+    <line>墓地の予約が一件増えた。</line><line>ゾンビ労働組合から苦情が来そうだ。</line><line>見事だ。次の客を通せ！</line>
+    <line>荒野の人口統計が少し改善した。</line><line>その調子だ、生存者！</line><line>拍手は弾薬の節約にならないぞ。</line>
+    <line>この映画、主役はまだ交代しない。</line><line>死者の行進に空席ができた。</line><line>脅威を一つ、請求書なしで片づけた。</line>
+    <line>今のは予告編に使える。</line><line>平和は短い。だが今は祝おう。</line><line>感染者の勤務時間は終了だ。</line>
+    <line>記録完了。かなり景気のいい一撃だ。</line><line>次のゾンビは考え直した方がいい。</line>
+    <line>生存者チームの予算は、今日も減らなかった。</line><line>救急箱を開けずに済むなら、それが一番だ。</line>
+    <line>監督なら、ここで一度だけ頷く。</line><line>静寂の予算が、また少し削られた。</line>
+    <line>救助ヘリの到着前に、ひと仕事片づいた。</line><line>この街の悪夢に、一行だけ訂正が入った。</line>
+  </part>
+  <part id="genre-stingers">
+    <line weight="8"/>
+    <line>エンドロールには、まだ早い。</line><line>感染拡大の予算が少し削れた。</line>
+    <line>ショッピングモールなら、非常口を先に探せ。</line><line>即席武器が役に立つ日ほど、商品棚は遠い。</line>
+    <line>研究施設の赤い警報灯は、だいたい歓迎の印じゃない。</line><line>培養槽のある部屋には、なるべく入らない。</line>
+    <line>地下室には、映画でも現実でも先に入らない。</line><line>『大丈夫』と言った直後ほど、BGMを疑え。</line>
+    <line>カメラが引いたら、背後を確認しよう。</line><line>生還者のクレジットは、まだ流れていない。</line>
+    <line>閉じた扉の向こうは、だいたい静かではない。</line><line>チェーンソーの音は、安心材料にならない。</line>
+    <line>非常用エレベーターは、非常時ほど信用できない。</line><line>次のシーンへ進む前に、弾倉を確認。</line>
+    <line>研究員の置き手紙は、だいたい読まなくていい。</line><line>この街に安全な近道はない。</line>
+  </part>
+  <part id="kill-camera-beats">
+    <line>次のカットまで、呼吸を整えよう。</line><line>カメラはまだ回っている。</line><line>照明が落ちる前に移動だ。</line>
+    <line>主人公補正にも、弾薬は必要だ。</line><line>扉の鍵を確認してから次へ進もう。</line><line>効果音が消えた今が移動の好機。</line>
+    <line>ロビーの時計は、見ない方がいい。</line><line>無線が静かなうちに補給を。</line><line>足跡が増える前に退場しよう。</line>
+    <line>脇役の油断ほど、上映時間を延ばす。</line><line>壁際の影は、二度見しておこう。</line><line>非常口の看板だけは信じてもいい。</line>
+    <line>開いたロッカーには、期待より警戒を。</line><line>次の扉は、ゆっくり開けよう。</line><line>映画の地図にも、安全地帯は少ない。</line>
+    <line>荷物欄に余白があるなら、今のうちだ。</line><line>背後の静けさは、確認して初めて静けさになる。</line>
+    <line>夜明けまでの尺は、まだ残っている。</line><line>照準を下ろすのは、周囲を見てから。</line>
+    <line>この場面の教訓は、予備マガジンだ。</line><line>カットが変わる前に、仲間の位置を確認。</line>
+    <line>次の悲鳴が聞こえる前に、足を動かそう。</line><line>映画なら、この後に静かな部屋が来る。</line>
+  </part>
+  <part id="kill-sound-beats">
+    <line>割れたガラスの音だけが残る。</line><line>遠くで警報が一度だけ鳴った。</line><line>無線のノイズが少し薄くなった。</line>
+  </part>
+  <part id="timeline-beats">
+    <line>無線は、今だけ静かだ。</line><line>非常灯が消える前に、次の手を。</line><line>廃墟は次の場面を待っている。</line>
+    <line>生還ルートは、常に一つ多く確保しよう。</line><line>カメラの外にも、気配はいる。</line><line>扉を閉める音までが演出だ。</line>
+    <line>静かな場所ほど、足元を見よう。</line><line>予備の弾倉は、だいたい正しい。</line><line>照明が赤くなったら、迷う時間は短い。</line>
+    <line>次のカットは、できれば明るい場所で。</line><line>地図の余白にも、危険は書かれていない。</line><line>荒野は観客席を用意しない。</line>
+    <line>開いたドアは、招待状ではない。</line><line>聞こえない足音ほど、近くにいる。</line><line>この街の案内板は、だいたい遅い。</line>
+    <line>映画なら、ここで一度だけ後ろを見る。</line><line>無線の雑音は、背景音にしておこう。</line><line>照準と懐中電灯は、同じくらい大事。</line>
+    <line>次の部屋の空気が変わる前に進もう。</line><line>エンドロールは、生きてから考える。</line><line>安全地帯にも、出口は必要だ。</line>
+    <line>夜の廃墟は、説明を省きすぎる。</line><line>帰還の文字が見えるまで、油断は保留。</line><line>観測記録は、まだ続いている。</line>
+  </part>
+</timeline-copy>
