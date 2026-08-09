@@ -225,6 +225,17 @@ class DashboardControllerTests {
   }
 
   @Test
+  void timelineUsesUnifiedCardsLargerAvatarsAndAViewportBoundSidebar() throws Exception {
+    String css = Files.readString(Path.of("src/main/resources/static/css/app.css"));
+    String dashboard = Files.readString(Path.of("src/main/resources/templates/dashboard.html"));
+
+    assertThat(css)
+        .doesNotContain(".feed-item.tone-")
+        .contains("width: 64px; height: 64px", "max-height: calc(100vh - 124px)");
+    assertThat(dashboard).contains("maxlength=\"100\"", "100文字以内");
+  }
+
+  @Test
   void everyPageDeclaresTheSiteIcons() throws Exception {
     try (var templates = Files.list(Path.of("src/main/resources/templates"))) {
       assertThat(templates.filter(path -> path.toString().endsWith(".html")))

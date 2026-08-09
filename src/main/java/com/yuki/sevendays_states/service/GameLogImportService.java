@@ -875,10 +875,12 @@ public class GameLogImportService {
       case "WANDERING_HORDE", "SCOUT_HORDE", "SCREAMER_SPAWN" -> TimelinePostType.HORDE_ALERT;
       default -> TimelinePostType.WORLD_EVENT;
     };
-    timelinePostService.publishGameEvent(postType, row.getPlayerId(), row.getActorPlayerName(), event.occurredAt(),
-        worldEventText(event.eventType(), event.detailText(), nearbyDescription(row)),
-        coordinate(row.getPositionX(), row.getPositionY(), row.getPositionZ()),
-        "WORLD_EVENT", row.getId(), "WORLD_EVENT:" + hash);
+    if (postType != TimelinePostType.BLOOD_MOON) {
+      timelinePostService.publishGameEvent(postType, row.getPlayerId(), row.getActorPlayerName(), event.occurredAt(),
+          worldEventText(event.eventType(), event.detailText(), nearbyDescription(row)),
+          coordinate(row.getPositionX(), row.getPositionY(), row.getPositionZ()),
+          "WORLD_EVENT", row.getId(), "WORLD_EVENT:" + hash);
+    }
     counter.worldEvents++;
   }
 
