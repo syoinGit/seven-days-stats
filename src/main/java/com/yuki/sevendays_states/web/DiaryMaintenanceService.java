@@ -33,7 +33,8 @@ public class DiaryMaintenanceService {
           union all select occurred_at from t_entity_kill_transaction
           union all select occurred_at from t_sleeper_transaction where transaction_type = 'SLEEPER_SPAWN'
           union all select occurred_at from t_world_event_transaction where event_type <> 'BLOOD_MOON'
-          union all select occurred_at from t_vehicle_position_transaction where movement_distance >= 1
+          union all select occurred_at from t_vehicle_position_transaction
+          where movement_valid = true and attributed_player_id is not null and movement_distance >= 1
           union all select occurred_at from t_level_xp_summary_transaction
           union all select observed_at as occurred_at from t_world_time_observation
         ) diary_events
@@ -119,7 +120,9 @@ public class DiaryMaintenanceService {
           union all select occurred_at from t_entity_kill_transaction where occurred_at >= ? and occurred_at < ?
           union all select occurred_at from t_sleeper_transaction where occurred_at >= ? and occurred_at < ? and transaction_type = 'SLEEPER_SPAWN'
           union all select occurred_at from t_world_event_transaction where occurred_at >= ? and occurred_at < ? and event_type <> 'BLOOD_MOON'
-          union all select occurred_at from t_vehicle_position_transaction where occurred_at >= ? and occurred_at < ? and movement_distance >= 1
+          union all select occurred_at from t_vehicle_position_transaction
+          where occurred_at >= ? and occurred_at < ?
+            and movement_valid = true and attributed_player_id is not null and movement_distance >= 1
         ) counted
         """, Long.class, from, to, from, to, from, to, from, to, from, to, from, to);
     long eventCount = countedEvents == null ? 0 : countedEvents;
@@ -142,8 +145,9 @@ public class DiaryMaintenanceService {
     BigDecimal vehicle = jdbcTemplate.queryForObject("""
         select coalesce(sum(v.movement_distance), 0)
         from t_vehicle_position_transaction v
-        join m_player p on p.id = v.owner_player_id
+        join m_player p on p.id = v.attributed_player_id
         where p.player_name = ? and v.occurred_at >= ? and v.occurred_at < ?
+          and v.movement_valid = true and v.movement_distance > 0
         """, BigDecimal.class, name, from, to);
     return new PlayerDay(
         name, joins, leaves, kills, encounters, position,

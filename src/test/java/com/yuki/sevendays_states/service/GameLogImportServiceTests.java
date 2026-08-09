@@ -41,6 +41,8 @@ class GameLogImportServiceTests {
   @TempDir
   Path tempDir;
 
+  private int logSequence;
+
   @Autowired
   private GameLogImportService logImportService;
 
@@ -267,6 +269,26 @@ class GameLogImportServiceTests {
   }
 
   @Test
+  void enriches4x4OwnerWhenPostInitAndLoadedShareTheSameTimestamp() throws Exception {
+    Path log = writeLog("""
+        2026-07-29T13:56:00 10645.000 INF Executing command 'lp' by Telnet from app
+        0. id=171, PlayerA, pos=(0.0, 38.0, 0.0), rot=(0.0, 0.0, 0.0), remote=True, health=100, deaths=0, zombies=0, players=0, score=0, level=1, pltfmid=Steam_a, crossid=EOS_a, ip=127.0.0.1, ping=5
+        Total of 1 in the game
+        2026-07-29T13:56:11 10656.555 INF Vehicle PostInit [type=EntityVJeep, name=vehicleTruck4x4, id=4001], (100.0, 38.0, 0.0) (chunk 6, 0), rbPos (0.00, 0.00, 0.00)
+        2026-07-29T13:56:11 10656.556 INF VehicleManager loaded #0, id 4001, [type=EntityVJeep, name=vehicleTruck4x4, id=4001], (100.0, 38.0, 0.0), chunk 6, 0 (6, 0), owner EOS_a
+        """);
+
+    logImportService.importLogFile(log);
+
+    Long playerId = playerRepository.findAll().getFirst().getId();
+    assertThat(vehicleCurrentStateRepository.findById(4001)).hasValueSatisfying(row -> {
+      assertThat(row.getVehicleName()).isEqualTo("vehicleTruck4x4");
+      assertThat(row.getOwnerPlayerId()).isEqualTo(playerId);
+      assertThat(row.getOwnerInferenceMethod()).isEqualTo("vehicle_log_owner");
+    });
+  }
+
+  @Test
   void infersVehicleOwnerFromFreshMatchingPlayerPosition() throws Exception {
     Path log = writeLog("""
         2026-07-29T13:58:10 10775.000 INF Executing command 'lp' by Telnet from app
@@ -349,6 +371,47 @@ class GameLogImportServiceTests {
             BigDecimal.ZERO,
             BigDecimal.ZERO,
             new BigDecimal("10.0"));
+  }
+
+  @Test
+  void keepsVehicleOwnershipAndDistanceAcrossAnUnloadedReload() throws Exception {
+    Path log = writeLog("""
+        2026-07-29T13:49:00 9940.000 INF Executing command 'lp' by Telnet from app
+        0. id=171, PlayerA, pos=(0.0, 38.0, 0.0), rot=(0.0, 0.0, 0.0), remote=True, health=100, deaths=0, zombies=0, players=0, score=0, level=1, pltfmid=Steam_a, crossid=EOS_a, ip=127.0.0.1, ping=5
+        Total of 1 in the game
+        2026-07-29T13:50:00 10000.000 INF VehicleManager loaded #0, id 2631, [type=EntityVJeep, name=vehicleTruck4x4, id=2631], (0.0, 38.0, 0.0), chunk 0, 0 (0, 0), owner EOS_a
+        2026-07-29T13:51:00 10060.000 INF 100001 VehicleManager write #0, id 2631, vehicleTruck4x4, (10.0, 38.0, 0.0), chunk 0, 0
+        2026-07-29T13:52:00 10120.000 INF Vehicle PostInit [type=EntityVJeep, name=vehicleTruck4x4, id=2631], (1000.0, 38.0, 0.0) (chunk 62, 0), rbPos (0.00, 0.00, 0.00)
+        2026-07-29T13:53:00 10180.000 INF 100002 VehicleManager write #0, id 2631, vehicleTruck4x4, (1010.0, 38.0, 0.0), chunk 63, 0
+        """);
+
+    logImportService.importLogFile(log);
+
+    Long playerId = playerRepository.findAll().getFirst().getId();
+    assertThat(vehicleCurrentStateRepository.findById(2631)).hasValueSatisfying(row -> {
+      assertThat(row.getOwnerPlayerId()).isEqualTo(playerId);
+      assertThat(row.getTotalDistance()).isEqualByComparingTo("20.0");
+      assertThat(row.isActive()).isTrue();
+    });
+    assertThat(vehiclePositionRepository.findAll())
+        .extracting(row -> row.getMovementDistance())
+        .usingComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .containsExactly(BigDecimal.ZERO, new BigDecimal("10.0"), BigDecimal.ZERO, new BigDecimal("10.0"));
+  }
+
+  @Test
+  void keepsVehicleTrackedWhenItIsOnlyUnloaded() throws Exception {
+    Path log = writeLog("""
+        2026-07-29T13:50:00 10000.000 INF VehicleManager write #0, id 2631, vehicleTruck4x4, (0.0, 38.0, 0.0), chunk 0, 0
+        2026-07-29T13:51:00 10060.000 INF VehicleManager RemoveTrackedVehicle [type=EntityVJeep, name=vehicleTruck4x4, id=2631], Unloaded
+        """);
+
+    logImportService.importLogFile(log);
+
+    assertThat(vehicleCurrentStateRepository.findById(2631)).hasValueSatisfying(row -> {
+      assertThat(row.isActive()).isTrue();
+      assertThat(row.getDestroyedAt()).isNull();
+    });
   }
 
   @Test
@@ -794,7 +857,7 @@ class GameLogImportServiceTests {
   }
 
   private Path writeLog(String content) throws Exception {
-    Path file = tempDir.resolve("log");
+    Path file = tempDir.resolve("log-" + logSequence++ + ".log");
     Files.writeString(file, content);
     return file;
   }

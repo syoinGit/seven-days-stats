@@ -246,7 +246,7 @@ class DashboardViewServiceTests {
   }
 
   @Test
-  void vehicleRankingAggregatesByOwnerAndTypeAndHidesUnownedNoise() {
+  void vehicleRankingAggregatesByDriverAndTypeAndHidesUnattributedNoise() {
     jdbcTemplate.update("""
         insert into m_player (id, player_key, platform, user_id, player_name)
         values (1, 'EOS:eos-a', 'EOS', 'eos-a', 'PlayerA')
@@ -275,11 +275,12 @@ class DashboardViewServiceTests {
     DashboardViewService.VehicleDetailView detail = dashboardViewService.vehicleDetail();
 
     assertThat(detail.vehicles()).hasSize(1);
-    assertThat(detail.vehicles().getFirst().ownerName()).isEqualTo("PlayerA");
+    assertThat(detail.vehicles().getFirst().driverName()).isEqualTo("PlayerA");
     assertThat(detail.vehicles().getFirst().vehicleCount()).isEqualTo(2);
     assertThat(detail.vehicles().getFirst().totalDistance()).isEqualByComparingTo("200.0");
     assertThat(detail.summary().vehicleCount()).isEqualTo(2);
-    assertThat(detail.summary().activeCount()).isEqualTo(2);
+    assertThat(detail.summary().activeCount()).isEqualTo(1);
+    assertThat(detail.summary().driverCount()).isEqualTo(1);
     assertThat(detail.typeRankings()).singleElement()
         .satisfies(type -> assertThat(type.totalDistance()).isEqualByComparingTo("200.0"));
   }
@@ -794,7 +795,7 @@ class DashboardViewServiceTests {
         .contains("AIR_DROP", "VEHICLE_MOVE")
         .doesNotContain("MOVE");
     assertThat(dashboard.vehicleStatuses()).hasSize(1);
-    assertThat(dashboard.vehicleStatuses().getFirst().ownerName()).isEqualTo("PlayerA");
+    assertThat(dashboard.vehicleStatuses().getFirst().driverName()).isEqualTo("PlayerA");
     assertThat(dashboard.vehicleStatuses().getFirst().vehicleCount()).isEqualTo(1);
     assertThat(dashboard.vehicleStatuses().getFirst().totalDistance()).isEqualByComparingTo("20.0");
     assertThat(dashboard.playerStatuses()).hasSize(1);

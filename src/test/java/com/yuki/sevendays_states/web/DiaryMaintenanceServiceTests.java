@@ -33,8 +33,12 @@ class DiaryMaintenanceServiceTests {
     jdbcTemplate.update("delete from t_entity_kill_transaction");
     jdbcTemplate.update("delete from t_level_xp_summary_transaction");
     jdbcTemplate.update("delete from t_world_event_transaction");
+    jdbcTemplate.update("delete from t_vehicle_position_transaction");
+    jdbcTemplate.update("delete from t_vehicle_current_state");
     jdbcTemplate.update("delete from t_player_position_transaction");
     jdbcTemplate.update("delete from t_player_join_transaction");
+    jdbcTemplate.update("delete from t_player_current_state");
+    jdbcTemplate.update("delete from m_player");
     jdbcTemplate.update("delete from m_world_poi");
   }
 
@@ -103,5 +107,43 @@ class DiaryMaintenanceServiceTests {
         "訪問POIを一覧として説明しない", "プレイヤー間に順位や優劣を付けない",
         "事実の根拠として使う", "締め方は毎回変える");
     assertThat(service.days()).extracting(DiaryMaintenanceService.DiaryDay::date).contains(date);
+  }
+
+  @Test
+  void countsOnlyVerifiedVehicleDrivingForTheDiary() {
+    LocalDate date = LocalDate.of(2026, 8, 2);
+    OffsetDateTime time = OffsetDateTime.of(2026, 8, 2, 3, 0, 0, 0, ZoneOffset.UTC);
+    jdbcTemplate.update("""
+        insert into m_player (id, player_key, platform, user_id, player_name)
+        values (1, 'EOS:driver', 'EOS', 'driver', 'Driver'),
+               (2, 'EOS:passenger', 'EOS', 'passenger', 'Passenger')
+        """);
+    jdbcTemplate.update("""
+        insert into t_player_join_transaction
+        (occurred_at, player_name, player_entity_id, player_id, source_file, source_log_hash)
+        values (?, 'Driver', 101, 1, 'log', 'driver-join'),
+               (?, 'Passenger', 102, 2, 'log', 'passenger-join')
+        """, time, time);
+    jdbcTemplate.update("""
+        insert into t_vehicle_position_transaction
+        (occurred_at, event_type, vehicle_entity_id, vehicle_type, vehicle_name, owner_player_id,
+         attributed_player_id, attribution_method, movement_valid, movement_distance,
+         source_file, source_log_hash, raw_line)
+        values (?, 'VEHICLE_WRITE', 4001, 'EntityVJeep', 'vehicleTruck4x4', 2,
+                1, 'online_near_vehicle_position', true, 40.0, 'log', 'verified-drive', 'raw'),
+               (?, 'VEHICLE_WRITE', 4001, 'EntityVJeep', 'vehicleTruck4x4', 2,
+                1, 'online_near_vehicle_position', false, 999.0, 'log', 'invalid-drive', 'raw')
+        """, time.plusMinutes(1), time.plusMinutes(2));
+
+    DiaryMaintenanceService.DiaryPacket packet = service.packet(date);
+
+    assertThat(packet.participants()).extracting(DiaryMaintenanceService.PlayerDay::name)
+        .containsExactly("Driver", "Passenger");
+    assertThat(packet.participants()).filteredOn(player -> player.name().equals("Driver"))
+        .singleElement().satisfies(player ->
+            assertThat(player.vehicleDistance()).isEqualByComparingTo("40.0"));
+    assertThat(packet.participants()).filteredOn(player -> player.name().equals("Passenger"))
+        .singleElement().satisfies(player ->
+            assertThat(player.vehicleDistance()).isEqualByComparingTo("0"));
   }
 }

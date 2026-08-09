@@ -91,10 +91,10 @@ public class GameLogImportService {
   private static final Duration MAX_VEHICLE_MOVEMENT_GAP = Duration.ofMinutes(5);
   private static final double MAX_PLAUSIBLE_VEHICLE_SPEED_METERS_PER_SECOND = 50.0;
   private static final double MAX_ON_FOOT_SPEED_METERS_PER_SECOND = 12.0;
-  private static final int VEHICLE_ENTITY_REUSE_DISTANCE = 50;
 
   private final SevenDaysDataProperties properties;
   private final M_PlayerRepository playerRepository;
+  private final PlayerLookupService playerLookupService;
   private final T_PlayerCurrentStateRepository playerCurrentStateRepository;
   private final T_PlayerJoinTransactionRepository playerJoinRepository;
   private final T_PlayerLeaveTransactionRepository playerLeaveRepository;
@@ -678,7 +678,8 @@ public class GameLogImportService {
     if (playerKey == null) {
       return null;
     }
-    M_Player player = findExistingPlayer(playerKey, platform, userId, nativePlatform, nativeUserId)
+    M_Player player = playerLookupService.findExisting(
+        playerKey, platform, userId, nativePlatform, nativeUserId)
         .orElseGet(M_Player::new);
     LocalDateTime seenAt = observedAt.atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
     boolean created = player.getId() == null;
@@ -694,30 +695,6 @@ public class GameLogImportService {
     }
     player.setLastSeenAt(seenAt);
     return playerRepository.save(player);
-  }
-
-  private Optional<M_Player> findExistingPlayer(
-      String playerKey,
-      String platform,
-      String userId,
-      String nativePlatform,
-      String nativeUserId) {
-    List<String> candidateKeys = PlayerIdentity.candidatePlayerKeys(platform, userId, nativePlatform, nativeUserId);
-    if (!candidateKeys.contains(playerKey)) {
-      candidateKeys.addFirst(playerKey);
-    }
-    List<M_Player> byKey = playerRepository.findByPlayerKeyInOrderByIdAsc(candidateKeys);
-    if (!byKey.isEmpty()) {
-      return Optional.of(byKey.getFirst());
-    }
-    Optional<M_Player> byPlatformUser = playerRepository.findFirstByPlatformIgnoreCaseAndUserIdOrderByIdAsc(platform, userId);
-    if (byPlatformUser.isPresent()) {
-      return byPlatformUser;
-    }
-    if (nativePlatform != null && nativeUserId != null) {
-      return playerRepository.findFirstByNativePlatformIgnoreCaseAndNativeUserIdOrderByIdAsc(nativePlatform, nativeUserId);
-    }
-    return Optional.empty();
   }
 
   private String stripExternalId(String rawValue, String prefix) {
@@ -913,11 +890,19 @@ public class GameLogImportService {
     }
     T_VehicleCurrentState currentState = vehicleCurrentStateRepository.findById(event.vehicleEntityId())
         .orElseGet(T_VehicleCurrentState::new);
-    boolean updatesCurrentState = currentState.getVehicleEntityId() == null
+    boolean hasNewerState = currentState.getVehicleEntityId() == null
         || currentState.getLastUpdated() == null
         || event.occurredAt().isAfter(currentState.getLastUpdated());
-    boolean reusedVehicleEntity = updatesCurrentState && isReusedVehicleEntity(currentState, event);
+    // The server emits PostInit and loaded records in the same second.  A loaded record is
+    // authoritative for the owner, so it must be allowed to enrich the state written by PostInit.
+    boolean enrichesOwnerAtSameTime = !hasNewerState
+        && event.occurredAt().isEqual(currentState.getLastUpdated())
+        && hasAuthoritativeVehicleOwner(event);
+    boolean updatesCurrentState = hasNewerState || enrichesOwnerAtSameTime;
+    boolean reusedVehicleEntity = hasNewerState && isReusedVehicleEntity(currentState, event);
     if (reusedVehicleEntity) {
+      log.info("WATCHPOINT vehicle lifecycle reset: entityId={}, previousVehicle={}, vehicle={}, destroyedAt={}",
+          event.vehicleEntityId(), currentState.getVehicleName(), event.vehicleName(), currentState.getDestroyedAt());
       currentState.setOwnerPlayerId(null);
       currentState.setOwnerCrossPlatformId(null);
       currentState.setOwnerInferenceMethod(null);
@@ -958,6 +943,10 @@ public class GameLogImportService {
       counter.vehicleEvents++;
       return;
     }
+    if (enrichesOwnerAtSameTime) {
+      log.debug("WATCHPOINT vehicle owner enriched from same-timestamp load: entityId={}, ownerResolved={}",
+          event.vehicleEntityId(), owner.playerId() != null);
+    }
 
     currentState.setVehicleEntityId(event.vehicleEntityId());
     currentState.setVehicleType(event.vehicleType());
@@ -974,8 +963,9 @@ public class GameLogImportService {
           : currentState.getTotalDistance();
       currentState.setTotalDistance(totalDistance.add(movementDistance));
     }
-    currentState.setActive(!"VEHICLE_REMOVED".equals(event.eventType()));
-    currentState.setDestroyedAt("VEHICLE_REMOVED".equals(event.eventType()) ? event.occurredAt() : null);
+    boolean permanentlyDestroyed = isVehiclePermanentlyDestroyed(event);
+    currentState.setActive(!permanentlyDestroyed);
+    currentState.setDestroyedAt(permanentlyDestroyed ? event.occurredAt() : null);
     currentState.setLastUpdated(event.occurredAt());
     currentState.setSourceFile(sourceFile);
     currentState.setSourceLogHash(hash);
@@ -992,10 +982,10 @@ public class GameLogImportService {
         : event.ownerCrossPlatformId();
     Long ownerPlayerId = currentState.getOwnerPlayerId();
     String inferenceMethod = currentState.getOwnerInferenceMethod();
-    if (event.ownerCrossPlatformId() != null) {
+    if (hasAuthoritativeVehicleOwner(event)) {
       ownerPlayerId = findPlayerByCrossPlatformId(event.ownerCrossPlatformId())
           .map(M_Player::getId)
-          .orElse(ownerPlayerId);
+          .orElse(null);
       inferenceMethod = "vehicle_log_owner";
     } else if (ownerCrossPlatformId != null && ownerPlayerId == null) {
       ownerPlayerId = findPlayerByCrossPlatformId(ownerCrossPlatformId)
@@ -1057,27 +1047,44 @@ public class GameLogImportService {
 
   private boolean isReusedVehicleEntity(T_VehicleCurrentState currentState, VehicleLogEvent event) {
     if (!"VEHICLE_POST_INIT".equals(event.eventType())
-        || currentState.getVehicleEntityId() == null
-        || currentState.getPositionX() == null
-        || currentState.getPositionZ() == null
-        || event.positionX() == null
-        || event.positionZ() == null) {
+        || currentState.getVehicleEntityId() == null) {
       return false;
     }
-    return distance(currentState.getPositionX(), currentState.getPositionZ(),
-        event.positionX(), event.positionZ()) > VEHICLE_ENTITY_REUSE_DISTANCE;
+    // Entity ids are stable across unload/reload and can reappear far from their last logged
+    // position.  Only a previously destroyed entity starts a new lifecycle and resets distance.
+    return currentState.getDestroyedAt() != null;
   }
 
   private Optional<M_Player> findPlayerByCrossPlatformId(String crossPlatformId) {
-    String eosUserId = stripExternalId(crossPlatformId, "EOS");
-    if (eosUserId == null) {
+    if (crossPlatformId == null || crossPlatformId.isBlank()) {
       return Optional.empty();
     }
-    return findExistingPlayer("EOS:" + eosUserId, "EOS", eosUserId, null, null);
+    String normalized = crossPlatformId.trim();
+    if (normalized.regionMatches(true, 0, "EOS_", 0, 4)) {
+      String eosUserId = normalized.substring(4);
+      return playerLookupService.findExisting("EOS:" + eosUserId, "EOS", eosUserId, null, null);
+    }
+    if (normalized.regionMatches(true, 0, "Steam_", 0, 6)) {
+      String steamUserId = normalized.substring(6);
+      return playerLookupService.findExisting(
+          "Steam:" + steamUserId, "Steam", steamUserId, "Steam", steamUserId);
+    }
+    return Optional.empty();
+  }
+
+  private boolean hasAuthoritativeVehicleOwner(VehicleLogEvent event) {
+    return event.ownerCrossPlatformId() != null && !event.ownerCrossPlatformId().isBlank();
+  }
+
+  private boolean isVehiclePermanentlyDestroyed(VehicleLogEvent event) {
+    return "VEHICLE_REMOVED".equals(event.eventType())
+        && (event.removalReason() == null || !"unloaded".equalsIgnoreCase(event.removalReason().trim()));
   }
 
   private VehicleMovement vehicleMovement(T_VehicleCurrentState currentState, VehicleLogEvent event) {
-    if (currentState.getVehicleEntityId() == null
+    if ("VEHICLE_POST_INIT".equals(event.eventType())
+        || "VEHICLE_LOADED".equals(event.eventType())
+        || currentState.getVehicleEntityId() == null
         || currentState.getPositionX() == null
         || currentState.getPositionZ() == null
         || event.positionX() == null
