@@ -55,13 +55,16 @@ class TimelineMessageFactoryTests {
         .isEqualTo(TimelinePostType.PLAYER_ANALYSIS);
     assertThat(TimelinePostType.PLAYER_ANALYSIS.isAiGenerated()).isTrue();
     assertThat(TimelinePostType.parse("UNKNOWN")).isEmpty();
-    assertThat(TimelinePostType.LOGIN.systemActorName()).contains("CONNECTION MONITOR");
-    assertThat(TimelinePostType.LOGIN.avatarPath()).contains("/img/connection-monitor-avatar.png");
+    assertThat(TimelinePostType.LOGIN.systemActorName()).isEmpty();
+    assertThat(TimelinePostType.LOGIN.avatarPath()).isEmpty();
     assertThat(TimelinePostType.BLOOD_MOON.avatarPath()).contains("/img/blood-moon-alert-avatar.png");
     assertThat(TimelinePostType.SERVER_ANALYSIS.avatarPath()).contains("/img/world-intel-avatar.png");
     assertThat(TimelinePostType.AIR_DROP.systemActorName()).contains("WORLD INTEL");
     assertThat(TimelinePostType.HORDE_ALERT.systemActorName()).contains("HORDE WATCH");
     assertThat(TimelinePostType.HORDE_ALERT.avatarPath()).contains("/img/horde-watch-avatar.png");
+    assertThat(TimelinePostType.AIR_DROP.avatarPath()).contains("/img/air-drop-avatar.png");
+    assertThat(TimelinePostType.AIR_DROP.tone()).isEqualTo("supply");
+    assertThat(TimelinePostType.DIARY.avatarPath()).contains("/img/field-journal-avatar.png");
   }
 
   @Test

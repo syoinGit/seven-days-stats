@@ -146,7 +146,7 @@ class GameLogImportServiceTests {
     assertThat(vehiclePositionRepository.count()).isEqualTo(1);
     assertThat(timelinePostRepository.findAll())
         .extracting(post -> post.getPostType() + ":" + post.getActorName())
-        .contains("LOGIN:CONNECTION MONITOR", "LOGOUT:CONNECTION MONITOR");
+        .contains("LOGIN:DDD烈火王テムジン", "LOGOUT:DDD烈火王テムジン");
   }
 
   @Test
@@ -160,8 +160,8 @@ class GameLogImportServiceTests {
 
     assertThat(timelinePostRepository.findAll()).singleElement().satisfies(post -> {
       assertThat(post.getPostType()).isEqualTo("LOGIN");
-      assertThat(post.getActorName()).isEqualTo("CONNECTION MONITOR");
-      assertThat(post.getActorPlayerId()).isNull();
+      assertThat(post.getActorName()).isEqualTo("PlayerA");
+      assertThat(post.getActorPlayerId()).isNotNull();
       assertThat(post.getMessage()).contains("PlayerAがログインした");
       assertThat(post.getSourceType()).isEqualTo("PLAYER_JOIN");
     });

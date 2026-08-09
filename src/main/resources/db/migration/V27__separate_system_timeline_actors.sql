@@ -1,7 +1,33 @@
--- Connection activity belongs to the monitor account. The raw join/leave tables retain player IDs.
-UPDATE T_TIMELINE_POST
-SET actor_name = 'CONNECTION MONITOR', actor_player_id = NULL
-WHERE post_type IN ('LOGIN', 'LOGOUT');
+-- Connection activity is authored by the player, while the event text remains system-generated.
+UPDATE T_TIMELINE_POST post
+SET actor_name = (
+      SELECT joined.player_name FROM T_PLAYER_JOIN_TRANSACTION joined
+      WHERE joined.player_join_transaction_id = post.source_id
+    ),
+    actor_player_id = (
+      SELECT joined.player_id FROM T_PLAYER_JOIN_TRANSACTION joined
+      WHERE joined.player_join_transaction_id = post.source_id
+    )
+WHERE post.post_type = 'LOGIN' AND post.source_type = 'PLAYER_JOIN'
+  AND EXISTS (
+    SELECT 1 FROM T_PLAYER_JOIN_TRANSACTION joined
+    WHERE joined.player_join_transaction_id = post.source_id
+  );
+
+UPDATE T_TIMELINE_POST post
+SET actor_name = (
+      SELECT left_game.player_name FROM T_PLAYER_LEAVE_TRANSACTION left_game
+      WHERE left_game.player_leave_transaction_id = post.source_id
+    ),
+    actor_player_id = (
+      SELECT left_game.player_id FROM T_PLAYER_LEAVE_TRANSACTION left_game
+      WHERE left_game.player_leave_transaction_id = post.source_id
+    )
+WHERE post.post_type = 'LOGOUT' AND post.source_type = 'PLAYER_LEAVE'
+  AND EXISTS (
+    SELECT 1 FROM T_PLAYER_LEAVE_TRANSACTION left_game
+    WHERE left_game.player_leave_transaction_id = post.source_id
+  );
 
 -- Blood moon alerts are system announcements, including posts created before dedicated actors existed.
 UPDATE T_TIMELINE_POST

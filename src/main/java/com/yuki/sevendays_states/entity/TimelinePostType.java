@@ -44,7 +44,7 @@ public enum TimelinePostType {
 
   public boolean linksActorToPlayer() {
     return switch (this) {
-      case LOGIN, LOGOUT, WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY,
+      case WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY,
           DIARY, BLOOD_MOON, AIR_DROP, HORDE_ALERT, WORLD_EVENT -> false;
       default -> true;
     };
@@ -52,7 +52,6 @@ public enum TimelinePostType {
 
   public Optional<String> systemActorName() {
     return switch (this) {
-      case LOGIN, LOGOUT -> Optional.of("CONNECTION MONITOR");
       case BLOOD_MOON -> Optional.of("BLOOD MOON ALERT");
       case AIR_DROP, WORLD_EVENT -> Optional.of("WORLD INTEL");
       case HORDE_ALERT -> Optional.of("HORDE WATCH");
@@ -65,10 +64,11 @@ public enum TimelinePostType {
 
   public Optional<String> avatarPath() {
     return switch (this) {
-      case LOGIN, LOGOUT -> Optional.of("/img/connection-monitor-avatar.png");
       case BLOOD_MOON -> Optional.of("/img/blood-moon-alert-avatar.png");
       case HORDE_ALERT -> Optional.of("/img/horde-watch-avatar.png");
-      case AIR_DROP, WORLD_EVENT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY, DIARY ->
+      case AIR_DROP -> Optional.of("/img/air-drop-avatar.png");
+      case DIARY -> Optional.of("/img/field-journal-avatar.png");
+      case WORLD_EVENT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY ->
           Optional.of("/img/world-intel-avatar.png");
       case WATCHPOINT -> Optional.of("/img/watchpoint-avatar.png");
       default -> Optional.empty();
@@ -100,7 +100,7 @@ public enum TimelinePostType {
       case KILL, PLAYER_DEATH -> "combat";
       case BLOOD_MOON -> "blood-moon";
       case HORDE_ALERT, WORLD_EVENT, SLEEPER -> "warning";
-      case AIR_DROP -> "exploration";
+      case AIR_DROP -> "supply";
       case VEHICLE -> "movement";
       case PLAYER_MESSAGE -> "community";
       case DIARY -> "exploration";
