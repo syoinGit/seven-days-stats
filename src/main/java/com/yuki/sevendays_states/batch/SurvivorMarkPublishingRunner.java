@@ -12,16 +12,17 @@ import org.springframework.stereotype.Component;
 public class SurvivorMarkPublishingRunner {
   private final SurvivorMarkPublishingService publishingService;
 
-  @Scheduled(cron = "${app.survivor-mark.schedule-cron:0 23 * * * *}", zone = "Asia/Tokyo")
+  /** A single scheduled attempt keeps the Bedrock text budget to one normal call per day. */
+  @Scheduled(cron = "${app.survivor-mark.schedule-cron:0 23 14 * * *}", zone = "Asia/Tokyo")
   public void publishTrailReport() {
     try {
       var result = publishingService.publishIfDue();
       if (result.status() == SurvivorMarkPublishingService.PublishStatus.PUBLISHED) {
-        log.info("Survivor Mark trail report published. date={}, candidate={}, image={}",
-            result.date(), result.candidate().key(), result.imageAttached());
+        log.info("Survivor Mark trail report published. date={}, candidate={}",
+            result.date(), result.candidate().key());
       }
     } catch (RuntimeException exception) {
-      log.error("Survivor Mark publishing failed; the next hourly check will retry.", exception);
+      log.error("Survivor Mark publishing failed; it will retry at tomorrow's scheduled window.", exception);
     }
   }
 }

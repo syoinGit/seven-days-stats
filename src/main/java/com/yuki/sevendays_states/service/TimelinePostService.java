@@ -185,13 +185,6 @@ public class TimelinePostService {
   }
 
   @Transactional(readOnly = true)
-  public Optional<LocalDate> latestMarkImageDate() {
-    return postRepository.findTopByPostTypeAndImageUrlIsNotNullOrderByPublishedAtDesc(
-            TimelinePostType.SURVIVOR_MARK.name())
-        .map(post -> post.getPublishedAt().atZoneSameInstant(ZoneId.of("Asia/Tokyo")).toLocalDate());
-  }
-
-  @Transactional(readOnly = true)
   public Optional<LocalDate> latestMarkPostDate() {
     return postRepository.findTopByPostTypeOrderByPublishedAtDesc(TimelinePostType.SURVIVOR_MARK.name())
         .map(post -> post.getPublishedAt().atZoneSameInstant(ZoneId.of("Asia/Tokyo")).toLocalDate());

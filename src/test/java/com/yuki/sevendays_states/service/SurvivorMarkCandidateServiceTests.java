@@ -60,7 +60,7 @@ class SurvivorMarkCandidateServiceTests {
   }
 
   private SurvivorMarkProperties properties() {
-    return new SurvivorMarkProperties(true, true, false, 4, 14, 1, 2, 5, 30);
+    return new SurvivorMarkProperties(true, true, true, 14, 2, 5, 30);
   }
 
   private void insertKill(OffsetDateTime occurredAt, int x, int z, String type, String hash) {

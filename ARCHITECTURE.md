@@ -43,10 +43,10 @@ copy in the XML, not by collecting or reproducing dialogue from films, games, or
 `SurvivorMarkCandidateService` reads only imported transaction rows in a closed, historical
 calendar window (default: 2–5 days old). It clusters kills, sleeper spawns, and recorded
 positions into 100m exploration candidates, resolves the nearest imported POI, and excludes a
-location recently used by a Mark post. `SurvivorMarkPublishingService` produces a short,
-deterministic fact-bounded report and posts it through the existing timeline read model. It never
-uses live player state or current-day rows. Optional record-photo generation reuses the existing
-image pipeline; the text itself needs no Bedrock call.
+location recently used by a Mark post. `SurvivorMarkPublishingService` sends only those compact,
+fact-bounded fields to Bedrock once per day and posts the resulting short report through the
+existing timeline read model. It never uses live player state or current-day rows, and it never
+generates an image.
 
 ## Web privacy boundary
 

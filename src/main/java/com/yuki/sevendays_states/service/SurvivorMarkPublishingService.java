@@ -1,13 +1,10 @@
 package com.yuki.sevendays_states.service;
 
-import com.yuki.sevendays_states.config.SurvivorKarenProperties;
 import com.yuki.sevendays_states.config.SurvivorMarkProperties;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.Optional;
-import java.util.SplittableRandom;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,21 +18,18 @@ public class SurvivorMarkPublishingService {
   private static final ZoneId JAPAN = ZoneId.of("Asia/Tokyo");
 
   private final SurvivorMarkProperties properties;
-  private final SurvivorKarenProperties imageProperties;
   private final SurvivorMarkCandidateService candidateService;
-  private final MarkPostGenerator postGenerator;
-  private final MarkImagePromptGenerator promptGenerator;
+  private final BedrockMarkClient bedrockClient;
   private final MarkPopularityService popularityService;
-  private final ImageGenerationService imageGenerationService;
   private final TimelinePostService timelinePostService;
 
   public PublishResult publishIfDue() {
     OffsetDateTime now = OffsetDateTime.now(JAPAN);
-    if (!enabled()) return new PublishResult(PublishStatus.DISABLED, now.toLocalDate(), null, false);
+    if (!enabled()) return new PublishResult(PublishStatus.DISABLED, now.toLocalDate(), null);
     if (now.getHour() < properties.postHour()) {
-      return new PublishResult(PublishStatus.TOO_EARLY, now.toLocalDate(), null, false);
+      return new PublishResult(PublishStatus.TOO_EARLY, now.toLocalDate(), null);
     }
-    if (!due(now.toLocalDate())) return new PublishResult(PublishStatus.NOT_DUE, now.toLocalDate(), null, false);
+    if (!due(now.toLocalDate())) return new PublishResult(PublishStatus.NOT_DUE, now.toLocalDate(), null);
     return publish(now.toLocalDate(), now);
   }
 
@@ -43,51 +37,44 @@ public class SurvivorMarkPublishingService {
   public PublishResult publishTodayIfPossible() {
     OffsetDateTime now = OffsetDateTime.now(JAPAN);
     return enabled() ? publish(now.toLocalDate(), now)
-        : new PublishResult(PublishStatus.DISABLED, now.toLocalDate(), null, false);
+        : new PublishResult(PublishStatus.DISABLED, now.toLocalDate(), null);
   }
 
   PublishResult publish(LocalDate date, OffsetDateTime publishedAt) {
     Optional<SurvivorMarkCandidateService.Candidate> candidate = candidateService.select(date, properties);
-    if (candidate.isEmpty()) return new PublishResult(PublishStatus.NO_CANDIDATE, date, null, false);
-    MarkPostGenerator.MarkPost post = postGenerator.generate(date, candidate.get());
-    String imageUrl = "";
-    if (shouldAttachImage(date)) {
-      try {
-        MarkImagePromptGenerator.ImagePrompt prompt = promptGenerator.prompt(post);
-        imageUrl = imageGenerationService.generateAndStore(prompt.text(), prompt.negativeText(),
-            imageProperties.imagePrefix() + "/survivor-mark/" + date + "-" + candidate.get().key() + ".png",
-            post.imageSeed());
-      } catch (RuntimeException exception) {
-        log.warn("Survivor Mark image generation failed; publishing text only. date={}, candidate={}",
-            date, candidate.get().key(), exception);
-      }
+    if (candidate.isEmpty()) return new PublishResult(PublishStatus.NO_CANDIDATE, date, null);
+    String sourceHash = "SURVIVOR_MARK:" + date + ":" + candidate.get().key();
+    if (timelinePostService.existsBySourceHash(sourceHash)) {
+      return new PublishResult(PublishStatus.ALREADY_PUBLISHED, date, candidate.get());
     }
-    boolean attached = !imageUrl.isBlank();
+    BedrockMarkClient.GeneratedMarkPost post;
+    try {
+      post = bedrockClient.generate(candidate.get());
+    } catch (RuntimeException exception) {
+      log.warn("Survivor Mark Bedrock generation failed; no fallback post was published. date={}, candidate={}",
+          date, candidate.get().key(), exception);
+      return new PublishResult(PublishStatus.FAILED, date, candidate.get());
+    }
     boolean published = timelinePostService.publishMark(date, publishedAt, post.body(),
-        candidate.get().coordinate(), post.subtype(), candidate.get().key(), imageUrl,
-        popularityService.baseLikes(candidate.get(), attached, date));
+        candidate.get().coordinate(), subtype(candidate.get()), candidate.get().key(), "",
+        popularityService.baseLikes(candidate.get(), date));
     return new PublishResult(published ? PublishStatus.PUBLISHED : PublishStatus.ALREADY_PUBLISHED,
-        date, candidate.get(), attached);
+        date, candidate.get());
   }
 
-  private boolean enabled() { return properties.enabled() && properties.postEnabled(); }
+  private boolean enabled() { return properties.enabled() && properties.postEnabled() && properties.bedrockEnabled(); }
 
   private boolean due(LocalDate date) {
     return timelinePostService.latestMarkPostDate()
-        .map(last -> ChronoUnit.DAYS.between(last, date) >= properties.postIntervalDays())
+        .map(last -> last.isBefore(date))
         .orElse(true);
   }
 
-  private boolean shouldAttachImage(LocalDate date) {
-    if (!properties.imageEnabled() || !imageProperties.imageConfigured()) return false;
-    return timelinePostService.latestMarkImageDate().map(last -> {
-      SplittableRandom random = new SplittableRandom(last.toEpochDay() ^ 0x494d4147L);
-      int interval = Math.max(2, properties.imageIntervalDays() + random.nextInt(-1, 2));
-      return ChronoUnit.DAYS.between(last, date) >= interval;
-    }).orElseGet(() -> Math.floorMod(date.toEpochDay(), properties.imageIntervalDays()) == 0);
+  private String subtype(SurvivorMarkCandidateService.Candidate candidate) {
+    return candidate.kills() >= 3 || !candidate.zombieTypes().isEmpty() ? "HAZARD" : "TRAIL";
   }
 
-  public enum PublishStatus { PUBLISHED, ALREADY_PUBLISHED, TOO_EARLY, NOT_DUE, NO_CANDIDATE, DISABLED }
+  public enum PublishStatus { PUBLISHED, ALREADY_PUBLISHED, TOO_EARLY, NOT_DUE, NO_CANDIDATE, FAILED, DISABLED }
   public record PublishResult(PublishStatus status, LocalDate date,
-                              SurvivorMarkCandidateService.Candidate candidate, boolean imageAttached) { }
+                              SurvivorMarkCandidateService.Candidate candidate) { }
 }

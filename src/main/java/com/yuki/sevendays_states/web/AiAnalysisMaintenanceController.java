@@ -43,9 +43,8 @@ public class AiAnalysisMaintenanceController {
     model.addAttribute("karenImageEnabled", karenProperties.imageConfigured());
     model.addAttribute("karenAwsRegion", karenProperties.awsRegion());
     model.addAttribute("karenModelId", karenProperties.imageModelId());
-    model.addAttribute("markEnabled", markProperties.enabled() && markProperties.postEnabled());
-    model.addAttribute("markImageEnabled", markProperties.imageEnabled() && karenProperties.imageConfigured());
-    model.addAttribute("markIntervalDays", markProperties.postIntervalDays());
+    model.addAttribute("markEnabled", markProperties.enabled() && markProperties.postEnabled()
+        && markProperties.bedrockEnabled());
     model.addAttribute("latestComment",
         aiCommentService.latestBySourceType(WatchpointAiPublishingService.SOURCE_TYPE).orElse(null));
     try {
@@ -106,9 +105,8 @@ public class AiAnalysisMaintenanceController {
     try {
       SurvivorMarkPublishingService.PublishResult result = markPublishingService.publishTodayIfPossible();
       switch (result.status()) {
-        case PUBLISHED -> redirectAttributes.addFlashAttribute("notice", result.imageAttached()
-            ? "サバイバーマークが画像付きの探索記録を公開しました。"
-            : "サバイバーマークが探索記録を公開しました。");
+        case PUBLISHED -> redirectAttributes.addFlashAttribute(
+            "notice", "サバイバーマークが探索記録を公開しました。");
         case NO_CANDIDATE -> redirectAttributes.addFlashAttribute(
             "error", "2〜5日前のログに、投稿できる探索候補がありません。");
         case ALREADY_PUBLISHED -> redirectAttributes.addFlashAttribute(
@@ -117,6 +115,8 @@ public class AiAnalysisMaintenanceController {
             "error", "サバイバーマーク投稿が無効です。環境変数を確認してください。");
         case TOO_EARLY, NOT_DUE -> redirectAttributes.addFlashAttribute(
             "notice", "手動投稿では通常発生しない待機状態です。");
+        case FAILED -> redirectAttributes.addFlashAttribute(
+            "error", "Bedrockでの短文生成に失敗しました。IAM・モデル利用許可・サーバーログを確認してください。");
       }
     } catch (RuntimeException exception) {
       log.error("Manual Survivor Mark publishing failed.", exception);

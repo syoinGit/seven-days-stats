@@ -43,7 +43,7 @@ class AiAnalysisMaintenanceControllerTests {
     controller = new AiAnalysisMaintenanceController(
         properties, observationService, publishingService, aiCommentService,
         karenProperties, karenPublishingService,
-        new SurvivorMarkProperties(true, true, false, 4, 14, 1, 2, 5, 30),
+        new SurvivorMarkProperties(true, true, true, 14, 2, 5, 30),
         markPublishingService, new ObjectMapper());
   }
 
