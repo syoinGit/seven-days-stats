@@ -148,12 +148,7 @@ public class TimelinePostService {
     String sourceHash = "AI_COMMENT:" + commentId;
     if (!postRepository.existsBySourceHash(sourceHash)) {
       String actor = aiPostType == AiPostType.NORMAL ? "WATCHPOINT" : "観測分析局";
-      TimelinePostType timelineType = switch (aiPostType) {
-        case NORMAL -> TimelinePostType.WATCHPOINT;
-        case PLAYER_ANALYSIS -> TimelinePostType.PLAYER_ANALYSIS;
-        case SERVER_ANALYSIS -> TimelinePostType.SERVER_ANALYSIS;
-        case DAILY_SUMMARY -> TimelinePostType.DAILY_SUMMARY;
-      };
+      TimelinePostType timelineType = TimelinePostType.fromAiPostType(aiPostType);
       save(timelineType, "WATCHPOINT", targetPlayerId, actor, body, "", "", "",
           "AI_COMMENT", commentId, sourceHash, 100, publishedAt);
     }
@@ -219,7 +214,8 @@ public class TimelinePostService {
 
   private String displayMessage(T_TimelinePost post) {
     String message = post.getMessage() == null ? "" : post.getMessage().strip();
-    if (!isAiPost(post.getPostType()) || message.contains("\n")) return message;
+    if (!TimelinePostType.parse(post.getPostType())
+        .map(TimelinePostType::isAiGenerated).orElse(false) || message.contains("\n")) return message;
     String sentenceBreaks = message.replaceAll("。(?=\\S)", "。\n");
     if (!sentenceBreaks.contains("\n") && sentenceBreaks.length() > 55) {
       int comma = sentenceBreaks.indexOf('、', 28);
@@ -228,11 +224,6 @@ public class TimelinePostService {
       }
     }
     return sentenceBreaks;
-  }
-
-  private boolean isAiPost(String postType) {
-    return "WATCHPOINT".equals(postType) || "PLAYER_ANALYSIS".equals(postType)
-        || "SERVER_ANALYSIS".equals(postType) || "DAILY_SUMMARY".equals(postType);
   }
 
   public record FeedPage(List<PostView> posts, int nextOffset, boolean hasMore) { }
