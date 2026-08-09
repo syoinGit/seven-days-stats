@@ -643,10 +643,13 @@ public class DashboardViewService {
           select v.occurred_at,
                  v.event_type as kind,
                  p.player_name,
-                 case v.event_type
-                   when 'VEHICLE_REMOVED' then '乗り物が消失した'
-                   when 'VEHICLE_LOADED' then '乗り物を確認した'
-                   when 'VEHICLE_POST_INIT' then '乗り物が生成された'
+                 case
+                   when v.event_type = 'VEHICLE_REMOVED'
+                     and lower(coalesce(v.removal_reason, '')) = 'unloaded'
+                     then '乗り物の追跡範囲から外れた'
+                   when v.event_type = 'VEHICLE_REMOVED' then '乗り物が破壊された'
+                   when v.event_type = 'VEHICLE_LOADED' then '乗り物を確認した'
+                   when v.event_type = 'VEHICLE_POST_INIT' then '乗り物が生成された'
                    else '乗り物を確認した'
                  end as action_text,
                  coalesce(v.vehicle_name, v.vehicle_type) ||
@@ -778,20 +781,22 @@ public class DashboardViewService {
     return jdbcTemplate.query("""
         select min(v.vehicle_entity_id) as representative_id,
                coalesce(v.vehicle_name, v.vehicle_type) as vehicle_name,
-               p.player_name as owner_name,
+               p.player_name as driver_name,
                count(distinct v.vehicle_entity_id) as vehicle_count,
                sum(v.movement_distance) as total_distance,
-               1 as active_count,
+               max(case when current_state.active = true then 1 else 0 end) as active_count,
                max(v.occurred_at) as last_updated
         from t_vehicle_position_transaction v
         join m_player p on p.id = v.attributed_player_id
+        left join t_vehicle_current_state current_state
+          on current_state.vehicle_entity_id = v.vehicle_entity_id
         where v.movement_valid = true and v.movement_distance > 0
         group by p.id, p.player_name, coalesce(v.vehicle_name, v.vehicle_type)
-        order by total_distance desc, owner_name, vehicle_name
+        order by total_distance desc, driver_name, vehicle_name
         """, (rs, rowNum) -> new VehicleStatus(
         rs.getInt("representative_id"),
         rs.getString("vehicle_name"),
-        rs.getString("owner_name"),
+        rs.getString("driver_name"),
         rs.getInt("vehicle_count"),
         rs.getBigDecimal("total_distance"),
         rs.getInt("active_count") > 0,
@@ -1214,15 +1219,17 @@ public class DashboardViewService {
   public VehicleDetailView vehicleDetail() {
     List<VehicleStatus> vehicles = vehicleStatuses();
     VehicleSummary summary = jdbcTemplate.queryForObject("""
-        select count(distinct vehicle_entity_id) as vehicle_count,
-               count(distinct vehicle_entity_id) as active_count,
-               count(distinct attributed_player_id) as owner_count,
-               coalesce(sum(movement_distance), 0) as total_distance
-        from t_vehicle_position_transaction
-        where attributed_player_id is not null and movement_valid = true
+        select count(distinct vehicle.vehicle_entity_id) as vehicle_count,
+               count(distinct case when current_state.active = true then vehicle.vehicle_entity_id end) as active_count,
+               count(distinct vehicle.attributed_player_id) as driver_count,
+               coalesce(sum(vehicle.movement_distance), 0) as total_distance
+        from t_vehicle_position_transaction vehicle
+        left join t_vehicle_current_state current_state
+          on current_state.vehicle_entity_id = vehicle.vehicle_entity_id
+        where vehicle.attributed_player_id is not null and vehicle.movement_valid = true
         """, (rs, rowNum) -> new VehicleSummary(
         rs.getLong("vehicle_count"), rs.getLong("active_count"),
-        rs.getLong("owner_count"), rs.getBigDecimal("total_distance")));
+        rs.getLong("driver_count"), rs.getBigDecimal("total_distance")));
     List<VehicleDailyDistance> daily = jdbcTemplate.query("""
         select cast(occurred_at as date) as travel_day,
                coalesce(sum(movement_distance), 0) as distance
@@ -1613,7 +1620,7 @@ public class DashboardViewService {
   public record VehicleStatus(
       Integer vehicleEntityId,
       String vehicleName,
-      String ownerName,
+      String driverName,
       Integer vehicleCount,
       BigDecimal totalDistance,
       Boolean active,
@@ -1695,7 +1702,7 @@ public class DashboardViewService {
   }
 
   public record VehicleSummary(
-      long vehicleCount, long activeCount, long ownerCount, BigDecimal totalDistance) {
+      long vehicleCount, long activeCount, long driverCount, BigDecimal totalDistance) {
   }
 
   public record VehicleDailyDistance(String day, BigDecimal distance, long percentage) {

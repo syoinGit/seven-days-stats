@@ -183,6 +183,9 @@ class GameLogParserTests {
     VehicleLogEvent write = parser.parse(
         "2026-07-29T13:40:42 9726.680 INF 219671 VehicleManager write #0, id 3718, vehicleBicycle, (157.4, 38.0, -733.3), chunk 9, -46")
         .orElseThrow();
+    VehicleLogEvent truck = parser.parse(
+        "2026-07-29T13:40:43 9727.680 INF VehicleManager loaded #0, id 4001, [type=EntityVJeep, name=vehicleTruck4x4, id=4001], (157.4, 38.0, -733.3), chunk 9, -46 (9, -46), owner EOS_truck")
+        .orElseThrow();
     VehicleLogEvent removed = parser.parse(
         "2026-07-29T14:21:58 12203.592 INF VehicleManager RemoveTrackedVehicle [type=EntityBicycle, name=vehicleBicycle, id=3718], Killed")
         .orElseThrow();
@@ -193,6 +196,9 @@ class GameLogParserTests {
     assertThat(loaded.ownerCrossPlatformId()).isEqualTo("EOS_00024b5c4d2546468b7c6775bd927c32");
     assertThat(write.eventType()).isEqualTo("VEHICLE_WRITE");
     assertThat(write.positionX()).isEqualTo(157);
+    assertThat(truck.vehicleType()).isEqualTo("EntityVJeep");
+    assertThat(truck.vehicleName()).isEqualTo("vehicleTruck4x4");
+    assertThat(truck.ownerCrossPlatformId()).isEqualTo("EOS_truck");
     assertThat(removed.eventType()).isEqualTo("VEHICLE_REMOVED");
     assertThat(removed.removalReason()).isEqualTo("Killed");
   }
