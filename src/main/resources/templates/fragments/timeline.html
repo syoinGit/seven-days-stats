@@ -17,10 +17,12 @@
       <a class="timeline-card-link" th:if="${!#strings.isEmpty(item.linkUrl)}"
          th:href="${item.linkUrl}" th:text="${item.linkLabel}">詳しく見る</a>
       <footer class="social-actions" th:if="${(loggedIn and !currentViewer) or item.reactionCount() > 0 or item.ownPost}">
-        <details class="reaction-menu" th:if="${(loggedIn and !currentViewer) or item.reactionCount() > 0}">
-          <summary aria-label="リアクションを表示">
-            <span aria-hidden="true">☺</span><b th:if="${item.reactionCount() > 0}" th:text="${item.reactionCount()}">0</b>
-          </summary>
+        <div class="reaction-counts" th:if="${item.reactionCount() > 0}">
+          <span class="reaction-count" th:each="reaction : ${item.reactions}" th:unless="${reaction.value == 0}"
+                th:text="${reaction.key.emoji() + ' ' + reaction.value}">👍 1</span>
+        </div>
+        <details class="reaction-menu" th:if="${loggedIn and !currentViewer}">
+          <summary aria-label="リアクションする"><span aria-hidden="true">＋☺</span></summary>
           <div class="reaction-options">
             <form class="reaction-form" method="post" th:action="@{/posts/{id}/react(id=${item.postId})}"
                   th:if="${loggedIn and !currentViewer}" th:each="reaction : ${item.reactions}">
@@ -29,8 +31,6 @@
                       type="submit"><span th:text="${reaction.key.emoji()}">👍</span>
                 <span th:text="${reaction.value}">0</span></button>
             </form>
-            <span th:if="${!loggedIn or currentViewer}" class="like-count" th:each="reaction : ${item.reactions}"
-                  th:unless="${reaction.value == 0}" th:text="${reaction.key.emoji() + ' ' + reaction.value}">👍 1</span>
           </div>
         </details>
         <form class="delete-post-form" method="post" th:action="@{/posts/{id}/delete(id=${item.postId})}"

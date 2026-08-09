@@ -207,7 +207,7 @@ public class TimelinePostService {
     String currentReaction = current == null ? null : reactionRepository
         .findByTimelinePostIdAndAccountId(post.getId(), current.getId())
         .map(T_TimelinePostReaction::getReactionType).orElse(null);
-    return new PostView(post.getId(), post.getActorPlayerId(), post.getActorName(), post.getMessage(),
+    return new PostView(post.getId(), post.getActorPlayerId(), post.getActorName(), displayMessage(post),
         displayTimeFormatter.format(post.getPublishedAt()), post.getCoordinate(), post.getPostType(),
         post.getLinkUrl(), post.getLinkLabel(),
         reactions, currentReaction,
@@ -216,6 +216,24 @@ public class TimelinePostService {
   }
 
   private String displayName(String name) { return name == null || name.isBlank() ? "誰か" : name; }
+
+  private String displayMessage(T_TimelinePost post) {
+    String message = post.getMessage() == null ? "" : post.getMessage().strip();
+    if (!isAiPost(post.getPostType()) || message.contains("\n")) return message;
+    String sentenceBreaks = message.replaceAll("。(?=\\S)", "。\n");
+    if (!sentenceBreaks.contains("\n") && sentenceBreaks.length() > 55) {
+      int comma = sentenceBreaks.indexOf('、', 28);
+      if (comma > 0 && comma < sentenceBreaks.length() - 1) {
+        return sentenceBreaks.substring(0, comma + 1) + "\n" + sentenceBreaks.substring(comma + 1);
+      }
+    }
+    return sentenceBreaks;
+  }
+
+  private boolean isAiPost(String postType) {
+    return "WATCHPOINT".equals(postType) || "PLAYER_ANALYSIS".equals(postType)
+        || "SERVER_ANALYSIS".equals(postType) || "DAILY_SUMMARY".equals(postType);
+  }
 
   public record FeedPage(List<PostView> posts, int nextOffset, boolean hasMore) { }
 

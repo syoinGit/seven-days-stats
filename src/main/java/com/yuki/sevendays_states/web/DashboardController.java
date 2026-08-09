@@ -498,17 +498,18 @@ public class DashboardController {
 
     private static String timelineTag(String postType) {
       return switch (postType == null ? "" : postType) {
-        case "LOGIN", "LOGOUT" -> "接続情報";
-        case "KILL", "PLAYER_DEATH" -> "討伐情報";
-        case "BLOOD_MOON" -> "緊急警報";
-        case "WORLD_EVENT" -> "世界情報";
-        case "SLEEPER" -> "探索情報";
-        case "VEHICLE" -> "移動情報";
-        case "PLAYER_MESSAGE" -> "投稿";
-        case "DIARY" -> "冒険日記";
-        case "WATCHPOINT" -> "AI観測";
-        case "PLAYER_ANALYSIS", "SERVER_ANALYSIS", "DAILY_SUMMARY" -> "分析情報";
-        default -> "観測情報";
+        case "LOGIN" -> "ONLINE";
+        case "LOGOUT" -> "OFFLINE";
+        case "KILL", "PLAYER_DEATH" -> "ELIMINATION";
+        case "BLOOD_MOON" -> "BLOOD MOON ALERT";
+        case "WORLD_EVENT" -> "WORLD INTEL";
+        case "SLEEPER" -> "EXPLORATION";
+        case "VEHICLE" -> "TRAVEL";
+        case "PLAYER_MESSAGE" -> "SURVIVOR POST";
+        case "DIARY" -> "FIELD JOURNAL";
+        case "WATCHPOINT" -> "AI OBSERVATION";
+        case "PLAYER_ANALYSIS", "SERVER_ANALYSIS", "DAILY_SUMMARY" -> "ANALYSIS";
+        default -> "ACTIVITY";
       };
     }
 

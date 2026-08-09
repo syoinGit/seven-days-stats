@@ -32,6 +32,9 @@ class AiCommentServiceTests {
   @Autowired
   private T_TimelinePostRepository timelinePostRepository;
 
+  @Autowired
+  private TimelinePostService timelinePostService;
+
   @BeforeEach
   void resetData() {
     timelinePostRepository.deleteAll();
@@ -98,6 +101,15 @@ class AiCommentServiceTests {
       assertThat(post.getMessage()).isEqualTo("生存者の活動を確認。");
       assertThat(post.getActorName()).isEqualTo("WATCHPOINT");
     });
+  }
+
+  @Test
+  void displaysAiSentencesOnSeparateLinesInTheTimeline() {
+    service.publishGenerated("観測", "生存者の活動を確認しました。周辺はまだ静かなようです。", "AWS_BEDROCK");
+
+    assertThat(timelinePostService.feed(null, 0).posts()).singleElement()
+        .satisfies(post -> assertThat(post.message())
+            .isEqualTo("生存者の活動を確認しました。\n周辺はまだ静かなようです。"));
   }
 
   @Test
