@@ -214,7 +214,9 @@ class DashboardControllerTests {
     String template = Files.readString(Path.of("src/main/resources/templates/fragments/timeline.html"));
 
     assertThat(template)
-        .contains("tone-", "reaction-menu", "<details", "class=\"tag\"", "item.tag");
+        .contains("tone-", "reaction-menu", "<details", "class=\"tag\"", "item.tag",
+            "watchpoint-avatar.png", "item.watchpointPost()");
+    assertThat(Path.of("src/main/resources/static/img/watchpoint-avatar.png")).exists();
   }
 
   @Test
