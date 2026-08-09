@@ -55,9 +55,24 @@ class TimelineMessageFactoryTests {
         .isEqualTo(TimelinePostType.PLAYER_ANALYSIS);
     assertThat(TimelinePostType.PLAYER_ANALYSIS.isAiGenerated()).isTrue();
     assertThat(TimelinePostType.parse("UNKNOWN")).isEmpty();
-    assertThat(TimelinePostType.LOGIN.systemActorName()).contains("CONNECTION MONITOR");
-    assertThat(TimelinePostType.LOGIN.avatarPath()).contains("/img/connection-monitor-avatar.png");
+    assertThat(TimelinePostType.LOGIN.systemActorName()).isEmpty();
+    assertThat(TimelinePostType.LOGIN.avatarPath()).isEmpty();
     assertThat(TimelinePostType.BLOOD_MOON.avatarPath()).contains("/img/blood-moon-alert-avatar.png");
     assertThat(TimelinePostType.SERVER_ANALYSIS.avatarPath()).contains("/img/world-intel-avatar.png");
+    assertThat(TimelinePostType.AIR_DROP.systemActorName()).contains("WORLD INTEL");
+    assertThat(TimelinePostType.HORDE_ALERT.systemActorName()).contains("HORDE WATCH");
+    assertThat(TimelinePostType.HORDE_ALERT.avatarPath()).contains("/img/horde-watch-avatar.png");
+    assertThat(TimelinePostType.AIR_DROP.avatarPath()).contains("/img/air-drop-avatar.png");
+    assertThat(TimelinePostType.AIR_DROP.tone()).isEqualTo("supply");
+    assertThat(TimelinePostType.DIARY.avatarPath()).contains("/img/field-journal-avatar.png");
+  }
+
+  @Test
+  void airDropAndHordeUseIndependentCopy() {
+    assertThat(factory.message(TimelinePostType.AIR_DROP, null,
+        "補給物資が投下された。", "air-drop")).contains("補給物資").doesNotContain("ホード");
+    assertThat(factory.message(TimelinePostType.HORDE_ALERT, null,
+        "生存者Aの近くで徘徊ホードが発生した！", "horde"))
+        .contains("生存者A", "徘徊ホード").doesNotContain("補給物資");
   }
 }

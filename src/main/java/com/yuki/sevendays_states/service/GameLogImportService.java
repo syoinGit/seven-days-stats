@@ -387,16 +387,17 @@ public class GameLogImportService {
     return x == null || y == null || z == null ? "" : x + ", " + y + ", " + z;
   }
 
-  private String worldEventText(String eventType, String detail) {
+  private String worldEventText(String eventType, String detail, String nearby) {
     String event = switch (eventType == null ? "" : eventType) {
       case "AIR_DROP" -> "補給物資が投下された。";
-      case "WANDERING_HORDE" -> "徘徊ホードが発生した。";
-      case "SCOUT_HORDE" -> "スクリーマーの気配がした。";
-      case "SCREAMER_SPAWN" -> "スクリーマーが出現した。";
+      case "WANDERING_HORDE" -> nearby + "で徘徊ホードが発生した！";
+      case "SCOUT_HORDE" -> nearby + "でスクリーマーの群れを観測した！";
+      case "SCREAMER_SPAWN" -> nearby + "でスクリーマーが出現した！";
       case "BLOOD_MOON" -> "ブラッドムーン予定が更新された。";
       default -> "世界でイベントが発生した。";
     };
-    return detail == null || detail.isBlank() ? event : event + " " + detail;
+    boolean horde = isHordeEvent(eventType);
+    return horde || detail == null || detail.isBlank() ? event : event + " " + detail;
   }
 
   private void saveLevelXpSummary(
@@ -845,8 +846,8 @@ public class GameLogImportService {
               row.setActorPlayerName(currentState.getPlayerName());
             }
           });
-    } else if (event.targetPositionX() != null && event.targetPositionZ() != null) {
-      inferNearestCurrentStatePlayer(event.targetPositionX(), event.targetPositionZ(), event.occurredAt())
+    } else if (isHordeEvent(event.eventType()) && nearbyX(event) != null && nearbyZ(event) != null) {
+      inferNearestCurrentStatePlayer(nearbyX(event), nearbyZ(event), event.occurredAt())
           .ifPresent(player -> {
             row.setActorPlayerName(player.playerName());
             row.setActorPlayerEntityId(player.playerEntityId());
@@ -870,13 +871,37 @@ public class GameLogImportService {
     TimelinePostType postType = switch (event.eventType()) {
       case "PLAYER_DEATH" -> TimelinePostType.PLAYER_DEATH;
       case "BLOOD_MOON" -> TimelinePostType.BLOOD_MOON;
+      case "AIR_DROP" -> TimelinePostType.AIR_DROP;
+      case "WANDERING_HORDE", "SCOUT_HORDE", "SCREAMER_SPAWN" -> TimelinePostType.HORDE_ALERT;
       default -> TimelinePostType.WORLD_EVENT;
     };
     timelinePostService.publishGameEvent(postType, row.getPlayerId(), row.getActorPlayerName(), event.occurredAt(),
-        worldEventText(event.eventType(), event.detailText()),
+        worldEventText(event.eventType(), event.detailText(), nearbyDescription(row)),
         coordinate(row.getPositionX(), row.getPositionY(), row.getPositionZ()),
         "WORLD_EVENT", row.getId(), "WORLD_EVENT:" + hash);
     counter.worldEvents++;
+  }
+
+  private boolean isHordeEvent(String eventType) {
+    return "WANDERING_HORDE".equals(eventType) || "SCOUT_HORDE".equals(eventType)
+        || "SCREAMER_SPAWN".equals(eventType);
+  }
+
+  private Integer nearbyX(WorldEventLogEvent event) {
+    return event.targetPositionX() != null ? event.targetPositionX() : event.positionX();
+  }
+
+  private Integer nearbyZ(WorldEventLogEvent event) {
+    return event.targetPositionZ() != null ? event.targetPositionZ() : event.positionZ();
+  }
+
+  private String nearbyDescription(T_WorldEventTransaction row) {
+    if (row.getActorPlayerName() != null && !row.getActorPlayerName().isBlank()) {
+      return row.getActorPlayerName() + "の近く";
+    }
+    Integer x = row.getTargetPositionX() != null ? row.getTargetPositionX() : row.getPositionX();
+    Integer z = row.getTargetPositionZ() != null ? row.getTargetPositionZ() : row.getPositionZ();
+    return x == null || z == null ? "観測地点" : "座標 " + x + ", " + z + " 付近";
   }
 
   private void saveVehicle(String sourceFile, VehicleLogEvent event, Counter counter) {

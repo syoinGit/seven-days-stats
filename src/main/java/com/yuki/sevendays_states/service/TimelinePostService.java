@@ -137,7 +137,9 @@ public class TimelinePostService {
       if (coolingDown) return;
     }
     String actorName = type.systemActorName().orElseGet(() -> displayName(playerName));
-    save(type, "GAME", playerId, actorName, messageFactory.message(type, playerName, detail, sourceHash),
+    Long actorPlayerId = type.linksActorToPlayer() ? playerId : null;
+    save(type, "GAME", actorPlayerId, actorName,
+        messageFactory.message(type, playerName, detail, sourceHash),
         coordinate, "", "", sourceType, sourceId, sourceHash, type.publishChance(), occurredAt);
   }
 

@@ -196,6 +196,7 @@ a { color: inherit; }
 .feed-item.tone-exploration { border-left-color: #a678c2; background: linear-gradient(90deg, rgb(166 120 194 / 9%), rgb(11 15 16 / 58%) 28%); }
 .feed-item.tone-warning { border-left-color: var(--signal); background: linear-gradient(90deg, rgb(214 164 59 / 11%), rgb(11 15 16 / 58%) 28%); }
 .feed-item.tone-community { border-left-color: var(--cyan); background: linear-gradient(90deg, rgb(111 170 168 / 11%), rgb(11 15 16 / 58%) 28%); }
+.feed-item.tone-supply { border-left-color: var(--good); background: linear-gradient(90deg, rgb(104 177 112 / 15%), rgb(11 15 16 / 68%) 32%); }
 .feed-item.tone-ai { border-left-color: var(--signal); background: linear-gradient(90deg, rgb(214 164 59 / 15%), rgb(11 15 16 / 72%) 38%); }
 .feed-item.tone-blood-moon { border-left-color: #ef4938; background: linear-gradient(90deg, rgb(199 40 35 / 24%), rgb(11 15 16 / 72%) 42%); }
 .tone-movement .feed-avatar, .tone-movement .tag { color: #75afe6; border-color: rgb(81 143 203 / 52%); }
@@ -205,10 +206,15 @@ a { color: inherit; }
 .tone-exploration .feed-avatar, .tone-exploration .tag { color: #ba8dd4; border-color: rgb(166 120 194 / 50%); }
 .tone-warning .feed-avatar, .tone-warning .tag { color: var(--signal); border-color: rgb(214 164 59 / 55%); }
 .tone-community .feed-avatar, .tone-community .tag { color: var(--cyan); border-color: rgb(111 170 168 / 55%); }
+.tone-supply .feed-avatar, .tone-supply .tag { color: #78c982; border-color: rgb(120 201 130 / 65%); }
 .tone-ai .feed-avatar, .tone-ai .tag { color: var(--signal); border-color: rgb(214 164 59 / 62%); box-shadow: 0 0 14px rgb(214 164 59 / 10%); }
 .tone-blood-moon .feed-avatar { color: #ff6655; border-color: rgb(239 73 56 / 75%); box-shadow: 0 0 16px rgb(239 73 56 / 18%); }
 .feed-avatar { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 auto; border: 1px solid #596365; color: var(--cyan); font-weight: 900; clip-path: polygon(0 0, 80% 0, 100% 20%, 100% 100%, 20% 100%, 0 80%); }
 .system-avatar { width: 56px; height: 56px; border: 2px solid rgb(214 164 59 / 72%); border-radius: 50%; background: #080a0b; box-shadow: 0 0 18px rgb(214 164 59 / 18%); clip-path: none; object-fit: cover; }
+.tone-blood-moon .system-avatar, .tone-warning .system-avatar { border-color: var(--signal); box-shadow: 0 0 18px rgb(214 164 59 / 26%); }
+.tone-supply .system-avatar { border-color: #78c982; box-shadow: 0 0 18px rgb(120 201 130 / 24%); }
+.tone-ai .system-avatar { border-color: var(--signal); }
+.tone-exploration .system-avatar { border-color: #ba8dd4; box-shadow: 0 0 18px rgb(166 120 194 / 22%); }
 .feed-body { min-width: 0; flex: 1; }
 .feed-body header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .feed-body header strong { font-size: 14px; }

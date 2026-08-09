@@ -8,7 +8,6 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -220,28 +219,20 @@ class DashboardControllerTests {
     assertThat(Path.of("src/main/resources/static/img/blood-moon-alert-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/world-intel-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/connection-monitor-avatar.png")).exists();
+    assertThat(Path.of("src/main/resources/static/img/horde-watch-avatar.png")).exists();
+    assertThat(Path.of("src/main/resources/static/img/air-drop-avatar.png")).exists();
+    assertThat(Path.of("src/main/resources/static/img/field-journal-avatar.png")).exists();
   }
 
   @Test
-  void mergesNearbyLoginPostsButKeepsLogoutSeparate() {
-    var loginA = timelinePost(1L, "A", "LOGIN", "2026-08-05 19:40:00");
-    var loginB = timelinePost(2L, "B", "LOGIN", "2026-08-05 19:38:00");
-    var logout = timelinePost(3L, "C", "LOGOUT", "2026-08-05 19:37:00");
-
-    List<DashboardController.TimelineItem> merged = DashboardController.mergePresencePosts(
-        List.of(loginA, loginB, logout));
-
-    assertThat(merged).hasSize(2);
-    assertThat(merged.getFirst().actor()).isEqualTo("CONNECTION MONITOR");
-    assertThat(merged.getFirst().message()).contains("A", "B", "ログイン");
-    assertThat(merged.get(1).kind()).isEqualTo("LOGOUT");
-  }
-
-  private static DashboardController.TimelineItem timelinePost(
-      Long id, String actor, String kind, String occurredAt) {
-    return new DashboardController.TimelineItem(
-        "POST", id, null, actor, kind, occurredAt, actor + " activity", "", "login",
-        "接続情報", "", "", Map.of(), null, false);
+  void everyPageDeclaresTheSiteIcons() throws Exception {
+    try (var templates = Files.list(Path.of("src/main/resources/templates"))) {
+      assertThat(templates.filter(path -> path.toString().endsWith(".html")))
+          .allSatisfy(path -> assertThat(Files.readString(path))
+              .contains("/img/site-icon-64.png", "/img/apple-touch-icon.png"));
+    }
+    assertThat(Path.of("src/main/resources/static/img/site-icon-64.png")).exists();
+    assertThat(Path.of("src/main/resources/static/img/apple-touch-icon.png")).exists();
   }
 
   @Test

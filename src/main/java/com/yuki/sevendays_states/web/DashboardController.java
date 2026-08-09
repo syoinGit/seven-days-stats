@@ -181,47 +181,8 @@ public class DashboardController {
   }
 
   static TimelinePage timelinePage(TimelinePostService.FeedPage page) {
-    return new TimelinePage(mergePresencePosts(page.posts().stream().map(TimelineItem::post).toList()),
+    return new TimelinePage(page.posts().stream().map(TimelineItem::post).toList(),
         page.nextOffset(), page.hasMore());
-  }
-
-  static List<TimelineItem> mergePresencePosts(List<TimelineItem> items) {
-    List<TimelineItem> merged = new ArrayList<>();
-    for (int index = 0; index < items.size();) {
-      TimelineItem first = items.get(index);
-      if (!"LOGIN".equals(first.kind()) && !"LOGOUT".equals(first.kind())) {
-        merged.add(first);
-        index++;
-        continue;
-      }
-      List<TimelineItem> group = new ArrayList<>();
-      group.add(first);
-      LocalDateTime firstAt = parseTimelineTime(first.occurredAt());
-      int cursor = index + 1;
-      while (cursor < items.size()) {
-        TimelineItem candidate = items.get(cursor);
-        LocalDateTime candidateAt = parseTimelineTime(candidate.occurredAt());
-        if (!first.kind().equals(candidate.kind()) || firstAt == null || candidateAt == null
-            || Math.abs(java.time.Duration.between(firstAt, candidateAt).toMinutes()) > EVENT_WINDOW_MINUTES) {
-          break;
-        }
-        group.add(candidate);
-        cursor++;
-      }
-      if (group.size() == 1) {
-        merged.add(first);
-      } else {
-        String names = group.stream().map(TimelineItem::actor).distinct()
-            .collect(java.util.stream.Collectors.joining("、"));
-        String action = "LOGIN".equals(first.kind()) ? "荒野へログインしました。" : "荒野からログアウトしました。";
-        merged.add(new TimelineItem("POST", first.postId(), null,
-            TimelinePostType.LOGIN.systemActorName().orElse("CONNECTION MONITOR"), first.kind(),
-            first.occurredAt(), names + " が" + action, "", first.tone(), first.tag(), "", "",
-            first.reactions(), first.currentReaction(), false));
-      }
-      index = cursor;
-    }
-    return List.copyOf(merged);
   }
 
   /**

@@ -8,6 +8,8 @@ public enum TimelinePostType {
   LOGOUT(100, 0),
   PLAYER_DEATH(100, 0),
   BLOOD_MOON(100, 1440),
+  AIR_DROP(82, 2),
+  HORDE_ALERT(100, 0),
   WORLD_EVENT(82, 2),
   VEHICLE(45, 8),
   SLEEPER(38, 8),
@@ -42,17 +44,17 @@ public enum TimelinePostType {
 
   public boolean linksActorToPlayer() {
     return switch (this) {
-      case LOGIN, LOGOUT, WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY,
-          DIARY, BLOOD_MOON, WORLD_EVENT -> false;
+      case WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY,
+          DIARY, BLOOD_MOON, AIR_DROP, HORDE_ALERT, WORLD_EVENT -> false;
       default -> true;
     };
   }
 
   public Optional<String> systemActorName() {
     return switch (this) {
-      case LOGIN, LOGOUT -> Optional.of("CONNECTION MONITOR");
       case BLOOD_MOON -> Optional.of("BLOOD MOON ALERT");
-      case WORLD_EVENT -> Optional.of("WORLD INTEL");
+      case AIR_DROP, WORLD_EVENT -> Optional.of("WORLD INTEL");
+      case HORDE_ALERT -> Optional.of("HORDE WATCH");
       case WATCHPOINT -> Optional.of("WATCHPOINT");
       case PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY -> Optional.of("観測分析局");
       case DIARY -> Optional.of("冒険記録局");
@@ -62,9 +64,11 @@ public enum TimelinePostType {
 
   public Optional<String> avatarPath() {
     return switch (this) {
-      case LOGIN, LOGOUT -> Optional.of("/img/connection-monitor-avatar.png");
       case BLOOD_MOON -> Optional.of("/img/blood-moon-alert-avatar.png");
-      case WORLD_EVENT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY, DIARY ->
+      case HORDE_ALERT -> Optional.of("/img/horde-watch-avatar.png");
+      case AIR_DROP -> Optional.of("/img/air-drop-avatar.png");
+      case DIARY -> Optional.of("/img/field-journal-avatar.png");
+      case WORLD_EVENT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY ->
           Optional.of("/img/world-intel-avatar.png");
       case WATCHPOINT -> Optional.of("/img/watchpoint-avatar.png");
       default -> Optional.empty();
@@ -77,6 +81,8 @@ public enum TimelinePostType {
       case LOGOUT -> "OFFLINE";
       case KILL, PLAYER_DEATH -> "ELIMINATION";
       case BLOOD_MOON -> "BLOOD MOON ALERT";
+      case AIR_DROP -> "AIR DROP";
+      case HORDE_ALERT -> "HORDE ALERT";
       case WORLD_EVENT -> "WORLD INTEL";
       case SLEEPER -> "EXPLORATION";
       case VEHICLE -> "TRAVEL";
@@ -93,7 +99,8 @@ public enum TimelinePostType {
       case LOGOUT -> "logout";
       case KILL, PLAYER_DEATH -> "combat";
       case BLOOD_MOON -> "blood-moon";
-      case WORLD_EVENT, SLEEPER -> "warning";
+      case HORDE_ALERT, WORLD_EVENT, SLEEPER -> "warning";
+      case AIR_DROP -> "supply";
       case VEHICLE -> "movement";
       case PLAYER_MESSAGE -> "community";
       case DIARY -> "exploration";

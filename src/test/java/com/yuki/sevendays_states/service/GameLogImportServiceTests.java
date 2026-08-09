@@ -146,7 +146,7 @@ class GameLogImportServiceTests {
     assertThat(vehiclePositionRepository.count()).isEqualTo(1);
     assertThat(timelinePostRepository.findAll())
         .extracting(post -> post.getPostType() + ":" + post.getActorName())
-        .contains("LOGIN:CONNECTION MONITOR", "LOGOUT:CONNECTION MONITOR");
+        .contains("LOGIN:DDD烈火王テムジン", "LOGOUT:DDD烈火王テムジン");
   }
 
   @Test
@@ -160,6 +160,8 @@ class GameLogImportServiceTests {
 
     assertThat(timelinePostRepository.findAll()).singleElement().satisfies(post -> {
       assertThat(post.getPostType()).isEqualTo("LOGIN");
+      assertThat(post.getActorName()).isEqualTo("PlayerA");
+      assertThat(post.getActorPlayerId()).isNotNull();
       assertThat(post.getMessage()).contains("PlayerAがログインした");
       assertThat(post.getSourceType()).isEqualTo("PLAYER_JOIN");
     });
@@ -203,6 +205,15 @@ class GameLogImportServiceTests {
             "SCOUT_HORDE:446:null",
             "SCREAMER_SPAWN:448:null",
             "BLOOD_MOON:null:null");
+    assertThat(timelinePostRepository.findAll())
+        .filteredOn(post -> "HORDE_ALERT".equals(post.getPostType()))
+        .hasSize(3)
+        .allSatisfy(post -> {
+          assertThat(post.getActorName()).isEqualTo("HORDE WATCH");
+          assertThat(post.getActorPlayerId()).isNull();
+        })
+        .anySatisfy(post -> assertThat(post.getMessage())
+            .contains("hosi42861の近くで徘徊ホードが発生した！"));
   }
 
   @Test
