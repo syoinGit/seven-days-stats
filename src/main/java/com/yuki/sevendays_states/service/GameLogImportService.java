@@ -94,6 +94,7 @@ public class GameLogImportService {
 
   private final SevenDaysDataProperties properties;
   private final M_PlayerRepository playerRepository;
+  private final PlayerLookupService playerLookupService;
   private final T_PlayerCurrentStateRepository playerCurrentStateRepository;
   private final T_PlayerJoinTransactionRepository playerJoinRepository;
   private final T_PlayerLeaveTransactionRepository playerLeaveRepository;
@@ -677,7 +678,8 @@ public class GameLogImportService {
     if (playerKey == null) {
       return null;
     }
-    M_Player player = findExistingPlayer(playerKey, platform, userId, nativePlatform, nativeUserId)
+    M_Player player = playerLookupService.findExisting(
+        playerKey, platform, userId, nativePlatform, nativeUserId)
         .orElseGet(M_Player::new);
     LocalDateTime seenAt = observedAt.atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
     boolean created = player.getId() == null;
@@ -693,30 +695,6 @@ public class GameLogImportService {
     }
     player.setLastSeenAt(seenAt);
     return playerRepository.save(player);
-  }
-
-  private Optional<M_Player> findExistingPlayer(
-      String playerKey,
-      String platform,
-      String userId,
-      String nativePlatform,
-      String nativeUserId) {
-    List<String> candidateKeys = PlayerIdentity.candidatePlayerKeys(platform, userId, nativePlatform, nativeUserId);
-    if (!candidateKeys.contains(playerKey)) {
-      candidateKeys.addFirst(playerKey);
-    }
-    List<M_Player> byKey = playerRepository.findByPlayerKeyInOrderByIdAsc(candidateKeys);
-    if (!byKey.isEmpty()) {
-      return Optional.of(byKey.getFirst());
-    }
-    Optional<M_Player> byPlatformUser = playerRepository.findFirstByPlatformIgnoreCaseAndUserIdOrderByIdAsc(platform, userId);
-    if (byPlatformUser.isPresent()) {
-      return byPlatformUser;
-    }
-    if (nativePlatform != null && nativeUserId != null) {
-      return playerRepository.findFirstByNativePlatformIgnoreCaseAndNativeUserIdOrderByIdAsc(nativePlatform, nativeUserId);
-    }
-    return Optional.empty();
   }
 
   private String stripExternalId(String rawValue, String prefix) {
@@ -1084,13 +1062,12 @@ public class GameLogImportService {
     String normalized = crossPlatformId.trim();
     if (normalized.regionMatches(true, 0, "EOS_", 0, 4)) {
       String eosUserId = normalized.substring(4);
-      return findExistingPlayer("EOS:" + eosUserId, "EOS", eosUserId, null, null);
+      return playerLookupService.findExisting("EOS:" + eosUserId, "EOS", eosUserId, null, null);
     }
     if (normalized.regionMatches(true, 0, "Steam_", 0, 6)) {
       String steamUserId = normalized.substring(6);
-      return playerRepository.findFirstByNativePlatformIgnoreCaseAndNativeUserIdOrderByIdAsc(
-              "Steam", steamUserId)
-          .or(() -> findExistingPlayer("Steam:" + steamUserId, "Steam", steamUserId, null, null));
+      return playerLookupService.findExisting(
+          "Steam:" + steamUserId, "Steam", steamUserId, "Steam", steamUserId);
     }
     return Optional.empty();
   }

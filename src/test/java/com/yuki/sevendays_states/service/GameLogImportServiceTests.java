@@ -41,6 +41,8 @@ class GameLogImportServiceTests {
   @TempDir
   Path tempDir;
 
+  private int logSequence;
+
   @Autowired
   private GameLogImportService logImportService;
 
@@ -855,7 +857,7 @@ class GameLogImportServiceTests {
   }
 
   private Path writeLog(String content) throws Exception {
-    Path file = tempDir.resolve("log");
+    Path file = tempDir.resolve("log-" + logSequence++ + ".log");
     Files.writeString(file, content);
     return file;
   }

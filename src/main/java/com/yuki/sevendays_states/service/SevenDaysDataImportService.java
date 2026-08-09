@@ -85,6 +85,7 @@ public class SevenDaysDataImportService {
   private final M_WorldPoiRepository worldPoiRepository;
   private final M_WorldSpawnPointRepository worldSpawnPointRepository;
   private final M_PlayerRepository playerRepository;
+  private final PlayerLookupService playerLookupService;
   private final T_PlayerStateSnapshotRepository playerStateSnapshotRepository;
   private final T_PlayerMarkerSnapshotRepository playerMarkerSnapshotRepository;
   private final AtomicBoolean running = new AtomicBoolean(false);
@@ -531,7 +532,8 @@ public class SevenDaysDataImportService {
     if (playerKey == null) {
       playerKey = platform + ":" + userId;
     }
-    M_Player player = findExistingPlayer(playerKey, platform, userId, nativePlatform, nativeUserId)
+    M_Player player = playerLookupService.findExisting(
+        playerKey, platform, userId, nativePlatform, nativeUserId)
         .orElseGet(M_Player::new);
     boolean created = player.getId() == null;
     player.setSourcePath(source.relativePath());
@@ -548,30 +550,6 @@ public class SevenDaysDataImportService {
     M_Player saved = playerRepository.save(player);
     counter.players++;
     return saved;
-  }
-
-  private Optional<M_Player> findExistingPlayer(
-      String playerKey,
-      String platform,
-      String userId,
-      String nativePlatform,
-      String nativeUserId) {
-    List<String> candidateKeys = PlayerIdentity.candidatePlayerKeys(platform, userId, nativePlatform, nativeUserId);
-    if (!candidateKeys.contains(playerKey)) {
-      candidateKeys.addFirst(playerKey);
-    }
-    List<M_Player> byKey = playerRepository.findByPlayerKeyInOrderByIdAsc(candidateKeys);
-    if (!byKey.isEmpty()) {
-      return Optional.of(byKey.getFirst());
-    }
-    Optional<M_Player> byPlatformUser = playerRepository.findFirstByPlatformIgnoreCaseAndUserIdOrderByIdAsc(platform, userId);
-    if (byPlatformUser.isPresent()) {
-      return byPlatformUser;
-    }
-    if (nativePlatform != null && nativeUserId != null) {
-      return playerRepository.findFirstByNativePlatformIgnoreCaseAndNativeUserIdOrderByIdAsc(nativePlatform, nativeUserId);
-    }
-    return Optional.empty();
   }
 
   private void savePlayerStateSnapshot(
