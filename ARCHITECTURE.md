@@ -31,6 +31,13 @@ models and are covered by integration tests. They are kept as cohesive applicati
 services for now; future extractions should move one query family at a time behind a
 small read-model component rather than splitting methods mechanically.
 
+## Timeline copy catalog
+
+`timeline-copy.xml` contains original, reusable scene fragments for the deterministic
+timeline generator. `TimelineCopyCatalog` validates and loads the catalog at startup;
+the generator combines the fragments with the immutable event facts. Add or adjust
+copy in the XML, not by collecting or reproducing dialogue from films, games, or sites.
+
 ## Web privacy boundary
 
 `WebSecurityConfig` is the authorization source of truth. `GuestPrivacyFilter` runs only after

@@ -9,7 +9,7 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 class TimelineMessageFactoryTests {
-  private final TimelineMessageFactory factory = new TimelineMessageFactory();
+  private final TimelineMessageFactory factory = new TimelineMessageFactory(new TimelineCopyCatalog());
 
   @Test
   void killMessagesAreTwoLineFactSafeZombieMovieCopyWithMillionsOfCombinations() {
@@ -26,8 +26,8 @@ class TimelineMessageFactoryTests {
   }
 
   @Test
-  void killCopyCompositionHasMoreThanOneMillionPossibleVariants() {
-    assertThat(factory.killVariantCapacity()).isGreaterThanOrEqualTo(1_000_000L);
+  void killCopyCompositionHasMoreThanSixMillionPossibleVariants() {
+    assertThat(factory.killVariantCapacity()).isGreaterThanOrEqualTo(6_000_000L);
   }
 
   @Test
@@ -55,10 +55,13 @@ class TimelineMessageFactoryTests {
   }
 
   @Test
-  void bloodMoonMessagesAreClearlySeparatedIntoTwoLines() {
-    assertThat(factory.message(TimelinePostType.BLOOD_MOON, null, null, "blood-moon"))
-        .startsWith("ブラッドムーン予定が更新された。\n")
-        .hasLineCount(2);
+  void timelineCopyCatalogKeepsAllRequiredCompositionParts() {
+    TimelineCopyCatalog catalog = new TimelineCopyCatalog();
+
+    assertThat(catalog.part("kill-verbs")).isNotEmpty();
+    assertThat(catalog.part("kill-scenes")).hasSizeGreaterThanOrEqualTo(20);
+    assertThat(catalog.part("kill-endings")).hasSizeGreaterThanOrEqualTo(26);
+    assertThat(catalog.part("kill-sound-beats")).hasSize(3);
   }
 
   @Test
@@ -73,7 +76,7 @@ class TimelineMessageFactoryTests {
     assertThat(TimelinePostType.LOGIN.systemActorName()).isEmpty();
     assertThat(TimelinePostType.LOGIN.avatarPath()).isEmpty();
     assertThat(TimelinePostType.BLOOD_MOON.avatarPath()).contains("/img/blood-moon-alert-avatar.png");
-    assertThat(TimelinePostType.SERVER_ANALYSIS.avatarPath()).contains("/img/world-intel-avatar.png");
+    assertThat(TimelinePostType.SERVER_ANALYSIS.avatarPath()).contains("/img/observation-analysis-avatar.png");
     assertThat(TimelinePostType.AIR_DROP.systemActorName()).contains("WORLD INTEL");
     assertThat(TimelinePostType.HORDE_ALERT.systemActorName()).contains("HORDE WATCH");
     assertThat(TimelinePostType.HORDE_ALERT.avatarPath()).contains("/img/horde-watch-avatar.png");

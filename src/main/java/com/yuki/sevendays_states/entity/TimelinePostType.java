@@ -70,8 +70,9 @@ public enum TimelinePostType {
       case HORDE_ALERT -> Optional.of("/img/horde-watch-avatar.png");
       case AIR_DROP -> Optional.of("/img/air-drop-avatar.png");
       case DIARY -> Optional.of("/img/field-journal-avatar.png");
-      case WORLD_EVENT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY ->
-          Optional.of("/img/world-intel-avatar.png");
+      case WORLD_EVENT -> Optional.of("/img/world-intel-avatar.png");
+      case PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY ->
+          Optional.of("/img/observation-analysis-avatar.png");
       case WATCHPOINT -> Optional.of("/img/watchpoint-avatar.png");
       case SURVIVOR_KAREN -> Optional.of("/img/survivor-karen-avatar.png");
       default -> Optional.empty();
