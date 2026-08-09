@@ -12,7 +12,7 @@ class TimelineMessageFactoryTests {
   private final TimelineMessageFactory factory = new TimelineMessageFactory();
 
   @Test
-  void killMessagesAreTwoLineFactSafeZombieMovieCopyWithOverOneThousandVariants() {
+  void killMessagesAreTwoLineFactSafeZombieMovieCopyWithMillionsOfCombinations() {
     var messages = IntStream.range(0, 20000)
         .mapToObj(index -> factory.message(
             TimelinePostType.KILL, "後輩", "zombieBusinessMan", "kill-source-" + index))
@@ -23,6 +23,11 @@ class TimelineMessageFactoryTests {
       assertThat(message).contains("後輩", "zombieBusinessMan", "\n");
       assertThat(message.lines()).hasSize(2);
     });
+  }
+
+  @Test
+  void killCopyCompositionHasMoreThanOneMillionPossibleVariants() {
+    assertThat(factory.killVariantCapacity()).isGreaterThanOrEqualTo(1_000_000L);
   }
 
   @Test
