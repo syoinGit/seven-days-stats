@@ -35,6 +35,7 @@ WATCHPOINT turns collected server logs into a mechanical, wasteland-themed activ
 - Infers exploration when an online player remains within 20 metres for at least three minutes; otherwise the automatic status remains moving/online, while manual statuses take precedence.
 - Sends status changes back to the game through the optional Telnet command client; offline players remain read-only and show their last known location.
 - Mixes player posts and Bedrock-generated WATCHPOINT observations into the adventure timeline; daily journals live in the right sidebar so the central feed stays focused.
+- Publishes one fictional `SURVIVOR_KAREN` lifestyle post per JST day from local weighted templates, independently of real players and game logs; occasional Nova Canvas images are uploaded to S3 and safely fall back to text-only posts.
 - Publishes typed WATCHPOINT posts (`NORMAL`, survivor/server analysis, and a short daily summary); only `NORMAL` is broadcast to the in-game chat.
 - Uses compact aggregate-only payloads for analysis posts, caps paid timeline generation at 10 posts per JST day by default, and skips empty observation windows.
 - Keeps all game, player, and AI history in the database, renders only the latest 12 timeline items initially, and progressively reveals older items while scrolling.
@@ -95,6 +96,17 @@ WATCHPOINT_AI_AWS_REGION=ap-northeast-1
 WATCHPOINT_AI_BEDROCK_MODEL_ID=jp.anthropic.claude-haiku-4-5-20251001-v1:0
 WATCHPOINT_AI_SCHEDULE_MINUTES=30
 WATCHPOINT_AI_MAX_POSTS_PER_DAY=10
+SURVIVOR_KAREN_ENABLED=true
+SURVIVOR_KAREN_POST_ENABLED=true
+SURVIVOR_KAREN_IMAGE_ENABLED=false
+SURVIVOR_KAREN_IMAGE_INTERVAL_DAYS=3
+SURVIVOR_KAREN_POST_HOUR=12
+SURVIVOR_KAREN_SCHEDULE_CRON=0 17 * * * *
+WATCHPOINT_IMAGE_AWS_REGION=us-east-1
+WATCHPOINT_IMAGE_MODEL_ID=amazon.nova-canvas-v1:0
+WATCHPOINT_IMAGE_BUCKET=
+WATCHPOINT_IMAGE_PREFIX=watchpoint/posts/survivor-karen
+WATCHPOINT_IMAGE_PUBLIC_BASE_URL=
 ```
 
 `AI_COMMENT_EDITOR_KEY` protects diary publishing under `/maintenance/diaries`.
@@ -114,6 +126,14 @@ is enabled, the application invokes Claude Haiku 4.5 through the Converse API,
 validates `body` and `evidenceKeys`, and saves the short observation only after
 validation succeeds. AWS credentials come exclusively from the SDK default
 credential chain, so EC2 uses its attached IAM role.
+
+Karen's text posts do not invoke Bedrock. When Karen image generation is enabled,
+the EC2 role needs `bedrock:InvokeModel` for the configured Nova Canvas model and
+`s3:PutObject` for the configured prefix. `WATCHPOINT_IMAGE_PUBLIC_BASE_URL` should
+point to the bucket's public delivery URL or a CloudFront distribution; if it is
+empty, the application stores the standard regional S3 object URL. Keep
+`SURVIVOR_KAREN_IMAGE_ENABLED=false` until the bucket delivery policy and model
+access are ready. An image failure is logged and the day's text post is still saved.
 
 The administrator-only `/maintenance/ai-analysis/test` page previews the exact
 observation JSON and provides a CSRF-protected button for a real one-off Bedrock

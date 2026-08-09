@@ -411,10 +411,18 @@ public class DashboardController {
       String linkLabel,
       Map<ReactionType, Long> reactions,
       String currentReaction,
-      boolean ownPost) {
+      boolean ownPost,
+      String imageUrl,
+      int baseLikeCount,
+      String postSubtype) {
 
     public long reactionCount() {
       return reactions == null ? 0 : reactions.values().stream().mapToLong(Long::longValue).sum();
+    }
+
+    public long displayLikeCount() {
+      long userLikes = reactions == null ? 0 : reactions.getOrDefault(ReactionType.NICE, 0L);
+      return Math.max(0, baseLikeCount) + userLikes;
     }
 
     public String avatarUrl() {
@@ -428,19 +436,21 @@ public class DashboardController {
       this(itemType, postId, playerId, actor, kind, occurredAt, message, coordinate, tone,
           kind, "", "",
           likeCount == null ? Map.of() : Map.of(ReactionType.NICE, likeCount),
-          likedByCurrentAccount ? ReactionType.NICE.name() : null, ownPost);
+          likedByCurrentAccount ? ReactionType.NICE.name() : null, ownPost, "", 0, "");
     }
 
     static TimelineItem event(DashboardViewService.TravelEntry event) {
       return new TimelineItem(
           "EVENT", null, null, event.actor(), event.kind(), event.occurredAt(),
-          event.message(), event.coordinate(), event.tone(), event.kind(), "", "", Map.of(), null, false);
+          event.message(), event.coordinate(), event.tone(), event.kind(), "", "", Map.of(), null, false,
+          "", 0, "");
     }
 
     static TimelineItem post(PlayerSocialService.PostView post) {
       return new TimelineItem(
           "POST", post.id(), post.playerId(), post.playerName(), "つぶやき", post.createdAt(),
-          post.body(), "", "community", "投稿", "", "", post.reactions(), post.currentReaction(), post.own());
+          post.body(), "", "community", "投稿", "", "", post.reactions(), post.currentReaction(), post.own(),
+          "", 0, "");
     }
 
     static TimelineItem aiComment(AiCommentService.AiCommentEntry comment) {
@@ -450,7 +460,8 @@ public class DashboardController {
           type.systemActorName().orElse("WATCHPOINT"),
           type.name(),
           DISPLAY_TIME_FORMATTER.format(comment.publishedAt()),
-          comment.body(), "", type.tone(), type.tagLabel(), "", "", Map.of(), null, false);
+          comment.body(), "", type.tone(), type.tagLabel(), "", "", Map.of(), null, false,
+          "", 0, "");
     }
 
     static TimelineItem post(TimelinePostService.PostView post) {
@@ -460,7 +471,8 @@ public class DashboardController {
           "POST", post.id(), actorPlayerId, post.actor(), post.postType(), post.occurredAt(), post.message(),
           post.coordinate(), type == null ? "neutral" : type.tone(),
           type == null ? "ACTIVITY" : type.tagLabel(),
-          post.linkUrl(), post.linkLabel(), post.reactions(), post.currentReaction(), post.ownPost());
+          post.linkUrl(), post.linkLabel(), post.reactions(), post.currentReaction(), post.ownPost(),
+          post.imageUrl(), post.baseLikeCount(), post.postSubtype());
     }
   }
 

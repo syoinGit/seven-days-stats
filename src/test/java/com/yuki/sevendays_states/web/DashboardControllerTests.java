@@ -2,6 +2,8 @@ package com.yuki.sevendays_states.web;
 
 import com.yuki.sevendays_states.service.AiCommentService;
 import com.yuki.sevendays_states.service.PlayerSocialService;
+import com.yuki.sevendays_states.service.TimelinePostService;
+import com.yuki.sevendays_states.entity.ReactionType;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -214,7 +216,7 @@ class DashboardControllerTests {
 
     assertThat(template)
         .contains("tone-", "reaction-menu", "<details", "class=\"tag\"", "item.tag",
-            "item.avatarUrl()", "system-avatar");
+            "item.avatarUrl()", "system-avatar", "feed-media", "karen-popularity");
     assertThat(Path.of("src/main/resources/static/img/watchpoint-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/blood-moon-alert-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/world-intel-avatar.png")).exists();
@@ -222,6 +224,21 @@ class DashboardControllerTests {
     assertThat(Path.of("src/main/resources/static/img/horde-watch-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/air-drop-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/field-journal-avatar.png")).exists();
+    assertThat(Path.of("src/main/resources/static/img/survivor-karen-avatar.png")).exists();
+  }
+
+  @Test
+  void karenPopularityAddsRealReactionsToTheStoredAudience() {
+    var post = new TimelinePostService.PostView(
+        99L, null, "サバイバーカレン", "今日は遠出。", "2026-08-09 12:00:00",
+        "", "SURVIVOR_KAREN", "", "", "https://cdn.example.com/karen.png", 1_200,
+        "TRAVEL", java.util.Map.of(ReactionType.NICE, 2L, ReactionType.LAUGH, 1L), null, false);
+
+    DashboardController.TimelineItem item = DashboardController.TimelineItem.post(post);
+
+    assertThat(item.displayLikeCount()).isEqualTo(1_202);
+    assertThat(item.imageUrl()).isEqualTo("https://cdn.example.com/karen.png");
+    assertThat(item.avatarUrl()).isEqualTo("/img/survivor-karen-avatar.png");
   }
 
   @Test
