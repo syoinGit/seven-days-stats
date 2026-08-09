@@ -1,7 +1,9 @@
 package com.yuki.sevendays_states.web;
 
 import com.yuki.sevendays_states.config.AiAnalysisProperties;
+import com.yuki.sevendays_states.config.SurvivorKarenProperties;
 import com.yuki.sevendays_states.service.AiCommentService;
+import com.yuki.sevendays_states.service.SurvivorKarenPublishingService;
 import com.yuki.sevendays_states.service.WatchpointAiPublishingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +23,8 @@ public class AiAnalysisMaintenanceController {
   private final WatchpointAiObservationService observationService;
   private final WatchpointAiPublishingService publishingService;
   private final AiCommentService aiCommentService;
+  private final SurvivorKarenProperties karenProperties;
+  private final SurvivorKarenPublishingService karenPublishingService;
   private final ObjectMapper objectMapper;
 
   @GetMapping("/maintenance/ai-analysis/test")
@@ -30,6 +34,11 @@ public class AiAnalysisMaintenanceController {
     model.addAttribute("modelId", properties.modelId());
     model.addAttribute("windowMinutes", properties.windowMinutes());
     model.addAttribute("scheduleMinutes", properties.scheduleMinutes());
+    model.addAttribute(
+        "karenEnabled", karenProperties.enabled() && karenProperties.postEnabled());
+    model.addAttribute("karenImageEnabled", karenProperties.imageConfigured());
+    model.addAttribute("karenAwsRegion", karenProperties.awsRegion());
+    model.addAttribute("karenModelId", karenProperties.imageModelId());
     model.addAttribute("latestComment",
         aiCommentService.latestBySourceType(WatchpointAiPublishingService.SOURCE_TYPE).orElse(null));
     try {
@@ -56,6 +65,31 @@ public class AiAnalysisMaintenanceController {
       log.error("Manual WATCHPOINT Bedrock test failed.", exception);
       redirectAttributes.addFlashAttribute(
           "error", "Bedrockでの生成に失敗しました。IAM・モデル利用許可・サーバーログを確認してください。");
+    }
+    return "redirect:/maintenance/ai-analysis/test";
+  }
+
+  @PostMapping("/maintenance/ai-analysis/test/karen")
+  public String generateKaren(RedirectAttributes redirectAttributes) {
+    try {
+      SurvivorKarenPublishingService.PublishResult result =
+          karenPublishingService.publishTodayIfMissing();
+      switch (result.status()) {
+        case PUBLISHED -> redirectAttributes.addFlashAttribute(
+            "notice", result.imageAttached()
+                ? "Karenが画像付きの新しい投稿を公開しました。"
+                : "Karenが新しい投稿を公開しました。");
+        case ALREADY_PUBLISHED -> redirectAttributes.addFlashAttribute(
+            "notice", "Karenは今日の投稿を既に公開済みです。");
+        case DISABLED -> redirectAttributes.addFlashAttribute(
+            "error", "Karen投稿が無効です。EC2の環境変数を確認してください。");
+        case TOO_EARLY -> redirectAttributes.addFlashAttribute(
+            "error", "Karenの投稿時刻前です。");
+      }
+    } catch (RuntimeException exception) {
+      log.error("Manual Survivor Karen publishing failed.", exception);
+      redirectAttributes.addFlashAttribute(
+          "error", "Karenの投稿に失敗しました。設定・権限・サーバーログを確認してください。");
     }
     return "redirect:/maintenance/ai-analysis/test";
   }

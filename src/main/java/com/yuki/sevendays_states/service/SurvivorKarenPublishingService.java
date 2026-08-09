@@ -41,6 +41,12 @@ public class SurvivorKarenPublishingService {
     return publishIfMissing(date, now);
   }
 
+  /** Manual maintenance entry point that ignores only the configured posting hour. */
+  public PublishResult publishTodayIfMissing() {
+    OffsetDateTime now = OffsetDateTime.now(JAPAN);
+    return publishIfMissing(now.toLocalDate(), now);
+  }
+
   PublishResult publishIfMissing(LocalDate date, OffsetDateTime publishedAt) {
     if (!properties.enabled() || !properties.postEnabled()) {
       return new PublishResult(PublishStatus.DISABLED, date, null, false);

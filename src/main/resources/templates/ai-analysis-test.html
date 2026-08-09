@@ -27,6 +27,11 @@
     <div><p>この操作は実際にBedrockを呼び出し、成功するとDBへ1件保存します。</p><form method="post" th:action="@{/maintenance/ai-analysis/test}"><button type="submit" th:disabled="${!bedrockEnabled}">観測データから今すぐつぶやく</button></form></div>
   </article>
 
+  <article class="panel ai-test-action">
+    <div class="panel-head"><h2>Karenの新規投稿</h2><small th:text="${karenImageEnabled ? karenModelId : 'TEXT ONLY'}">TEXT ONLY</small></div>
+    <div><p>今日のKaren投稿を新規作成します。同日分は重複せず、画像は設定と生成間隔の条件を満たす場合だけBedrockで生成します。<br><small th:if="${karenImageEnabled}" th:text="${'IMAGE REGION: ' + karenAwsRegion}">IMAGE REGION</small></p><form method="post" th:action="@{/maintenance/ai-analysis/test/karen}"><button type="submit" th:disabled="${!karenEnabled}">Karenに今すぐ投稿させる</button></form></div>
+  </article>
+
   <article class="panel registered-diary" th:if="${latestComment != null}">
     <div class="panel-head"><h2>最後に生成された投稿</h2><small th:text="${latestComment.publishedAt}">time</small></div>
     <h3 th:text="${latestComment.title}">WATCHPOINT観測記録</h3><p th:text="${latestComment.body}">body</p>

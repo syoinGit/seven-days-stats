@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png"><link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png"><title>DIARY EDITOR | WATCHPOINT</title><link rel="stylesheet" th:href="@{/css/app.css(v='20260809-8')}"></head>
 <body>
 <header class="topbar"><a class="brand" th:href="@{/}"><span class="brand-mark">WP</span><span><b>WATCHPOINT</b><small>DIARY REGISTRATION</small></span></a><a class="nav-button" th:href="@{/maintenance/diaries/{date}(date=${packet.date})}">生成データへ戻る</a></header>
-<main class="detail-shell"><nav th:replace="~{fragments/navigation :: rail('maintenance')}"></nav><section class="layout detail-page">
+<main class="detail-shell"><nav th:replace="~{fragments/navigation :: rail('diary-maintenance')}"></nav><section class="layout detail-page">
   <header class="page-title"><nav class="breadcrumbs"><a th:href="@{/maintenance/diaries}"><span aria-hidden="true">▤</span> 日別冒険日記</a><span>›</span><b th:text="${packet.date}">date</b></nav><p class="eyebrow">MANUAL REGISTRATION / BETA</p><h1>生成した日記を登録</h1><p th:text="${packet.date + ' / ' + packet.gameDayLabel}">date</p></header>
   <p class="form-notice error" th:if="${error}" th:text="${error}">error</p>
   <article class="panel ai-editor-panel">
