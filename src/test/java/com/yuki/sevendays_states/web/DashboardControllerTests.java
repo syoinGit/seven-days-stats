@@ -86,7 +86,7 @@ class DashboardControllerTests {
     assertThat(timeline).extracting(DashboardController.TimelineItem::itemType)
         .containsExactly("AI", "EVENT");
     assertThat(timeline.getFirst().actor()).isEqualTo("WATCHPOINT");
-    assertThat(timeline.getFirst().tone()).isEqualTo("ai");
+    assertThat(timeline.getFirst().tone()).isEqualTo("community");
   }
 
   @Test

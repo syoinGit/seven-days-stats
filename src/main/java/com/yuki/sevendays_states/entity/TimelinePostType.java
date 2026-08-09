@@ -113,7 +113,9 @@ public enum TimelinePostType {
       case VEHICLE -> "movement";
       case PLAYER_MESSAGE -> "community";
       case DIARY -> "exploration";
-      case WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY -> "ai";
+      // AI observations are timeline participants, not alerts: use the same community colour as
+      // survivor posts so the feed does not visually separate humans and generated commentary.
+      case WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY -> "community";
       case SURVIVOR_KAREN -> "karen";
       case SURVIVOR_MARK -> "mark";
     };
