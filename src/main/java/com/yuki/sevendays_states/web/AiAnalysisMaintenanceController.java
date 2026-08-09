@@ -93,4 +93,5 @@ public class AiAnalysisMaintenanceController {
     }
     return "redirect:/maintenance/ai-analysis/test";
   }
+
 }

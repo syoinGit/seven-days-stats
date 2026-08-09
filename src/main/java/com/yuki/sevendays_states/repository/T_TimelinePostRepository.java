@@ -15,4 +15,7 @@ public interface T_TimelinePostRepository extends JpaRepository<T_TimelinePost, 
   boolean existsByPostTypeAndPublishedAtAfter(String postType, OffsetDateTime after);
   Optional<T_TimelinePost> findTopByPostTypeAndImageUrlIsNotNullOrderByPublishedAtDesc(
       String postType);
+  Optional<T_TimelinePost> findTopByPostTypeOrderByPublishedAtDesc(String postType);
+  boolean existsByPostTypeAndCoordinateAndPublishedAtAfter(
+      String postType, String coordinate, OffsetDateTime after);
 }

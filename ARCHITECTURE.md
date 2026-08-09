@@ -38,6 +38,16 @@ timeline generator. `TimelineCopyCatalog` validates and loads the catalog at sta
 the generator combines the fragments with the immutable event facts. Add or adjust
 copy in the XML, not by collecting or reproducing dialogue from films, games, or sites.
 
+## Historical survivor trail reports
+
+`SurvivorMarkCandidateService` reads only imported transaction rows in a closed, historical
+calendar window (default: 2–5 days old). It clusters kills, sleeper spawns, and recorded
+positions into 100m exploration candidates, resolves the nearest imported POI, and excludes a
+location recently used by a Mark post. `SurvivorMarkPublishingService` sends only those compact,
+fact-bounded fields to Bedrock once per day and posts the resulting short report through the
+existing timeline read model. It never uses live player state or current-day rows, and it never
+generates an image.
+
 ## Web privacy boundary
 
 `WebSecurityConfig` is the authorization source of truth. `GuestPrivacyFilter` runs only after

@@ -86,7 +86,7 @@ class DashboardControllerTests {
     assertThat(timeline).extracting(DashboardController.TimelineItem::itemType)
         .containsExactly("AI", "EVENT");
     assertThat(timeline.getFirst().actor()).isEqualTo("WATCHPOINT");
-    assertThat(timeline.getFirst().tone()).isEqualTo("ai");
+    assertThat(timeline.getFirst().tone()).isEqualTo("community");
   }
 
   @Test
@@ -226,6 +226,7 @@ class DashboardControllerTests {
     assertThat(Path.of("src/main/resources/static/img/air-drop-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/field-journal-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/survivor-karen-avatar.png")).exists();
+    assertThat(Path.of("src/main/resources/static/img/survivor-mark-avatar.png")).exists();
   }
 
   @Test
@@ -280,14 +281,15 @@ class DashboardControllerTests {
   }
 
   @Test
-  void adminNavigationIncludesDiaryMaintenanceAndKarenTestAction() throws Exception {
+  void adminNavigationIncludesDiaryMaintenanceAndSurvivorTestActions() throws Exception {
     String navigation = Files.readString(
         Path.of("src/main/resources/templates/fragments/navigation.html"));
     String bedrockTest = Files.readString(
         Path.of("src/main/resources/templates/ai-analysis-test.html"));
 
     assertThat(navigation)
-        .contains("@{/maintenance/diaries}", "日誌メンテ", "diary-maintenance");
+        .contains("@{/maintenance/diaries}", "日誌メンテ", "diary-maintenance",
+            "@{/maintenance/survivor-mark/test}", "Markテスト");
     assertThat(bedrockTest)
         .contains("@{/maintenance/ai-analysis/test/karen}", "Karenの新規投稿");
   }

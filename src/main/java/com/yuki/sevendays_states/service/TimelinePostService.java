@@ -184,6 +184,12 @@ public class TimelinePostService {
         .map(post -> post.getPublishedAt().atZoneSameInstant(ZoneId.of("Asia/Tokyo")).toLocalDate());
   }
 
+  @Transactional(readOnly = true)
+  public Optional<LocalDate> latestMarkPostDate() {
+    return postRepository.findTopByPostTypeOrderByPublishedAtDesc(TimelinePostType.SURVIVOR_MARK.name())
+        .map(post -> post.getPublishedAt().atZoneSameInstant(ZoneId.of("Asia/Tokyo")).toLocalDate());
+  }
+
   @Transactional
   public boolean publishKaren(
       LocalDate date, OffsetDateTime publishedAt, String body, String subtype,
@@ -193,6 +199,18 @@ public class TimelinePostService {
     TimelinePostType type = TimelinePostType.SURVIVOR_KAREN;
     save(type, "NPC", null, type.systemActorName().orElse("サバイバーカレン"), body,
         "", "", "", "SURVIVOR_KAREN", null, sourceHash, 100, publishedAt,
+        imageUrl, Math.max(0, baseLikeCount), subtype);
+    return true;
+  }
+
+  @Transactional
+  public boolean publishMark(LocalDate date, OffsetDateTime publishedAt, String body,
+      String coordinate, String subtype, String candidateKey, String imageUrl, int baseLikeCount) {
+    String sourceHash = "SURVIVOR_MARK:" + date + ":" + candidateKey;
+    if (postRepository.existsBySourceHash(sourceHash)) return false;
+    TimelinePostType type = TimelinePostType.SURVIVOR_MARK;
+    save(type, "NPC", null, type.systemActorName().orElse("サバイバーマーク"), body,
+        coordinate, "", "", "SURVIVOR_MARK", null, sourceHash, 100, publishedAt,
         imageUrl, Math.max(0, baseLikeCount), subtype);
     return true;
   }

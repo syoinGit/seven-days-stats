@@ -196,16 +196,17 @@ a { color: inherit; }
 .tone-warning .feed-avatar, .tone-warning .tag { color: var(--signal); border-color: rgb(214 164 59 / 55%); }
 .tone-community .feed-avatar, .tone-community .tag { color: var(--cyan); border-color: rgb(111 170 168 / 55%); }
 .tone-supply .feed-avatar, .tone-supply .tag { color: #78c982; border-color: rgb(120 201 130 / 65%); }
-.tone-ai .feed-avatar, .tone-ai .tag { color: var(--signal); border-color: rgb(214 164 59 / 62%); box-shadow: 0 0 14px rgb(214 164 59 / 10%); }
 .tone-karen .feed-avatar, .tone-karen .tag { color: #e98aaa; border-color: rgb(233 138 170 / 68%); box-shadow: 0 0 16px rgb(233 138 170 / 14%); }
+.tone-mark .feed-avatar, .tone-mark .tag { color: #a7ae70; border-color: rgb(167 174 112 / 68%); box-shadow: 0 0 16px rgb(167 174 112 / 14%); }
 .tone-blood-moon .feed-avatar { color: #ff6655; border-color: rgb(239 73 56 / 75%); box-shadow: 0 0 16px rgb(239 73 56 / 18%); }
 .feed-avatar { display: grid; place-items: center; width: 46px; height: 46px; flex: 0 0 auto; border: 1px solid #596365; color: var(--cyan); font-weight: 900; clip-path: polygon(0 0, 80% 0, 100% 20%, 100% 100%, 20% 100%, 0 80%); }
 .system-avatar { width: 64px; height: 64px; border: 2px solid rgb(214 164 59 / 72%); border-radius: 50%; background: #080a0b; box-shadow: 0 0 18px rgb(214 164 59 / 18%); clip-path: none; object-fit: cover; }
 .tone-blood-moon .system-avatar, .tone-warning .system-avatar { border-color: var(--signal); box-shadow: 0 0 18px rgb(214 164 59 / 26%); }
 .tone-supply .system-avatar { border-color: #78c982; box-shadow: 0 0 18px rgb(120 201 130 / 24%); }
-.tone-ai .system-avatar { border-color: var(--signal); }
+.tone-community .system-avatar { border-color: var(--cyan); box-shadow: 0 0 18px rgb(111 170 168 / 22%); }
 .tone-exploration .system-avatar { border-color: #ba8dd4; box-shadow: 0 0 18px rgb(166 120 194 / 22%); }
 .tone-karen .system-avatar { border-color: #e98aaa; box-shadow: 0 0 20px rgb(233 138 170 / 24%); }
+.tone-mark .system-avatar { border-color: #a7ae70; box-shadow: 0 0 20px rgb(167 174 112 / 24%); }
 .feed-body { min-width: 0; flex: 1; }
 .feed-body header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .feed-body header strong { font-size: 14px; }
@@ -239,6 +240,7 @@ a { color: inherit; }
 .reaction-counts { display: flex; flex-wrap: wrap; gap: 6px; }
 .reaction-count { padding: 4px 8px; border: 1px solid var(--line); color: var(--text) !important; background: rgb(8 12 13 / 72%); font-size: 10px; }
 .karen-popularity { padding: 4px 8px; border: 1px solid rgb(233 138 170 / 48%); color: #f0a1bc !important; background: rgb(233 138 170 / 8%); font-weight: 900; }
+.mark-popularity { padding: 4px 8px; border: 1px solid rgb(167 174 112 / 48%); color: #c3c98b !important; background: rgb(167 174 112 / 8%); font-weight: 900; }
 .social-actions form { margin: 0; }
 .reaction-menu { position: relative; }
 .reaction-menu summary { display: inline-flex; gap: 5px; align-items: center; padding: 4px 8px; border: 1px solid var(--line); color: var(--muted); background: rgb(8 12 13 / 72%); cursor: pointer; list-style: none; }
