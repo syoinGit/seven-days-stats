@@ -25,7 +25,7 @@
       <a class="timeline-card-link" th:if="${!#strings.isEmpty(item.linkUrl)}"
          th:href="${item.linkUrl}" th:text="${item.linkLabel}">詳しく見る</a>
       <footer class="social-actions" th:if="${(loggedIn and !currentViewer) or item.reactionCount() > 0 or item.baseLikeCount > 0 or item.ownPost}">
-        <span class="karen-popularity" th:if="${item.baseLikeCount > 0}"
+        <span th:class="${item.tone == 'mark' ? 'mark-popularity' : 'karen-popularity'}" th:if="${item.baseLikeCount > 0}"
               th:text="${'♡ ' + #numbers.formatInteger(item.displayLikeCount(), 1, 'COMMA')}">♡ 1,284</span>
         <div class="reaction-counts" th:if="${item.reactionCount() > 0}">
           <span class="reaction-count" th:each="reaction : ${item.reactions}" th:unless="${reaction.value == 0}"

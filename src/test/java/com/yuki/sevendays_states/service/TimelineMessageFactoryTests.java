@@ -88,6 +88,10 @@ class TimelineMessageFactoryTests {
         .contains("/img/survivor-karen-avatar.png");
     assertThat(TimelinePostType.SURVIVOR_KAREN.tagLabel()).isEqualTo("SURVIVOR LIFE");
     assertThat(TimelinePostType.SURVIVOR_KAREN.isAiGenerated()).isFalse();
+    assertThat(TimelinePostType.SURVIVOR_MARK.systemActorName()).contains("サバイバーマーク");
+    assertThat(TimelinePostType.SURVIVOR_MARK.avatarPath()).contains("/img/survivor-mark-avatar.svg");
+    assertThat(TimelinePostType.SURVIVOR_MARK.tagLabel()).isEqualTo("TRAIL REPORT");
+    assertThat(TimelinePostType.SURVIVOR_MARK.tone()).isEqualTo("mark");
   }
 
   @Test

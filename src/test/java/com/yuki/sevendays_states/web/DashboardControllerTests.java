@@ -226,6 +226,7 @@ class DashboardControllerTests {
     assertThat(Path.of("src/main/resources/static/img/air-drop-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/field-journal-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/survivor-karen-avatar.png")).exists();
+    assertThat(Path.of("src/main/resources/static/img/survivor-mark-avatar.svg")).exists();
   }
 
   @Test

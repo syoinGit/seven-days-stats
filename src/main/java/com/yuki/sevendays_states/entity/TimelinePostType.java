@@ -20,7 +20,8 @@ public enum TimelinePostType {
   PLAYER_ANALYSIS(100, 0),
   SERVER_ANALYSIS(100, 0),
   DAILY_SUMMARY(100, 0),
-  SURVIVOR_KAREN(100, 0);
+  SURVIVOR_KAREN(100, 0),
+  SURVIVOR_MARK(100, 0);
 
   private final int publishChance;
   private final int cooldownMinutes;
@@ -46,7 +47,7 @@ public enum TimelinePostType {
   public boolean linksActorToPlayer() {
     return switch (this) {
       case WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY,
-          DIARY, BLOOD_MOON, AIR_DROP, HORDE_ALERT, WORLD_EVENT, SURVIVOR_KAREN -> false;
+          DIARY, BLOOD_MOON, AIR_DROP, HORDE_ALERT, WORLD_EVENT, SURVIVOR_KAREN, SURVIVOR_MARK -> false;
       default -> true;
     };
   }
@@ -60,6 +61,7 @@ public enum TimelinePostType {
       case PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY -> Optional.of("観測分析局");
       case DIARY -> Optional.of("冒険記録局");
       case SURVIVOR_KAREN -> Optional.of("サバイバーカレン");
+      case SURVIVOR_MARK -> Optional.of("サバイバーマーク");
       default -> Optional.empty();
     };
   }
@@ -75,6 +77,7 @@ public enum TimelinePostType {
           Optional.of("/img/observation-analysis-avatar.png");
       case WATCHPOINT -> Optional.of("/img/watchpoint-avatar.png");
       case SURVIVOR_KAREN -> Optional.of("/img/survivor-karen-avatar.png");
+      case SURVIVOR_MARK -> Optional.of("/img/survivor-mark-avatar.svg");
       default -> Optional.empty();
     };
   }
@@ -95,6 +98,7 @@ public enum TimelinePostType {
       case WATCHPOINT -> "AI OBSERVATION";
       case PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY -> "ANALYSIS";
       case SURVIVOR_KAREN -> "SURVIVOR LIFE";
+      case SURVIVOR_MARK -> "TRAIL REPORT";
     };
   }
 
@@ -111,6 +115,7 @@ public enum TimelinePostType {
       case DIARY -> "exploration";
       case WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY -> "ai";
       case SURVIVOR_KAREN -> "karen";
+      case SURVIVOR_MARK -> "mark";
     };
   }
 
