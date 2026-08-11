@@ -22,8 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class WatchpointAiStateService {
   private static final long STATE_ID = 1L;
-  private static final int MAX_MEMORY_CHARACTERS = 1000;
-  private static final int MAX_MEMORY_ITEMS = 8;
+  private static final int MAX_MEMORY_CHARACTERS = 400;
+  private static final int MAX_MEMORY_ITEMS = 2;
 
   private final T_WatchpointAiStateRepository stateRepository;
   private final T_WatchpointAiMemoryHistoryRepository historyRepository;

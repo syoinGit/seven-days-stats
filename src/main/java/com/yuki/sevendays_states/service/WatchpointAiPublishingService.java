@@ -127,8 +127,11 @@ public class WatchpointAiPublishingService {
 
   private boolean hasActivity(WatchpointAiObservationService.AnalysisRequest request) {
     var observation = request.observation();
-    if (observation == null || observation.currentTotals() == null) {
+    if (observation == null) {
       return false;
+    }
+    if (observation.currentTotals() == null) {
+      return !observation.events().isEmpty();
     }
     var totals = observation.currentTotals();
     return !observation.events().isEmpty()
