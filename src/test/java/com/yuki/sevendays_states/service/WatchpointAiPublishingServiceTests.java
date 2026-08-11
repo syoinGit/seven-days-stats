@@ -81,7 +81,7 @@ class WatchpointAiPublishingServiceTests {
         new BedrockWatchpointClient.GeneratedPost("観測本文", List.of("current-totals")));
     when(comments.publishGenerated("WATCHPOINT観測記録", "観測本文", "AWS_BEDROCK"))
         .thenReturn(saved);
-    when(telnet.broadcast("WATCHPOINT: 観測本文")).thenReturn(true);
+    when(telnet.broadcast("観測本文")).thenReturn(true);
 
     WatchpointAiPublishingService.PublishResult result =
         new WatchpointAiPublishingService(properties, observations, bedrock, comments, telnet, state())
@@ -92,7 +92,7 @@ class WatchpointAiPublishingServiceTests {
     verify(comments).publishGenerated("WATCHPOINT観測記録", "観測本文", "AWS_BEDROCK");
     var ordered = inOrder(comments, telnet);
     ordered.verify(comments).publishGenerated("WATCHPOINT観測記録", "観測本文", "AWS_BEDROCK");
-    ordered.verify(telnet).broadcast("WATCHPOINT: 観測本文");
+    ordered.verify(telnet).broadcast("観測本文");
   }
 
   @Test
