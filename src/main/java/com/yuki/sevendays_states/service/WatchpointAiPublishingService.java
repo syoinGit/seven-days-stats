@@ -89,7 +89,9 @@ public class WatchpointAiPublishingService {
             stateException);
       }
       if (postType.isGameBroadcastEnabled()) {
-        boolean broadcasted = telnetCommandClient.broadcast("WATCHPOINT: " + saved.body());
+        // Use the same server-wide say path as player status notifications. The timeline title
+        // identifies the source; the game chat should receive the generated post body verbatim.
+        boolean broadcasted = telnetCommandClient.broadcast(saved.body());
         if (!broadcasted) {
           log.warn(
               "WATCHPOINT {} post was saved, but its in-game Telnet broadcast failed. commentId={}",
