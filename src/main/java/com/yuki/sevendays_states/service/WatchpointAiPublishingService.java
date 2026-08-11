@@ -89,9 +89,8 @@ public class WatchpointAiPublishingService {
             stateException);
       }
       if (postType.isGameBroadcastEnabled()) {
-        // Use the same server-wide say path as player status notifications. Keep the in-game
-        // label independent from the WATCHPOINT identifier used by the web timeline/database.
-        boolean broadcasted = telnetCommandClient.broadcast("観測AI " + saved.body());
+        // Use the same server-wide say path as player status notifications.
+        boolean broadcasted = telnetCommandClient.broadcast(saved.body());
         if (!broadcasted) {
           log.warn(
               "WATCHPOINT {} post was saved, but its in-game Telnet broadcast failed. commentId={}",
