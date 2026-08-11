@@ -37,6 +37,7 @@ public class SevenDaysTelnetCommandClient {
     if (command == null || command.isBlank()) {
       return false;
     }
+    SevenDaysTelnetConnectionLock.lock();
     TelnetClient telnet = new TelnetClient();
     try {
       telnet.setConnectTimeout(Math.toIntExact(properties.telnet().readTimeout().toMillis()));
@@ -64,6 +65,7 @@ public class SevenDaysTelnetCommandClient {
       } catch (Exception ignored) {
         // best effort cleanup
       }
+      SevenDaysTelnetConnectionLock.unlock();
     }
   }
 
