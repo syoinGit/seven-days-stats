@@ -24,6 +24,18 @@ class SevenDaysTelnetCommandClientTests {
   }
 
   @Test
+  void normalizesAiTextToOneLineBeforeSay() {
+    SevenDaysTelnetCommandClient client = spy(new SevenDaysTelnetCommandClient(
+        mock(SevenDaysDataProperties.class)));
+    doReturn(true).when(client).send("say \"観測です。 続きです。\"");
+
+    boolean sent = client.broadcast("観測です。\n\t続きです。\u2028");
+
+    assertThat(sent).isTrue();
+    verify(client).send("say \"観測です。 続きです。\"");
+  }
+
+  @Test
   void doesNotBroadcastBlankText() {
     SevenDaysTelnetCommandClient client = spy(new SevenDaysTelnetCommandClient(
         mock(SevenDaysDataProperties.class)));

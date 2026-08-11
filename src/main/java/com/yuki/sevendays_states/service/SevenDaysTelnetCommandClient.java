@@ -23,7 +23,10 @@ public class SevenDaysTelnetCommandClient {
       return false;
     }
     String sanitized = message
-        .replaceAll("[\\r\\n\\p{Cntrl}]+", " ")
+        // Bedrock responses are strings, but may contain newlines or Unicode line separators.
+        // 7DTD's say command must receive the whole message as one line, like status notices.
+        .replaceAll("\\s+", " ")
+        .replaceAll("[\\p{Cntrl}]+", " ")
         .replace("\\", "\\\\")
         .replace("\"", "'")
         .strip();
