@@ -106,7 +106,7 @@ class BedrockWatchpointClientTests {
     verify(runtimeClient).converse(captor.capture());
     String userMessage = captor.getValue().messages().getFirst().content().getFirst().text();
     assertThat(userMessage).contains("JSONオブジェクトだけ");
-    assertThat(userMessage).contains("100文字以内");
+    assertThat(userMessage).contains("60文字以内");
     assertThat(userMessage).contains("\"body\"");
   }
 

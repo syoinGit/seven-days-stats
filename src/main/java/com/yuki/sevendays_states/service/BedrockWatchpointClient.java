@@ -26,7 +26,7 @@ public class BedrockWatchpointClient {
   private static final String RESPONSE_INSTRUCTION = """
       次の観測リクエストに従って投稿を1件生成してください。
       応答は説明やMarkdownコードフェンスを付けず、次の形のJSONオブジェクトだけにしてください。
-      {"body":"100文字以内の日本語本文","evidenceKeys":["根拠キー"]}
+      {"body":"60文字以内・改行なしの日本語の短いつぶやき","evidenceKeys":["根拠キー"]}
 
       evidenceKeys には、観測リクエストに実際に存在する根拠キーだけを入れてください。
       許可される根拠キー一覧はリクエストごとに末尾へ示します。空配列は禁止です。
