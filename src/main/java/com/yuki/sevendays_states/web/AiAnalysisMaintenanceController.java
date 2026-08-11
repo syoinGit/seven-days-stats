@@ -58,6 +58,9 @@ public class AiAnalysisMaintenanceController {
       if (result.status() == WatchpointAiPublishingService.PublishStatus.DISABLED) {
         redirectAttributes.addFlashAttribute(
             "error", "AI生成が無効です。WATCHPOINT_AI_ENABLEDを確認してください。");
+      } else if (result.status() != WatchpointAiPublishingService.PublishStatus.PUBLISHED) {
+        redirectAttributes.addFlashAttribute(
+            "error", "WATCHPOINTの生成に失敗しました。サーバーログを確認してください。");
       } else {
         redirectAttributes.addFlashAttribute("notice", "WATCHPOINTが新しい観測を投稿しました。");
       }

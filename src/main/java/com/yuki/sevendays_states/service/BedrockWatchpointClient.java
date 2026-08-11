@@ -5,6 +5,7 @@ import com.yuki.sevendays_states.web.WatchpointAiObservationService.AnalysisRequ
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
@@ -27,6 +28,9 @@ public class BedrockWatchpointClient {
       応答は説明やMarkdownコードフェンスを付けず、次の形のJSONオブジェクトだけにしてください。
       {"body":"100文字以内の日本語本文","evidenceKeys":["根拠キー"]}
 
+      evidenceKeys には、観測リクエストに実際に存在する根拠キーだけを入れてください。
+      許可される根拠キー一覧はリクエストごとに末尾へ示します。空配列は禁止です。
+
       観測リクエスト:
       """;
 
@@ -36,12 +40,16 @@ public class BedrockWatchpointClient {
 
   public GeneratedPost generate(AnalysisRequest analysisRequest) {
     String requestJson = serialize(analysisRequest);
+    String requestInstruction = RESPONSE_INSTRUCTION
+        + "\n今回の許可根拠キー: " + String.join(", ", allowedEvidenceKeys(analysisRequest))
+        + "\n\n"
+        + requestJson;
     ConverseResponse response = bedrockRuntimeClient.converse(ConverseRequest.builder()
         .modelId(properties.modelId())
         .system(SystemContentBlock.fromText(analysisRequest.systemPrompt()))
         .messages(Message.builder()
             .role(ConversationRole.USER)
-            .content(ContentBlock.fromText(RESPONSE_INSTRUCTION + requestJson))
+            .content(ContentBlock.fromText(requestInstruction))
             .build())
         .inferenceConfig(InferenceConfiguration.builder()
             .maxTokens(properties.maxOutputTokens())
@@ -127,13 +135,21 @@ public class BedrockWatchpointClient {
     if (generated.evidenceKeys() == null || generated.evidenceKeys().isEmpty()) {
       throw new BedrockGenerationException("Bedrockの応答に根拠キーがありません。");
     }
-    Set<String> allowedKeys = new HashSet<>();
+    Set<String> allowedKeys = allowedEvidenceKeys(request);
+    if (!allowedKeys.containsAll(generated.evidenceKeys())) {
+      Set<String> invalidKeys = new HashSet<>(generated.evidenceKeys());
+      invalidKeys.removeAll(allowedKeys);
+      throw new BedrockGenerationException(
+          "Bedrockの応答に存在しない根拠キーが含まれています: " + invalidKeys);
+    }
+  }
+
+  private Set<String> allowedEvidenceKeys(AnalysisRequest request) {
+    Set<String> allowedKeys = new TreeSet<>();
     allowedKeys.addAll(List.of("current-totals", "comparison-totals", "world-context"));
     request.observation().survivors().forEach(item -> allowedKeys.add(item.evidenceKey()));
     request.observation().events().forEach(item -> allowedKeys.add(item.evidenceKey()));
-    if (!allowedKeys.containsAll(generated.evidenceKeys())) {
-      throw new BedrockGenerationException("Bedrockの応答に存在しない根拠キーが含まれています。");
-    }
+    return allowedKeys;
   }
 
   public record GeneratedPost(String body, List<String> evidenceKeys) {
