@@ -26,7 +26,10 @@ public class BedrockWatchpointClient {
   private static final String RESPONSE_INSTRUCTION = """
       次の観測リクエストに従って投稿を1件生成してください。
       応答は説明やMarkdownコードフェンスを付けず、次の形のJSONオブジェクトだけにしてください。
-      {"body":"100文字以内の日本語本文","evidenceKeys":["根拠キー"]}
+      {"body":"Web掲載用の100文字以内の日本語本文","gameBody":"ゲーム内用の50文字以内・改行なしの短文","evidenceKeys":["根拠キー"]}
+
+      body はWebと記録用の全文、gameBody は7DTDのsayへ送る短文です。
+      gameBody は必ず1行にし、bodyの要点を自然な日本語で短くまとめてください。
 
       evidenceKeys には、観測リクエストに実際に存在する根拠キーだけを入れてください。
       許可される根拠キー一覧はリクエストごとに末尾へ示します。空配列は禁止です。
@@ -63,8 +66,12 @@ public class BedrockWatchpointClient {
         .reduce("", String::concat)
         .strip();
     GeneratedPost generated = deserialize(responseText);
+    String gameBody = generated.gameBody() == null || generated.gameBody().isBlank()
+        ? generated.body()
+        : generated.gameBody();
     validate(generated, analysisRequest);
-    return new GeneratedPost(generated.body().strip(), List.copyOf(generated.evidenceKeys()));
+    return new GeneratedPost(generated.body().strip(), gameBody.strip(),
+        List.copyOf(generated.evidenceKeys()));
   }
 
   private String serialize(AnalysisRequest request) {
@@ -132,6 +139,15 @@ public class BedrockWatchpointClient {
     if (generated.body().contains("```") || generated.body().matches("(?s).*^#{1,6}\\s.*")) {
       throw new BedrockGenerationException("Bedrockの投稿本文に許可されていないMarkdownがあります。");
     }
+    String gameBody = generated.gameBody() == null || generated.gameBody().isBlank()
+        ? generated.body()
+        : generated.gameBody();
+    if (gameBody.length() > 50) {
+      throw new BedrockGenerationException("Bedrockのゲーム内投稿本文が文字数上限を超えています。");
+    }
+    if (gameBody.matches("(?s).*[\\r\\n\\u2028\\u2029].*")) {
+      throw new BedrockGenerationException("Bedrockのゲーム内投稿本文に改行が含まれています。");
+    }
     if (generated.evidenceKeys() == null || generated.evidenceKeys().isEmpty()) {
       throw new BedrockGenerationException("Bedrockの応答に根拠キーがありません。");
     }
@@ -152,7 +168,10 @@ public class BedrockWatchpointClient {
     return allowedKeys;
   }
 
-  public record GeneratedPost(String body, List<String> evidenceKeys) {
+  public record GeneratedPost(String body, String gameBody, List<String> evidenceKeys) {
+    public GeneratedPost(String body, List<String> evidenceKeys) {
+      this(body, body, evidenceKeys);
+    }
   }
 
   public static class BedrockGenerationException extends RuntimeException {

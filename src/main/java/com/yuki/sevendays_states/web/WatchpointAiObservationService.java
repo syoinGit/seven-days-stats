@@ -133,8 +133,8 @@ public class WatchpointAiObservationService {
             "application/json",
             100,
             false,
-            List.of("body", "evidenceKeys"),
-            "body は自然な日本語のつぶやき、evidenceKeys は入力内または指定済み集計の根拠キー配列"),
+            List.of("body", "gameBody", "evidenceKeys"),
+            "body はWeb用本文、gameBody は改行なしのゲーム内短文、evidenceKeys は入力内または指定済み集計の根拠キー配列"),
         observation);
   }
 
