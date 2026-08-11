@@ -88,12 +88,17 @@ public class WatchpointAiPublishingService {
             saved.id(),
             stateException);
       }
-      if (postType.isGameBroadcastEnabled()
-          && !telnetCommandClient.broadcast("WATCHPOINT: " + saved.body())) {
-        log.warn(
-            "WATCHPOINT {} post was saved, but its in-game Telnet broadcast failed. commentId={}",
-            postType,
-            saved.id());
+      if (postType.isGameBroadcastEnabled()) {
+        boolean broadcasted = telnetCommandClient.broadcast("WATCHPOINT: " + saved.body());
+        if (!broadcasted) {
+          log.warn(
+              "WATCHPOINT {} post was saved, but its in-game Telnet broadcast failed. commentId={}",
+              postType,
+              saved.id());
+        } else {
+          log.info("WATCHPOINT {} post broadcast to 7DTD via Telnet. commentId={}",
+              postType, saved.id());
+        }
       }
       return new PublishResult(PublishStatus.PUBLISHED, saved);
     } catch (RuntimeException exception) {
