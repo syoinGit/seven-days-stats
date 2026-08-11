@@ -1,6 +1,8 @@
 package com.yuki.sevendays_states.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
 import java.util.Set;
@@ -12,7 +14,13 @@ class KarenPostGeneratorTests {
 
   private final KarenPostGenerator generator = new KarenPostGenerator();
   private final KarenPopularityService popularity = new KarenPopularityService();
-  private final KarenImagePromptGenerator promptGenerator = new KarenImagePromptGenerator();
+  private final AiAgentProfileService profiles = mock(AiAgentProfileService.class);
+  private final KarenImagePromptGenerator promptGenerator = promptGenerator();
+
+  private KarenImagePromptGenerator promptGenerator() {
+    when(profiles.personalityPrompt(AiAgentProfileService.KAREN)).thenReturn("明るく行動的なKaren");
+    return new KarenImagePromptGenerator(profiles);
+  }
 
   @Test
   void createsVariedShortPostsWithoutServerData() {

@@ -80,7 +80,7 @@ class SurvivorKarenPublishingServiceTests {
     when(timeline.publishKaren(eq(date), any(OffsetDateTime.class), anyString(), anyString(),
         eq(""), anyInt())).thenReturn(true);
     SurvivorKarenPublishingService service = new SurvivorKarenPublishingService(
-        aiProperties(true), properties, new KarenPostGenerator(), new KarenImagePromptGenerator(),
+        aiProperties(true), properties, new KarenPostGenerator(), promptGenerator(),
         new KarenPopularityService(), images, timeline);
 
     var result = service.publishIfMissing(
@@ -99,7 +99,7 @@ class SurvivorKarenPublishingServiceTests {
     SurvivorKarenPublishingService service = new SurvivorKarenPublishingService(
         aiProperties(false), new SurvivorKarenProperties(true, 3, 12, "us-east-1", "model",
             "bucket", "prefix", ""),
-        new KarenPostGenerator(), new KarenImagePromptGenerator(), new KarenPopularityService(),
+        new KarenPostGenerator(), promptGenerator(), new KarenPopularityService(),
         images, timeline);
 
     var result = service.publishIfMissing(LocalDate.of(2026, 8, 13));
@@ -112,5 +112,11 @@ class SurvivorKarenPublishingServiceTests {
   private AiAnalysisProperties aiProperties(boolean enabled) {
     return new AiAnalysisProperties(enabled, 30, 60, "", "ap-northeast-1", "model", 240,
         java.time.Duration.ofMinutes(30), java.time.Duration.ofMinutes(1), 10);
+  }
+
+  private KarenImagePromptGenerator promptGenerator() {
+    AiAgentProfileService profiles = mock(AiAgentProfileService.class);
+    when(profiles.personalityPrompt(AiAgentProfileService.KAREN)).thenReturn("Karen人格");
+    return new KarenImagePromptGenerator(profiles);
   }
 }
