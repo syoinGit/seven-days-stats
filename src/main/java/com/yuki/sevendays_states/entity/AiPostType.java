@@ -1,11 +1,11 @@
 package com.yuki.sevendays_states.entity;
 
-/** AI timeline post types. Only NORMAL may be broadcast into the game. */
+/** AI timeline post types. WATCHPOINT's generated statistics are also announced in-game. */
 public enum AiPostType {
   NORMAL(true, "観測"),
-  PLAYER_ANALYSIS(false, "生存者分析"),
-  SERVER_ANALYSIS(false, "サーバー分析"),
-  DAILY_SUMMARY(false, "日次まとめ");
+  PLAYER_ANALYSIS(true, "生存者分析"),
+  SERVER_ANALYSIS(true, "サーバー分析"),
+  DAILY_SUMMARY(true, "日次まとめ");
 
   private final boolean gameBroadcastEnabled;
   private final String displayLabel;

@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 class WatchpointAiPublishingServiceTests {
 
   @Test
-  void analysisTypesArePersistedButNeverBroadcastToGame() {
+  void analysisTypesArePersistedAndBroadcastToGame() {
     for (AiPostType type : List.of(
         AiPostType.PLAYER_ANALYSIS, AiPostType.SERVER_ANALYSIS, AiPostType.DAILY_SUMMARY)) {
       WatchpointAiObservationService observations = mock(WatchpointAiObservationService.class);
@@ -36,6 +36,7 @@ class WatchpointAiPublishingServiceTests {
           new BedrockWatchpointClient.GeneratedPost("分析本文", List.of("current-totals")));
       when(comments.publishGenerated(
           "WATCHPOINT観測記録", "分析本文", "AWS_BEDROCK", type, null)).thenReturn(saved);
+      when(telnet.broadcast("分析本文")).thenReturn(true);
 
       var result = new WatchpointAiPublishingService(
           properties(true), observations, bedrock, comments, telnet, state()).publishNow(type);
@@ -43,7 +44,7 @@ class WatchpointAiPublishingServiceTests {
       assertThat(result.status()).isEqualTo(WatchpointAiPublishingService.PublishStatus.PUBLISHED);
       verify(comments).publishGenerated(
           "WATCHPOINT観測記録", "分析本文", "AWS_BEDROCK", type, null);
-      verify(telnet, never()).broadcast(org.mockito.ArgumentMatchers.any());
+      verify(telnet).broadcast("分析本文");
     }
   }
 
