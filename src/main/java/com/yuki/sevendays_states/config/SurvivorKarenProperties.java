@@ -4,8 +4,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "app.survivor-karen")
 public record SurvivorKarenProperties(
-    boolean enabled,
-    boolean postEnabled,
     boolean imageEnabled,
     int imageIntervalDays,
     int postHour,

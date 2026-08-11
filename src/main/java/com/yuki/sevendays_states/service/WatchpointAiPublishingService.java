@@ -9,7 +9,6 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /** Coordinates observation, generation, validation, and persistence without holding a DB transaction during AWS I/O. */
@@ -27,15 +26,12 @@ public class WatchpointAiPublishingService {
   private final AiCommentService aiCommentService;
   private final SevenDaysTelnetCommandClient telnetCommandClient;
 
-  @Value("${app.ai-analysis.max-posts-per-day:10}")
-  private int maxPostsPerDay;
-
   public PublishResult publishIfDue() {
-    if (!properties.bedrockEnabled()) {
+    if (!properties.enabled()) {
       return new PublishResult(PublishStatus.DISABLED, null);
     }
     OffsetDateTime threshold = OffsetDateTime.now(ZoneOffset.UTC)
-        .minusMinutes(properties.scheduleMinutes());
+        .minus(properties.scheduleInterval());
     boolean recentlyPublished = aiCommentService.latestBySourceType(SOURCE_TYPE)
         .map(comment -> !comment.publishedAt().isBefore(threshold))
         .orElse(false);
@@ -44,7 +40,7 @@ public class WatchpointAiPublishingService {
     }
     OffsetDateTime dayStart = startOfToday();
     long todayCount = aiCommentService.generatedTimelineCountSince(dayStart);
-    if (todayCount >= Math.max(1, maxPostsPerDay)) {
+    if (todayCount >= properties.maxPostsPerDay()) {
       return new PublishResult(PublishStatus.DAILY_LIMIT, null);
     }
     AiPostType postType = nextPostType(todayCount, dayStart);
@@ -62,14 +58,14 @@ public class WatchpointAiPublishingService {
   }
 
   public PublishResult publishNow() {
-    if (!properties.bedrockEnabled()) {
+    if (!properties.enabled()) {
       return new PublishResult(PublishStatus.DISABLED, null);
     }
     return publishSafely(observationService.buildRequest(), AiPostType.NORMAL);
   }
 
   public PublishResult publishNow(AiPostType postType) {
-    if (!properties.bedrockEnabled()) {
+    if (!properties.enabled()) {
       return new PublishResult(PublishStatus.DISABLED, null);
     }
     return publishSafely(observationService.buildRequest(postType, 0), postType);
@@ -82,8 +78,12 @@ public class WatchpointAiPublishingService {
       AiCommentService.AiCommentEntry saved = postType == AiPostType.NORMAL
           ? aiCommentService.publishGenerated(TITLE, generated.body(), SOURCE_TYPE)
           : aiCommentService.publishGenerated(TITLE, generated.body(), SOURCE_TYPE, postType, null);
-      if (postType.isGameBroadcastEnabled()) {
-        telnetCommandClient.broadcast("WATCHPOINT: " + saved.body());
+      if (postType.isGameBroadcastEnabled()
+          && !telnetCommandClient.broadcast("WATCHPOINT: " + saved.body())) {
+        log.warn(
+            "WATCHPOINT {} post was saved, but its in-game Telnet broadcast failed. commentId={}",
+            postType,
+            saved.id());
       }
       return new PublishResult(PublishStatus.PUBLISHED, saved);
     } catch (RuntimeException exception) {

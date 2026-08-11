@@ -28,7 +28,7 @@ public class SevenDaysDataImportRunner implements ApplicationRunner {
     log.info("7DTD startup import finished. {}", result);
   }
 
-  @Scheduled(fixedDelayString = "${app.sevendays.import.fixed-delay-ms:600000}")
+  @Scheduled(fixedDelayString = "${app.sevendays.import.fixed-delay:10m}")
   public void scheduledImport() {
     if (!properties.importSettings().scheduledEnabled()) {
       return;

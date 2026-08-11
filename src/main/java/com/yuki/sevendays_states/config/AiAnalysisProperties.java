@@ -1,18 +1,20 @@
 package com.yuki.sevendays_states.config;
 
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "app.ai-analysis")
+@ConfigurationProperties(prefix = "app.ai")
 public record AiAnalysisProperties(
+    boolean enabled,
     int windowMinutes,
     int maxEvents,
     String systemPromptResource,
-    boolean bedrockEnabled,
     String awsRegion,
     String modelId,
     int maxOutputTokens,
-    int scheduleMinutes,
-    long initialDelayMs
+    Duration scheduleInterval,
+    Duration initialDelay,
+    int maxPostsPerDay
 ) {
 
   public AiAnalysisProperties {
@@ -26,7 +28,16 @@ public record AiAnalysisProperties(
         ? "jp.anthropic.claude-haiku-4-5-20251001-v1:0"
         : modelId;
     maxOutputTokens = maxOutputTokens <= 0 ? 400 : Math.min(maxOutputTokens, 1000);
-    scheduleMinutes = scheduleMinutes <= 0 ? 30 : Math.max(scheduleMinutes, 5);
-    initialDelayMs = initialDelayMs < 0 ? 60000 : initialDelayMs;
+    scheduleInterval = positiveOrDefault(scheduleInterval, Duration.ofMinutes(30));
+    if (scheduleInterval.compareTo(Duration.ofMinutes(5)) < 0) {
+      scheduleInterval = Duration.ofMinutes(5);
+    }
+    initialDelay = initialDelay == null || initialDelay.isNegative()
+        ? Duration.ofMinutes(1) : initialDelay;
+    maxPostsPerDay = maxPostsPerDay <= 0 ? 10 : maxPostsPerDay;
+  }
+
+  private static Duration positiveOrDefault(Duration value, Duration fallback) {
+    return value == null || value.isZero() || value.isNegative() ? fallback : value;
   }
 }

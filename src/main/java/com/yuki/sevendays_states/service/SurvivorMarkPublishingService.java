@@ -1,5 +1,6 @@
 package com.yuki.sevendays_states.service;
 
+import com.yuki.sevendays_states.config.AiAnalysisProperties;
 import com.yuki.sevendays_states.config.SurvivorMarkProperties;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -18,6 +19,7 @@ public class SurvivorMarkPublishingService {
 
   private static final ZoneId JAPAN = ZoneId.of("Asia/Tokyo");
 
+  private final AiAnalysisProperties aiProperties;
   private final SurvivorMarkProperties properties;
   private final SurvivorMarkCandidateService candidateService;
   private final BedrockMarkClient bedrockClient;
@@ -63,7 +65,7 @@ public class SurvivorMarkPublishingService {
         date, candidate.get());
   }
 
-  private boolean enabled() { return properties.enabled() && properties.postEnabled() && properties.bedrockEnabled(); }
+  private boolean enabled() { return aiProperties.enabled(); }
 
   private boolean due(LocalDate date) {
     return timelinePostService.latestMarkPostDate()

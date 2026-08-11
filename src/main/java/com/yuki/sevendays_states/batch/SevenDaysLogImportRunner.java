@@ -17,8 +17,8 @@ public class SevenDaysLogImportRunner {
   private final GameLogImportService logImportService;
 
   @Scheduled(
-      initialDelayString = "${app.sevendays.log.initial-delay-ms:600000}",
-      fixedDelayString = "${app.sevendays.log.fixed-delay-ms:600000}")
+      initialDelayString = "${app.sevendays.log.initial-delay:10m}",
+      fixedDelayString = "${app.sevendays.log.fixed-delay:10m}")
   public void scheduledLogImport() {
     if (!"file".equalsIgnoreCase(properties.mode()) || !properties.log().scheduledEnabled()) {
       return;

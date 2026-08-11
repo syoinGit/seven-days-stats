@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
     "spring.jpa.hibernate.ddl-auto=validate",
     "spring.flyway.enabled=true",
     "app.sevendays.import.startup-enabled=false",
-    "app.sevendays.log.server-metric-interval-minutes=60"
+    "app.sevendays.log.server-metric-interval=60m"
 })
 class GameLogImportServiceTests {
 

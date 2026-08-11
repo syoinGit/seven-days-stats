@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    password: ${POSTGRES_PASSWORD:}
+
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false
+
+app:
+  sevendays:
+    environment-name: local
+    mode: file
+    root: ${SEVEN_DAYS_ROOT:7dtd}
+    telnet:
+      enabled: false
+      password: ${SEVEN_DAYS_TELNET_PASSWORD:}
+  auth:
+    bootstrap:
+      password: ${WATCHPOINT_BOOTSTRAP_PASSWORD:}
+  ai:
+    enabled: false
+  survivor-karen:
+    image-enabled: false

@@ -29,13 +29,13 @@ public class AiAnalysisMaintenanceController {
 
   @GetMapping("/maintenance/ai-analysis/test")
   public String testPage(Model model) {
-    model.addAttribute("bedrockEnabled", properties.bedrockEnabled());
+    model.addAttribute("bedrockEnabled", properties.enabled());
     model.addAttribute("awsRegion", properties.awsRegion());
     model.addAttribute("modelId", properties.modelId());
     model.addAttribute("windowMinutes", properties.windowMinutes());
-    model.addAttribute("scheduleMinutes", properties.scheduleMinutes());
+    model.addAttribute("scheduleMinutes", properties.scheduleInterval().toMinutes());
     model.addAttribute(
-        "karenEnabled", karenProperties.enabled() && karenProperties.postEnabled());
+        "karenEnabled", properties.enabled());
     model.addAttribute("karenImageEnabled", karenProperties.imageConfigured());
     model.addAttribute("karenAwsRegion", karenProperties.awsRegion());
     model.addAttribute("karenModelId", karenProperties.imageModelId());
@@ -57,7 +57,7 @@ public class AiAnalysisMaintenanceController {
       WatchpointAiPublishingService.PublishResult result = publishingService.publishNow();
       if (result.status() == WatchpointAiPublishingService.PublishStatus.DISABLED) {
         redirectAttributes.addFlashAttribute(
-            "error", "Bedrock連携が無効です。EC2の環境変数を確認してください。");
+            "error", "AI生成が無効です。WATCHPOINT_AI_ENABLEDを確認してください。");
       } else {
         redirectAttributes.addFlashAttribute("notice", "WATCHPOINTが新しい観測を投稿しました。");
       }
@@ -82,7 +82,7 @@ public class AiAnalysisMaintenanceController {
         case ALREADY_PUBLISHED -> redirectAttributes.addFlashAttribute(
             "notice", "Karenは今日の投稿を既に公開済みです。");
         case DISABLED -> redirectAttributes.addFlashAttribute(
-            "error", "Karen投稿が無効です。EC2の環境変数を確認してください。");
+            "error", "AI投稿が無効です。WATCHPOINT_AI_ENABLEDを確認してください。");
         case TOO_EARLY -> redirectAttributes.addFlashAttribute(
             "error", "Karenの投稿時刻前です。");
       }

@@ -7,8 +7,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
 
 import com.yuki.sevendays_states.config.SurvivorMarkProperties;
+import com.yuki.sevendays_states.config.AiAnalysisProperties;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -34,7 +36,9 @@ class SurvivorMarkPublishingServiceTests {
         eq("X:150 Z:250"), anyString(), eq("1:2"), eq(""), anyInt())).thenReturn(true);
 
     SurvivorMarkPublishingService service = new SurvivorMarkPublishingService(
-        new SurvivorMarkProperties(true, true, true, 14, 2, 5, 30),
+        new AiAnalysisProperties(true, 30, 60, "", "ap-northeast-1", "model", 240,
+            java.time.Duration.ofMinutes(30), java.time.Duration.ofMinutes(1), 10),
+        new SurvivorMarkProperties(14, 2, 5, 30),
         candidates, bedrock, new MarkPopularityService(), timeline);
 
     var result = service.publish(date, OffsetDateTime.of(2026, 8, 10, 14, 0, 0, 0, ZoneOffset.ofHours(9)));
@@ -43,5 +47,22 @@ class SurvivorMarkPublishingServiceTests {
     assertThat(result.candidate()).isEqualTo(candidate);
     verify(timeline).publishMark(eq(date), org.mockito.ArgumentMatchers.any(OffsetDateTime.class), anyString(),
         eq("X:150 Z:250"), anyString(), eq("1:2"), eq(""), anyInt());
+  }
+
+  @Test
+  void masterFlagDisablesManualMarkPublishing() {
+    SurvivorMarkCandidateService candidates = mock(SurvivorMarkCandidateService.class);
+    BedrockMarkClient bedrock = mock(BedrockMarkClient.class);
+    SurvivorMarkPublishingService service = new SurvivorMarkPublishingService(
+        new AiAnalysisProperties(false, 30, 60, "", "ap-northeast-1", "model", 240,
+            java.time.Duration.ofMinutes(30), java.time.Duration.ofMinutes(1), 10),
+        new SurvivorMarkProperties(20, 2, 5, 30), candidates, bedrock,
+        new MarkPopularityService(), mock(TimelinePostService.class));
+
+    var result = service.publishTodayIfPossible();
+
+    assertThat(result.status()).isEqualTo(SurvivorMarkPublishingService.PublishStatus.DISABLED);
+    verify(candidates, never()).select(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    verify(bedrock, never()).generate(org.mockito.ArgumentMatchers.any());
   }
 }

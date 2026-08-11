@@ -5,9 +5,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /** Controls the low-frequency trail reports produced from already imported historical logs. */
 @ConfigurationProperties(prefix = "app.survivor-mark")
 public record SurvivorMarkProperties(
-    boolean enabled,
-    boolean postEnabled,
-    boolean bedrockEnabled,
     int postHour,
     int sourceMinAgeDays,
     int sourceMaxAgeDays,

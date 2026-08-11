@@ -4,7 +4,6 @@ import com.yuki.sevendays_states.config.AiAnalysisProperties;
 import com.yuki.sevendays_states.web.DiaryMaintenanceService;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /** Generates at most one Bedrock diary per date while keeping manual maintenance available. */
@@ -17,11 +16,8 @@ public class WatchpointDiaryPublishingService {
   private final BedrockDiaryClient bedrockDiaryClient;
   private final AiCommentService aiCommentService;
 
-  @Value("${app.ai-analysis.diary-enabled:false}")
-  private boolean diaryEnabled;
-
   public PublishResult publishIfMissing(LocalDate date) {
-    if (!properties.bedrockEnabled() || !diaryEnabled) {
+    if (!properties.enabled()) {
       return new PublishResult(PublishStatus.DISABLED, null);
     }
     if (aiCommentService.findByDiaryDate(date).isPresent()) {
@@ -31,7 +27,7 @@ public class WatchpointDiaryPublishingService {
   }
 
   public PublishResult publishNow(LocalDate date) {
-    if (!properties.bedrockEnabled() || !diaryEnabled) {
+    if (!properties.enabled()) {
       return new PublishResult(PublishStatus.DISABLED, null);
     }
     DiaryMaintenanceService.DiaryPacket packet = diaryMaintenanceService.packet(date);

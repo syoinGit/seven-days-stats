@@ -36,9 +36,9 @@ public class SevenDaysTelnetCommandClient {
     }
     TelnetClient telnet = new TelnetClient();
     try {
-      telnet.setConnectTimeout(properties.telnet().readTimeoutMs());
+      telnet.setConnectTimeout(Math.toIntExact(properties.telnet().readTimeout().toMillis()));
       telnet.connect(properties.telnet().host(), properties.telnet().port());
-      telnet.setSoTimeout(properties.telnet().readTimeoutMs());
+      telnet.setSoTimeout(Math.toIntExact(properties.telnet().readTimeout().toMillis()));
       BufferedReader reader = new BufferedReader(new InputStreamReader(
           telnet.getInputStream(), StandardCharsets.UTF_8));
       BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
@@ -49,6 +49,10 @@ public class SevenDaysTelnetCommandClient {
         drain(reader);
       }
       write(writer, command);
+      // Give the server time to consume and process the command before disconnecting.
+      // A flush only hands bytes to the socket; immediately closing the Telnet session can race
+      // with 7DTD's command loop, especially after password authentication.
+      drain(reader);
       return true;
     } catch (Exception e) {
       log.warn("7DTD telnet command failed.", e);
@@ -71,9 +75,16 @@ public class SevenDaysTelnetCommandClient {
   private void drain(BufferedReader reader) {
     try {
       long deadline = System.nanoTime() + 300_000_000L;
-      while (System.nanoTime() < deadline && reader.ready()) {
-        reader.read();
+      while (System.nanoTime() < deadline) {
+        while (reader.ready()) {
+          if (reader.read() == -1) {
+            return;
+          }
+        }
+        Thread.sleep(10L);
       }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     } catch (Exception ignored) {
       // prompt output is optional
     }

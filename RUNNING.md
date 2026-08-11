@@ -11,17 +11,17 @@ cp .env.example .env
 `.env.example` is the tracked EC2 template. `.env` contains host-specific values
 and secrets and must never be committed.
 
-For local development, change these values in `.env`:
+For local development, use the local profile. It defaults to file logs, local `7dtd`, insecure
+cookies, and disables Telnet and AI. Supply only the database password through the IDE or shell:
 
 ```dotenv
-APP_ENVIRONMENT=local
-SEVEN_DAYS_LOG_SOURCE=file
-SEVEN_DAYS_ROOT=7dtd
-SEVEN_DAYS_DOCKER_LOG_ENABLED=false
-SEVEN_DAYS_TELNET_ENABLED=false
+SPRING_PROFILES_ACTIVE=local
+POSTGRES_PASSWORD=your-local-password
 ```
 
-For EC2, keep the production paths from `.env.example`. The repository directory
+For EC2, keep the small set of production secrets, paths, and flags from `.env.example`.
+Timeouts, intervals, schedules, AWS regions, and model IDs are versioned in `application.yml`.
+The repository directory
 and the 7DTD server directory are intentionally separate:
 
 ```text
@@ -42,7 +42,7 @@ The Spring Boot app does not automatically load `.env`, so export it before star
 set -a
 source .env
 set +a
-./mvnw spring-boot:run
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
 For EC2/systemd, set the same values through an `EnvironmentFile` or service environment.
@@ -53,13 +53,10 @@ The integration is disabled by default. On an EC2 instance with an IAM role that
 `bedrock:InvokeModel`, enable it without adding static AWS credentials:
 
 ```dotenv
-WATCHPOINT_AI_BEDROCK_ENABLED=true
-WATCHPOINT_AI_AWS_REGION=ap-northeast-1
-WATCHPOINT_AI_BEDROCK_MODEL_ID=jp.anthropic.claude-haiku-4-5-20251001-v1:0
-WATCHPOINT_AI_SCHEDULE_MINUTES=30
+WATCHPOINT_AI_ENABLED=true
 ```
 
-The AWS SDK uses `DefaultCredentialsProvider`, which obtains temporary credentials from the
+Region and model IDs are fixed in `application.yml`. The AWS SDK uses `DefaultCredentialsProvider`, which obtains temporary credentials from the
 attached EC2 IAM role. Do not add access keys, secret keys, Anthropic keys, or Bedrock API keys
 to `.env`. An administrator can test one generation with `POST /maintenance/ai-analysis/publish`.
 

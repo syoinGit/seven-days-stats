@@ -56,7 +56,7 @@ public class DockerLogStreamingService implements SmartLifecycle {
   }
 
   private boolean shouldStart() {
-    return "docker".equalsIgnoreCase(properties.mode()) && properties.docker().enabled();
+    return "docker".equalsIgnoreCase(properties.mode());
   }
 
   private void streamLoop() {
@@ -99,7 +99,7 @@ public class DockerLogStreamingService implements SmartLifecycle {
 
   private void sleepBeforeReconnect() {
     try {
-      TimeUnit.MILLISECONDS.sleep(properties.docker().effectiveReconnectDelayMs());
+      TimeUnit.MILLISECONDS.sleep(properties.docker().reconnectDelay().toMillis());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }

@@ -17,10 +17,10 @@ public class SevenDaysTelnetPlayerStateRunner {
   private final SevenDaysTelnetService telnetService;
 
   @Scheduled(
-      initialDelayString = "${app.sevendays.telnet.initial-delay-ms:30000}",
-      fixedDelayString = "#{T(java.lang.Math).max(${app.sevendays.telnet.lp-interval-seconds:60}, 60) * 1000}")
+      initialDelayString = "${app.sevendays.telnet.initial-delay:30s}",
+      fixedDelayString = "${app.sevendays.telnet.lp-interval:60s}")
   public void scheduledPlayerStateFetch() {
-    if (!properties.telnet().scheduledEnabled()) {
+    if (!properties.telnet().enabled()) {
       return;
     }
     GameLogImportResult result = telnetService.fetchPlayerList();

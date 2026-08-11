@@ -276,8 +276,8 @@ class DashboardControllerTests {
     assertThat(controller.diaryGenerationData(date, dataModel)).isEqualTo("diary-generation-data");
     assertThat(controller.diaryEditor(date, editorModel)).isEqualTo("diary-editor");
     assertThat(listModel).containsKey("days");
-    assertThat(dataModel).containsKey("packet");
-    assertThat(editorModel).containsKeys("packet", "editorEnabled");
+    assertThat(dataModel).containsKeys("packet", "aiEnabled");
+    assertThat(editorModel).containsKey("packet");
   }
 
   @Test

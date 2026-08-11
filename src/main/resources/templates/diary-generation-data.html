@@ -13,6 +13,7 @@
     <article class="panel"><div class="panel-head"><h2>訪問POI</h2><small>OBSERVED</small></div><div class="diary-tag-list"><span th:each="poi : ${packet.pois}" th:text="${poi}">poi</span><p class="empty" th:if="${#lists.isEmpty(packet.pois)}">未記録</p></div></article>
   </section>
   <article class="panel registered-diary" th:if="${packet.diary != null}"><div class="panel-head"><h2>登録済みの日記</h2><a th:href="@{/maintenance/diaries/{date}/edit(date=${packet.date})}">修正する</a></div><h3 th:text="${packet.diary.title}">title</h3><p th:text="${packet.diary.body}">body</p></article>
-  <form method="post" th:action="@{/maintenance/diaries/{date}/generate(date=${packet.date})}"><button class="primary-link" type="submit">WATCHPOINTに日記を書かせる</button></form>
+  <form method="post" th:if="${aiEnabled}" th:action="@{/maintenance/diaries/{date}/generate(date=${packet.date})}"><button class="primary-link" type="submit" th:text="${packet.diary != null ? 'WATCHPOINTに日記を更新させる' : 'WATCHPOINTに日記を書かせる'}">WATCHPOINTに日記を書かせる</button></form>
+  <p class="editor-disabled" th:unless="${aiEnabled}">AI生成は停止中です。手動での日記登録・更新は利用できます。</p>
   <a class="primary-link" th:href="@{/maintenance/diaries/{date}/edit(date=${packet.date})}" th:text="${packet.diary != null ? '登録済み日記を修正する' : '手動で日記を登録する'}">日記を登録</a>
 </section></main></body></html>

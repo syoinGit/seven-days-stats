@@ -14,8 +14,8 @@ public class WatchpointAiPublishingRunner {
   private final WatchpointAiPublishingService publishingService;
 
   @Scheduled(
-      initialDelayString = "${app.ai-analysis.initial-delay-ms:60000}",
-      fixedDelayString = "#{${app.ai-analysis.schedule-minutes:30} * 60000}")
+      initialDelayString = "${app.ai.initial-delay:60s}",
+      fixedDelayString = "${app.ai.schedule-interval:30m}")
   public void publishObservation() {
     try {
       WatchpointAiPublishingService.PublishResult result = publishingService.publishIfDue();

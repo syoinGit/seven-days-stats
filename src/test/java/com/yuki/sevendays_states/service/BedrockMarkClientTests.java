@@ -43,8 +43,9 @@ class BedrockMarkClientTests {
   }
 
   private BedrockMarkClient client(BedrockRuntimeClient runtime) {
-    return new BedrockMarkClient(runtime, new AiAnalysisProperties(
-        30, 60, "", true, "ap-northeast-1", "claude-test", 240, 30, 0), new ObjectMapper());
+    return new BedrockMarkClient(runtime, new AiAnalysisProperties(true,
+        30, 60, "", "ap-northeast-1", "claude-test", 240,
+        java.time.Duration.ofMinutes(30), java.time.Duration.ZERO, 10), new ObjectMapper());
   }
 
   private SurvivorMarkCandidateService.Candidate candidate() {

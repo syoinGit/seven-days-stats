@@ -27,7 +27,7 @@ class ImageGenerationServiceTests {
     BedrockRuntimeClient bedrock = mock(BedrockRuntimeClient.class);
     S3Client s3 = mock(S3Client.class);
     SurvivorKarenProperties properties = new SurvivorKarenProperties(
-        true, true, true, 3, 12, "us-east-1", "amazon.nova-canvas-v1:0",
+        true, 3, 12, "us-east-1", "amazon.nova-canvas-v1:0",
         "watchpoint-images", "watchpoint/posts/survivor-karen", "https://cdn.example.com/media");
     ImageGenerationService service = new ImageGenerationService(
         bedrock, s3, properties, new ObjectMapper());
