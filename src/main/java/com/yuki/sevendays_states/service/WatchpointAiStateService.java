@@ -44,10 +44,11 @@ public class WatchpointAiStateService {
         緊張: %d/100
         希望: %d/100
 
-        # 観測記憶
+        # WATCHPOINTの最近の発言と観測記憶
         %s
 
-        感情値は語調の強弱だけに使い、観測されていない事実の根拠にはしません。
+        これはWATCHPOINT自身の記憶です。今回の観測と矛盾する場合は今回の観測を優先し、
+        記憶だけで現在の出来事を作らないでください。
         """.formatted(
         state.getAlertness(), state.getCuriosity(), state.getEmpathy(),
         state.getTension(), state.getHope(),
