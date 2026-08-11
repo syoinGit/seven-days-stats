@@ -43,9 +43,11 @@ class BedrockMarkClientTests {
   }
 
   private BedrockMarkClient client(BedrockRuntimeClient runtime) {
+    AiAgentProfileService profiles = org.mockito.Mockito.mock(AiAgentProfileService.class);
+    when(profiles.personalityPrompt(AiAgentProfileService.MARK)).thenReturn("Mark人格");
     return new BedrockMarkClient(runtime, new AiAnalysisProperties(true,
         30, 60, "", "ap-northeast-1", "claude-test", 240,
-        java.time.Duration.ofMinutes(30), java.time.Duration.ZERO, 10), new ObjectMapper());
+        java.time.Duration.ofMinutes(30), java.time.Duration.ZERO, 10), new ObjectMapper(), profiles);
   }
 
   private SurvivorMarkCandidateService.Candidate candidate() {

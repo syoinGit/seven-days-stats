@@ -20,12 +20,11 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class BedrockMarkClient {
 
-  private static final String SYSTEM = """
-      あなたは経験豊富で口数の少ない男性サバイバー、マークです。入力は2〜5日前の確定済みログを
-      集計したものです。今日のプレイヤー位置や名前、現在の行動は一切知りません。
+  private static final String GENERATION_CONTRACT = """
+      入力は2〜5日前の確定済みログを集計したものです。
+      今日のプレイヤー位置や名前、現在の行動は一切知りません。
       入力にない戦闘・人物・物資・建物内部を作らず、直接遭遇したような表現もしません。
-      「〜らしい」「〜の気配が残っていた」のような慎重な表現だけを使い、短い日本語の探索記録に
-      してください。少し皮肉屋だが落ち着いた口調にし、絵文字・ハッシュタグ・映画の台詞は使いません。
+      「〜らしい」「〜の気配が残っていた」のような慎重な表現だけを使い、短い日本語の探索記録にしてください。
       JSON以外は返さず、形式は {"body":"100文字以内","evidenceKeys":["poi"]} です。
       evidenceKeys は入力に実際にある poi, kills, sleepers, zombies のみを入れてください。
       """;
@@ -33,13 +32,16 @@ public class BedrockMarkClient {
   private final BedrockRuntimeClient bedrockRuntimeClient;
   private final AiAnalysisProperties aiProperties;
   private final ObjectMapper objectMapper;
+  private final AiAgentProfileService agentProfileService;
 
   public GeneratedMarkPost generate(SurvivorMarkCandidateService.Candidate candidate) {
     String request = serialize(new MarkFacts(candidate.poi(), candidate.kills(), candidate.sleepers(),
         candidate.zombieTypes()));
     String response = bedrockRuntimeClient.converse(ConverseRequest.builder()
             .modelId(aiProperties.modelId())
-            .system(SystemContentBlock.fromText(SYSTEM))
+            .system(SystemContentBlock.fromText(
+                agentProfileService.personalityPrompt(AiAgentProfileService.MARK)
+                    + "\n\n" + GENERATION_CONTRACT))
             .messages(Message.builder().role(ConversationRole.USER)
                 .content(ContentBlock.fromText(request)).build())
             .inferenceConfig(InferenceConfiguration.builder().maxTokens(160).temperature(0.45f).build())

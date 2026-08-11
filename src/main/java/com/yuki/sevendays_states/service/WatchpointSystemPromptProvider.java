@@ -13,18 +13,25 @@ public class WatchpointSystemPromptProvider {
 
   private final ResourceLoader resourceLoader;
   private final AiAnalysisProperties properties;
-  private volatile String cachedPrompt;
+  private final AiAgentProfileService agentProfileService;
+  private final WatchpointAiStateService stateService;
+  private volatile String cachedContract;
 
   public String systemPrompt() {
-    String current = cachedPrompt;
+    return agentProfileService.personalityPrompt(AiAgentProfileService.WATCHPOINT)
+        + "\n\n" + contractPrompt() + "\n\n" + stateService.promptContext();
+  }
+
+  private String contractPrompt() {
+    String current = cachedContract;
     if (current != null) {
       return current;
     }
     synchronized (this) {
-      if (cachedPrompt == null) {
-        cachedPrompt = loadPrompt();
+      if (cachedContract == null) {
+        cachedContract = loadPrompt();
       }
-      return cachedPrompt;
+      return cachedContract;
     }
   }
 

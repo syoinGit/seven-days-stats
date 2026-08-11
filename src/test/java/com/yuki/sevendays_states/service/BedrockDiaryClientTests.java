@@ -36,7 +36,12 @@ class BedrockDiaryClientTests {
         30, 60, "classpath:prompts/watchpoint-system-prompt.txt",
         "ap-northeast-1", "model", 400, java.time.Duration.ofMinutes(30),
         java.time.Duration.ofMinutes(1), 10);
-    BedrockDiaryClient client = new BedrockDiaryClient(runtime, properties, new ObjectMapper());
+    AiAgentProfileService profiles = mock(AiAgentProfileService.class);
+    WatchpointAiStateService state = mock(WatchpointAiStateService.class);
+    when(profiles.personalityPrompt(AiAgentProfileService.WATCHPOINT)).thenReturn("WATCHPOINT人格");
+    when(state.promptContext()).thenReturn("現在状態");
+    BedrockDiaryClient client = new BedrockDiaryClient(
+        runtime, properties, new ObjectMapper(), profiles, state);
 
     var diary = client.generate("観測データ", List.of("遠征"));
 

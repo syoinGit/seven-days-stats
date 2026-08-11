@@ -25,6 +25,7 @@ public class WatchpointAiPublishingService {
   private final BedrockWatchpointClient bedrockClient;
   private final AiCommentService aiCommentService;
   private final SevenDaysTelnetCommandClient telnetCommandClient;
+  private final WatchpointAiStateService stateService;
 
   public PublishResult publishIfDue() {
     if (!properties.enabled()) {
@@ -78,6 +79,15 @@ public class WatchpointAiPublishingService {
       AiCommentService.AiCommentEntry saved = postType == AiPostType.NORMAL
           ? aiCommentService.publishGenerated(TITLE, generated.body(), SOURCE_TYPE)
           : aiCommentService.publishGenerated(TITLE, generated.body(), SOURCE_TYPE, postType, null);
+      try {
+        stateService.recordPublished(saved, postType, request);
+      } catch (RuntimeException stateException) {
+        log.error(
+            "WATCHPOINT {} post was saved, but memory/emotion update failed. commentId={}",
+            postType,
+            saved.id(),
+            stateException);
+      }
       if (postType.isGameBroadcastEnabled()
           && !telnetCommandClient.broadcast("WATCHPOINT: " + saved.body())) {
         log.warn(
