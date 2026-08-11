@@ -88,7 +88,7 @@ class WatchpointAiObservationServiceTests {
 
     assertThat(request.schemaVersion()).isEqualTo("watchpoint.observation.v1");
     assertThat(request.providerHint()).isEqualTo("AWS_BEDROCK_CONVERSE");
-    assertThat(request.systemPrompt()).contains("あなたは「WATCHPOINT」です");
+    assertThat(request.systemPrompt()).contains("観測システム", "観測記憶", "警戒心");
     assertThat(request.outputContract().maxBodyCharacters()).isEqualTo(100);
     assertThat(request.observation().currentWindow().minutes()).isEqualTo(30);
     assertThat(request.observation().currentTotals().joins()).isEqualTo(1);

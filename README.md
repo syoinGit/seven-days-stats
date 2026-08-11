@@ -37,7 +37,7 @@ WATCHPOINT turns collected server logs into a mechanical, wasteland-themed activ
 - Mixes player posts and Bedrock-generated WATCHPOINT observations into the adventure timeline; daily journals live in the right sidebar so the central feed stays focused.
 - Publishes one fictional `SURVIVOR_KAREN` lifestyle post per JST day from local weighted templates, independently of real players and game logs; occasional Nova Canvas images are uploaded to S3 and safely fall back to text-only posts.
 - Publishes typed WATCHPOINT posts (`NORMAL`, survivor/server analysis, and a short daily summary); only `NORMAL` is broadcast to the in-game chat.
-- Stores WATCHPOINT, Survivor Karen, and Survivor Mark personalities in the AI agent master. WATCHPOINT alone maintains a bounded rolling observation memory and deterministic alertness, curiosity, empathy, tension, and hope gauges; every successful state change is auditable in memory history.
+- Stores WATCHPOINT, Survivor Karen, and Survivor Mark personalities in the AI agent master. WATCHPOINT alone maintains a bounded rolling observation memory (up to 8 items / 1,000 characters) and deterministic alertness, curiosity, empathy, tension, and hope gauges; every successful state change is auditable in memory history.
 - Uses compact aggregate-only payloads for analysis posts, caps paid timeline generation at 10 posts per JST day by default, and skips empty observation windows.
 - Keeps all game, player, and AI history in the database, renders only the latest 12 timeline items initially, and progressively reveals older items while scrolling.
 - Replaces the single like action with lightweight game-oriented emoji reactions.
