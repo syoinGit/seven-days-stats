@@ -52,11 +52,9 @@ public class SevenDaysTelnetCommandClient {
         drain(reader);
       }
       write(writer, command);
-      // Give the server time to consume and process the command before disconnecting.
-      // A flush only hands bytes to the socket; immediately closing the Telnet session can race
-      // with 7DTD's command loop, especially after password authentication.
-      drain(reader);
-      return true;
+      // Keep the session open until 7DTD acknowledges command execution. A flush only hands
+      // bytes to the socket; disconnecting after a short drain can race with the game loop.
+      return awaitCommandExecution(reader, command);
     } catch (Exception e) {
       log.warn("7DTD telnet command failed.", e);
       return false;
@@ -91,5 +89,32 @@ public class SevenDaysTelnetCommandClient {
     } catch (Exception ignored) {
       // prompt output is optional
     }
+  }
+
+  private boolean awaitCommandExecution(BufferedReader reader, String command) {
+    String commandName = command.strip().split("\\s+", 2)[0];
+    long deadline = System.nanoTime()
+        + Math.min(properties.telnet().readTimeout().toNanos(), 5_000_000_000L);
+    try {
+      while (System.nanoTime() < deadline) {
+        if (reader.ready()) {
+          String line = reader.readLine();
+          if (line == null) {
+            return false;
+          }
+          if (line.contains("Executing command '" + commandName + "'")) {
+            return true;
+          }
+        } else {
+          Thread.sleep(20L);
+        }
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    } catch (Exception ignored) {
+      // The caller logs the failed command; avoid leaking Telnet protocol details here.
+    }
+    log.warn("7DTD telnet command was not acknowledged. command={}", commandName);
+    return false;
   }
 }
