@@ -94,10 +94,7 @@ public class SurvivorKarenPublishingService {
 
   /** A stable daily offset looks natural while surviving restarts without a second post. */
   private OffsetDateTime postAt(LocalDate date) {
-    SplittableRandom random = KarenPostGenerator.random(date, 0x4b4152454e54494dL);
-    int latestOffsetMinutes = Math.max(0, (23 - properties.postHour()) * 60 + 10);
-    return date.atTime(properties.postHour(), 10).atZone(JAPAN).toOffsetDateTime()
-        .plusMinutes(random.nextInt(latestOffsetMinutes + 1));
+    return NightlyPostTime.forDate(date, properties.postHour(), 0x4b4152454e54494dL);
   }
 
   private String objectKey(LocalDate date, KarenPostTheme theme) {
