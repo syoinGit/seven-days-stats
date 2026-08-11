@@ -50,6 +50,7 @@ public class SevenDaysTelnetService {
   }
 
   private TelnetSnapshot executeSnapshotCommands() {
+    SevenDaysTelnetConnectionLock.lock();
     List<String> lines = new ArrayList<>();
     WorldTime worldTime = null;
     LocalDateTime commandTime = LocalDateTime.now(ZoneOffset.UTC);
@@ -114,6 +115,7 @@ public class SevenDaysTelnetService {
       } catch (Exception e) {
         log.debug("7DTD telnet disconnect failed.", e);
       }
+      SevenDaysTelnetConnectionLock.unlock();
     }
     return new TelnetSnapshot(List.copyOf(lines), Optional.ofNullable(worldTime));
   }
