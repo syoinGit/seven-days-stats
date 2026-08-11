@@ -6,7 +6,6 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
-import java.util.SplittableRandom;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -79,10 +78,7 @@ public class SurvivorMarkPublishingService {
 
   /** Mark gets a different stable slot inside the nightly server uptime window each day. */
   private OffsetDateTime postAt(LocalDate date) {
-    SplittableRandom random = new SplittableRandom(date.toEpochDay() ^ 0x4d41524b54494dL);
-    int latestOffsetMinutes = Math.max(0, (23 - properties.postHour()) * 60 + 10);
-    return date.atTime(properties.postHour(), 10).atZone(JAPAN).toOffsetDateTime()
-        .plusMinutes(random.nextInt(latestOffsetMinutes + 1));
+    return NightlyPostTime.forDate(date, properties.postHour(), 0x4d41524b54494dL);
   }
 
   public enum PublishStatus { PUBLISHED, ALREADY_PUBLISHED, TOO_EARLY, NOT_DUE, NO_CANDIDATE, FAILED, DISABLED }
