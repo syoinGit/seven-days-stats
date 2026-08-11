@@ -64,10 +64,12 @@ public class WatchpointAiStateService {
 
     state.setMemorySummary(appendMemory(memoryBefore, postType, comment.body()));
     var totals = request.observation() == null ? null : request.observation().currentTotals();
-    int deaths = totals == null ? 0 : safeInt(totals.deaths());
-    int hordes = totals == null ? 0 : safeInt(totals.hordeEvents());
-    int sleepers = totals == null ? 0 : safeInt(totals.sleeperEncounters());
-    int kills = totals == null ? 0 : safeInt(totals.kills());
+    int deaths = totals == null ? countEvents(request, "PLAYER_DEATH") : safeInt(totals.deaths());
+    int hordes = totals == null ? countEvents(request, "WANDERING_HORDE", "SCOUT_HORDE")
+        : safeInt(totals.hordeEvents());
+    int sleepers = totals == null ? countEvents(request, "SLEEPER_SPAWN")
+        : safeInt(totals.sleeperEncounters());
+    int kills = totals == null ? countEvents(request, "KILL") : safeInt(totals.kills());
     int pois = request.observation() == null || request.observation().visitedPois() == null
         ? 0 : request.observation().visitedPois().size();
 
@@ -155,5 +157,14 @@ public class WatchpointAiStateService {
 
   private int safeInt(long value) {
     return (int) Math.min(Integer.MAX_VALUE, Math.max(0, value));
+  }
+
+  private int countEvents(AnalysisRequest request, String... kinds) {
+    if (request.observation() == null || request.observation().events() == null) {
+      return 0;
+    }
+    return (int) request.observation().events().stream()
+        .filter(event -> java.util.Arrays.asList(kinds).contains(event.kind()))
+        .count();
   }
 }
