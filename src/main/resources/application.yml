@@ -70,7 +70,7 @@ app:
     max-output-tokens: 240
     schedule-interval: 30m
     initial-delay: 60s
-    max-posts-per-day: 10
+    max-posts-per-day: 3
   survivor-karen:
     image-enabled: false
     image-interval-days: 3
