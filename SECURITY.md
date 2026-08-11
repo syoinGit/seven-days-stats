@@ -22,9 +22,9 @@ not to promise an impossible “unhackable” system.
 
 ## Deployment checklist
 
-1. Set a long random `POSTGRES_PASSWORD`, `WATCHPOINT_BOOTSTRAP_PASSWORD`, and
-   `AI_COMMENT_EDITOR_KEY` in the host-only `.env` file.
-2. Set `SESSION_COOKIE_SECURE=true` and terminate HTTPS at the reverse proxy.
+1. Set long random `POSTGRES_PASSWORD`, `WATCHPOINT_BOOTSTRAP_PASSWORD`, and
+   `SEVEN_DAYS_TELNET_PASSWORD` values in the host-only `.env` file.
+2. Run with the production Spring profile, which enables secure cookies, and terminate HTTPS at the reverse proxy.
 3. Bind PostgreSQL and Telnet to private interfaces; do not expose ports 5432/8081 to the public
    internet.
 4. Remove legacy Nginx Basic Auth only after application login, guest login, HTTPS, and logout have

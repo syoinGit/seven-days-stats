@@ -1,5 +1,6 @@
 package com.yuki.sevendays_states.service;
 
+import com.yuki.sevendays_states.config.AiAnalysisProperties;
 import com.yuki.sevendays_states.config.SurvivorKarenProperties;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -18,6 +19,7 @@ public class SurvivorKarenPublishingService {
 
   private static final ZoneId JAPAN = ZoneId.of("Asia/Tokyo");
 
+  private final AiAnalysisProperties aiProperties;
   private final SurvivorKarenProperties properties;
   private final KarenPostGenerator postGenerator;
   private final KarenImagePromptGenerator promptGenerator;
@@ -27,7 +29,7 @@ public class SurvivorKarenPublishingService {
 
   public PublishResult publishIfDue() {
     OffsetDateTime now = OffsetDateTime.now(JAPAN);
-    if (!properties.enabled() || !properties.postEnabled()) {
+    if (!aiProperties.enabled()) {
       return new PublishResult(PublishStatus.DISABLED, now.toLocalDate(), null, false);
     }
     if (now.isBefore(postAt(now.toLocalDate()))) {
@@ -48,7 +50,7 @@ public class SurvivorKarenPublishingService {
   }
 
   PublishResult publishIfMissing(LocalDate date, OffsetDateTime publishedAt) {
-    if (!properties.enabled() || !properties.postEnabled()) {
+    if (!aiProperties.enabled()) {
       return new PublishResult(PublishStatus.DISABLED, date, null, false);
     }
     String sourceHash = sourceHash(date);

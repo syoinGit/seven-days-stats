@@ -16,8 +16,8 @@ import tools.jackson.databind.ObjectMapper;
     "spring.jpa.hibernate.ddl-auto=validate",
     "spring.flyway.enabled=true",
     "app.sevendays.import.startup-enabled=false",
-    "app.ai-analysis.window-minutes=30",
-    "app.ai-analysis.max-events=20"
+    "app.ai.window-minutes=30",
+    "app.ai.max-events=20"
 })
 class WatchpointAiObservationServiceTests {
 

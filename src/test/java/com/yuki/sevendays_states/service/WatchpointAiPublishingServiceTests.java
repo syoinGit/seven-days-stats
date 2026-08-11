@@ -81,6 +81,7 @@ class WatchpointAiPublishingServiceTests {
         new BedrockWatchpointClient.GeneratedPost("観測本文", List.of("current-totals")));
     when(comments.publishGenerated("WATCHPOINT観測記録", "観測本文", "AWS_BEDROCK"))
         .thenReturn(saved);
+    when(telnet.broadcast("WATCHPOINT: 観測本文")).thenReturn(true);
 
     WatchpointAiPublishingService.PublishResult result =
         new WatchpointAiPublishingService(properties, observations, bedrock, comments, telnet)
@@ -151,8 +152,9 @@ class WatchpointAiPublishingServiceTests {
   }
 
   private AiAnalysisProperties properties(boolean enabled) {
-    return new AiAnalysisProperties(
-        30, 60, "classpath:prompts/watchpoint-system-prompt.txt", enabled,
-        "ap-northeast-1", "jp.anthropic.claude-haiku-4-5-20251001-v1:0", 400, 30, 60000);
+    return new AiAnalysisProperties(enabled,
+        30, 60, "classpath:prompts/watchpoint-system-prompt.txt",
+        "ap-northeast-1", "jp.anthropic.claude-haiku-4-5-20251001-v1:0", 400,
+        java.time.Duration.ofMinutes(30), java.time.Duration.ofMinutes(1), 10);
   }
 }

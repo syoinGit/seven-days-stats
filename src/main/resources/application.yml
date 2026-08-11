@@ -1,0 +1,87 @@
+spring:
+  application:
+    name: seven-days-stats
+  datasource:
+    url: jdbc:postgresql://localhost:5432/seven_days_stats
+    username: postgres
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        name: WATCHPOINT_SESSION
+        same-site: lax
+        secure: false
+      timeout: 30m
+  forward-headers-strategy: framework
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-exception: false
+    include-binding-errors: never
+
+app:
+  sevendays:
+    environment-name: local
+    mode: file
+    root: 7dtd
+    import:
+      startup-enabled: true
+      scheduled-enabled: false
+      fixed-delay: 10m
+    log:
+      scheduled-enabled: false
+      fixed-delay: 10m
+      initial-delay: 10m
+      server-metric-interval: 1m
+    docker:
+      container-name: 7dtd
+      log-since: 5m
+      reconnect-delay: 5s
+    telnet:
+      host: 127.0.0.1
+      port: 8081
+      enabled: false
+      initial-delay: 30s
+      lp-interval: 60s
+      read-timeout: 15s
+    transaction:
+      current-state-max-age: 120s
+    poi:
+      translation-resource: classpath:poi-translations.csv
+  auth:
+    bootstrap:
+      login: admin
+  ai:
+    enabled: false
+    aws-region: ap-northeast-1
+    model-id: jp.anthropic.claude-haiku-4-5-20251001-v1:0
+    window-minutes: 30
+    max-events: 60
+    system-prompt-resource: classpath:prompts/watchpoint-system-prompt.txt
+    max-output-tokens: 240
+    schedule-interval: 30m
+    initial-delay: 60s
+    max-posts-per-day: 10
+  survivor-karen:
+    image-enabled: false
+    image-interval-days: 3
+    post-hour: 20
+    schedule-cron: "0 */5 20-23 * * *"
+    aws-region: us-east-1
+    image-model-id: amazon.nova-canvas-v1:0
+    image-prefix: watchpoint/posts/survivor-karen
+  survivor-mark:
+    post-hour: 20
+    source-min-age-days: 2
+    source-max-age-days: 5
+    location-cooldown-days: 30
+    schedule-cron: "0 */5 20-23 * * *"

@@ -8,12 +8,10 @@
   <p class="form-notice error" th:if="${error}" th:text="${error}">error</p>
   <article class="panel ai-editor-panel">
     <div class="panel-head"><h2>冒険日記</h2><small>ONE ENTRY PER DAY</small></div>
-    <form class="ai-comment-form" method="post" th:action="@{/maintenance/diaries/{date}/edit(date=${packet.date})}" th:if="${editorEnabled}">
+    <form class="ai-comment-form" method="post" th:action="@{/maintenance/diaries/{date}/edit(date=${packet.date})}">
       <label><span>日記タイトル</span><input name="title" maxlength="120" required th:value="${draftTitle ?: (packet.diary != null ? packet.diary.title : packet.date + ' の冒険記録')}"></label>
       <label><span>日記本文</span><textarea name="body" maxlength="4000" required rows="16" th:text="${draftBody ?: (packet.diary != null ? packet.diary.body : '')}" placeholder="AIが生成した日記を貼り付けてください。"></textarea></label>
-      <label><span>編集キー</span><input name="editorKey" type="password" required autocomplete="current-password"></label>
       <div class="form-actions"><small>同じ日付へ再登録すると内容を更新します。</small><button type="submit" th:text="${packet.diary != null ? '日記を更新' : '日記を登録'}">日記を登録</button></div>
     </form>
-    <p class="editor-disabled" th:unless="${editorEnabled}">登録機能は停止中です。EC2の環境変数に <code>AI_COMMENT_EDITOR_KEY</code> を設定してください。</p>
   </article>
 </section></main></body></html>

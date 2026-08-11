@@ -1,5 +1,6 @@
 package com.yuki.sevendays_states.web;
 
+import com.yuki.sevendays_states.config.AiAnalysisProperties;
 import com.yuki.sevendays_states.service.AiCommentService;
 import com.yuki.sevendays_states.service.CurrentWebAccountService;
 import com.yuki.sevendays_states.service.PlayerSocialService;
@@ -51,6 +52,7 @@ public class DashboardController {
   private final PlayerSocialService playerSocialService;
   private final TimelinePostService timelinePostService;
   private final WatchpointDiaryPublishingService diaryPublishingService;
+  private final AiAnalysisProperties aiProperties;
 
   @GetMapping("/")
   public String landing(Authentication authentication) {
@@ -350,13 +352,13 @@ public class DashboardController {
   @GetMapping("/maintenance/diaries/{date}")
   public String diaryGenerationData(@PathVariable LocalDate date, Model model) {
     model.addAttribute("packet", diaryMaintenanceService.packet(date));
+    model.addAttribute("aiEnabled", aiProperties.enabled());
     return "diary-generation-data";
   }
 
   @GetMapping("/maintenance/diaries/{date}/edit")
   public String diaryEditor(@PathVariable LocalDate date, Model model) {
     model.addAttribute("packet", diaryMaintenanceService.packet(date));
-    model.addAttribute("editorEnabled", aiCommentService.editorEnabled());
     return "diary-editor";
   }
 
@@ -382,10 +384,9 @@ public class DashboardController {
       @PathVariable LocalDate date,
       @RequestParam String title,
       @RequestParam String body,
-      @RequestParam(required = false, defaultValue = "") String editorKey,
       RedirectAttributes redirectAttributes) {
     try {
-      aiCommentService.publish(date, title, body, editorKey);
+      aiCommentService.publish(date, title, body);
       redirectAttributes.addFlashAttribute("notice", date + " の冒険日記を登録しました。");
       return "redirect:/maintenance/diaries/" + date;
     } catch (IllegalArgumentException e) {

@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.yuki.sevendays_states.config.SurvivorKarenProperties;
+import com.yuki.sevendays_states.config.AiAnalysisProperties;
 import com.yuki.sevendays_states.entity.TimelinePostType;
 import com.yuki.sevendays_states.repository.T_TimelinePostRepository;
 import java.time.LocalDate;
@@ -26,8 +27,7 @@ import org.springframework.boot.test.context.SpringBootTest;
     "spring.jpa.hibernate.ddl-auto=validate",
     "spring.flyway.enabled=true",
     "app.sevendays.import.startup-enabled=false",
-    "app.survivor-karen.enabled=true",
-    "app.survivor-karen.post-enabled=true",
+    "app.ai.enabled=true",
     "app.survivor-karen.image-enabled=false"
 })
 class SurvivorKarenPublishingServiceTests {
@@ -68,7 +68,7 @@ class SurvivorKarenPublishingServiceTests {
   @Test
   void imageFailureFallsBackToTheDailyTextPost() {
     SurvivorKarenProperties properties = new SurvivorKarenProperties(
-        true, true, true, 3, 12, "us-east-1", "amazon.nova-canvas-v1:0",
+        true, 3, 12, "us-east-1", "amazon.nova-canvas-v1:0",
         "watchpoint-images", "watchpoint/posts/survivor-karen", "");
     TimelinePostService timeline = mock(TimelinePostService.class);
     ImageGenerationService images = mock(ImageGenerationService.class);
@@ -80,7 +80,7 @@ class SurvivorKarenPublishingServiceTests {
     when(timeline.publishKaren(eq(date), any(OffsetDateTime.class), anyString(), anyString(),
         eq(""), anyInt())).thenReturn(true);
     SurvivorKarenPublishingService service = new SurvivorKarenPublishingService(
-        properties, new KarenPostGenerator(), new KarenImagePromptGenerator(),
+        aiProperties(true), properties, new KarenPostGenerator(), new KarenImagePromptGenerator(),
         new KarenPopularityService(), images, timeline);
 
     var result = service.publishIfMissing(
@@ -90,5 +90,27 @@ class SurvivorKarenPublishingServiceTests {
     assertThat(result.imageAttached()).isFalse();
     verify(timeline).publishKaren(eq(date), any(OffsetDateTime.class), anyString(), anyString(),
         eq(""), anyInt());
+  }
+
+  @Test
+  void masterFlagDisablesManualKarenPublishingBeforeImageGeneration() {
+    ImageGenerationService images = mock(ImageGenerationService.class);
+    TimelinePostService timeline = mock(TimelinePostService.class);
+    SurvivorKarenPublishingService service = new SurvivorKarenPublishingService(
+        aiProperties(false), new SurvivorKarenProperties(true, 3, 12, "us-east-1", "model",
+            "bucket", "prefix", ""),
+        new KarenPostGenerator(), new KarenImagePromptGenerator(), new KarenPopularityService(),
+        images, timeline);
+
+    var result = service.publishIfMissing(LocalDate.of(2026, 8, 13));
+
+    assertThat(result.status()).isEqualTo(SurvivorKarenPublishingService.PublishStatus.DISABLED);
+    verify(images, org.mockito.Mockito.never()).generateAndStore(
+        anyString(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyLong());
+  }
+
+  private AiAnalysisProperties aiProperties(boolean enabled) {
+    return new AiAnalysisProperties(enabled, 30, 60, "", "ap-northeast-1", "model", 240,
+        java.time.Duration.ofMinutes(30), java.time.Duration.ofMinutes(1), 10);
   }
 }

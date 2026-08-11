@@ -63,7 +63,7 @@ public class DashboardViewService {
 
   private List<PlayerStatus> playerStatuses() {
     OffsetDateTime currentStateFreshAfter = OffsetDateTime.now(ZoneOffset.UTC)
-        .minusSeconds(properties.transaction().currentStateMaxAgeSeconds());
+        .minus(properties.transaction().currentStateMaxAge());
     return jdbcTemplate.query("""
         with player_identity as (
           select p.*,
@@ -274,7 +274,7 @@ public class DashboardViewService {
 
   public Optional<PlayerDetailView> playerDetail(Long playerId) {
     OffsetDateTime currentStateFreshAfter = OffsetDateTime.now(ZoneOffset.UTC)
-        .minusSeconds(properties.transaction().currentStateMaxAgeSeconds());
+        .minus(properties.transaction().currentStateMaxAge());
     List<PlayerStatus> statuses = jdbcTemplate.query("""
         with player_identity as (
           select p.*,
@@ -1317,7 +1317,7 @@ public class DashboardViewService {
 
   private ServerState withOnlinePlayerCount(ServerState state) {
     OffsetDateTime freshAfter = OffsetDateTime.now(ZoneOffset.UTC)
-        .minusSeconds(properties.transaction().currentStateMaxAgeSeconds());
+        .minus(properties.transaction().currentStateMaxAge());
     Integer onlinePlayers = jdbcTemplate.queryForObject("""
         select count(distinct coalesce(
           'PLAYER:' || player_id,

@@ -37,9 +37,10 @@ class BedrockWatchpointClientTests {
 
   @BeforeEach
   void setUp() {
-    AiAnalysisProperties properties = new AiAnalysisProperties(
-        30, 60, "classpath:prompts/watchpoint-system-prompt.txt", true,
-        "ap-northeast-1", "jp.anthropic.claude-haiku-4-5-20251001-v1:0", 400, 30, 60000);
+    AiAnalysisProperties properties = new AiAnalysisProperties(true,
+        30, 60, "classpath:prompts/watchpoint-system-prompt.txt",
+        "ap-northeast-1", "jp.anthropic.claude-haiku-4-5-20251001-v1:0", 400,
+        java.time.Duration.ofMinutes(30), java.time.Duration.ofMinutes(1), 10);
     client = new BedrockWatchpointClient(runtimeClient, properties, new ObjectMapper());
   }
 

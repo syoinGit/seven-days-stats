@@ -558,7 +558,7 @@ public class GameLogImportService {
     if (player.getLastUpdated() == null) {
       return false;
     }
-    Duration maxAge = Duration.ofSeconds(properties.transaction().currentStateMaxAgeSeconds());
+    Duration maxAge = properties.transaction().currentStateMaxAge();
     return !player.getLastUpdated().isBefore(referenceTime.minus(maxAge));
   }
 
@@ -1154,7 +1154,7 @@ public class GameLogImportService {
   private boolean shouldStoreServerMetric(ServerMetricLogEvent event) {
     return serverMetricRepository.findTopByOrderByOccurredAtDesc()
         .map(last -> {
-          Duration interval = Duration.ofMinutes(properties.log().serverMetricIntervalMinutes());
+          Duration interval = properties.log().serverMetricInterval();
           return !event.occurredAt().isBefore(last.getOccurredAt().plus(interval));
         })
         .orElse(true);

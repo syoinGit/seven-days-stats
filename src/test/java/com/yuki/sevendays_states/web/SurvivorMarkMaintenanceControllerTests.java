@@ -20,12 +20,13 @@ class SurvivorMarkMaintenanceControllerTests {
   @Test
   void testPageShowsTheHistoricalCandidateAndBedrockStatus() {
     SurvivorMarkCandidateService candidates = mock(SurvivorMarkCandidateService.class);
-    SurvivorMarkProperties properties = new SurvivorMarkProperties(true, true, true, 20, 2, 5, 30);
+    SurvivorMarkProperties properties = new SurvivorMarkProperties(20, 2, 5, 30);
     var candidate = new SurvivorMarkCandidateService.Candidate("1:2", 120, 240, 2, 1, 0,
         java.util.List.of("zombieNurseRadiated"), 70, "crack_a_book");
     when(candidates.select(any(), eq(properties))).thenReturn(Optional.of(candidate));
     SurvivorMarkMaintenanceController controller = new SurvivorMarkMaintenanceController(
-        properties, new AiAnalysisProperties(30, 60, "", true, "ap-northeast-1", "claude-test", 240, 30, 0),
+        properties, new AiAnalysisProperties(true, 30, 60, "", "ap-northeast-1", "claude-test", 240,
+            java.time.Duration.ofMinutes(30), java.time.Duration.ZERO, 10),
         candidates, mock(SurvivorMarkPublishingService.class), new ObjectMapper());
     ConcurrentModel model = new ConcurrentModel();
 

@@ -54,10 +54,10 @@ public class SevenDaysTelnetService {
     WorldTime worldTime = null;
     LocalDateTime commandTime = LocalDateTime.now(ZoneOffset.UTC);
     TelnetClient telnet = new TelnetClient();
-    telnet.setConnectTimeout(properties.telnet().readTimeoutMs());
+    telnet.setConnectTimeout(Math.toIntExact(properties.telnet().readTimeout().toMillis()));
     try {
       telnet.connect(properties.telnet().host(), properties.telnet().port());
-      telnet.setSoTimeout(properties.telnet().readTimeoutMs());
+      telnet.setSoTimeout(Math.toIntExact(properties.telnet().readTimeout().toMillis()));
       BufferedReader reader = new BufferedReader(
           new InputStreamReader(telnet.getInputStream(), StandardCharsets.UTF_8));
       BufferedWriter writer = new BufferedWriter(

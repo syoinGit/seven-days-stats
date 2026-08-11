@@ -26,10 +26,11 @@ class AiAnalysisMaintenanceControllerTests {
 
   @BeforeEach
   void setUp() {
-    AiAnalysisProperties properties = new AiAnalysisProperties(
-        30, 60, "", true, "ap-northeast-1", "claude-test", 240, 30, 0);
+    AiAnalysisProperties properties = new AiAnalysisProperties(true,
+        30, 60, "", "ap-northeast-1", "claude-test", 240,
+        java.time.Duration.ofMinutes(30), java.time.Duration.ZERO, 10);
     SurvivorKarenProperties karenProperties = new SurvivorKarenProperties(
-        true, true, true, 3, 12, "us-east-1", "nova-canvas-test",
+        true, 3, 12, "us-east-1", "nova-canvas-test",
         "watchpoint-images", "watchpoint/posts/survivor-karen", "");
     observationService = mock(WatchpointAiObservationService.class);
     WatchpointAiPublishingService publishingService =

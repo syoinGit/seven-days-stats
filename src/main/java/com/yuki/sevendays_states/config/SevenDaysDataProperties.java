@@ -1,6 +1,7 @@
 package com.yuki.sevendays_states.config;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.Name;
 
@@ -10,8 +11,6 @@ public record SevenDaysDataProperties(
     String mode,
     Path root,
     Path configDir,
-    Path dataDir,
-    Path gameDir,
     @Name("import") Import importSettings,
     Log log,
     Docker docker,
@@ -25,13 +24,14 @@ public record SevenDaysDataProperties(
     mode = mode == null || mode.isBlank() ? "file" : mode;
     root = root == null ? Path.of("7dtd") : root;
     configDir = blankToNull(configDir);
-    dataDir = blankToNull(dataDir);
-    gameDir = blankToNull(gameDir);
-    importSettings = importSettings == null ? new Import(true, false, 600000L) : importSettings;
-    log = log == null ? new Log(null, false, 600000L, 600000L, 1L) : log;
-    docker = docker == null ? new Docker("7dtd", "5m", true, 5000L, 5L) : docker;
-    telnet = telnet == null ? new Telnet("localhost", 8081, "", false, 30000L, 5000) : telnet;
-    transaction = transaction == null ? new Transaction(120L) : transaction;
+    importSettings = importSettings == null
+        ? new Import(true, false, Duration.ofMinutes(10)) : importSettings;
+    log = log == null ? new Log(null, false, Duration.ofMinutes(10),
+        Duration.ofMinutes(10), Duration.ofMinutes(1)) : log;
+    docker = docker == null ? new Docker("7dtd", "5m", Duration.ofSeconds(5)) : docker;
+    telnet = telnet == null ? new Telnet("127.0.0.1", 8081, "", false,
+        Duration.ofSeconds(30), Duration.ofSeconds(60), Duration.ofSeconds(15)) : telnet;
+    transaction = transaction == null ? new Transaction(Duration.ofSeconds(120)) : transaction;
     poi = poi == null ? new Poi("classpath:poi-translations.csv") : poi;
   }
 
@@ -40,11 +40,11 @@ public record SevenDaysDataProperties(
   }
 
   public Path dataPath() {
-    return dataDir == null ? root.resolve("data") : dataDir;
+    return root.resolve("data");
   }
 
   public Path gamePath() {
-    return gameDir == null ? root.resolve("game") : gameDir;
+    return root.resolve("game");
   }
 
   public Path serverConfigPath() {
@@ -75,46 +75,37 @@ public record SevenDaysDataProperties(
     return path == null || path.toString().isBlank() ? null : path;
   }
 
-  public record Import(
-      boolean startupEnabled,
-      boolean scheduledEnabled,
-      long fixedDelayMs
-  ) {
+  private static Duration positiveOrDefault(Duration value, Duration fallback) {
+    return value == null || value.isZero() || value.isNegative() ? fallback : value;
+  }
+
+  public record Import(boolean startupEnabled, boolean scheduledEnabled, Duration fixedDelay) {
+    public Import {
+      fixedDelay = positiveOrDefault(fixedDelay, Duration.ofMinutes(10));
+    }
   }
 
   public record Log(
       Path dir,
       boolean scheduledEnabled,
-      long fixedDelayMs,
-      long initialDelayMs,
-      long serverMetricIntervalMinutes
+      Duration fixedDelay,
+      Duration initialDelay,
+      Duration serverMetricInterval
   ) {
-
     public Log {
       dir = blankToNull(dir);
-      fixedDelayMs = fixedDelayMs <= 0 ? 600000L : fixedDelayMs;
-      initialDelayMs = initialDelayMs < 0 ? 600000L : initialDelayMs;
-      serverMetricIntervalMinutes = serverMetricIntervalMinutes <= 0 ? 1L : serverMetricIntervalMinutes;
+      fixedDelay = positiveOrDefault(fixedDelay, Duration.ofMinutes(10));
+      initialDelay = initialDelay == null || initialDelay.isNegative()
+          ? Duration.ofMinutes(10) : initialDelay;
+      serverMetricInterval = positiveOrDefault(serverMetricInterval, Duration.ofMinutes(1));
     }
   }
 
-  public record Docker(
-      String containerName,
-      String logSince,
-      boolean enabled,
-      long reconnectDelayMs,
-      long reconnectDelaySeconds
-  ) {
-
+  public record Docker(String containerName, String logSince, Duration reconnectDelay) {
     public Docker {
       containerName = containerName == null || containerName.isBlank() ? "7dtd" : containerName;
       logSince = logSince == null || logSince.isBlank() ? "5m" : logSince;
-      reconnectDelayMs = reconnectDelayMs <= 0 ? 5000L : reconnectDelayMs;
-      reconnectDelaySeconds = reconnectDelaySeconds <= 0 ? 5L : reconnectDelaySeconds;
-    }
-
-    public long effectiveReconnectDelayMs() {
-      return reconnectDelaySeconds * 1000L;
+      reconnectDelay = positiveOrDefault(reconnectDelay, Duration.ofSeconds(5));
     }
   }
 
@@ -122,38 +113,35 @@ public record SevenDaysDataProperties(
       String host,
       int port,
       String password,
-      boolean scheduledEnabled,
-      long fixedDelayMs,
-      int readTimeoutMs
+      boolean enabled,
+      Duration initialDelay,
+      Duration lpInterval,
+      Duration readTimeout
   ) {
-
     public Telnet {
-      host = host == null || host.isBlank() ? "localhost" : host;
+      host = host == null || host.isBlank() ? "127.0.0.1" : host;
       port = port <= 0 ? 8081 : port;
       password = password == null ? "" : password;
-      fixedDelayMs = fixedDelayMs <= 0 ? 30000L : fixedDelayMs;
-      readTimeoutMs = readTimeoutMs <= 0 ? 5000 : readTimeoutMs;
+      initialDelay = initialDelay == null || initialDelay.isNegative()
+          ? Duration.ofSeconds(30) : initialDelay;
+      lpInterval = positiveOrDefault(lpInterval, Duration.ofSeconds(60));
+      if (lpInterval.compareTo(Duration.ofSeconds(60)) < 0) {
+        lpInterval = Duration.ofSeconds(60);
+      }
+      readTimeout = positiveOrDefault(readTimeout, Duration.ofSeconds(15));
     }
   }
 
-  public record Transaction(
-      long currentStateMaxAgeSeconds
-  ) {
-
+  public record Transaction(Duration currentStateMaxAge) {
     public Transaction {
-      currentStateMaxAgeSeconds = currentStateMaxAgeSeconds <= 0 ? 120L : currentStateMaxAgeSeconds;
+      currentStateMaxAge = positiveOrDefault(currentStateMaxAge, Duration.ofSeconds(120));
     }
   }
 
-  public record Poi(
-      String translationResource
-  ) {
-
+  public record Poi(String translationResource) {
     public Poi {
       translationResource = translationResource == null || translationResource.isBlank()
-          ? "classpath:poi-translations.csv"
-          : translationResource;
+          ? "classpath:poi-translations.csv" : translationResource;
     }
   }
-
 }

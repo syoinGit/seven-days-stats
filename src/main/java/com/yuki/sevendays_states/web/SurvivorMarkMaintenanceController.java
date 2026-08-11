@@ -33,8 +33,7 @@ public class SurvivorMarkMaintenanceController {
   public String testPage(Model model) {
     LocalDate today = LocalDate.now(JAPAN);
     var candidate = candidateService.select(today, properties);
-    model.addAttribute("markEnabled", properties.enabled() && properties.postEnabled()
-        && properties.bedrockEnabled());
+    model.addAttribute("markEnabled", aiProperties.enabled());
     model.addAttribute("modelId", aiProperties.modelId());
     model.addAttribute("sourceMinAgeDays", properties.sourceMinAgeDays());
     model.addAttribute("sourceMaxAgeDays", properties.sourceMaxAgeDays());
@@ -54,7 +53,7 @@ public class SurvivorMarkMaintenanceController {
         case ALREADY_PUBLISHED -> redirectAttributes.addFlashAttribute(
             "notice", "サバイバーマークはこの候補を既に投稿済みです。");
         case DISABLED -> redirectAttributes.addFlashAttribute(
-            "error", "サバイバーマーク投稿が無効です。環境変数を確認してください。");
+            "error", "AI投稿が無効です。WATCHPOINT_AI_ENABLEDを確認してください。");
         case TOO_EARLY, NOT_DUE -> redirectAttributes.addFlashAttribute(
             "notice", "手動投稿では通常発生しない待機状態です。");
         case FAILED -> redirectAttributes.addFlashAttribute(

@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    password: ${POSTGRES_PASSWORD}
+
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+
+app:
+  sevendays:
+    environment-name: production
+    mode: docker
+    root: ${SEVEN_DAYS_ROOT}
+    # Keep this override until the EC2 serverconfig.xml location is confirmed.
+    config-dir: ${SEVEN_DAYS_CONFIG_DIRECTORY:}
+    telnet:
+      enabled: ${SEVEN_DAYS_TELNET_ENABLED:true}
+      password: ${SEVEN_DAYS_TELNET_PASSWORD:}
+  auth:
+    bootstrap:
+      password: ${WATCHPOINT_BOOTSTRAP_PASSWORD:}
+  ai:
+    enabled: ${WATCHPOINT_AI_ENABLED:false}
+  survivor-karen:
+    image-enabled: ${SURVIVOR_KAREN_IMAGE_ENABLED:false}
+    image-bucket: ${WATCHPOINT_IMAGE_BUCKET:}
+    image-public-base-url: ${WATCHPOINT_IMAGE_PUBLIC_BASE_URL:}

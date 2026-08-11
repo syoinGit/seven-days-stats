@@ -18,8 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
     "spring.datasource.driver-class-name=org.h2.Driver",
     "spring.jpa.hibernate.ddl-auto=validate",
     "spring.flyway.enabled=true",
-    "app.sevendays.import.startup-enabled=false",
-    "app.ai-comment.editor-key=test-editor-key"
+    "app.sevendays.import.startup-enabled=false"
 })
 class AiCommentServiceTests {
 
@@ -43,8 +42,8 @@ class AiCommentServiceTests {
 
   @Test
   void publishesAndReturnsLatestDailyDiary() {
-    service.publish(LocalDate.of(2026, 8, 1), " 荒野通信 ", " 今日も生存を確認。 ", "test-editor-key");
-    service.publish(LocalDate.of(2026, 8, 2), "二報", "病院の探索が進みました。", "test-editor-key");
+    service.publish(LocalDate.of(2026, 8, 1), " 荒野通信 ", " 今日も生存を確認。 ");
+    service.publish(LocalDate.of(2026, 8, 2), "二報", "病院の探索が進みました。");
 
     assertThat(service.latestDiary()).get()
         .satisfies(comment -> {
@@ -58,15 +57,15 @@ class AiCommentServiceTests {
   @Test
   void rejectsBlankComment() {
     assertThatThrownBy(() -> service.publish(
-        LocalDate.of(2026, 8, 2), "", "", "test-editor-key"))
+        LocalDate.of(2026, 8, 2), "", ""))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   void updatesExistingDiaryForSameDate() {
     LocalDate date = LocalDate.of(2026, 8, 2);
-    service.publish(date, "初稿", "最初の日記", "test-editor-key");
-    service.publish(date, "完成稿", "完成した日記", "test-editor-key");
+    service.publish(date, "初稿", "最初の日記");
+    service.publish(date, "完成稿", "完成した日記");
 
     assertThat(repository.count()).isOne();
     assertThat(service.findByDiaryDate(date)).get()
@@ -75,7 +74,7 @@ class AiCommentServiceTests {
 
   @Test
   void publishesGeneratedObservationWithoutReplacingDailyDiary() {
-    service.publish(LocalDate.of(2026, 8, 2), "日記", "一日の記録", "test-editor-key");
+    service.publish(LocalDate.of(2026, 8, 2), "日記", "一日の記録");
     service.publishGenerated("WATCHPOINT観測記録", "静かな探索が続いています。", "AWS_BEDROCK");
 
     assertThat(repository.count()).isEqualTo(2);
