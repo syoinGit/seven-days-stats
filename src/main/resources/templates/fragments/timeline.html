@@ -4,9 +4,11 @@
 <th:block th:fragment="page">
   <li class="feed-item" th:each="item : ${timelinePage.items}" data-timeline-item
       th:classappend="${' tone-' + item.tone}">
-    <img class="feed-avatar system-avatar" th:if="${!#strings.isEmpty(item.avatarUrl())}"
+    <img class="feed-avatar" th:if="${item.playerId != null}"
+         th:src="${@portalProfileService.avatar(item.playerId, null, profileDirectory, currentViewer)}" alt="" loading="lazy">
+    <img class="feed-avatar system-avatar" th:if="${item.playerId == null and !#strings.isEmpty(item.avatarUrl())}"
          th:src="${item.avatarUrl()}" th:alt="${item.actor}">
-    <div class="feed-avatar" th:unless="${!#strings.isEmpty(item.avatarUrl())}"
+    <div class="feed-avatar" th:if="${item.playerId == null and #strings.isEmpty(item.avatarUrl())}"
          th:text="${#strings.substring(item.actor, 0, 1)}">W</div>
     <div class="feed-body">
       <header>
@@ -37,7 +39,8 @@
             <form class="reaction-form" method="post" th:action="@{/posts/{id}/react(id=${item.postId})}"
                   th:if="${loggedIn and !currentViewer}" th:each="reaction : ${item.reactions}">
               <input type="hidden" name="reaction" th:value="${reaction.key.name()}">
-              <button class="like-button" th:classappend="${item.currentReaction == reaction.key.name()}"
+              <button class="like-button" th:classappend="${item.currentReaction == reaction.key.name()} ? 'liked'"
+                      th:attr="aria-pressed=${item.currentReaction == reaction.key.name()}"
                       type="submit"><span th:text="${reaction.key.emoji()}">👍</span>
                 <span th:text="${reaction.value}">0</span></button>
             </form>

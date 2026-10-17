@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Terrariaの進行状況と冒険記録をまとめる個別ゲームサイト">
+  <title th:text="${game.displayName + ' | Terraria'}">Luminite | Terraria</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
+</head>
+<body class="luminite-body">
+<header th:replace="~{fragments/navigation :: siteHeader(@{/luminite}, ${game.displayName}, '✦', 'TERRARIA EXPLORATION HUB', 'luminite-topbar')}"></header>
+
+<main class="luminite-shell">
+  <section class="luminite-hero" aria-labelledby="luminite-title">
+    <p class="eyebrow">TERRARIA / SHARED WORLD</p>
+    <h1 id="luminite-title" th:text="${game.displayName}">Luminite</h1>
+    <p>星と鉱石を追う、探索者たちの新しい拠点。</p>
+    
+  </section>
+
+  <section class="luminite-overview" aria-label="Terrariaサーバー概要">
+    <article>
+      <span class="eyebrow">PROGRESS</span>
+      <strong role="progressbar"
+              aria-label="Terraria進行度"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              th:attr="aria-valuenow=${game.progress}"
+              th:text="${game.progress + '%'}">42%</strong>
+      <p th:text="${game.stage}">星明かりの地下層</p>
+    </article>
+    <article>
+      <span class="eyebrow">SERVER</span>
+      <strong class="status-chip"
+              th:classappend="${'status-' + serverStatus.code}"
+              th:text="${serverStatus.label}">offline</strong>
+      <p>Version <span th:text="${game.version}">1.4.4</span></p>
+      <p th:text="${game.schedule}">週末 20:00–23:30 JST</p>
+    </article>
+    <article>
+      <span class="eyebrow">CONNECT</span>
+      <strong>接続情報</strong>
+      <p th:text="${game.connection}">接続情報は準備中です</p>
+    </article>
+  </section>
+
+  <section class="luminite-feed" aria-labelledby="luminite-timeline-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">TERRARIA ONLY</p>
+        <h2 id="luminite-timeline-title">Terrariaのタイムライン</h2>
+      </div>
+      <a th:href="${portalUrl}">ポータルへ戻る →</a>
+    </div>
+    <ol class="feed" id="timeline">
+      <li th:if="${#lists.isEmpty(timeline)}" class="empty">
+        <span th:text="${timelinePage.number == 0 ? 'Terrariaの記録はまだありません。' : 'このページの記録はありません。'}"></span>
+      </li>
+      <li class="feed-item" th:each="item : ${timeline}">
+        <img class="user-avatar" th:src="${@portalProfileService.avatar(item.actorPlayerId, item.creatorSub, profileDirectory, currentViewer)}" alt="" loading="lazy">
+        <div class="feed-meta">
+          <b th:text="${item.eventType}">PROGRESS</b>
+          <time th:datetime="${item.occurredAt}" th:text="${item.occurredAtLabel}">---</time>
+        </div>
+        <h3 th:text="${item.title}">探索記録</h3>
+        <p th:text="${item.body}">探索記録の本文</p>
+      </li>
+    </ol>
+    <nav class="portal-feed-pages" aria-label="Terrariaタイムラインのページ">
+      <a th:if="${timelinePage.hasPrevious()}" th:href="@{/luminite(page=${timelinePage.number - 1})} + '#timeline'">← 新しい記録</a>
+      <a th:if="${timelinePage.hasNext()}" th:href="@{/luminite(page=${timelinePage.number + 1})} + '#timeline'">過去の記録 →</a>
+    </nav>
+  </section>
+</main>
+</body>
+</html>

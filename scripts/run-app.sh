@@ -20,4 +20,4 @@ set -a
 source "$ENV_FILE"
 set +a
 
-exec java -jar "$JAR_FILE" --spring.profiles.active="${SPRING_PROFILES_ACTIVE:-production}"
+exec java -jar "$JAR_FILE" --spring.profiles.active="${SPRING_PROFILES_ACTIVE:-production,cognito}"

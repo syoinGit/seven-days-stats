@@ -1,0 +1,65 @@
+map $http_upgrade $connection_upgrade {
+  default upgrade;
+  '' close;
+}
+
+upstream watchpoint_app {
+  # Matches the existing deploy-app.sh health check; override SERVER_PORT and this value together.
+  server 127.0.0.1:8082;
+  keepalive 16;
+}
+
+server {
+  listen 443 ssl http2;
+  server_name portal.rubinco.link watchpoint.rubinco.link luminite.rubinco.link;
+
+  # Reuse the reviewed certificate paths from the current Watchpoint deployment.
+  ssl_certificate /etc/letsencrypt/live/rubinco.link/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/rubinco.link/privkey.pem;
+
+  add_header X-Content-Type-Options nosniff always;
+  add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+  location / {
+    proxy_pass http://watchpoint_app;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+  }
+}
+
+server {
+  listen 443 ssl http2;
+  server_name api.rubinco.link;
+
+  ssl_certificate /etc/letsencrypt/live/rubinco.link/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/rubinco.link/privkey.pem;
+
+  add_header X-Content-Type-Options nosniff always;
+  add_header Referrer-Policy no-referrer always;
+
+  # The API accepts bearer tokens only. Do not forward a browser session cookie.
+  location /api/ {
+    proxy_pass http://watchpoint_app;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Cookie "";
+  }
+
+  location / {
+    return 404;
+  }
+}
+
+server {
+  listen 80;
+  server_name portal.rubinco.link watchpoint.rubinco.link luminite.rubinco.link api.rubinco.link;
+  return 301 https://$host$request_uri;
+}

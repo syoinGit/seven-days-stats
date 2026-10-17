@@ -3,6 +3,8 @@ spring:
     password: ${POSTGRES_PASSWORD}
 
 server:
+  port: 8082
+  address: 127.0.0.1
   servlet:
     session:
       cookie:
@@ -12,9 +14,9 @@ app:
   sevendays:
     environment-name: production
     mode: docker
-    root: ${SEVEN_DAYS_ROOT}
-    # Keep this override until the EC2 serverconfig.xml location is confirmed.
-    config-dir: ${SEVEN_DAYS_CONFIG_DIRECTORY:}
+    root: ${SEVEN_DAYS_ROOT:/home/ec2-user/7dtd}
+    # Preserve the production template's serverconfig.xml location under data/.
+    config-dir: ${SEVEN_DAYS_CONFIG_DIRECTORY:${app.sevendays.root}/data}
     telnet:
       enabled: ${SEVEN_DAYS_TELNET_ENABLED:true}
       password: ${SEVEN_DAYS_TELNET_PASSWORD:}

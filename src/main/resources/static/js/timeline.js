@@ -1,21 +1,25 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const timelineRefreshNoticeMs = 60 * 1000;
   const refreshButton = document.querySelector("[data-refresh-page]");
-  if (refreshButton) {
-    refreshButton.addEventListener("click", () => window.location.reload());
-    window.setTimeout(() => {
-      refreshButton.classList.add("has-update");
-      refreshButton.innerHTML = '<span aria-hidden="true">↑</span> 新しい観測があります';
-    }, timelineRefreshNoticeMs);
-  }
+  const composer = document.querySelector(".timeline-compose textarea");
+  const hasDraft = () => Boolean(composer?.value.trim());
+  let submitting = false;
 
-  // Refresh only while the reader is near the live edge. Never throw someone back
-  // to the top while they are browsing older observations.
-  window.setInterval(() => {
-    const active = document.activeElement;
-    const composing = active && (active.tagName === "TEXTAREA" || active.tagName === "INPUT");
-    if (!document.hidden && !composing && window.scrollY < 300) window.location.reload();
-  }, 60 * 1000);
+  if (refreshButton) {
+    refreshButton.addEventListener("click", () => {
+      if (!hasDraft() || window.confirm("入力中のつぶやきを破棄して更新しますか？")) window.location.reload();
+    });
+    window.setInterval(() => {
+      const active = document.activeElement;
+      const composing = active && (active.tagName === "TEXTAREA" || active.tagName === "INPUT");
+      if (!document.hidden && !composing && !hasDraft() && !submitting
+          && !document.querySelector(".reaction-menu[open]") && window.scrollY < 300) {
+        window.location.reload();
+      } else {
+        refreshButton.classList.add("has-update");
+        refreshButton.textContent = "最新の観測を確認";
+      }
+    }, 60 * 1000);
+  }
 
   const timeline = document.querySelector("#timeline");
   const timelineLoader = document.querySelector("[data-timeline-loader]");
@@ -23,38 +27,50 @@ document.addEventListener("DOMContentLoaded", () => {
   let loadingOlder = false;
 
   if (timeline && timelineLoader && !timelineLoader.hidden) {
+    let observer;
     const loadMore = async () => {
       if (loadingOlder || timelineLoader.hidden) return;
       loadingOlder = true;
       timelineLoader.classList.add("is-loading");
+      timelineLoader.setAttribute("aria-busy", "true");
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 15000);
       try {
-        const offset = timelineLoader.dataset.nextOffset || "0";
-        const response = await fetch(`${timeline.dataset.timelineUrl}?offset=${encodeURIComponent(offset)}`, {
-          headers: { Accept: "text/html" }, credentials: "same-origin"
+        const offset = Number(timelineLoader.dataset.nextOffset || "0");
+        const url = new URL(timeline.dataset.timelineUrl, window.location.href);
+        url.searchParams.set("offset", String(offset));
+        const response = await fetch(url, {
+          headers: { Accept: "text/html" }, credentials: "same-origin", signal: controller.signal
         });
-        if (!response.ok) throw new Error("Timeline page request failed");
+        if (!response.ok || response.redirected) throw new Error("Timeline page request failed");
         const documentPage = new DOMParser().parseFromString(await response.text(), "text/html");
         const meta = documentPage.querySelector("[data-timeline-page-meta]");
         const items = documentPage.querySelectorAll("[data-timeline-item]");
-        items.forEach((item) => timeline.append(item));
+        const nextOffset = Number(meta?.dataset.nextOffset);
         const hasMore = meta?.dataset.hasMore === "true";
-        if (meta?.dataset.nextOffset) timelineLoader.dataset.nextOffset = meta.dataset.nextOffset;
-        timelineLoader.hidden = !hasMore || items.length === 0;
+        if (!meta || !["true", "false"].includes(meta.dataset.hasMore)
+            || !Number.isSafeInteger(nextOffset) || nextOffset < 0
+            || (hasMore && (nextOffset <= offset || items.length === 0))) {
+          throw new Error("Invalid timeline page");
+        }
+        items.forEach((item) => timeline.append(item));
+        timelineLoader.dataset.nextOffset = String(nextOffset);
+        timelineLoader.hidden = !hasMore;
+        if (!hasMore) observer?.disconnect();
         if (timelineProgress) timelineProgress.textContent = hasMore ? "さらに過去の記録" : "これより前の記録はありません";
       } catch (_error) {
-        if (timelineProgress) timelineProgress.textContent = "読み込みに失敗しました。再試行してください。";
+        if (timelineProgress) timelineProgress.textContent = "読み込みに失敗しました。押すと再試行できます。";
       } finally {
+        window.clearTimeout(timeout);
         loadingOlder = false;
         timelineLoader.classList.remove("is-loading");
+        timelineLoader.removeAttribute("aria-busy");
       }
     };
     timelineLoader.addEventListener("click", loadMore);
     if ("IntersectionObserver" in window) {
-      const observer = new IntersectionObserver((entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          loadMore();
-          if (timelineLoader.hidden) observer.disconnect();
-        }
+      observer = new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) loadMore();
       }, { rootMargin: "240px 0px" });
       observer.observe(timelineLoader);
     }
@@ -63,47 +79,30 @@ document.addEventListener("DOMContentLoaded", () => {
   const copyButton = document.querySelector("[data-copy-generation]");
   if (copyButton) {
     copyButton.addEventListener("click", async () => {
-      await navigator.clipboard.writeText(document.querySelector("#generation-data").value);
-      copyButton.textContent = "コピー済み";
+      const data = document.querySelector("#generation-data");
+      if (!data) return;
+      try {
+        await navigator.clipboard.writeText(data.value);
+        copyButton.textContent = "コピー済み";
+      } catch (_error) {
+        data.focus();
+        data.select();
+        copyButton.textContent = "選択したテキストをコピーしてください";
+      }
     });
   }
 
-  document.querySelectorAll(".like-form").forEach((form) => {
-    form.addEventListener("submit", async (event) => {
+  // Delegate so forms inserted by pagination receive the same confirmation and
+  // duplicate-submit protection as the initial page.
+  document.addEventListener("submit", (event) => {
+    const form = event.target;
+    if (!form.matches(".delete-post-form, .reaction-form, .timeline-compose form")) return;
+    if (submitting || (form.matches(".delete-post-form")
+        && !window.confirm("このつぶやきを削除しますか？"))) {
       event.preventDefault();
-      const button = form.querySelector(".like-button");
-      const count = form.querySelector(".like-value");
-      if (!button || !count || button.disabled) return;
-
-      button.disabled = true;
-      try {
-        const response = await fetch(form.dataset.likeUrl, {
-          method: "POST",
-          body: new FormData(form),
-          headers: { Accept: "application/json" },
-          credentials: "same-origin"
-        });
-        if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
-          throw new Error("Like request failed");
-        }
-        const result = await response.json();
-        if (!result.success) {
-          throw new Error(result.message || "Like request failed");
-        }
-        button.classList.toggle("liked", result.liked);
-        button.setAttribute("aria-pressed", String(result.liked));
-        count.textContent = String(result.likeCount);
-      } catch (_error) {
-        form.submit();
-      } finally {
-        button.disabled = false;
-      }
-    });
+      return;
+    }
+    submitting = true;
   });
-
-  document.querySelectorAll(".delete-post-form").forEach((form) => {
-    form.addEventListener("submit", (event) => {
-      if (!window.confirm("このつぶやきを削除しますか？")) event.preventDefault();
-    });
-  });
+  window.addEventListener("pageshow", () => { submitting = false; });
 });
