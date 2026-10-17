@@ -1,0 +1,40 @@
+app:
+  platform:
+    cognito:
+      enabled: true
+      portal-client-id: ${COGNITO_PORTAL_CLIENT_ID}
+      watchpoint-client-id: ${COGNITO_WATCHPOINT_CLIENT_ID}
+      luminite-client-id: ${COGNITO_LUMINITE_CLIENT_ID}
+
+spring:
+  security:
+    oauth2:
+      client:
+        provider:
+          cognito:
+            issuer-uri: ${COGNITO_ISSUER_URI}
+        registration:
+          portal:
+            provider: cognito
+            client-id: ${app.platform.cognito.portal-client-id}
+            client-authentication-method: none
+            authorization-grant-type: authorization_code
+            redirect-uri: ${app.platform.portal-url}/login/oauth2/code/portal
+            scope: [openid, profile, email]
+          watchpoint:
+            provider: cognito
+            client-id: ${app.platform.cognito.watchpoint-client-id}
+            client-authentication-method: none
+            authorization-grant-type: authorization_code
+            redirect-uri: ${app.platform.watchpoint-url}/login/oauth2/code/watchpoint
+            scope: [openid, profile, email]
+          luminite:
+            provider: cognito
+            client-id: ${app.platform.cognito.luminite-client-id}
+            client-authentication-method: none
+            authorization-grant-type: authorization_code
+            redirect-uri: ${app.platform.luminite-url}/login/oauth2/code/luminite
+            scope: [openid, profile, email]
+      resourceserver:
+        jwt:
+          issuer-uri: ${spring.security.oauth2.client.provider.cognito.issuer-uri}

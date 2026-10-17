@@ -6,7 +6,7 @@ cd "$ROOT_DIR"
 
 mkdir -p app
 ./mvnw clean package
-cp target/seven-days-stats.jar app/.app.jar.tmp
+cp target/rubinco.jar app/.app.jar.tmp
 mv app/.app.jar.tmp app/app.jar
 
 echo "Built app/app.jar"

@@ -1,8 +1,9 @@
 spring:
   application:
-    name: seven-days-stats
+    name: rubinco
   datasource:
-    url: jdbc:postgresql://localhost:5432/seven_days_stats
+    # Keep the existing database name; the Rubinco rename does not migrate stored data.
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/seven_days_stats
     username: postgres
   jpa:
     hibernate:
@@ -17,7 +18,7 @@ server:
     session:
       cookie:
         http-only: true
-        name: WATCHPOINT_SESSION
+        name: RUBINCO_SESSION
         same-site: lax
         secure: false
       timeout: 30m
@@ -29,6 +30,43 @@ server:
     include-binding-errors: never
 
 app:
+  platform:
+    domain: ${DOMAIN:rubinco.link}
+    portal-url: ${PORTAL_SITE_URL:https://portal.${app.platform.domain}}
+    watchpoint-url: ${WATCHPOINT_SITE_URL:https://watchpoint.${app.platform.domain}}
+    luminite-url: ${LUMINITE_SITE_URL:https://luminite.${app.platform.domain}}
+    auth-url: ${AUTH_SITE_URL:https://auth.${app.platform.domain}}
+    api-url: ${API_BASE_URL:https://api.${app.platform.domain}}
+    allowed-origins:
+      - ${app.platform.portal-url}
+      - ${app.platform.watchpoint-url}
+      - ${app.platform.luminite-url}
+    cognito:
+      enabled: false
+  games:
+    # No AWS API is called unless a separately reviewed provider is implemented and selected.
+    start-provider: mock
+    catalog:
+      - id: 7dtd
+        display-name: Watchpoint
+        site-name: 7 Days to Die
+        site-url: ${app.platform.watchpoint-url}
+        accent: amber
+        version: "Alpha 22"
+        stage: "第1章・荒野の観測"
+        progress: 18
+        schedule: "毎日 18:00–23:30 JST"
+        connection: "接続情報は準備中です"
+      - id: terraria
+        display-name: ${TERRARIA_SITE_NAME:Luminite}
+        site-name: Terraria
+        site-url: ${app.platform.luminite-url}
+        accent: violet
+        version: "1.4.4"
+        stage: "星明かりの地下層"
+        progress: 42
+        schedule: "週末 20:00–23:30 JST"
+        connection: "接続情報は準備中です"
   sevendays:
     environment-name: local
     mode: file

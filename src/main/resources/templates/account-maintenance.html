@@ -3,41 +3,49 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png"><link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <title>アカウント管理 | WATCHPOINT</title>
-  <link rel="stylesheet" th:href="@{/css/app.css(v='20260809-8')}">
+  <title>ユーザー連携 | Rubinco</title>
+  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
+  <link rel="stylesheet" th:href="@{/css/portal.css(v='maintenance-1')}">
 </head>
-<body>
-<header class="topbar">
-  <a class="brand" th:href="@{/}"><span class="brand-mark">WP</span><span><b>WATCHPOINT</b><small>ACCOUNT MAINTENANCE</small></span></a>
-  <form method="post" th:action="@{/logout}"><button class="nav-button" type="submit">ログアウト</button></form>
-</header>
-<main class="detail-shell">
-  <nav th:replace="~{fragments/navigation :: rail('maintenance')}"></nav>
-  <section class="layout detail-page">
-    <header class="page-title"><p class="eyebrow">ADMINISTRATION</p><h1>プレイヤーアカウント</h1><p>身内用アカウントを発行し、ゲーム上のプレイヤーへ紐付けます。</p></header>
+<body class="portal-body">
+<header th:replace="~{fragments/portal-header :: header}"></header>
+<main class="portal-maintenance">
+  <a class="profile-back" th:href="${portalUrl}">← ポータルへ戻る</a>
+  <section>
+    <header class="page-title"><p class="eyebrow">ADMINISTRATION</p><h1>ポータルユーザー</h1><p>ユーザーごとに7DTDプレイヤーを選択して保存します。連携はいつでも変更・解除できます。</p></header>
     <div class="form-notice success" th:if="${notice}" th:text="${notice}"></div>
     <div class="form-notice error" th:if="${error}" th:text="${error}"></div>
     <article class="panel">
-      <form class="ai-comment-form" method="post" th:action="@{/maintenance/accounts}">
+      <div class="panel-head"><h2>ユーザーとプレイヤーの連携</h2></div>
+      <p class="profile-description" th:if="${cognitoEnabled}">招待したユーザーが初めてログインすると、一覧に表示されます。</p>
+      <div class="account-link-list">
+        <form class="account-link-row" th:each="account : ${accountAdmin.accounts}"
+              th:if="${account.role != 'VIEWER'}" method="post" th:action="@{/portal/maintenance/accounts/player}">
+          <input type="hidden" name="accountId" th:value="${account.id}">
+          <div><strong th:text="${account.loginId}"></strong><small th:text="${account.role + ' / ' + (account.enabled ? '有効' : '無効')}"></small></div>
+          <label><span>7DTDプレイヤー</span><select name="playerId">
+            <option value="" th:selected="${account.playerId == null}">未連携（解除）</option>
+            <option th:each="player : ${accountAdmin.players}" th:value="${player.id}"
+                    th:selected="${account.playerId == player.id}" th:text="${player.playerName + ' (#' + player.id + ')'}"></option>
+          </select></label>
+          <button class="profile-save" type="submit">保存</button>
+        </form>
+        <p class="empty" th:if="${#lists.isEmpty(accountAdmin.accounts)}">ユーザーがまだ登録されていません。</p>
+      </div>
+      <p class="profile-description">同じプレイヤーを複数のユーザーには連携できません。ゲーム内の記録は変更されません。</p>
+    </article>
+    <article th:if="${!cognitoEnabled}" class="panel">
+      <form class="ai-comment-form" method="post" th:action="@{/portal/maintenance/accounts}">
         <label><span>ログインID</span><input name="loginId" pattern="[A-Za-z0-9._-]{3,80}" required></label>
         <label><span>初期パスワード</span><input name="password" type="password" minlength="8" required></label>
         <label><span>権限</span><select name="role"><option value="PLAYER">PLAYER</option><option value="ADMIN">ADMIN</option></select></label>
-        <label><span>ゲームプレイヤー</span><select name="playerId"><option value="">未連携（管理者用）</option><option th:each="player : ${accountAdmin.players}" th:value="${player.id}" th:text="${player.playerName + ' (#' + player.id + ')'}"></option></select></label>
+        <label><span>7DTDプレイヤー（任意）</span><select name="playerId"><option value="">未連携</option><option th:each="player : ${accountAdmin.players}" th:value="${player.id}" th:text="${player.playerName + ' (#' + player.id + ')'}"></option></select></label>
         <div class="form-actions"><small>パスワードはハッシュ化して保存されます。</small><button type="submit">アカウント発行</button></div>
       </form>
     </article>
-    <article class="panel">
-      <div class="panel-head"><h2>発行済みアカウント</h2></div>
-      <div class="account-list">
-        <div class="account-row" th:each="account : ${accountAdmin.accounts}">
-          <strong th:text="${account.loginId}">login</strong><span th:text="${account.role}">PLAYER</span><span th:text="${account.playerName ?: '未連携'}">player</span><small th:text="${account.enabled ? '有効' : '無効'}">有効</small>
-        </div>
-        <p class="empty" th:if="${#lists.isEmpty(accountAdmin.accounts)}">アカウントがありません。</p>
-      </div>
-    </article>
-    <article class="panel">
+    <article th:if="${!cognitoEnabled}" class="panel">
       <div class="panel-head"><h2>パスワード変更</h2><small>ADMIN ONLY</small></div>
-      <form class="ai-comment-form" method="post" th:action="@{/maintenance/accounts/password}">
+      <form class="ai-comment-form" method="post" th:action="@{/portal/maintenance/accounts/password}">
         <label><span>変更対象</span><select name="accountId" required><option value="">アカウントを選択</option><option th:each="account : ${accountAdmin.accounts}" th:if="${account.role != 'VIEWER'}" th:value="${account.id}" th:text="${account.loginId + ' / ' + (account.playerName ?: account.role)}"></option></select></label>
         <label><span>新しいパスワード</span><input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
         <label><span>新しいパスワード（確認）</span><input name="passwordConfirmation" type="password" minlength="8" autocomplete="new-password" required></label>

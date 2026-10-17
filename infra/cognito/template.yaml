@@ -1,0 +1,168 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Invite-only Cognito SSO for the rubinco.link game portal. Do not deploy without review.
+
+Parameters:
+  RootDomain:
+    Type: String
+    Default: rubinco.link
+    AllowedPattern: '^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$'
+    ConstraintDescription: Use a lowercase DNS domain without a scheme or path.
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+  AuthCertificateArn:
+    Type: String
+    Description: ACM public certificate ARN for auth.rubinco.link in us-east-1 (required by Cognito custom domains)
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolName: rubinco-game-portal
+      UserPoolTier: LITE
+      DeletionProtection: ACTIVE
+      UsernameAttributes: [email]
+      UsernameConfiguration:
+        CaseSensitive: false
+      AutoVerifiedAttributes: [email]
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 14
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          TemporaryPasswordValidityDays: 7
+      MfaConfiguration: OPTIONAL
+      EnabledMfas: [SOFTWARE_TOKEN_MFA]
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      UserAttributeUpdateSettings:
+        AttributesRequireVerificationBeforeUpdate: [email]
+
+  MemberGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: member
+      Description: Standard invited portal member
+      Precedence: 20
+      UserPoolId: !Ref UserPool
+
+  AdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: admin
+      Description: Portal and timeline administrator
+      Precedence: 10
+      UserPoolId: !Ref UserPool
+
+  PortalClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: game-portal-web
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows: [ALLOW_REFRESH_TOKEN_AUTH]
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid, profile, email]
+      SupportedIdentityProviders: [COGNITO]
+      ReadAttributes: [email, email_verified, preferred_username]
+      WriteAttributes: [email]
+      CallbackURLs:
+        - !Sub https://portal.${RootDomain}/login/oauth2/code/portal
+      LogoutURLs:
+        - !Sub https://portal.${RootDomain}
+      EnableTokenRevocation: true
+      PreventUserExistenceErrors: ENABLED
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits: {AccessToken: minutes, IdToken: minutes, RefreshToken: days}
+
+  WatchpointClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: watchpoint-web
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows: [ALLOW_REFRESH_TOKEN_AUTH]
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid, profile, email]
+      SupportedIdentityProviders: [COGNITO]
+      ReadAttributes: [email, email_verified, preferred_username]
+      WriteAttributes: [email]
+      CallbackURLs:
+        - !Sub https://watchpoint.${RootDomain}/login/oauth2/code/watchpoint
+      LogoutURLs:
+        - !Sub https://watchpoint.${RootDomain}
+      EnableTokenRevocation: true
+      PreventUserExistenceErrors: ENABLED
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits: {AccessToken: minutes, IdToken: minutes, RefreshToken: days}
+
+  LuminiteClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: luminite-web
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows: [ALLOW_REFRESH_TOKEN_AUTH]
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid, profile, email]
+      SupportedIdentityProviders: [COGNITO]
+      ReadAttributes: [email, email_verified, preferred_username]
+      WriteAttributes: [email]
+      CallbackURLs:
+        - !Sub https://luminite.${RootDomain}/login/oauth2/code/luminite
+      LogoutURLs:
+        - !Sub https://luminite.${RootDomain}
+      EnableTokenRevocation: true
+      PreventUserExistenceErrors: ENABLED
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits: {AccessToken: minutes, IdToken: minutes, RefreshToken: days}
+
+  AuthDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub auth.${RootDomain}
+      UserPoolId: !Ref UserPool
+      ManagedLoginVersion: 1
+      CustomDomainConfig:
+        CertificateArn: !Ref AuthCertificateArn
+        SecurityPolicy: TLS_V1_2_2021
+
+  AuthDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub auth.${RootDomain}
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt AuthDomain.CloudFrontDistribution
+        HostedZoneId: Z2FDTNDATAQYW2
+
+Outputs:
+  UserPoolId:
+    Value: !Ref UserPool
+  IssuerUri:
+    Value: !Sub https://cognito-idp.${AWS::Region}.${AWS::URLSuffix}/${UserPool}
+  PortalClientId:
+    Value: !Ref PortalClient
+  WatchpointClientId:
+    Value: !Ref WatchpointClient
+  LuminiteClientId:
+    Value: !Ref LuminiteClient
+  AuthDomainName:
+    Value: !Sub auth.${RootDomain}

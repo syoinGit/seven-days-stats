@@ -4,22 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png"><link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <title>WATCHPOINT</title>
-  <link rel="stylesheet" th:href="@{/css/app.css(v='20260809-8')}">
-  <script defer th:src="@{/js/timeline.js(v='20260807-1')}"></script>
+  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
+  <script defer th:src="@{/js/timeline.js(v='20260909-1')}"></script>
 </head>
 <body>
-<header class="topbar">
-  <a class="brand" th:href="@{/dashboard}">
-    <span class="brand-mark">WP</span>
-    <span><b>WATCHPOINT</b><small>WASTELAND ADVENTURE ARCHIVE</small></span>
-  </a>
-  <div class="auth-nav">
-    <span th:if="${loggedIn and !currentViewer}" th:text="${currentAccountLogin}">survivor</span>
-    <span th:if="${currentViewer}">GUEST VIEW</span>
-    <a th:if="${!loggedIn}" class="nav-button" th:href="@{/login}">ログイン</a>
-    <form th:if="${loggedIn}" method="post" th:action="@{/logout}"><button class="nav-button" type="submit">ログアウト</button></form>
-  </div>
-</header>
+<header th:replace="~{fragments/navigation :: siteHeader(@{/dashboard}, 'WATCHPOINT', 'WP', 'WASTELAND ADVENTURE ARCHIVE', 'watchpoint-topbar')}"></header>
 
 <main class="app-shell">
   <nav th:replace="~{fragments/navigation :: rail('timeline')}"></nav>
@@ -44,7 +33,7 @@
     <article class="timeline-compose" th:if="${loggedIn and currentPlayerId != null}">
       <form method="post" th:action="@{/posts}">
         <label>
-          <span class="feed-avatar" th:text="${#strings.substring(currentAccountLogin, 0, 1)}">W</span>
+          <img class="feed-avatar" th:src="${currentAvatar}" alt="">
           <textarea name="body" rows="2" maxlength="100" placeholder="いま何してる？ 今日の冒険をつぶやく…" required></textarea>
         </label>
         <div class="timeline-compose-actions"><small>100文字以内</small><button type="submit">つぶやく</button></div>
@@ -59,8 +48,8 @@
       <li th:if="${#lists.isEmpty(timelinePage.items)}" class="empty">まだ冒険記録がありません。</li>
       <th:block th:replace="~{fragments/timeline :: page}"></th:block>
     </ol>
-    <div class="timeline-loader" data-timeline-loader th:hidden="${!timelinePage.hasMore}"
-         th:attr="data-next-offset=${timelinePage.nextOffset}"><span class="live-pulse"></span><b>過去の観測を読み込む</b><small data-timeline-progress></small></div>
+    <button type="button" class="timeline-loader" data-timeline-loader th:hidden="${!timelinePage.hasMore}"
+         th:attr="data-next-offset=${timelinePage.nextOffset}"><span class="live-pulse"></span><b>過去の観測を読み込む</b><small data-timeline-progress aria-live="polite"></small></button>
   </section>
 
   <aside class="status-sidebar">
@@ -85,7 +74,7 @@
       <div class="pilot-list live-party">
         <a class="pilot" th:if="${!currentViewer}" th:each="player : ${dashboard.playerStatuses}"
            th:href="@{/players/{id}(id=${player.playerId})}">
-          <span class="status-dot" th:classappend="${player.online == false} ? ' offline'"></span>
+          <img class="user-avatar" th:src="${@portalProfileService.avatar(player.playerId, null, profileDirectory, currentViewer)}" alt="" loading="lazy">
           <span class="pilot-info">
             <strong th:text="${player.playerName}">player</strong>
             <small th:text="${player.statusSummary}">探索中</small>
@@ -98,7 +87,7 @@
           <b th:text="${player.level != null ? 'LV.' + player.level : '--'}">--</b>
         </a>
         <div class="pilot" th:if="${currentViewer}" th:each="player : ${dashboard.playerStatuses}">
-          <span class="status-dot" th:classappend="${player.online == false} ? ' offline'"></span>
+          <img class="user-avatar" th:src="${@portalProfileService.avatar(player.playerId, null, profileDirectory, currentViewer)}" alt="" loading="lazy">
           <span class="pilot-info"><strong th:text="${player.playerName}">player</strong><small th:text="${player.statusSummary}">探索中</small><small class="pilot-vitals"><span th:text="${player.health != null ? 'HP ' + player.health : 'HP --'}">HP --</span><span th:if="${player.online == false}"> / OFFLINE</span></small></span>
           <b th:text="${player.level != null ? 'LV.' + player.level : '--'}">--</b>
         </div>

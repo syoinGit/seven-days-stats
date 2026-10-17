@@ -1,6 +1,22 @@
 <!doctype html>
 <html lang="ja" xmlns:th="http://www.thymeleaf.org">
 <body>
+<header th:fragment="siteHeader(home, name, mark, subtitle, theme)" class="topbar game-topbar" th:classappend="${theme}">
+  <a class="brand" th:href="${home}" th:attr="aria-label=${name + ' ホーム'}">
+    <span class="brand-mark" aria-hidden="true" th:text="${mark}">WP</span>
+    <span><b th:text="${name}">WATCHPOINT</b><small th:text="${subtitle}"></small></span>
+  </a>
+  <nav class="auth-nav" aria-label="サイトメニュー">
+    <a th:if="${loggedIn and !currentViewer}" class="account-profile-link" aria-label="プロフィールを編集" th:href="${portalUrl + '/profile'}">
+      <img class="user-avatar" th:src="${currentAvatar}" alt=""><span th:text="${currentDisplayName}"></span></a>
+    <span th:if="${currentViewer}" class="account-profile-link"><img class="user-avatar" th:src="${currentAvatar}" alt="">ゲスト</span>
+    <a class="nav-button portal-header-return" th:href="${portalUrl}">ポータルへ</a>
+    <a th:if="${!loggedIn}" class="nav-button" th:href="@{/login}">ログイン</a>
+    <form th:if="${loggedIn}" method="post" th:action="@{/logout}">
+      <button class="nav-button" type="submit">ログアウト</button>
+    </form>
+  </nav>
+</header>
 <nav th:fragment="rail(activePage)" class="rail global-rail" aria-label="冒険記録ナビゲーション">
   <div class="rail-top">
     <p class="rail-label">ADVENTURE RECORD</p>
@@ -9,7 +25,7 @@
     <a th:href="@{/vehicles}" th:classappend="${activePage == 'vehicles'} ? 'active'"><span>03</span>乗り物ランキング</a>
     <a th:href="@{/exploration}" th:classappend="${activePage == 'exploration'} ? 'active'"><span>04</span>探索済みPOI</a>
     <a th:href="@{/diaries}" th:classappend="${activePage == 'diaries'} ? 'active'"><span>AI</span>冒険日記</a>
-    <a th:if="${currentAdmin}" th:href="@{/maintenance/accounts}" th:classappend="${activePage == 'maintenance'} ? 'active'"><span>ADM</span>アカウント管理</a>
+    <a th:if="${currentAdmin}" th:href="${portalUrl + '/maintenance/accounts'}" th:classappend="${activePage == 'maintenance'} ? 'active'"><span>ADM</span>ユーザー連携</a>
     <a th:if="${currentAdmin}" th:href="@{/maintenance/diaries}" th:classappend="${activePage == 'diary-maintenance'} ? 'active'"><span>ADM</span>日誌メンテ</a>
     <a th:if="${currentAdmin}" th:href="@{/maintenance/ai-analysis/test}" th:classappend="${activePage == 'ai-test'} ? 'active'"><span>AI</span>Bedrockテスト</a>
     <a th:if="${currentAdmin}" th:href="@{/maintenance/survivor-mark/test}" th:classappend="${activePage == 'mark-test'} ? 'active'"><span>AI</span>Markテスト</a>

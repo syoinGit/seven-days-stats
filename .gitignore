@@ -3,9 +3,12 @@ target/
 docker-compose.yml
 compose.yml
 .env
+.env.*
+!.env*.example
 .DS_Store
 /7dtd/
 app/*.jar
+app/*.tmp
 !app/.gitkeep
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/

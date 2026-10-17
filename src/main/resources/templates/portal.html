@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="仲間とゲームの活動記録を共有するRubincoポータル">
+  <meta name="_csrf" th:content="${_csrf.token}">
+  <title>Rubinco</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
+  <link rel="stylesheet" th:href="@{/css/portal.css(v='1')}">
+  <script defer th:src="@{/js/portal.js(v='5')}"></script>
+</head>
+<body class="portal-body">
+<header th:replace="~{fragments/portal-header :: header}"></header>
+
+<div class="portal-layout">
+<aside class="portal-site-rail" aria-label="ゲームサイトとサーバー状況">
+  <h2>ゲームサーバー</h2>
+  <p class="server-status-note">保存されている稼働状況を表示しています。</p>
+  <nav aria-label="ゲームサイト">
+    <a th:each="site : ${sites}" th:href="${loggedIn ? siteEntries[site.id] : site.siteUrl}"
+       th:classappend="${'game-' + site.accent}" th:attr="aria-label=${site.siteName + ' / ' + site.displayName + 'へ'}">
+      <span class="server-icon"><span aria-hidden="true" th:text="${site.id == 'terraria' ? '✦' : '◈'}">◈</span>
+        <small th:text="${site.id == '7dtd' ? '7DTD' : site.siteName}">7DTD</small></span>
+      <span class="server-site"><b th:text="${site.displayName}">Watchpoint</b>
+        <span class="status-chip" th:classappend="${'status-' + serverStatuses[site.id].code}" th:text="${serverStatuses[site.id].label}">未確認</span>
+        <small>サイトへ →</small>
+      </span>
+    </a>
+  </nav>
+</aside>
+<main class="portal-shell">
+  <section th:if="${!loggedIn}" class="portal-intro" aria-labelledby="portal-title">
+    <p class="eyebrow">YOUR PEOPLE. YOUR WORLDS.</p>
+    <h1 id="portal-title">いつもの仲間と、<br><em>次の冒険へ。</em></h1>
+    <p>遊んだ時間も、見つけた景色も。みんなの冒険が集まる場所。</p>
+    
+  </section>
+
+  <div class="form-notice success" th:if="${param.logout}">ログアウトしました。</div>
+  <section th:if="${!loggedIn}" class="portal-welcome" aria-label="ポータルについて">
+    <h2>仲間と遊ぶ、世界をつなぐ。</h2>
+    <p>Watchpointで7 Days to Dieの冒険記録を、LuminiteでTerrariaの進行状況を。サイドバーから各サイトへ移動できます。</p>
+    <div class="game-grid">
+      <article class="game-card public-game-card" th:each="site : ${sites}">
+        <p class="eyebrow" th:text="${site.siteName}"></p>
+        <h2 th:text="${site.displayName}"></h2>
+        <p th:text="${site.id == 'terraria' ? '探索と建築、ボスとの戦い。仲間と広げる世界の記録。' : '荒廃した世界で生き抜く日々を、タイムラインと冒険日記で。'}"></p>
+      </article>
+    </div>
+    <p>ヘッダーからログインすると、全体タイムラインを閲覧できます。</p>
+  </section>
+  <section th:if="${loggedIn}" class="portal-feed" id="timeline" aria-labelledby="shared-timeline-title">
+    <p class="eyebrow">COMMUNITY / ACTIVITY</p>
+    <h1 id="shared-timeline-title">全体タイムライン<span class="feed-heading-note">みんなの冒険記録</span></h1>
+    <p>すべてのゲームの活動記録を、新しい順に表示しています。</p>
+    <p th:if="${timeline.empty}" th:text="${timelinePage == 0 ? '活動記録はまだありません。' : 'このページの記録はありません。'}"></p>
+    <article class="portal-event" th:each="event : ${timeline.content}">
+      <img class="user-avatar event-avatar" th:src="${@portalProfileService.avatar(event.actorPlayerId, event.creatorSub, profileDirectory, currentViewer)}" alt="" loading="lazy">
+      <header>
+        <th:block th:each="game : ${sites}" th:if="${game.id == event.gameId}">
+          <a class="status-chip" th:href="${siteEntries[game.id]}" th:text="${game.displayName + ' / ' + game.siteName}">ゲーム</a>
+        </th:block>
+        <time th:datetime="${event.occurredAt}" th:text="${#temporals.format(event.occurredAt, 'yyyy/MM/dd HH:mm', 'Asia/Tokyo')}"></time>
+      </header>
+      <p class="event-author" th:text="${@portalProfileService.authorName(event.actorPlayerId, event.creatorSub, event.actorName, profileDirectory, currentViewer)}"></p>
+      <h3 th:text="${event.title}">活動記録</h3>
+      <p class="portal-event-body" th:text="${event.body}"></p>
+    </article>
+    <nav class="portal-feed-pages" aria-label="共通タイムラインのページ">
+      <a th:if="${timeline.hasPrevious()}" th:href="@{/portal(page=${timelinePage - 1})} + '#timeline'">← 新しい記録</a>
+      <a th:if="${timeline.hasNext()}" th:href="@{/portal(page=${timelinePage + 1})} + '#timeline'">過去の記録 →</a>
+    </nav>
+  </section>
+</main>
+</div>
+<th:block th:if="${!loggedIn}"><dialog th:replace="~{fragments/portal-login :: modal}"></dialog></th:block>
+</body>
+</html>

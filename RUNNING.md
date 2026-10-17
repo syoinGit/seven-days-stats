@@ -2,27 +2,36 @@
 
 ## Environment
 
-Copy `.env.example` to `.env` and set real values.
+Rubinco builds `target/rubinco.jar` and uses `com.yuki.rubinco.RubincoApplication` as its
+entry point. Update an existing IDE run configuration to this class after reloading Maven.
+`application-local.yml` inherits the shared application name `rubinco`.
+
+Renaming the application does not migrate existing infrastructure: the PostgreSQL database
+`seven_days_stats`, Compose container/volume, source-checkout directory, S3 object path, and
+active `rubinco-watchpoint.service` are retained. For a new systemd installation, use
+`infra/systemd/rubinco.service.example`; adapt its checkout paths to the actual directory.
+Keep the existing unit on a running host rather than enabling a second service for the same app.
+
+For local development, copy [.env.local.example](.env.local.example) and set its database
+and bootstrap administrator passwords. The template selects the `local` profile, which defaults
+to file logs and local `7dtd`, allows HTTP cookies, and disables Telnet and AI.
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env
 ```
 
-`.env.example` is the tracked EC2 template. `.env` contains host-specific values
-and secrets and must never be committed.
+For a new EC2 deployment, copy [.env.example](.env.example) to `.env` and fill its six values:
+the database and Telnet passwords, Cognito issuer, and three distinct public app-client IDs.
+No app-client secret or bootstrap administrator password is required for Cognito.
+Keep an existing deployment's `.env` and its configured location; never commit it.
 
-For local development, use the local profile. It defaults to file logs, local `7dtd`, insecure
-cookies, and disables Telnet and AI. Supply only the database password through the IDE or shell:
+`scripts/run-app.sh` and the systemd example default to `production,cognito`.
+Invalid portal or game-catalog configuration fails application startup.
+Ports, paths, URLs, timeouts, schedules, AWS regions, model IDs, and feature defaults are versioned
+in `application*.yml`; optional changes are documented below.
 
-```dotenv
-SPRING_PROFILES_ACTIVE=local
-POSTGRES_PASSWORD=your-local-password
-```
-
-For EC2, keep the small set of production secrets, paths, and flags from `.env.example`.
-Timeouts, intervals, schedules, AWS regions, and model IDs are versioned in `application.yml`.
-The repository directory
-and the 7DTD server directory are intentionally separate:
+For a source-checkout deployment, the repository directory and the 7DTD server directory are
+intentionally separate:
 
 ```text
 /home/ec2-user/seven-days-stats  # application Git repository
@@ -36,6 +45,25 @@ EC2 `compose.yml` until its PostgreSQL volume mapping has been compared.
 cp compose.example.yml compose.yml
 ```
 
+Start the database service as well as Docker itself:
+
+```bash
+docker compose up -d --wait postgres
+docker compose ps
+```
+
+For an existing `seven-days-postgres` container, keep its volume and original Compose project.
+Do not create a replacement empty database to fix a port conflict. If another project's database
+uses port `5432`, choose `POSTGRES_PORT=5433` in the local `.env` and use that value in the
+existing Compose port mapping. The application and the new Compose template both read this
+variable. Port changes require recreating the container with its **same existing data volume**;
+a simple restart does not change its configured port mapping.
+
+When running from IntelliJ, select the `local` profile and set the environment variables from
+`.env` in the run configuration. A shell's exported variables are not automatically added to an
+already-running IDE. `Connection refused` indicates that the selected host/port is not accepting
+connections; check `docker ps` and the published port before changing the database password.
+
 The Spring Boot app does not automatically load `.env`, so export it before starting the app:
 
 ```bash
@@ -47,22 +75,69 @@ set +a
 
 For EC2/systemd, set the same values through an `EnvironmentFile` or service environment.
 
-### Bedrock observations
+## Game portal hosts and SSO
 
-The integration is disabled by default. On an EC2 instance with an IAM role that can call
-`bedrock:InvokeModel`, enable it without adding static AWS credentials:
+The production reverse proxy sends these hosts to the same Spring process while preserving `Host`:
 
-```dotenv
-WATCHPOINT_AI_ENABLED=true
-```
+- `portal.rubinco.link`
+- `watchpoint.rubinco.link`
+- `luminite.rubinco.link`
+- `api.rubinco.link`
 
-Region and model IDs are fixed in `application.yml`. The AWS SDK uses `DefaultCredentialsProvider`, which obtains temporary credentials from the
-attached EC2 IAM role. Do not add access keys, secret keys, Anthropic keys, or Bedrock API keys
-to `.env`. An administrator can test one generation with `POST /maintenance/ai-analysis/publish`.
+Use [infra/nginx/game-portal.conf.example](infra/nginx/game-portal.conf.example) as a merge reference,
+not as a replacement for the existing Watchpoint proxy. Cognito configuration is in
+[infra/cognito/template.yaml](infra/cognito/template.yaml). Its `auth.rubinco.link` certificate must
+be created in `us-east-1`, even when the User Pool is in another region.
+
+Before the first production start, back up PostgreSQL and compare the current Flyway history with
+the pending migrations (including V40/V41). Full preflight, invitation, DNS, and smoke-test steps are in
+[docs/PORTAL_MVP.md](docs/PORTAL_MVP.md).
+
+## Configuration overrides
+
+The production defaults need no additional `.env` entries. Existing environment overrides remain
+supported; add only values that differ for your deployment.
+
+| Setting | Default and purpose |
+| --- | --- |
+| `DOMAIN` | `rubinco.link`; derives Portal, Watchpoint, Luminite, auth, and API URLs. |
+| `PORTAL_SITE_URL`, `WATCHPOINT_SITE_URL`, `LUMINITE_SITE_URL`, `AUTH_SITE_URL`, `API_BASE_URL` | Override individual URLs when hosts do not follow the domain convention. CORS origins, game links, and OAuth callbacks follow the configured site URLs. |
+| `TERRARIA_SITE_NAME` | Optional display-name override for Luminite. |
+| `SEVEN_DAYS_ROOT` | Production: `/home/ec2-user/7dtd`; local: `7dtd`. |
+| `SEVEN_DAYS_CONFIG_DIRECTORY` | Production: `${SEVEN_DAYS_ROOT}/data`. |
+| `POSTGRES_PORT` | `5432`; shared by the application JDBC URL and Compose host port. `SPRING_DATASOURCE_URL` can override the entire URL. |
+| `SERVER_PORT` | Production: `8082`; local: `8080`. Local URLs follow the selected port. |
+| `SEVEN_DAYS_TELNET_ENABLED` | Production: `true`; local: `false`. |
+| `WATCHPOINT_AI_ENABLED` | `false`; enables Bedrock observations and manual diary generation. |
+| `SURVIVOR_KAREN_IMAGE_ENABLED` | `false`; enables Karen image generation. |
+| `WATCHPOINT_IMAGE_BUCKET` | S3 bucket required when image generation is enabled. |
+| `WATCHPOINT_IMAGE_PUBLIC_BASE_URL` | Optional public delivery or CloudFront URL; otherwise the regional S3 object URL is stored. |
+
+Changing `DOMAIN` or individual URLs also requires matching DNS, certificates, Nginx, and Cognito
+allowed callback/logout URLs. The SSM deployment health check uses port `8082`; changing
+`SERVER_PORT` requires updating both Nginx and the SSM health check.
+
+For legacy form authentication, set `SPRING_PROFILES_ACTIVE=production` when using
+`scripts/run-app.sh`, and set `WATCHPOINT_BOOTSTRAP_PASSWORD` only if creating the first `admin`
+account. A systemd unit that sets profiles directly must be changed separately; the run-script
+override does not alter that unit.
+
+### Bedrock and images
+
+On EC2, enable `WATCHPOINT_AI_ENABLED=true` only with an IAM role that can call
+`bedrock:InvokeModel`. Region and model IDs live in `application.yml`.
+The AWS SDK obtains credentials through `DefaultCredentialsProvider`, including the attached
+EC2 IAM role; no static AWS or Bedrock keys are needed in `.env`.
+An administrator can test one generation with `POST /maintenance/ai-analysis/publish`.
+
+Karen image generation additionally requires `s3:PutObject` for the configured bucket/prefix,
+Nova Canvas model access, and a working public delivery policy. Once these are ready, set
+`WATCHPOINT_IMAGE_BUCKET` and `SURVIVOR_KAREN_IMAGE_ENABLED=true`; optionally set
+`WATCHPOINT_IMAGE_PUBLIC_BASE_URL`. A failed image generation still saves the day's text post.
 
 ## EC2 layout
 
-The production directory is expected to be:
+The manual/source-checkout deployment layout is:
 
 ```text
 /home/ec2-user/seven-days-stats
@@ -75,6 +150,12 @@ The production directory is expected to be:
 
 Live 7DTD files remain under `/home/ec2-user/7dtd` and are not part of this
 repository.
+
+The existing GitHub Actions/SSM deployment is artifact-only: it writes the JAR to
+`/home/ec2-user/rubinco/apps/watchpoint/app/app.jar` and restarts
+`rubinco-watchpoint.service`. Do not confuse that live path with the optional source-checkout layout
+above; verify the unit's `WorkingDirectory`, `EnvironmentFile`, and JAR path with
+`systemctl cat rubinco-watchpoint.service` before changing either deployment route.
 
 Build and place the jar under `app/`:
 
@@ -95,15 +176,75 @@ cd /home/ec2-user/seven-days-stats
 ./scripts/deploy-app.sh
 ```
 
-The deployment script detects both `seven-days-stats.service` and the legacy
+The deployment script refuses tracked and untracked source changes, keeps the previous JAR for
+automatic rollback when restart or health verification fails, and detects
+`rubinco.service`, `rubinco-watchpoint.service`, `seven-days-stats.service`, and the legacy
 `sevendays-states.service`. To select a unit explicitly, run:
 
 ```bash
-SERVICE_NAME=sevendays-states.service ./scripts/deploy-app.sh
+SERVICE_NAME=rubinco.service ./scripts/deploy-app.sh
 ```
 
 Inspect production logs with:
 
 ```bash
-sudo journalctl -u seven-days-stats.service -n 100 --no-pager
+sudo journalctl -u rubinco.service -n 100 --no-pager
 ```
+
+The EC2-off state intentionally takes Portal, Watchpoint, Luminite, and API offline. The MVP start
+button is a safe mock and cannot wake a stopped instance.
+
+## Portal navigation in local development
+
+Start `Rubinco Local`, then open `http://localhost:8080/portal` (or the configured port).
+The home page is public; its login button opens a modal. Direct `/login` requests also return
+to that modal, and successful local login opens the shared timeline on `/portal`.
+The icon sidebar opens Watchpoint and Luminite; Watchpoint headers return to the portal.
+Anonymous visitors see the public introduction with login in the header. Both members and
+guests enter the shared timeline after login; guest HTML keeps the existing anonymization.
+The signed-in portal keeps the timeline in the main area; the sidebar shows labeled game links
+and stored server status. Both game sites use the same header layout.
+
+With Cognito, sign in on the portal first, then select a game icon. Each destination completes
+its own OAuth flow through the existing Cognito SSO session. Keep all three client callback URLs
+configured; a shared cookie domain is not needed.
+
+## Shared profile icons
+
+After restarting the app, Flyway applies V39 to add the optional profile fields. Existing
+accounts, passwords, and 7DTD links are preserved. Click your avatar/name in the header to edit
+your shared display name and choose an icon. Guest profiles are read-only and anonymized.
+No new environment variables are required. Administrators can create portal users without a
+7DTD link and later manage the link under account maintenance. Terraria identity linking is
+not inferred automatically from names.
+
+## Manual player linking
+
+Administrators open **メンテナンス** in the portal header, at
+`/portal/maintenance/accounts`. Each user row shows its current 7DTD player selection.
+Choose a player and save, or select **未連携（解除）** to unlink. Duplicate player ownership is
+rejected. The old `/maintenance/accounts` URL redirects to this portal page.
+With Cognito, invited users appear after their first login; this screen manages game links,
+while credentials remain managed by Cognito. Terraria identity linking is not yet available.
+
+
+## Verification before committing
+
+```bash
+./mvnw clean verify
+node --test src/test/js/*.test.cjs
+```
+
+Java tests use isolated H2 databases, exercise the migrations and never require the application's
+local `.env`. To additionally exercise the V39 → latest authorship upgrade on an **empty,
+disposable PostgreSQL database**, run:
+
+```bash
+./mvnw test -Dtest=TimelineAuthorshipMigrationTests \
+  -Dmigration.test.url=jdbc:postgresql://127.0.0.1:55432/rubinco_refactor \
+  -Dmigration.test.user=postgres \
+  -Dmigration.test.password=refactor-test-only
+```
+
+The upgrade test creates and deletes fixture accounts/posts; never point it at an application DB.
+See [docs/REFACTOR_REVIEW.md](docs/REFACTOR_REVIEW.md) for the schema and behavior changes.
