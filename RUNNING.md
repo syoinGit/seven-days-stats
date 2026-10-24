@@ -103,6 +103,7 @@ supported; add only values that differ for your deployment.
 | `DOMAIN` | `rubinco.link`; derives Portal, Watchpoint, Luminite, auth, and API URLs. |
 | `PORTAL_SITE_URL`, `WATCHPOINT_SITE_URL`, `LUMINITE_SITE_URL`, `AUTH_SITE_URL`, `API_BASE_URL` | Override individual URLs when hosts do not follow the domain convention. CORS origins, game links, and OAuth callbacks follow the configured site URLs. |
 | `TERRARIA_SITE_NAME` | Optional display-name override for Luminite. |
+| `GAME_SERVER_START_PROVIDER` | `mock`; set to `docker` on EC2 to start existing game containers from the portal. First apply [restricted Docker permissions](docs/DOCKER_PERMISSIONS.md) and [the boot policy](docs/GAME_SERVERS.md). |
 | `SEVEN_DAYS_ROOT` | Production: `/home/ec2-user/7dtd`; local: `7dtd`. |
 | `SEVEN_DAYS_CONFIG_DIRECTORY` | Production: `${SEVEN_DAYS_ROOT}/data`. |
 | `POSTGRES_PORT` | `5432`; shared by the application JDBC URL and Compose host port. `SPRING_DATASOURCE_URL` can override the entire URL. |
@@ -191,8 +192,10 @@ Inspect production logs with:
 sudo journalctl -u rubinco.service -n 100 --no-pager
 ```
 
-The EC2-off state intentionally takes Portal, Watchpoint, Luminite, and API offline. The MVP start
-button is a safe mock and cannot wake a stopped instance.
+The EC2-off state intentionally takes Portal, Watchpoint, Luminite, and API offline. The portal
+cannot wake a stopped instance. [Game server setup](docs/GAME_SERVERS.md) configures Terraria
+to start automatically and Core Keeper / Minecraft / 7dtd to start on demand from the portal.
+Docker control is opt-in; the default provider remains a mock.
 
 ## Portal navigation in local development
 
@@ -203,7 +206,8 @@ The icon sidebar opens Watchpoint and Luminite; Watchpoint headers return to the
 Anonymous visitors see the public introduction with login in the header. Both members and
 guests enter the shared timeline after login; guest HTML keeps the existing anonymization.
 The signed-in portal keeps the timeline in the main area; the sidebar shows labeled game links
-and stored server status. Both game sites use the same header layout.
+and server status. Selecting the Docker provider also adds member start controls for 7dtd,
+Core Keeper, and Minecraft; Terraria remains automatic. Both game sites use the same header layout.
 
 With Cognito, sign in on the portal first, then select a game icon. Each destination completes
 its own OAuth flow through the existing Cognito SSO session. Keep all three client callback URLs

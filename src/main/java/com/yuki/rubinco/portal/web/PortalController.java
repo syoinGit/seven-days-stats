@@ -1,12 +1,14 @@
 package com.yuki.rubinco.portal.web;
 
 import com.yuki.rubinco.account.service.CurrentWebAccountService;
+import com.yuki.rubinco.account.security.GameServerAccess;
 import com.yuki.rubinco.portal.config.PortalPlatformProperties;
 import com.yuki.rubinco.portal.service.GamePortalService;
 import com.yuki.rubinco.portal.service.GameServerStartGateway;
 import com.yuki.rubinco.portal.service.GameStartService;
 import com.yuki.rubinco.portal.service.GameTimelineService;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,6 +31,7 @@ public class PortalController {
   private final GameStartService gameStartService;
   private final CurrentWebAccountService currentAccountService;
   private final PortalPlatformProperties platformProperties;
+  private final GameServerAccess gameServerAccess;
 
   @GetMapping("/portal")
   public String portal(Model model, Authentication authentication,
@@ -44,7 +47,12 @@ public class PortalController {
         || request.getParameterMap().containsKey("error"));
     var sites = portalService.sites();
     model.addAttribute("sites", sites);
-    model.addAttribute("serverStatuses", portalService.serverStatuses());
+    var serverStatuses = portalService.serverStatuses();
+    model.addAttribute("serverStatuses", serverStatuses);
+    var servers = portalService.servers(serverStatuses);
+    model.addAttribute("servers", servers);
+    model.addAttribute("liveServerStatus", portalService.liveServerStatus());
+    model.addAttribute("canStartServers", gameServerAccess.canStart(authentication));
     model.addAttribute("siteEntries", sites.stream().collect(Collectors.toMap(
         GamePortalService.SiteCard::id, site -> platformProperties.siteEntryUrl(site.siteUrl()))));
     model.addAttribute("cognitoEnabled", platformProperties.getCognito().isEnabled());
@@ -53,10 +61,16 @@ public class PortalController {
     if (account.isPresent()) {
       int safePage = Math.max(0, Math.min(page, 1000000));
       model.addAttribute("timeline", timelineService.sharedTimeline(
-          sites.stream().map(GamePortalService.SiteCard::id).toList(), safePage));
+          servers.stream().map(GamePortalService.ServerControl::id).toList(), safePage));
       model.addAttribute("timelinePage", safePage);
     }
     return "portal";
+  }
+
+  @GetMapping(value = "/portal/actions/games/status", produces = MediaType.APPLICATION_JSON_VALUE)
+  @ResponseBody
+  public Map<String, GamePortalService.ServerStatus> statuses() {
+    return portalService.serverStatuses();
   }
 
   @PostMapping(value = "/portal/actions/games/{gameId}/start", produces = MediaType.APPLICATION_JSON_VALUE)

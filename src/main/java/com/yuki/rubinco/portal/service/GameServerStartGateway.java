@@ -1,8 +1,26 @@
 package com.yuki.rubinco.portal.service;
 
-/** Boundary that can later be replaced by an API Gateway/Lambda EC2 starter. */
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/** Server control boundary. The mock uses stored status; Docker reports live container status. */
 public interface GameServerStartGateway {
   StartResult requestStart(String gameId, String requestedBy);
+
+  default String currentStatus(String gameId) {
+    return null;
+  }
+
+  default boolean liveStatus() {
+    return false;
+  }
+
+  default Map<String, String> currentStatuses(List<String> gameIds) {
+    Map<String, String> statuses = new LinkedHashMap<>();
+    gameIds.forEach(id -> statuses.put(id, currentStatus(id)));
+    return statuses;
+  }
 
   record StartResult(boolean accepted, String status, String message) { }
 }

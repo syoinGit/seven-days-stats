@@ -2,6 +2,12 @@ package com.yuki.rubinco.account.security;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,17 +16,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import com.yuki.rubinco.portal.config.PortalPlatformProperties;
+import com.yuki.rubinco.portal.service.GameServerStartGateway;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.BadJwtException;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = {
@@ -40,6 +55,49 @@ class CognitoSecurityMvpTests {
   @Autowired private MockMvc mockMvc;
   @MockitoBean private JwtDecoder jwtDecoder;
   @MockitoBean private ClientRegistrationRepository clientRegistrationRepository;
+  @MockitoSpyBean private GameServerStartGateway startGateway;
+
+  @Test
+  void sessionCookiesAndRejectedBearerTokensCannotAuthorizeTheJwtApi() throws Exception {
+    var session = new MockHttpSession();
+    var context = SecurityContextHolder.createEmptyContext();
+    context.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(
+        "admin", null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+    session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+    mockMvc.perform(post("/api/games/7dtd/start").session(session))
+        .andExpect(status().isUnauthorized());
+    when(jwtDecoder.decode("invalid-token")).thenThrow(new BadJwtException("test rejection"));
+    mockMvc.perform(post("/api/games/7dtd/start")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer invalid-token"))
+        .andExpect(status().isUnauthorized());
+    verify(startGateway, never()).requestStart(anyString(), anyString());
+  }
+
+  @Test
+  void cognitoGuestTokensAndGuestSessionsCannotStartServers() throws Exception {
+    for (String game : List.of("7dtd", "corekeeper", "minecraft", "terraria")) {
+      String api = "/api/games/" + game + "/start";
+      String bff = "/portal/actions/games/" + game + "/start";
+      mockMvc.perform(post(api)).andExpect(status().isUnauthorized());
+      mockMvc.perform(post(api).with(jwt())).andExpect(status().isForbidden());
+      mockMvc.perform(post(bff).with(csrf())).andExpect(status().is3xxRedirection());
+      for (String[] roles : List.of(new String[] {"VIEWER"}, new String[] {"VIEWER", "ADMIN"},
+          new String[] {"VIEWER", "MEMBER"}, new String[] {"VIEWER", "PLAYER"})) {
+        var authorities = Arrays.stream(roles)
+            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+            .toArray(SimpleGrantedAuthority[]::new);
+        mockMvc.perform(post(api).with(jwt().authorities(authorities)))
+            .andExpect(status().isForbidden());
+        mockMvc.perform(post(bff).with(user("guest").roles(roles)).with(csrf()))
+            .andExpect(status().isForbidden());
+      }
+      mockMvc.perform(post(bff).with(user("member").roles("MEMBER")))
+          .andExpect(status().isForbidden());
+      mockMvc.perform(post(bff).with(user("admin").roles("ADMIN")).with(csrf().useInvalidToken()))
+          .andExpect(status().isForbidden());
+    }
+    verify(startGateway, never()).requestStart(anyString(), anyString());
+  }
 
   @Test
   void apiRejectsAnonymousAndUsersWithoutPortalGroups() throws Exception {
@@ -59,7 +117,7 @@ class CognitoSecurityMvpTests {
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("terraria")));
 
-    mockMvc.perform(post("/api/games/terraria/start").with(member))
+    mockMvc.perform(post("/api/games/7dtd/start").with(member))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("starting"));
 

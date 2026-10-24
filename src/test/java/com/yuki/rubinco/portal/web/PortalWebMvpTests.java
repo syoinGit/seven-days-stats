@@ -306,6 +306,31 @@ class PortalWebMvpTests {
   }
 
   @Test
+  void serverControlsOfferOnlyManualGamesToMembersAndRequireCsrf() throws Exception {
+    mockMvc.perform(get("/portal").with(user("mvp-admin").roles("ADMIN")))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("data-start-server=\"7dtd\"")))
+        .andExpect(content().string(containsString("data-start-server=\"corekeeper\"")))
+        .andExpect(content().string(containsString("data-start-server=\"minecraft\"")))
+        .andExpect(content().string(not(containsString("data-start-server=\"terraria\""))))
+        .andExpect(content().string(containsString("自動起動")));
+    mockMvc.perform(get("/portal").with(user("guest").roles("VIEWER")))
+        .andExpect(status().isOk())
+        .andExpect(content().string(not(containsString("data-start-server="))));
+    mockMvc.perform(post("/portal/actions/games/corekeeper/start")
+            .with(user("guest").roles("VIEWER")).with(csrf()))
+        .andExpect(status().isForbidden());
+    mockMvc.perform(post("/portal/actions/games/minecraft/start")
+            .with(user("mvp-admin").roles("ADMIN")))
+        .andExpect(status().isForbidden());
+    mockMvc.perform(post("/portal/actions/games/terraria/start")
+            .with(user("mvp-admin").roles("ADMIN")).with(csrf()))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.accepted").value(false));
+    mockMvc.perform(get("/portal/actions/games/status").with(user("mvp-admin").roles("ADMIN")))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.minecraft.code").value("offline"));
+  }
+
+  @Test
   void mockStartRequiresCsrfAndChangesVisibleStateWithoutAws() throws Exception {
     mockMvc.perform(post("/portal/actions/games/7dtd/start")
             .with(user("mvp-admin").roles("ADMIN")))

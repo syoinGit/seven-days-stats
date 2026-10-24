@@ -1,0 +1,54 @@
+#!/bin/bash -p
+# Install as root:root 0755 at /usr/local/sbin/rubinco-game-control.
+# This is the privilege boundary. Keep all Docker arguments and container names here.
+set -euo pipefail
+
+deny() {
+  printf '%s\n' 'Operation not permitted.' >&2
+  exit 64
+}
+
+container_for() {
+  case "$1" in
+    7dtd) printf '%s' '7dtd' ;;
+    terraria) printf '%s' 'terraria' ;;
+    corekeeper) printf '%s' 'rubinco-corekeeper' ;;
+    minecraft) printf '%s' 'rubinco-minecraft' ;;
+    *) deny ;;
+  esac
+}
+
+docker_local() {
+  # Ignore the calling user's environment, contexts, credentials, and config directory.
+  /usr/bin/env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin HOME=/root \
+    /usr/bin/docker --host=unix:///var/run/docker.sock "$@"
+}
+
+case "${1-}" in
+  statuses)
+    [[ $# == 1 ]] || deny
+    for game in 7dtd terraria corekeeper minecraft; do
+      container="$(container_for "$game")"
+      state="$(docker_local inspect --type container --format '{{json .State}}' "$container")"
+      printf '%s %s\n' "$game" "$state"
+    done
+    ;;
+  status)
+    [[ $# == 2 ]] || deny
+    container="$(container_for "$2")"
+    docker_local inspect --type container --format '{{json .State}}' "$container"
+    ;;
+  start)
+    [[ $# == 2 ]] || deny
+    case "$2" in 7dtd|corekeeper|minecraft) ;; *) deny ;; esac
+    container="$(container_for "$2")"
+    docker_local start "$container"
+    ;;
+  logs)
+    [[ $# == 2 && "$2" == 7dtd ]] || deny
+    # exec allows sudo to forward shutdown signals to the streaming Docker client.
+    exec /usr/bin/env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin HOME=/root \
+      /usr/bin/docker --host=unix:///var/run/docker.sock logs --follow --since 5m 7dtd
+    ;;
+  *) deny ;;
+esac

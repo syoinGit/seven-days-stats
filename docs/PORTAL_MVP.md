@@ -158,6 +158,10 @@ LIMIT 10;
 
 ## EC2起動APIのモック
 
+現在は EC2 自体の起動とは別に、既存 Docker コンテナを起動する provider を追加している。
+Terraria は自動起動、Core Keeper・Minecraft・7dtd はサイトから起動する。
+本番への設定手順は [GAME_SERVERS.md](GAME_SERVERS.md) を参照。
+
 `GameServerStartGateway`が将来のAWS実装との境界です。`app.games.start-provider=mock`で
 明示的に選ばれる`MockGameServerStartGateway`はAWS SDKも `StartInstances`も呼びません。
 未レビューのprovider名に変えると実装Beanがないため起動に失敗し、暗黙にAWS操作へ切り替わる
@@ -165,8 +169,8 @@ LIMIT 10;
 `starting`へ変えます。起動要求を許可するのは`offline`だけで、`starting`、`online`、
 `maintenance`、`error`では状態別の理由を返します。1プロセス内ではゲーム単位の10秒
 cooldownをatomicに確保するため、別ユーザーからの同時要求も重複実行しません。Portalは
-CSRF付きの同一オリジンBFF endpointを呼び、15秒で応答がなければ現在表示を維持したまま
-通信エラーを案内します。
+CSRF付きの同一オリジンBFF endpointを呼び、30秒で応答がなければ結果未確認を案内し、
+状態表示を未確認にします。Docker provider は15秒間隔で実状態を再取得します。
 
 実装をLambdaへ差し替える場合は、対象インスタンスARNだけの `ec2:StartInstances`、
 状態確認用の最小限の `ec2:DescribeInstances`、起動可能時間、WAF/API Gateway throttle、
@@ -232,7 +236,8 @@ set +a
 ```
 
 ローカルURLは `/portal`、既存 `/dashboard`、`/luminite`です。フォームログインで確認でき、
-起動ボタンは常にモックです。
+既定の起動 provider はモックです。EC2 で実コンテナを起動する場合は
+[GAME_SERVERS.md](GAME_SERVERS.md) に従って `GAME_SERVER_START_PROVIDER=docker` を設定します。
 
 本番の `scripts/run-app.sh`とsystemd例は `production,cognito`を既定で選択するため、
 bootstrap passwordは不要です。ポート・EC2パス・URLの既定値は `application*.yml`に集約し、
@@ -284,8 +289,9 @@ Calculatorと請求アラームで再確認します。wake構成は今回ない
 - Spring Sessionはhost-onlyのため、1サイトでログアウトしても既に確立済みの別サイトの
   ローカルセッションまでは即時破棄されない。Cognitoセッションはログアウトし、各ローカル
   セッションは30分で失効する。全サイト同時失効は将来Spring Session JDBC等で追加する。
-- Portal状態はゲームサーバーの実測ではなく管理状態。モック起動後の`starting`も自動で
-  `online`にはならない。
+- モック provider では Portal 状態は管理状態で、`starting` は自動で `online` にならない。
+  Docker provider ではコンテナ状態を実測するが、healthcheck がないゲームの接続準備完了
+  までは判定しない。
 - Cognito Liteの高度な脅威検知は有効化していない。少人数・費用優先の判断であり、
   14文字password、TOTP、招待制、group必須で補う。
 - 物理的な独立デプロイは将来段階。MVPでは既存Watchpointを壊さないことを優先した。

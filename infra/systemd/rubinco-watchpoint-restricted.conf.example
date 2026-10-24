@@ -1,0 +1,22 @@
+# Drop-in for the existing rubinco-watchpoint.service after completing docs/DOCKER_PERMISSIONS.md.
+[Unit]
+After=docker.service
+Wants=docker.service
+
+[Service]
+User=rubinco-web
+Group=rubinco-web
+SupplementaryGroups=
+WorkingDirectory=/var/lib/rubinco-watchpoint
+EnvironmentFile=
+EnvironmentFile=/etc/rubinco/watchpoint.env
+ExecStartPre=
+ExecStart=
+ExecStart=/usr/bin/java -jar /home/ec2-user/rubinco/apps/watchpoint/app/app.jar --spring.profiles.active=production,cognito
+Environment=GAME_SERVER_START_PROVIDER=docker
+UMask=0077
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+# The fixed sudo helper needs setuid. Do not add NoNewPrivileges=yes to this unit.
+NoNewPrivileges=no

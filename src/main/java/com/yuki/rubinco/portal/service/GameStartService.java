@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -30,11 +31,16 @@ public class GameStartService {
   private final Set<String> requestsInFlight = ConcurrentHashMap.newKeySet();
 
   @Transactional
+  @PreAuthorize("@gameServerAccess.currentUserCanStart()")
   public GameServerStartGateway.StartResult requestStart(String gameId, String requestedBy) {
     String safeActor = safeLogValue(requestedBy);
     if (!portalService.supports(gameId)) {
       return audited(gameId, safeActor,
           new GameServerStartGateway.StartResult(false, "error", "対象ゲームが見つかりません。"));
+    }
+    if (!portalService.canStart(gameId)) {
+      return audited(gameId, safeActor, new GameServerStartGateway.StartResult(
+          false, "error", "このサーバーは自動起動のため、サイトからの起動対象ではありません。"));
     }
     M_GamePortalState currentState = stateRepository.findForUpdate(gameId).orElse(null);
     if (currentState == null) {
@@ -44,6 +50,9 @@ public class GameStartService {
     }
 
     String currentStatus = currentState.getServerStatus();
+    if (gateway.liveStatus() && !"maintenance".equals(currentStatus)) {
+      currentStatus = gateway.currentStatus(gameId);
+    }
     if (!"offline".equals(currentStatus)) {
       return audited(gameId, safeActor, unavailable(currentStatus));
     }

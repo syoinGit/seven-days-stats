@@ -5,12 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="仲間とゲームの活動記録を共有するRubincoポータル">
   <meta name="_csrf" th:content="${_csrf.token}">
+  <meta name="_csrf_header" th:content="${_csrf.headerName}">
   <title>Rubinco</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/portal.css(v='1')}">
-  <script defer th:src="@{/js/portal.js(v='5')}"></script>
+  <link rel="stylesheet" th:href="@{/css/portal.css(v='2')}">
+  <script defer th:src="@{/js/portal.js(v='6')}"></script>
 </head>
 <body class="portal-body">
 <header th:replace="~{fragments/portal-header :: header}"></header>
@@ -18,18 +19,36 @@
 <div class="portal-layout">
 <aside class="portal-site-rail" aria-label="ゲームサイトとサーバー状況">
   <h2>ゲームサーバー</h2>
-  <p class="server-status-note">保存されている稼働状況を表示しています。</p>
+  <p class="server-status-note" th:text="${liveServerStatus ? 'コンテナの稼働状況を表示しています。' : '保存されている稼働状況を表示しています。'}"></p>
   <nav aria-label="ゲームサイト">
     <a th:each="site : ${sites}" th:href="${loggedIn ? siteEntries[site.id] : site.siteUrl}"
        th:classappend="${'game-' + site.accent}" th:attr="aria-label=${site.siteName + ' / ' + site.displayName + 'へ'}">
       <span class="server-icon"><span aria-hidden="true" th:text="${site.id == 'terraria' ? '✦' : '◈'}">◈</span>
         <small th:text="${site.id == '7dtd' ? '7DTD' : site.siteName}">7DTD</small></span>
       <span class="server-site"><b th:text="${site.displayName}">Watchpoint</b>
-        <span class="status-chip" th:classappend="${'status-' + serverStatuses[site.id].code}" th:text="${serverStatuses[site.id].label}">未確認</span>
+        <span class="status-chip" th:attr="data-server-status=${site.id}" th:classappend="${'status-' + serverStatuses[site.id].code}" th:text="${serverStatuses[site.id].label}">未確認</span>
         <small>サイトへ →</small>
       </span>
     </a>
   </nav>
+  <section th:if="${canStartServers}" class="server-controls" id="servers"
+           th:attr="data-live-server-status=${liveServerStatus}" aria-labelledby="server-controls-title">
+    <h2 id="server-controls-title">サーバー起動</h2>
+    <p class="server-status-note">接続できるまで数分かかる場合があります。</p>
+    <article th:each="server : ${servers}" class="server-control" th:attr="data-server=${server.id}">
+      <h3 th:text="${server.name}"></h3>
+      <span class="status-chip" th:attr="data-server-status=${server.id}"
+            th:classappend="${'status-' + server.status.code}" th:text="${server.status.label}"></span>
+      <form th:if="${server.manualStart}" method="post"
+            th:action="@{/portal/actions/games/{id}/start(id=${server.id})}"
+            th:attr="data-start-server=${server.id},data-status=${server.status.code}">
+        <button type="submit" class="server-start-button" th:disabled="${server.status.code != 'offline'}"
+                th:attr="aria-label=${server.name + 'を起動'}">起動する</button>
+      </form>
+      <small th:unless="${server.manualStart}" class="server-auto-start">自動起動</small>
+      <p class="server-action-message" role="status" aria-live="polite"></p>
+    </article>
+  </section>
 </aside>
 <main class="portal-shell">
   <section th:if="${!loggedIn}" class="portal-intro" aria-labelledby="portal-title">
@@ -63,6 +82,8 @@
         <th:block th:each="game : ${sites}" th:if="${game.id == event.gameId}">
           <a class="status-chip" th:href="${siteEntries[game.id]}" th:text="${game.displayName + ' / ' + game.siteName}">ゲーム</a>
         </th:block>
+        <span th:each="game : ${servers}" th:if="${game.id == event.gameId and !siteEntries.containsKey(game.id)}"
+              class="status-chip" th:text="${game.name}">ゲーム</span>
         <time th:datetime="${event.occurredAt}" th:text="${#temporals.format(event.occurredAt, 'yyyy/MM/dd HH:mm', 'Asia/Tokyo')}"></time>
       </header>
       <p class="event-author" th:text="${@portalProfileService.authorName(event.actorPlayerId, event.creatorSub, event.actorName, profileDirectory, currentViewer)}"></p>

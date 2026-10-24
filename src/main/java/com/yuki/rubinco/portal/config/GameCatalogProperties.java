@@ -59,6 +59,10 @@ public class GameCatalogProperties {
     @Pattern(regexp = "https?://[^\\s]+")
     private String siteUrl;
 
+    private boolean siteEnabled = true;
+
+    private boolean manualStart = true;
+
     @AssertTrue(message = "Game site URL must use HTTPS, except on loopback hosts")
     public boolean isSiteUrlSecure() {
       if (siteUrl == null || siteUrl.isBlank() || !siteUrl.equals(siteUrl.strip())) {
