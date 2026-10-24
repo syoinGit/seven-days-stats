@@ -109,6 +109,10 @@ supported; add only values that differ for your deployment.
 | `COREKEEPER_WORLD_FILE` | Production: `/home/ec2-user/rubinco/servers/corekeeper/server-data/worlds/0.world.gzip`; read-only. |
 | `COREKEEPER_IMPORT_ENABLED` | Production: `true`; local: `false`. Manual re-fetch from the maintenance screen works either way. |
 | `COREKEEPER_IMPORT_INTERVAL` | `5m` (minimum `1m`). |
+| `TERRARIA_WORLD_FILE` | Unset by default; the server's `.wld`, read-only. Find the path before setting it ([LUMINITE.md](docs/LUMINITE.md)). |
+| `TERRARIA_IMPORT_ENABLED` | `false`; enable after `TERRARIA_WORLD_FILE` is set. Manual re-fetch from the maintenance screen works either way. |
+| `TERRARIA_NAMES_DIR` | Production: `/etc/rubinco/terraria-names`. Generated item/NPC name tables, kept out of the repository; without them names show as ids. |
+| `TERRARIA_IMPORT_INTERVAL` | `5m` (minimum `1m`). |
 | `GAME_SERVER_START_PROVIDER` | `mock`; set to `docker` on EC2 to start existing game containers from the portal. First apply [restricted Docker permissions](docs/DOCKER_PERMISSIONS.md) and [the boot policy](docs/GAME_SERVERS.md). |
 | `SEVEN_DAYS_ROOT` | Production: `/home/ec2-user/7dtd`; local: `7dtd`. |
 | `SEVEN_DAYS_CONFIG_DIRECTORY` | Production: `${SEVEN_DAYS_ROOT}/data`. |

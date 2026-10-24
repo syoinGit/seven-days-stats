@@ -3,11 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Terrariaの進行状況と冒険記録をまとめる個別ゲームサイト">
+  <meta name="description" content="Terrariaのワールドデータから作る統計・アイテム検索サイト">
   <title th:text="${game.displayName + ' | Terraria'}">Luminite | Terraria</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
+  <link rel="stylesheet" th:href="@{/css/luminite.css(v='1')}">
 </head>
 <body class="luminite-body">
 <header th:replace="~{fragments/navigation :: siteHeader(@{/luminite}, ${game.displayName}, '✦', 'TERRARIA EXPLORATION HUB', 'luminite-topbar')}"></header>
@@ -17,36 +18,164 @@
     <p class="eyebrow">TERRARIA / SHARED WORLD</p>
     <h1 id="luminite-title" th:text="${game.displayName}">Luminite</h1>
     <p>星と鉱石を追う、探索者たちの新しい拠点。</p>
-    
+    <p class="luminite-world-line" th:if="${world != null}">
+      <b th:text="${world.name}">ワールド名</b>
+      <span th:text="${world.size + 'サイズ'}">中サイズ</span>
+      <span th:text="${world.difficulty}">エキスパート</span>
+      <span th:text="${world.evil}">クリムゾン</span>
+      <span th:if="${world.hardMode}" class="luminite-hardmode">ハードモード</span>
+      <span th:each="type : ${world.worldTypes}" th:text="${type}"></span>
+    </p>
+    <a th:if="${currentAdmin}" class="luminite-admin-link" th:href="@{/luminite/maintenance}">管理画面 →</a>
   </section>
+
+  <nav th:replace="~{fragments/luminite :: tabs}"></nav>
 
   <section class="luminite-overview" aria-label="Terrariaサーバー概要">
     <article>
       <span class="eyebrow">PROGRESS</span>
-      <strong role="progressbar"
-              aria-label="Terraria進行度"
-              aria-valuemin="0"
-              aria-valuemax="100"
-              th:attr="aria-valuenow=${game.progress}"
-              th:text="${game.progress + '%'}">42%</strong>
-      <p th:text="${game.stage}">星明かりの地下層</p>
+      <strong th:text="${overview.hasSnapshot ? overview.achievedCount + ' / ' + overview.supportedCount : '—'}">0 / 64</strong>
+      <p>保存データで確認できた進行項目の数です。</p>
+    </article>
+    <article>
+      <span class="eyebrow">LAST CHECK</span>
+      <strong th:text="${overview.freshnessLabel ?: '未取得'}">未取得</strong>
+      <p th:if="${overview.lastCheckedLabel}" th:text="${'最終確認 ' + overview.lastCheckedLabel}"></p>
+      <p th:if="${overview.stale}" class="luminite-warning">取得が遅れているか、失敗しています。表示は最後に正常に読めた内容です。</p>
     </article>
     <article>
       <span class="eyebrow">SERVER</span>
-      <strong class="status-chip"
-              th:classappend="${'status-' + serverStatus.code}"
-              th:text="${serverStatus.label}">offline</strong>
+      <strong class="status-chip" th:classappend="${'status-' + serverStatus.code}" th:text="${serverStatus.label}">停止中</strong>
       <p>Version <span th:text="${game.version}">1.4.4</span></p>
-      <p th:text="${game.schedule}">週末 20:00–23:30 JST</p>
-    </article>
-    <article>
-      <span class="eyebrow">CONNECT</span>
-      <strong>接続情報</strong>
       <p th:text="${game.connection}">接続情報は準備中です</p>
     </article>
   </section>
 
-  <section class="luminite-feed" aria-labelledby="luminite-timeline-title">
+  <section th:if="${!overview.visible}" class="luminite-panel" aria-label="準備中">
+    <p class="luminite-empty">このワールドの統計は準備中です。</p>
+  </section>
+
+  <th:block th:if="${overview.visible}">
+  <section class="luminite-panel" th:if="${highlights != null}" aria-labelledby="luminite-highlights-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">AT A GLANCE</p><h2 id="luminite-highlights-title">ワールドの今</h2></div>
+    </div>
+    <div th:replace="~{fragments/luminite :: snapshot}"></div>
+    <ul class="luminite-stats">
+      <li th:each="stat : ${highlights}">
+        <span th:text="${stat.label}">ボス</span>
+        <strong th:text="${stat.value}">3 / 17</strong>
+        <small th:text="${stat.note}"></small>
+      </li>
+    </ul>
+    <div class="luminite-split">
+      <div>
+        <h3>今のようす</h3>
+        <dl class="luminite-facts">
+          <th:block th:if="${events.clock}"><dt>時刻</dt><dd th:text="${events.clock}">12:00</dd></th:block>
+          <th:block th:if="${events.moon}"><dt>月</dt><dd th:text="${events.moon}">満月</dd></th:block>
+          <dt>イベント</dt>
+          <dd th:text="${#lists.isEmpty(events.active) ? 'なし' : #strings.listJoin(events.active, '、')}">なし</dd>
+          <th:block th:if="${events.invasion}"><dt>侵略</dt><dd th:text="${events.invasion}"></dd></th:block>
+          <th:block th:if="${events.anglerQuest}"><dt>釣り人の依頼</dt><dd th:text="${events.anglerQuest}"></dd></th:block>
+          <th:block th:unless="${#lists.isEmpty(events.anglersFinishedToday)}">
+            <dt>今日の依頼達成</dt><dd th:text="${#strings.listJoin(events.anglersFinishedToday, '、')}"></dd>
+          </th:block>
+        </dl>
+      </div>
+      <div>
+        <h3>ワールドの勢力</h3>
+        <div class="luminite-alignment" role="img"
+             th:attr="aria-label=${'ハロウ ' + tiles.hallowPercent + '%、' + (world.evil) + ' ' + (tiles.corruptionPercent + tiles.crimsonPercent) + '%'}">
+          <span class="hallow" th:style="${'width:' + tiles.hallowPercent + '%'}"></span>
+          <span class="evil" th:style="${'width:' + (tiles.corruptionPercent + tiles.crimsonPercent) + '%'}"></span>
+        </div>
+        <ul class="luminite-legend">
+          <li><i class="hallow"></i><span th:text="${'ハロウ ' + tiles.hallowPercent + '%'}">ハロウ 13%</span></li>
+          <li th:if="${tiles.corruptionPercent > 0}"><i class="evil"></i><span th:text="${'コラプション ' + tiles.corruptionPercent + '%'}"></span></li>
+          <li th:if="${tiles.crimsonPercent > 0}"><i class="evil"></i><span th:text="${'クリムゾン ' + tiles.crimsonPercent + '%'}"></span></li>
+        </ul>
+        <p class="luminite-note">ゲーム内の「ドライアドの調査」と同じ計算式で、地表付近を重く数えた割合です。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="luminite-panel" aria-labelledby="luminite-progress-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">WORLD PROGRESS</p>
+        <h2 id="luminite-progress-title">ワールドの進捗</h2>
+      </div>
+      <a th:href="@{/luminite(spoilers=${!spoilers})}"
+         th:text="${spoilers ? '未到達の名前を隠す' : '未到達の名前を表示（ネタバレ）'}">未到達の名前を表示（ネタバレ）</a>
+    </div>
+    <p th:if="${!overview.hasSnapshot}" class="luminite-empty">まだワールドデータを取り込めていません。</p>
+    <th:block th:if="${overview.hasSnapshot}"
+              th:each="group : ${ {{'BOSS','ボス'},{'EVENT','イベント'},{'NPC','住人'},{'WORLD','ワールド'}} }">
+      <h3 class="luminite-group-title" th:text="${group[1]}">ボス</h3>
+      <ul class="luminite-progress">
+        <li th:each="item : ${overview.items}" th:if="${item.category == group[0]}"
+            th:classappend="${'state-' + (item.supported ? #strings.toLowerCase(item.state) : 'unsupported')}">
+          <span class="luminite-state" th:text="${item.stateLabel}">未達</span>
+          <span>
+            <b th:text="${item.label}">クトゥルフの目</b>
+            <small th:if="${item.description}" th:text="${item.description}"></small>
+          </span>
+        </li>
+      </ul>
+    </th:block>
+    <p class="luminite-note">
+      ワールドファイルに記録されるフラグから判定しています。討伐に参加したプレイヤーや日時は保存されていないため表示できません。
+    </p>
+  </section>
+
+  <section class="luminite-panel" th:if="${overview.hasSnapshot}" aria-labelledby="luminite-guide-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">NEXT GOALS</p><h2 id="luminite-guide-title">おすすめの次の目標</h2></div>
+    </div>
+    <p th:if="${#lists.isEmpty(overview.guides) and overview.hiddenSpoilerGuides == 0}" class="luminite-empty">今の進行状況に合う記事はまだありません。</p>
+    <article class="luminite-guide" th:each="guide : ${overview.guides}">
+      <h3 th:text="${guide.title}">記事タイトル</h3>
+      <p th:text="${guide.body}">本文</p>
+      <small>
+        <span th:if="${guide.gameVersion}" th:text="${'対象バージョン ' + guide.gameVersion}"></span>
+        <span th:if="${guide.verifiedOn}" th:text="${'確認日 ' + guide.verifiedOn}"></span>
+        <a th:if="${guide.referenceUrl}" th:href="${guide.referenceUrl}" rel="noopener noreferrer" target="_blank"
+           th:text="${guide.referenceLabel ?: '参考リンク'}">参考リンク</a>
+      </small>
+    </article>
+    <p th:if="${overview.hiddenSpoilerGuides > 0}" class="luminite-note"
+       th:text="${'ネタバレを含む記事が' + overview.hiddenSpoilerGuides + '件あります。上の「未到達の名前を表示」で読めます。'}"></p>
+  </section>
+
+  <section class="luminite-panel" th:if="${activity != null}" aria-labelledby="luminite-activity-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">ACTIVITY</p><h2 id="luminite-activity-title">最近の動き</h2></div>
+      <a th:href="@{/luminite/history}">すべての履歴 →</a>
+    </div>
+    <p th:if="${#lists.isEmpty(activity)}" class="luminite-empty">初回取り込み以降の変化はまだありません。</p>
+    <ol class="luminite-activity" th:unless="${#lists.isEmpty(activity)}">
+      <li th:each="item : ${activity}" th:classappend="${'kind-' + #strings.toLowerCase(item.kind)}">
+        <time th:datetime="${item.at}" th:text="${item.atLabel}">---</time>
+        <b th:text="${item.title}">保管アイテムの変化</b>
+        <p th:each="detail : ${item.details}" th:text="${detail}"></p>
+      </li>
+    </ol>
+    <p class="luminite-note">日時はサイトが変化を確認した時刻です。誰が動かしたかはワールドファイルに残りません。</p>
+  </section>
+
+  <section class="luminite-panel" th:if="${overview.hasSnapshot and !#lists.isEmpty(overview.recentEvents)}" aria-labelledby="luminite-changes-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">CHANGES</p><h2 id="luminite-changes-title">最近の進捗変化</h2></div>
+      <a th:href="@{/luminite/history(spoilers=${spoilers})}">すべての履歴 →</a>
+    </div>
+    <ol class="luminite-events">
+      <th:block th:each="event : ${overview.recentEvents}"><li th:replace="~{fragments/octarine :: eventRow(${event})}"></li></th:block>
+    </ol>
+  </section>
+  </th:block>
+
+  <section class="luminite-panel" aria-labelledby="luminite-timeline-title">
     <div class="section-heading">
       <div>
         <p class="eyebrow">TERRARIA ONLY</p>

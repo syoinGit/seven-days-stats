@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Terrariaのワールドデータから作る統計・アイテム検索サイト">
+  <title th:text="${'アイテム | ' + game.displayName}">Luminite | Terraria</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
+  <link rel="stylesheet" th:href="@{/css/luminite.css(v='1')}">
+</head>
+<body class="luminite-body">
+<header th:replace="~{fragments/navigation :: siteHeader(@{/luminite}, ${game.displayName}, '✦', 'TERRARIA EXPLORATION HUB', 'luminite-topbar')}"></header>
+<main class="luminite-shell">
+  <nav th:replace="~{fragments/luminite :: tabs}"></nav>
+  <section class="luminite-panel" aria-labelledby="items-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">ITEMS</p><h1 id="items-title">保管中のアイテム</h1></div>
+      <span class="luminite-count" th:text="${items.totalElements + '種'}">0種</span>
+    </div>
+    <div th:replace="~{fragments/luminite :: snapshot}"></div>
+    <p th:replace="~{fragments/luminite :: namesMissing}"></p>
+    <form class="luminite-search" method="get" th:action="@{/luminite/items}" role="search">
+      <label><span>アイテム名</span><input type="search" name="q" maxlength="60" th:value="${q}" placeholder="例: ライフクリスタル、ぽーしょん"></label>
+      <label><span>並び順</span>
+        <select name="sort">
+          <option value="count" th:selected="${sort == 'count'}">個数が多い順</option>
+          <option value="name" th:selected="${sort == 'name'}">名前順</option>
+          <option value="recent" th:selected="${sort == 'recent'}">最近変化した順</option>
+          <option value="id" th:selected="${sort == 'id'}">ゲーム内の番号順</option>
+        </select>
+      </label>
+      <button type="submit">検索</button>
+    </form>
+    <p class="luminite-note">チェスト・タンス・額縁・武器ラック・マネキンなどに入っているアイテムの合計です。プレイヤーの持ち物やピギーバンクはワールドファイルに含まれないため数えていません。</p>
+    <p th:if="${items.isEmpty()}" class="luminite-empty" th:text="${q == null ? 'まだ保管されているアイテムはありません。' : '「' + q + '」に当てはまる保管中のアイテムはありません。'}"></p>
+    <ul class="luminite-items" th:unless="${items.isEmpty()}">
+      <li th:each="item : ${items.content}">
+        <a th:href="@{/luminite/items/{id}(id=${item.itemId})}">
+          <b th:text="${item.name}">ライフクリスタル</b>
+          <strong th:text="${#numbers.formatInteger(item.total, 1, 'COMMA')}">12</strong>
+          <small th:text="${item.containers + 'か所 · ' + (item.englishName ?: '#' + item.itemId)}">3か所</small>
+        </a>
+      </li>
+    </ul>
+    <nav class="portal-feed-pages" aria-label="アイテムのページ">
+      <a th:if="${items.hasPrevious()}" th:href="@{/luminite/items(q=${q},sort=${sort},page=${items.number - 1})}">← 前へ</a>
+      <span th:if="${items.totalPages > 1}" th:text="${(items.number + 1) + ' / ' + items.totalPages}"></span>
+      <a th:if="${items.hasNext()}" th:href="@{/luminite/items(q=${q},sort=${sort},page=${items.number + 1})}">次へ →</a>
+    </nav>
+  </section>
+</main>
+</body>
+</html>

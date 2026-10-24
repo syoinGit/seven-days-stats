@@ -106,6 +106,16 @@ app:
     max-decompressed-size: ${COREKEEPER_MAX_DECOMPRESSED_SIZE:256MB}
     parse-timeout: 60s
     run-retention: ${COREKEEPER_IMPORT_RUN_RETENTION:90d}
+  terraria:
+    # Read-only copy source. Not guessed: set TERRARIA_WORLD_FILE to the server's .wld.
+    world-file: ${TERRARIA_WORLD_FILE:}
+    import-enabled: ${TERRARIA_IMPORT_ENABLED:false}
+    # Name tables generated from the game (docs/LUMINITE.md); kept out of the repository.
+    names-dir: ${TERRARIA_NAMES_DIR:}
+    import-interval: ${TERRARIA_IMPORT_INTERVAL:5m}
+    max-file-size: ${TERRARIA_MAX_FILE_SIZE:64MB}
+    parse-timeout: 60s
+    run-retention: ${TERRARIA_IMPORT_RUN_RETENTION:90d}
   sevendays:
     environment-name: local
     mode: file

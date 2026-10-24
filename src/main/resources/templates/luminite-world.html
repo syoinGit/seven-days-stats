@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Terrariaのワールドデータから作る統計・アイテム検索サイト">
+  <title th:text="${'ワールド | ' + game.displayName}">Luminite | Terraria</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
+  <link rel="stylesheet" th:href="@{/css/luminite.css(v='1')}">
+</head>
+<body class="luminite-body">
+<header th:replace="~{fragments/navigation :: siteHeader(@{/luminite}, ${game.displayName}, '✦', 'TERRARIA EXPLORATION HUB', 'luminite-topbar')}"></header>
+<main class="luminite-shell">
+  <nav th:replace="~{fragments/luminite :: tabs}"></nav>
+  <section class="luminite-panel" aria-labelledby="world-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">WORLD</p><h1 id="world-title" th:text="${world.name}">ワールド名</h1></div>
+    </div>
+    <div th:replace="~{fragments/luminite :: snapshot}"></div>
+    <dl class="luminite-facts luminite-facts-wide">
+      <dt>サイズ</dt><dd th:text="${world.size + '（' + world.dimensions + ' タイル）'}">中</dd>
+      <dt>難易度</dt><dd th:text="${world.difficulty}">エキスパート</dd>
+      <dt>悪の勢力</dt><dd th:text="${world.evil}">クリムゾン</dd>
+      <dt>モード</dt><dd th:text="${world.hardMode ? 'ハードモード' : 'プレハードモード'}">ハードモード</dd>
+      <th:block th:if="${world.created}"><dt>作成日</dt><dd th:text="${world.created}"></dd></th:block>
+      <th:block th:if="${world.seed}"><dt>シード</dt><dd><code th:text="${world.seed}"></code></dd></th:block>
+      <th:block th:unless="${#lists.isEmpty(world.worldTypes)}"><dt>特殊ワールド</dt><dd th:text="${#strings.listJoin(world.worldTypes, '、')}"></dd></th:block>
+      <th:block th:unless="${#lists.isEmpty(world.oreChoices)}"><dt>このワールドの鉱石</dt><dd th:text="${#strings.listJoin(world.oreChoices, '、')}"></dd></th:block>
+      <dt>壊した祭壇</dt><dd th:text="${world.altarsSmashed + '個'}">0</dd>
+      <dt>スポーン地点</dt><dd><span th:replace="~{fragments/luminite :: place(${world.spawn})}"></span></dd>
+      <dt>ダンジョン</dt><dd><span th:replace="~{fragments/luminite :: place(${world.dungeon})}"></span></dd>
+    </dl>
+  </section>
+
+  <section class="luminite-panel" aria-labelledby="resources-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">RESOURCES</p><h2 id="resources-title">残っている資源</h2></div>
+    </div>
+    <p class="luminite-note">ワールドに置かれたままのブロック数です（1ブロック = 掘ると1個）。プレイヤーが置いたブロックも含みます。</p>
+    <th:block th:each="entry : ${resourceGroups}">
+      <h3 class="luminite-group-title" th:text="${entry.key == 'ORE' ? '鉱石' : entry.key == 'GEM' ? '宝石' : 'ブロック'}">鉱石</h3>
+      <ul class="luminite-resources">
+        <li th:each="row : ${entry.value}" th:classappend="${row.count == 0} ? 'none'">
+          <span th:text="${row.name}">銅鉱石</span>
+          <b th:text="${#numbers.formatInteger(row.count, 1, 'COMMA')}">1,234</b>
+        </li>
+      </ul>
+    </th:block>
+  </section>
+
+  <section class="luminite-panel" aria-labelledby="objects-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">FINDINGS</p><h2 id="objects-title">ワールドに残っている設置物</h2></div>
+    </div>
+    <p class="luminite-note">ワールドに残っている設置物の数です。減っていれば誰かが壊した・拾ったということです。</p>
+    <ul class="luminite-resources">
+      <li th:each="row : ${objects}" th:classappend="${row.count == 0} ? 'none'">
+        <span th:text="${row.name}">ライフクリスタル</span>
+        <b th:text="${#numbers.formatInteger(row.count, 1, 'COMMA')}">12</b>
+      </li>
+    </ul>
+  </section>
+
+  <section class="luminite-panel" aria-labelledby="npcs-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">TOWN</p><h2 id="npcs-title">住人と家</h2></div>
+      <span class="luminite-count" th:text="${#lists.size(npcs) + '人'}">0人</span>
+    </div>
+    <p th:if="${#lists.isEmpty(npcs)}" class="luminite-empty">住人はいません。</p>
+    <div class="luminite-table-wrap" th:unless="${#lists.isEmpty(npcs)}">
+      <table class="luminite-table">
+        <thead><tr><th>名前</th><th>職業</th><th>家</th></tr></thead>
+        <tbody>
+          <tr th:each="npc : ${npcs}">
+            <td th:text="${npc.name}">アンドリュー</td>
+            <td th:text="${npc.type}">ガイド</td>
+            <td>
+              <span th:if="${npc.homeless}" class="luminite-warning">家なし</span>
+              <span th:unless="${npc.homeless}" th:replace="~{fragments/luminite :: place(${npc.home})}"></span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="luminite-note" th:text="${'登録済みの部屋 ' + totals.rooms + '部屋' + (totals.shimmeredTownNpcs > 0 ? '、シマーで姿が変わった住人 ' + totals.shimmeredTownNpcs + '人' : '')}"></p>
+  </section>
+
+  <section class="luminite-panel" aria-labelledby="pylons-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">NETWORK</p><h2 id="pylons-title">パイロン</h2></div>
+    </div>
+    <p th:if="${#lists.isEmpty(pylons)}" class="luminite-empty">パイロンはまだ置かれていません。</p>
+    <ul class="luminite-signs" th:unless="${#lists.isEmpty(pylons)}">
+      <li th:each="pylon : ${pylons}">
+        <p th:text="${pylon.name}">森のパイロン</p>
+        <small><span th:replace="~{fragments/luminite :: place(${pylon.place})}"></span></small>
+      </li>
+    </ul>
+  </section>
+
+  <section class="luminite-panel" aria-labelledby="build-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">BUILDING</p><h2 id="build-title">建築と配線</h2></div>
+    </div>
+    <ul class="luminite-resources">
+      <li><span>ブロック</span><b th:text="${#numbers.formatInteger(tiles.activeTiles, 1, 'COMMA')}"></b></li>
+      <li><span>壁</span><b th:text="${#numbers.formatInteger(tiles.wallTiles, 1, 'COMMA')}"></b></li>
+      <li><span>水（タイル）</span><b th:text="${#numbers.formatInteger(tiles.waterTiles, 1, 'COMMA')}"></b></li>
+      <li><span>溶岩（タイル）</span><b th:text="${#numbers.formatInteger(tiles.lavaTiles, 1, 'COMMA')}"></b></li>
+      <li><span>はちみつ（タイル）</span><b th:text="${#numbers.formatInteger(tiles.honeyTiles, 1, 'COMMA')}"></b></li>
+      <li><span>シマー（タイル）</span><b th:text="${#numbers.formatInteger(tiles.shimmerTiles, 1, 'COMMA')}"></b></li>
+      <li><span>赤ワイヤー</span><b th:text="${#numbers.formatInteger(tiles.redWires, 1, 'COMMA')}"></b></li>
+      <li><span>青ワイヤー</span><b th:text="${#numbers.formatInteger(tiles.blueWires, 1, 'COMMA')}"></b></li>
+      <li><span>緑ワイヤー</span><b th:text="${#numbers.formatInteger(tiles.greenWires, 1, 'COMMA')}"></b></li>
+      <li><span>黄ワイヤー</span><b th:text="${#numbers.formatInteger(tiles.yellowWires, 1, 'COMMA')}"></b></li>
+      <li><span>アクチュエーター</span><b th:text="${#numbers.formatInteger(tiles.actuators, 1, 'COMMA')}"></b></li>
+      <li><span>ペンキを塗ったブロック</span><b th:text="${#numbers.formatInteger(tiles.paintedTiles, 1, 'COMMA')}"></b></li>
+      <li><span>ペンキを塗った壁</span><b th:text="${#numbers.formatInteger(tiles.paintedWalls, 1, 'COMMA')}"></b></li>
+      <li><span>ターゲットダミー</span><b th:text="${totals.trainingDummies}"></b></li>
+      <li><span>ロジックセンサー</span><b th:text="${totals.logicSensors}"></b></li>
+      <li th:each="option : ${kinds}"><span th:text="${option.label}">チェスト</span><b th:text="${option.count}"></b></li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

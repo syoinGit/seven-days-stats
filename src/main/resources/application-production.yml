@@ -14,6 +14,10 @@ app:
   corekeeper:
     world-file: ${COREKEEPER_WORLD_FILE:/home/ec2-user/rubinco/servers/corekeeper/server-data/worlds/0.world.gzip}
     import-enabled: ${COREKEEPER_IMPORT_ENABLED:true}
+  terraria:
+    # Enable after TERRARIA_WORLD_FILE points at the server's .wld (docs/LUMINITE.md).
+    import-enabled: ${TERRARIA_IMPORT_ENABLED:false}
+    names-dir: ${TERRARIA_NAMES_DIR:/etc/rubinco/terraria-names}
   sevendays:
     environment-name: production
     mode: docker
