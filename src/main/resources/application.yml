@@ -44,10 +44,13 @@ app:
     cognito:
       enabled: false
   games:
+    # Game reservations only; leave the remaining host RAM for Linux, Java and PostgreSQL.
+    memory-budget-mib: ${GAME_MEMORY_BUDGET_MIB:2560}
     # Opt in on EC2 after applying the container boot policy in docs/GAME_SERVERS.md.
     start-provider: ${GAME_SERVER_START_PROVIDER:mock}
     catalog:
       - id: 7dtd
+        memory-mib: ${SEVEN_DAYS_MEMORY_MIB:2048}
         display-name: Watchpoint
         site-name: 7 Days to Die
         site-url: ${app.platform.watchpoint-url}
@@ -58,6 +61,7 @@ app:
         schedule: "サイトから起動"
         connection: "接続情報は準備中です"
       - id: terraria
+        memory-mib: ${TERRARIA_MEMORY_MIB:512}
         manual-start: false
         display-name: ${TERRARIA_SITE_NAME:Luminite}
         site-name: Terraria
@@ -69,6 +73,7 @@ app:
         schedule: "EC2起動時に自動起動"
         connection: "接続情報は準備中です"
       - id: corekeeper
+        memory-mib: ${COREKEEPER_MEMORY_MIB:1024}
         display-name: Core Keeper
         site-name: Core Keeper
         site-url: ${app.platform.portal-url}
@@ -80,6 +85,7 @@ app:
         schedule: "サイトから起動"
         connection: "接続先は管理者に確認してください"
       - id: minecraft
+        memory-mib: ${MINECRAFT_MEMORY_MIB:1024}
         display-name: Minecraft
         site-name: Minecraft
         site-url: ${app.platform.portal-url}

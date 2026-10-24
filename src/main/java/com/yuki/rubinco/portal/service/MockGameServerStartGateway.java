@@ -12,4 +12,10 @@ public class MockGameServerStartGateway implements GameServerStartGateway {
     return new StartResult(
         true, "starting", "モック起動要求を受け付けました。実EC2は操作していません。");
   }
+
+  @Override
+  public StartResult requestStop(String gameId, String requestedBy) {
+    return new StartResult(
+        true, "offline", "モック停止要求を受け付けました。実EC2は操作していません。");
+  }
 }

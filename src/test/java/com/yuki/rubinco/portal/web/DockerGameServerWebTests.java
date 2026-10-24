@@ -46,13 +46,85 @@ class DockerGameServerWebTests {
   @MockitoBean DockerCommandRunner runner;
 
   @Test
+  void memoryLimitBlocksBothStartRoutesAndIsVisibleOnThePortal() throws Exception {
+    var minecraft = states.findById("minecraft").orElseThrow();
+    minecraft.setServerStatus("offline");
+    states.save(minecraft);
+    when(runner.run("statuses"))
+        .thenReturn("7dtd {\"Status\":\"running\"}\nterraria {\"Status\":\"running\"}\n"
+            + "corekeeper {\"Status\":\"exited\"}\nminecraft {\"Status\":\"exited\"}");
+    for (String prefix : List.of("/portal/actions/games/", "/api/games/")) {
+      mvc.perform(post(prefix + "minecraft/start").with(user("member").roles("PLAYER")).with(csrf()))
+          .andExpect(status().isOk()).andExpect(jsonPath("$.accepted").value(false))
+          .andExpect(jsonPath("$.message").value(containsString("メモリ枠が不足")));
+    }
+    verify(runner, never()).run("start", "minecraft");
+    assertThat(states.findById("minecraft").orElseThrow().getServerStatus()).isEqualTo("offline");
+    mvc.perform(get("/portal/actions/games/status").with(user("member").roles("PLAYER")))
+        .andExpect(jsonPath("$.minecraft.memory.requiredMiB").value(1024))
+        .andExpect(jsonPath("$.minecraft.memory.startAllowed").value(false));
+    mvc.perform(get("/portal").with(user("member").roles("PLAYER")))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("必要メモリ枠 1.0 GiB")))
+        .andExpect(content().string(containsString("メモリ枠が不足しています")))
+        .andExpect(content().string(containsString("2.5 GiB")));
+  }
+
+  @Test
+  void memberStopsARunningGameThroughBothRoutesButNeverTerraria() throws Exception {
+    for (String game : List.of("7dtd", "corekeeper")) {
+      var state = states.findById(game).orElseThrow();
+      state.setServerStatus("online");
+      states.save(state);
+    }
+    when(runner.run("statuses"))
+        .thenReturn("7dtd {\"Status\":\"running\"}\nterraria {\"Status\":\"running\"}\n"
+            + "corekeeper {\"Status\":\"running\"}\nminecraft {\"Status\":\"exited\"}");
+    when(runner.run("status", "7dtd")).thenReturn("{\"Status\":\"running\"}");
+    when(runner.run("status", "corekeeper")).thenReturn("{\"Status\":\"running\"}");
+
+    mvc.perform(post("/portal/actions/games/7dtd/stop").with(user("member").roles("PLAYER")).with(csrf()))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.accepted").value(true))
+        .andExpect(jsonPath("$.status").value("stopping"));
+    verify(runner, timeout(5000)).run(java.time.Duration.ofSeconds(150), "stop", "7dtd");
+    mvc.perform(post("/api/games/corekeeper/stop").with(user("admin").roles("ADMIN")).with(csrf()))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.accepted").value(true));
+    verify(runner, timeout(5000)).run(java.time.Duration.ofSeconds(150), "stop", "corekeeper");
+
+    for (String game : List.of("terraria", "minecraft")) {
+      mvc.perform(post("/portal/actions/games/" + game + "/stop").with(user("member").roles("PLAYER")).with(csrf()))
+          .andExpect(status().isOk()).andExpect(jsonPath("$.accepted").value(false));
+    }
+    verify(runner, never()).run(java.time.Duration.ofSeconds(150), "stop", "terraria");
+    verify(runner, never()).run(java.time.Duration.ofSeconds(150), "stop", "minecraft");
+    mvc.perform(get("/portal").with(user("member").roles("PLAYER")))
+        .andExpect(content().string(containsString("data-stop-server=\"7dtd\"")))
+        .andExpect(content().string(not(containsString("data-stop-server=\"terraria\""))));
+  }
+
+  @Test
+  void incompleteDockerStateCannotBeUsedToAssumeFreeMemory() throws Exception {
+    var minecraft = states.findById("minecraft").orElseThrow();
+    minecraft.setServerStatus("offline");
+    states.save(minecraft);
+    when(runner.run("statuses"))
+        .thenReturn("minecraft {\"Status\":\"exited\"}");
+    mvc.perform(post("/portal/actions/games/minecraft/start").with(user("member").roles("PLAYER")).with(csrf()))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.accepted").value(false))
+        .andExpect(jsonPath("$.message").value(containsString("状態を確認できない")));
+    verify(runner, never()).run("start", "minecraft");
+  }
+
+  @Test
   void guestAndMixedGuestRolesCannotStartAnyGameThroughEitherRoute() throws Exception {
     for (String[] roles : List.of(new String[] {"VIEWER"}, new String[] {"VIEWER", "ADMIN"},
         new String[] {"VIEWER", "MEMBER"}, new String[] {"VIEWER", "PLAYER"}, new String[] {"UNKNOWN"})) {
       for (String game : List.of("7dtd", "corekeeper", "minecraft", "terraria")) {
         for (String prefix : List.of("/portal/actions/games/", "/api/games/")) {
-          mvc.perform(post(prefix + game + "/start").with(user("guest").roles(roles)).with(csrf()))
-              .andExpect(status().isForbidden());
+          for (String action : List.of("/start", "/stop")) {
+            mvc.perform(post(prefix + game + action).with(user("guest").roles(roles)).with(csrf()))
+                .andExpect(status().isForbidden());
+          }
         }
       }
     }
@@ -62,8 +134,9 @@ class DockerGameServerWebTests {
   @Test
   void anonymousAndMissingOrInvalidCsrfRequestsCannotInvokeDocker() throws Exception {
     for (String prefix : List.of("/portal/actions/games/", "/api/games/")) {
-      for (String game : List.of("7dtd", "corekeeper", "minecraft")) {
-        String path = prefix + game + "/start";
+      for (String path : List.of("7dtd", "corekeeper", "minecraft").stream()
+          .flatMap(game -> java.util.stream.Stream.of(prefix + game + "/start", prefix + game + "/stop"))
+          .toList()) {
         mvc.perform(post(path).with(csrf())).andExpect(status().is3xxRedirection());
         mvc.perform(post(path).with(user("member").roles("PLAYER")))
             .andExpect(status().isForbidden());
@@ -88,6 +161,8 @@ class DockerGameServerWebTests {
   void serviceItselfRejectsCallsWithoutAuthentication() {
     assertThatThrownBy(() -> startService.requestStart("7dtd", "forged-admin-name"))
         .isInstanceOf(AccessDeniedException.class);
+    assertThatThrownBy(() -> startService.requestStop("7dtd", "forged-admin-name"))
+        .isInstanceOf(AccessDeniedException.class);
     verifyNoInteractions(runner);
   }
 
@@ -111,10 +186,12 @@ class DockerGameServerWebTests {
     // Reading the public portal may inspect status; it must not expose an operation control.
     mvc.perform(get("/portal").session(session))
         .andExpect(status().isOk())
-        .andExpect(content().string(not(containsString("data-start-server="))));
+        .andExpect(content().string(not(containsString("data-start-server="))))
+        .andExpect(content().string(not(containsString("data-stop-server="))));
     mvc.perform(get("/portal").with(user("guest").roles("VIEWER", "ADMIN")))
         .andExpect(status().isOk())
-        .andExpect(content().string(not(containsString("data-start-server="))));
+        .andExpect(content().string(not(containsString("data-start-server="))))
+        .andExpect(content().string(not(containsString("data-stop-server="))));
     verify(runner, never()).run("start", "7dtd");
   }
 
@@ -123,6 +200,9 @@ class DockerGameServerWebTests {
     var state = states.findById("minecraft").orElseThrow();
     state.setServerStatus("online");
     states.save(state);
+    when(runner.run("statuses")).thenReturn("7dtd {\"Status\":\"exited\"}\n"
+        + "terraria {\"Status\":\"exited\"}\ncorekeeper {\"Status\":\"exited\"}\n"
+        + "minecraft {\"Status\":\"exited\"}");
     when(runner.run("status", "minecraft"))
         .thenReturn("{\"Status\":\"exited\"}");
 

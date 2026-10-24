@@ -44,6 +44,7 @@ import org.springframework.test.web.servlet.MockMvc;
     "spring.jpa.hibernate.ddl-auto=validate",
     "spring.flyway.enabled=true",
     "app.sevendays.import.startup-enabled=false",
+    "app.games.memory-budget-mib=16384",
     "COGNITO_ISSUER_URI=https://issuer.example.test/pool",
     "COGNITO_PORTAL_CLIENT_ID=portal-client",
     "COGNITO_WATCHPOINT_CLIENT_ID=watchpoint-client",

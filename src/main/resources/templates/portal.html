@@ -10,8 +10,8 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/portal.css(v='2')}">
-  <script defer th:src="@{/js/portal.js(v='6')}"></script>
+  <link rel="stylesheet" th:href="@{/css/portal.css(v='3')}">
+  <script defer th:src="@{/js/portal.js(v='7')}"></script>
 </head>
 <body class="portal-body">
 <header th:replace="~{fragments/portal-header :: header}"></header>
@@ -32,20 +32,36 @@
     </a>
   </nav>
   <section th:if="${canStartServers}" class="server-controls" id="servers"
-           th:attr="data-live-server-status=${liveServerStatus}" aria-labelledby="server-controls-title">
-    <h2 id="server-controls-title">サーバー起動</h2>
-    <p class="server-status-note">接続できるまで数分かかる場合があります。</p>
-    <article th:each="server : ${servers}" class="server-control" th:attr="data-server=${server.id}">
+           th:attr="data-live-server-status=${liveServerStatus},data-memory-budget-mib=${memoryBudget.budgetMiB}" aria-labelledby="server-controls-title">
+    <h2 id="server-controls-title">サーバー操作</h2>
+    <p class="server-status-note">起動後、接続できるまで数分かかる場合があります。停止は保存のため最大2分ほどかかります。</p>
+    <p class="server-memory-budget" role="status" aria-live="polite">
+      メモリ枠 <span data-memory-reserved th:text="${memoryBudget.reservedLabel()}">未確認</span>
+      / <span th:text="${memoryBudget.budgetLabel()}"></span>
+    </p>
+    <p class="server-memory-note">起動中・稼働中のゲームなどに割り当てた枠の合計です。上限を超える起動はできません。</p>
+    <article th:each="server : ${servers}" class="server-control"
+             th:attr="data-server=${server.id},data-status=${server.status.code},data-memory-mib=${server.status.memory.requiredMiB}">
       <h3 th:text="${server.name}"></h3>
+      <p class="server-memory-required" th:text="${'必要メモリ枠 ' + server.status.memory.requiredLabel()}"></p>
       <span class="status-chip" th:attr="data-server-status=${server.id}"
             th:classappend="${'status-' + server.status.code}" th:text="${server.status.label}"></span>
       <form th:if="${server.manualStart}" method="post"
             th:action="@{/portal/actions/games/{id}/start(id=${server.id})}"
-            th:attr="data-start-server=${server.id},data-status=${server.status.code}">
-        <button type="submit" class="server-start-button" th:disabled="${server.status.code != 'offline'}"
+            th:attr="data-start-server=${server.id},data-status=${server.status.code},data-memory-allowed=${server.status.memory.startAllowed}">
+        <button type="submit" class="server-start-button" th:disabled="${!server.status.memory.startAllowed}"
                 th:attr="aria-label=${server.name + 'を起動'}">起動する</button>
       </form>
+      <form th:if="${server.manualStart}" method="post" class="server-stop-form"
+            th:action="@{/portal/actions/games/{id}/stop(id=${server.id})}"
+            th:attr="data-stop-server=${server.id},data-status=${server.status.code},data-server-name=${server.name}">
+        <button type="submit" class="server-stop-button"
+                th:disabled="${server.status.code != 'online' and server.status.code != 'starting'}"
+                th:attr="aria-label=${server.name + 'を停止'}">停止する</button>
+      </form>
       <small th:unless="${server.manualStart}" class="server-auto-start">自動起動</small>
+      <p class="server-memory-reason" data-memory-reason
+         th:text="${server.manualStart and server.status.code == 'offline' ? server.status.memory.reason : ''}"></p>
       <p class="server-action-message" role="status" aria-live="polite"></p>
     </article>
   </section>

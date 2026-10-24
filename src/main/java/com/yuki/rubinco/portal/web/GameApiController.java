@@ -78,6 +78,13 @@ public class GameApiController {
     return gameStartService.requestStart(gameId, authentication.getName());
   }
 
+  @PostMapping("/{gameId}/stop")
+  public GameServerStartGateway.StartResult stop(
+      @PathVariable String gameId, Authentication authentication) {
+    requireSupportedGame(gameId);
+    return gameStartService.requestStop(gameId, authentication.getName());
+  }
+
   @PostMapping("/{gameId}/events")
   @ResponseStatus(HttpStatus.CREATED)
   public GameTimelineService.TimelineEventView create(

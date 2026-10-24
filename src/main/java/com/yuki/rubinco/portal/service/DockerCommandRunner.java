@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -20,6 +21,10 @@ public class DockerCommandRunner {
   private final DockerGameServerProperties properties;
 
   public String run(String... arguments) {
+    return run(properties.getCommandTimeout(), arguments);
+  }
+
+  public String run(Duration timeout, String... arguments) {
     Path output = null;
     Process process = null;
     try {
@@ -29,7 +34,7 @@ public class DockerCommandRunner {
           .redirectOutput(output.toFile());
       process = builder.start();
       process.getOutputStream().close();
-      if (!process.waitFor(properties.getCommandTimeout().toMillis(), TimeUnit.MILLISECONDS)) {
+      if (!process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
         throw new IllegalStateException("Docker command timed out");
       }
       if (process.exitValue() != 0) {
@@ -74,7 +79,7 @@ public class DockerCommandRunner {
     if (arguments.length == 2) {
       permitted = switch (arguments[0]) {
         case "status" -> Set.of("7dtd", "terraria", "corekeeper", "minecraft").contains(arguments[1]);
-        case "start" -> Set.of("7dtd", "corekeeper", "minecraft").contains(arguments[1]);
+        case "start", "stop" -> Set.of("7dtd", "corekeeper", "minecraft").contains(arguments[1]);
         case "logs" -> "7dtd".equals(arguments[1]);
         default -> false;
       };

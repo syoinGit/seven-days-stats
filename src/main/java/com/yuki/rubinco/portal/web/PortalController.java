@@ -49,6 +49,7 @@ public class PortalController {
     model.addAttribute("sites", sites);
     var serverStatuses = portalService.serverStatuses();
     model.addAttribute("serverStatuses", serverStatuses);
+    model.addAttribute("memoryBudget", portalService.memorySnapshot(serverStatuses));
     var servers = portalService.servers(serverStatuses);
     model.addAttribute("servers", servers);
     model.addAttribute("liveServerStatus", portalService.liveServerStatus());
@@ -81,5 +82,15 @@ public class PortalController {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Game not found");
     }
     return gameStartService.requestStart(gameId, authentication.getName());
+  }
+
+  @PostMapping(value = "/portal/actions/games/{gameId}/stop", produces = MediaType.APPLICATION_JSON_VALUE)
+  @ResponseBody
+  public GameServerStartGateway.StartResult stop(
+      @PathVariable String gameId, Authentication authentication) {
+    if (!portalService.supports(gameId)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Game not found");
+    }
+    return gameStartService.requestStop(gameId, authentication.getName());
   }
 }

@@ -23,6 +23,16 @@ public class DockerGameServerProperties {
   @NotNull
   private Duration commandTimeout = Duration.ofSeconds(20);
 
+  /** Must exceed the helper's fixed 120-second graceful stop period. */
+  @NotNull
+  private Duration stopTimeout = Duration.ofSeconds(150);
+
+  @AssertTrue(message = "Docker stop timeout must be between 125 and 600 seconds")
+  public boolean isStopTimeoutValid() {
+    return stopTimeout != null && stopTimeout.compareTo(Duration.ofSeconds(125)) >= 0
+        && stopTimeout.compareTo(Duration.ofSeconds(600)) <= 0;
+  }
+
   @AssertTrue(message = "Docker command timeout must be between 1 and 60 seconds")
   public boolean isCommandTimeoutValid() {
     return commandTimeout != null && commandTimeout.compareTo(Duration.ofSeconds(1)) >= 0

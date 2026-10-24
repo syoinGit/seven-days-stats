@@ -50,7 +50,7 @@ public class CognitoSecurityConfig {
             .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/games/*/events").hasRole("ADMIN")
             .requestMatchers(HttpMethod.PUT, "/api/games/*/events/*").hasRole("ADMIN")
-            .requestMatchers(HttpMethod.POST, "/api/games/*/start")
+            .requestMatchers(HttpMethod.POST, "/api/games/*/start", "/api/games/*/stop")
             .access(gameServerAccess.requests())
             .anyRequest().hasAnyRole("MEMBER", "ADMIN"))
         .oauth2ResourceServer(resource -> resource.jwt(jwt -> jwt
@@ -89,7 +89,8 @@ public class CognitoSecurityConfig {
             .requestMatchers(HttpMethod.GET, "/").permitAll()
             .requestMatchers("/maintenance/**", "/portal/maintenance/**").hasRole("ADMIN")
             .requestMatchers("/portal/profile").hasAnyRole("PLAYER", "MEMBER", "ADMIN")
-            .requestMatchers(HttpMethod.POST, "/portal/actions/games/*/start")
+            .requestMatchers(HttpMethod.POST,
+                "/portal/actions/games/*/start", "/portal/actions/games/*/stop")
             .access(gameServerAccess.requests())
             .requestMatchers(
                 HttpMethod.POST, "/players/*/status", "/posts", "/posts/*/like",

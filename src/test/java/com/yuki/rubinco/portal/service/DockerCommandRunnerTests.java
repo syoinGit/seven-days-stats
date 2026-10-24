@@ -23,6 +23,18 @@ class DockerCommandRunnerTests {
   }
 
   @Test
+  void stopUsesItsOwnTimeoutAndOnlyManualGames() throws Exception {
+    var properties = properties("sleep 0.3; printf '%s' \"$4 $5\"\n");
+    properties.setCommandTimeout(Duration.ofMillis(100));
+    var runner = new DockerCommandRunner(properties);
+    assertThat(runner.run(Duration.ofSeconds(5), "stop", "minecraft")).isEqualTo("stop minecraft");
+    for (String id : java.util.List.of("terraria", "seven-days-postgres", "7dtd --time 0")) {
+      assertThatThrownBy(() -> runner.run(Duration.ofSeconds(5), "stop", id))
+          .isInstanceOf(IllegalArgumentException.class);
+    }
+  }
+
+  @Test
   void failureDoesNotExposeCommandOutput() throws Exception {
     var runner = runner("echo private-daemon-detail; exit 1\n");
     assertThatThrownBy(() -> runner.run("status", "7dtd"))

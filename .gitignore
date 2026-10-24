@@ -13,6 +13,8 @@ app/*.tmp
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+/terraria
+/corekeeper
 
 ### STS ###
 .apt_generated
@@ -41,3 +43,4 @@ build/
 
 ### VS Code ###
 .vscode/
+/corekeeper/
