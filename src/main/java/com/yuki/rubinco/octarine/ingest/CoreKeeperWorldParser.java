@@ -38,6 +38,7 @@ public final class CoreKeeperWorldParser {
   private static final String BUFFER_NODE = "E33124BFAC2649D792DE36E4611DDD70";
   private static final int RECORD_SIZE = 12;
   private static final int MAX_OBJECT_ID = 1_000_000;
+  private static final int MAX_LABEL_BYTES = 1024;
   private static final byte[] GENERATION_PREFIX =
       "{\"globalSeed\"".getBytes(StandardCharsets.US_ASCII);
 
@@ -232,8 +233,26 @@ public final class CoreKeeperWorldParser {
     String holder = layout.has(CoreKeeperTypes.CONDITIONS) ? "NPC"
         : layout.has(CoreKeeperTypes.CLAIMED_BY_PLAYER) ? "GRAVE"
         : layout.has(CoreKeeperTypes.HEALTH) ? "STORAGE" : "LOOSE";
+    String label = layout.has(CoreKeeperTypes.DESCRIPTION)
+        ? label(chunk.buffer(CoreKeeperTypes.DESCRIPTION, entity).bytes()) : null;
     return new CoreKeeperWorld.Container(holder, objectId, variation, Math.round(x), Math.round(z),
-        slotCount, List.copyOf(items));
+        slotCount, List.copyOf(items), label);
+  }
+
+  /** A chest label as the game stores it: UTF-8 bytes. Blank labels count as none. */
+  static String label(byte[] bytes) {
+    check(bytes.length <= MAX_LABEL_BYTES, "Label too long");
+    String text;
+    try {
+      text = StandardCharsets.UTF_8.newDecoder()
+          .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+          .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+          .decode(ByteBuffer.wrap(bytes)).toString();
+    } catch (java.nio.charset.CharacterCodingException exception) {
+      throw new CoreKeeperFormatException("Label is not UTF-8");
+    }
+    String cleaned = text.replaceAll("\\p{Cntrl}", " ").strip();
+    return cleaned.isEmpty() ? null : cleaned;
   }
 
   private static List<CoreKeeperWorld.RecordedObject> records(Buffer data) {
@@ -378,6 +397,10 @@ public final class CoreKeeperWorldParser {
 
     int length() {
       return bytes.length;
+    }
+
+    byte[] bytes() {
+      return bytes.clone();
     }
 
     int i32(long offset) {

@@ -18,8 +18,8 @@
     <a class="octarine-back" th:href="@{/octarine/chests}">← チェスト検索</a>
     <div class="section-heading">
       <div>
-        <p class="eyebrow">STORAGE</p>
-        <h1 id="chest-title" th:text="${container.label}">Wood Chest</h1>
+        <p class="eyebrow" th:text="${container.kind}">Wood Chest</p>
+        <h1 id="chest-title" th:text="${container.name}">鉱石倉庫</h1>
         <p class="octarine-sub"><span th:replace="~{fragments/octarine :: place(${container.place})}"></span></p>
       </div>
       <span class="octarine-count" th:text="${container.filled + ' / ' + container.slots + '枠'}">3 / 18枠</span>
@@ -39,6 +39,18 @@
       </table>
     </div>
     <p th:replace="~{fragments/octarine :: amountNote}"></p>
+
+    <h2 class="octarine-group-title">中身の変化</h2>
+    <p th:if="${#lists.isEmpty(changes)}" class="octarine-empty">ラベルを付けてから、まだ変化はありません。</p>
+    <ol class="octarine-changes" th:unless="${#lists.isEmpty(changes)}">
+      <li th:each="change : ${changes}" th:classappend="${change.delta > 0 ? 'up' : 'down'}">
+        <time th:text="${change.at}">---</time>
+        <span><a th:href="@{/octarine/items/{id}(id=${change.objectId})}" th:text="${change.item}">Wood</a>
+          <span th:text="${change.previous + ' → ' + change.current}">3 → 5</span></span>
+        <b th:text="${(change.delta > 0 ? '+' : '') + change.delta}">+2</b>
+      </li>
+    </ol>
+    <p class="octarine-note">取り込みの間隔（10分）ごとの差し引きです。</p>
   </section>
 </main>
 </body>

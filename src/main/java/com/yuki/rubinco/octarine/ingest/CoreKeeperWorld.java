@@ -32,9 +32,10 @@ public record CoreKeeperWorld(
    * Anything holding items, classified by its components: NPC for creatures that carry stock
    * (merchants), GRAVE for player graves, LOOSE for things that cannot be broken (dropped items,
    * the Core, statues) and STORAGE for placed objects such as chests, pots and pedestals.
+   * {@code label} is the text players wrote on it in game, or null when there is none.
    */
   public record Container(String holder, int objectId, int variation, int x, int z,
-      int slotCount, List<Slot> items) { }
+      int slotCount, List<Slot> items, String label) { }
 
   /** One filled slot. Empty slots (object id 0) are not listed. */
   public record Slot(int slot, int objectId, int amount, int variation) { }

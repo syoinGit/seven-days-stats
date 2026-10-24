@@ -69,7 +69,7 @@ class OctarineWebTests {
   @BeforeEach
   void importSuppliedWorld() throws Exception {
     jdbc.update("UPDATE M_GAME_WORLD SET latest_snapshot_id = NULL, published = TRUE");
-    for (String table : List.of("T_CK_CONTAINER_ITEM", "T_CK_CONTAINER", "T_CK_CONTAINER_TRACK", "T_CK_ITEM_TOTAL",
+    for (String table : List.of("T_CK_CONTAINER_ITEM", "T_CK_CONTAINER", "T_CK_CHEST_CHANGE", "T_CK_ITEM_TOTAL",
         "T_CK_ITEM_CHANGE", "T_PROGRESS_EVENT", "T_PROGRESS_STATE", "T_WORLD_IMPORT_RUN",
         "M_GUIDE_RULE", "M_GUIDE_ARTICLE", "T_WORLD_SNAPSHOT")) {
       jdbc.update("DELETE FROM " + table);
@@ -113,60 +113,68 @@ class OctarineWebTests {
   }
 
   @Test
-  void worldChestsAndMerchantsStayHiddenUntilTheirContentsChange() throws Exception {
-    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER_TRACK", Integer.class)).isEqualTo(158);
-    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER_TRACK WHERE player_chest", Integer.class))
-        .isZero();
+  void onlyLabelledChestsAreShownAndTheirChangesAreLogged() throws Exception {
     assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isZero();
     mvc.perform(get("/octarine/items").with(member()))
         .andExpect(status().isOk())
         .andExpect(content().string(not(containsString("テストコイン"))));
     mvc.perform(get("/octarine/items/2021").with(member())).andExpect(status().isNotFound());
-    mvc.perform(get("/octarine/chests").param("q", "テストコイン").with(member()))
-        .andExpect(content().string(containsString("当てはまる入れ物はありません")));
+    mvc.perform(get("/octarine/chests").with(member()))
+        .andExpect(content().string(containsString("当てはまるチェストはありません")));
     mvc.perform(get("/octarine/world").with(member())).andExpect(status().isNotFound());
 
-    storeLater(touchChest(sample(), 233, 83, 12), "e");
-
+    // Labelling a full chest is not "adding" its contents.
+    storeLater(edit(sample(), 233, 83, "鉱石倉庫<b>", 30), "e");
     assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isOne();
-    // Looting a world chest is not "adding" its leftovers.
     assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_ITEM_CHANGE", Integer.class)).isZero();
-    mvc.perform(get("/octarine").with(member()))
-        .andExpect(content().string(containsString("ワールドの今")))
-        .andExpect(content().string(containsString("使われた入れ物")))
-        .andExpect(content().string(not(containsString("生き物"))))
-        .andExpect(content().string(not(containsString("作物"))));
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CHEST_CHANGE", Integer.class)).isZero();
+    mvc.perform(get("/octarine/chests").with(member()))
+        .andExpect(content().string(containsString("鉱石倉庫&lt;b&gt;")))
+        .andExpect(content().string(not(containsString("鉱石倉庫<b>"))))
+        .andExpect(content().string(containsString("テスト宝箱")))
+        .andExpect(content().string(not(containsString("テスト商人"))));
+    mvc.perform(get("/octarine/chests").param("q", "鉱石").with(member()))
+        .andExpect(content().string(containsString("鉱石倉庫")));
+    mvc.perform(get("/octarine/chests").param("q", "テスト商人").with(member()))
+        .andExpect(content().string(containsString("当てはまるチェストはありません")));
     mvc.perform(get("/octarine/items").param("q", "てすとこいん").with(member()))
         .andExpect(content().string(containsString("テストコイン")))
         .andExpect(content().string(containsString("耐久値")))
         .andExpect(content().string(not(containsString("テスト鉄板"))));
     mvc.perform(get("/octarine/items/2021").with(member()))
-        .andExpect(status().isOk())
-        .andExpect(content().string(containsString("テスト宝箱")))
+        .andExpect(content().string(containsString("鉱石倉庫")))
         .andExpect(content().string(containsString("コアから東233・北83")));
-    mvc.perform(get("/octarine/chests").with(member()))
-        .andExpect(content().string(containsString("テスト宝箱")))
-        .andExpect(content().string(not(containsString("テスト商人"))));
-    mvc.perform(get("/octarine/chests").param("q", "テスト商人").with(member()))
-        .andExpect(content().string(containsString("当てはまる入れ物はありません")));
+
+    storeLater(edit(sample(), 233, 83, "鉱石倉庫<b>", 12), "d");
     Long id = jdbc.queryForObject("SELECT ck_container_id FROM T_CK_CONTAINER", Long.class);
     mvc.perform(get("/octarine/chests/" + id).with(member()))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("テストコイン")));
+        .andExpect(content().string(containsString("テストコイン")))
+        .andExpect(content().string(containsString("30 → 12")))
+        .andExpect(content().string(containsString("-18")));
     mvc.perform(get("/octarine/chests/" + (id + 99999)).with(member())).andExpect(status().isNotFound());
+    mvc.perform(get("/octarine").with(member()))
+        .andExpect(content().string(containsString("プレイヤーのチェスト")))
+        .andExpect(content().string(containsString("チェストの変化")))
+        .andExpect(content().string(containsString("「鉱石倉庫&lt;b&gt;」 減った: テストコイン -18")))
+        .andExpect(content().string(not(containsString("生き物"))));
+    mvc.perform(get("/octarine/items/2021").with(member()))
+        .andExpect(content().string(containsString("30 → 12")));
 
-    // Once a player chest, it stays one even when it goes back to its first contents.
-    storeLater(sample(), "d");
-    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isOne();
-    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_ITEM_CHANGE", Integer.class)).isPositive();
+    // Removing the label drops the chest quietly.
+    storeLater(sample(), "c");
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isZero();
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_ITEM_CHANGE", Integer.class)).isOne();
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CHEST_CHANGE", Integer.class)).isOne();
   }
 
   @Test
   void aiFactsUseOnlyWhatMembersCanSee() throws Exception {
     assertThat(aiFacts.facts().orElseThrow()).doesNotContain("テストコイン");
-    storeLater(touchChest(sample(), 233, 83, 12), "e");
+    storeLater(edit(sample(), 233, 83, "鉱石倉庫", 30), "e");
+    storeLater(edit(sample(), 233, 83, "鉱石倉庫", 12), "d");
     String facts = aiFacts.facts().orElseThrow();
-    assertThat(facts).contains("保管アイテム").contains("テストコイン");
+    assertThat(facts).contains("保管アイテム").contains("「鉱石倉庫」").contains("テストコイン -18");
     assertThat(facts).doesNotContain("大壁の解放").doesNotContain("Azeos").doesNotContain("テスト大ボス")
         .doesNotContain("テスト商人").doesNotContain("生き物");
     jdbc.update("UPDATE M_GAME_WORLD SET published = FALSE WHERE game_id = 'corekeeper'");
@@ -174,32 +182,22 @@ class OctarineWebTests {
   }
 
   @Test
-  void aPlacedChestIsAPlayerChestAtOnceAndStopsBeingOneWhenRemoved() throws Exception {
-    var placed = new CoreKeeperWorld.Container("STORAGE", 100, 0, 5, -7, 18, List.of());
+  void aPlacedChestLogsWhatIsPutInAndGravesNeverCount() throws Exception {
+    var placed = new CoreKeeperWorld.Container("STORAGE", 100, 0, 5, -7, 18, List.of(), "新しい箱");
     storeLater(withContainer(sample(), placed), "c");
     assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isOne();
 
     var filled = new CoreKeeperWorld.Container("STORAGE", 100, 0, 5, -7, 18,
-        List.of(new CoreKeeperWorld.Slot(0, 2021, 75, 0)));
+        List.of(new CoreKeeperWorld.Slot(0, 2021, 75, 0)), "新しい箱");
     storeLater(withContainer(sample(), filled), "b");
     mvc.perform(get("/octarine/items/2021").with(member()))
         .andExpect(content().string(containsString("0 → 75")))
-        .andExpect(content().string(containsString("コアから東5・南7")))
-        .andExpect(content().string(not(containsString("コアから東233・北83"))));
+        .andExpect(content().string(containsString("コアから東5・南7")));
     mvc.perform(get("/octarine").with(member()))
-        .andExpect(content().string(containsString("保管アイテムの変化")))
-        .andExpect(content().string(containsString("増えた")));
+        .andExpect(content().string(containsString("「新しい箱」 増えた: テストコイン +75")));
 
-    storeLater(sample(), "a");
-    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isZero();
-    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER_TRACK WHERE pos_x = 5 AND pos_z = -7",
-        Integer.class)).isZero();
-    mvc.perform(get("/octarine/items/2021").with(member()))
-        .andExpect(content().string(containsString("75 → 0")));
-
-    // Graves and dropped items are not chests, even when they appear later.
     var grave = new CoreKeeperWorld.Container("GRAVE", 100, 0, 9, 9, 10,
-        List.of(new CoreKeeperWorld.Slot(0, 1002, 3, 0)));
+        List.of(new CoreKeeperWorld.Slot(0, 1002, 3, 0)), "墓");
     storeLater(withContainer(sample(), grave), "9");
     assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isZero();
   }
@@ -209,15 +207,14 @@ class OctarineWebTests {
         .parse(Files.readAllBytes(Path.of("src/test/resources/corekeeper/new-world.world.gzip")));
   }
 
-  /** The supplied world with one slot of the container at (x, z) set to a new amount. */
-  private static CoreKeeperWorld touchChest(CoreKeeperWorld world, int x, int z, int amount) {
+  /** The supplied world with the chest at (x, z) labelled and its coin stack set to an amount. */
+  private static CoreKeeperWorld edit(CoreKeeperWorld world, int x, int z, String label, int coins) {
     var containers = world.containers().stream().map(container -> {
       if (container.x() != x || container.z() != z) return container;
-      var items = new java.util.ArrayList<>(container.items());
-      var first = items.get(0);
-      items.set(0, new CoreKeeperWorld.Slot(first.slot(), first.objectId(), amount, first.variation()));
+      var items = container.items().stream().map(slot -> slot.objectId() != 2021 ? slot
+          : new CoreKeeperWorld.Slot(slot.slot(), 2021, coins, slot.variation())).toList();
       return new CoreKeeperWorld.Container(container.holder(), container.objectId(), container.variation(),
-          x, z, container.slotCount(), List.copyOf(items));
+          x, z, container.slotCount(), items, label);
     }).toList();
     return copy(world, containers);
   }

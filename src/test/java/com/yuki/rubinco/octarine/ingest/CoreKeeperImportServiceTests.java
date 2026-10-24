@@ -69,7 +69,7 @@ class CoreKeeperImportServiceTests {
   void resetWorldProgress() throws Exception {
     jdbc.update("UPDATE M_GAME_WORLD SET latest_snapshot_id = NULL");
     jdbc.update("DELETE FROM T_TIMELINE_POST WHERE source_type = 'WORLD_PROGRESS'");
-    for (String table : List.of("T_CK_CONTAINER_ITEM", "T_CK_CONTAINER", "T_CK_CONTAINER_TRACK", "T_CK_ITEM_TOTAL",
+    for (String table : List.of("T_CK_CONTAINER_ITEM", "T_CK_CONTAINER", "T_CK_CHEST_CHANGE", "T_CK_ITEM_TOTAL",
         "T_CK_ITEM_CHANGE", "T_PROGRESS_EVENT", "T_PROGRESS_STATE", "T_WORLD_IMPORT_RUN",
         "M_GUIDE_RULE", "M_GUIDE_ARTICLE", "T_WORLD_SNAPSHOT")) {
       jdbc.update("DELETE FROM " + table);

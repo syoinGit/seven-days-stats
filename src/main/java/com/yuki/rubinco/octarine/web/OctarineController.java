@@ -113,6 +113,7 @@ public class OctarineController {
     return withData(model, authentication, "chests", ctx -> {
       model.addAttribute("container", octarine.container(ctx, containerId)
           .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
+      model.addAttribute("changes", octarine.chestChanges(ctx, containerId, 100));
       return "octarine-chest";
     });
   }

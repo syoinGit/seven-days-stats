@@ -55,6 +55,7 @@ final class CoreKeeperTypes {
   static final long TRANSLATION = hash("5560902727204706568");
   static final long HEALTH = hash("9718905805775528276");
   static final long CLAIMED_BY_PLAYER = hash("5201058450301913387");
+  static final long DESCRIPTION = hash("2145835212504974577");
   static final long CONDITIONS = hash("10190325920577701639");
   static final long CONTAINED_OBJECTS = hash("8817826183114497276");
   static final long KILLED_ENEMIES = hash("3317929161124881020");

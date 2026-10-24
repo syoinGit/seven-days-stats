@@ -36,10 +36,11 @@
     <p th:if="${#lists.isEmpty(detail.holders)}" class="octarine-empty">今はどの入れ物にも入っていません（以前は保管されていました）。</p>
     <div class="octarine-table-wrap" th:unless="${#lists.isEmpty(detail.holders)}">
       <table class="octarine-table">
-        <thead><tr><th>入れ物</th><th>場所</th><th>数</th></tr></thead>
+        <thead><tr><th>チェスト</th><th>種類</th><th>場所</th><th>数</th></tr></thead>
         <tbody>
           <tr th:each="holder : ${detail.holders}">
-            <td><a th:href="@{/octarine/chests/{id}(id=${holder.containerId})}" th:text="${holder.container}">Wood Chest</a></td>
+            <td><a th:href="@{/octarine/chests/{id}(id=${holder.containerId})}" th:text="${holder.chest}">鉱石倉庫</a></td>
+            <td th:text="${holder.kind}">Wood Chest</td>
             <td><span th:replace="~{fragments/octarine :: place(${holder.place})}"></span></td>
             <td class="num" th:text="${holder.amount}">5</td>
           </tr>
@@ -56,7 +57,7 @@
         <b th:text="${(change.delta > 0 ? '+' : '') + change.delta}">+2</b>
       </li>
     </ol>
-    <p class="octarine-note">取り込みの間隔ごとの差分です。その間に出し入れがあっても、差し引きしか分かりません。もとからあった宝箱を開けたときの残り物は、増えた分に数えません。</p>
+    <p class="octarine-note">取り込みの間隔ごとの差分です。その間に出し入れがあっても、差し引きしか分かりません。ラベルを付けた・外したときの中身は、増減に数えません。</p>
   </section>
 </main>
 </body>
