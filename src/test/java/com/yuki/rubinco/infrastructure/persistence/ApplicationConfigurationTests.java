@@ -151,10 +151,11 @@ class ApplicationConfigurationTests {
       assertThat(platform.getApiUrl()).isEqualTo("http://localhost:9091/api");
       assertThat(platform.getAllowedOrigins()).containsExactly("http://localhost:9091");
       assertThat(platform.getCognito().isEnabled()).isFalse();
-      assertThat(catalog.getCatalog()).extracting(GameCatalogProperties.Game::getSiteUrl)
+      assertThat(catalog.getCatalog().stream().filter(GameCatalogProperties.Game::isSiteEnabled).toList())
+          .extracting(GameCatalogProperties.Game::getSiteUrl)
           .containsExactly(platform.getWatchpointUrl(), platform.getLuminiteUrl());
       assertThat(catalog.getCatalog()).extracting(GameCatalogProperties.Game::getId)
-          .containsExactly("7dtd", "terraria");
+          .containsExactly("7dtd", "terraria", "corekeeper", "minecraft");
       assertThat(game.mode()).isEqualTo("file");
       assertThat(game.root()).isEqualTo(Path.of("7dtd"));
       assertThat(game.telnet().enabled()).isFalse();
@@ -178,7 +179,8 @@ class ApplicationConfigurationTests {
       Environment environment, PortalPlatformProperties platform, GameCatalogProperties catalog) {
     assertThat(platform.getAllowedOrigins()).containsExactly(
         platform.getPortalUrl(), platform.getWatchpointUrl(), platform.getLuminiteUrl());
-    assertThat(catalog.getCatalog()).extracting(GameCatalogProperties.Game::getSiteUrl)
+    assertThat(catalog.getCatalog().stream().filter(GameCatalogProperties.Game::isSiteEnabled).toList())
+        .extracting(GameCatalogProperties.Game::getSiteUrl)
         .containsExactly(platform.getWatchpointUrl(), platform.getLuminiteUrl());
     String registrationPrefix = "spring.security.oauth2.client.registration.";
     assertThat(environment.getProperty(registrationPrefix + "portal.redirect-uri"))

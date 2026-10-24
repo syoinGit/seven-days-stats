@@ -1,9 +1,10 @@
 package com.yuki.rubinco.watchpoint.ingest;
 
+import com.yuki.rubinco.portal.service.DockerCommandRunner;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -21,6 +22,7 @@ public class DockerLogStreamingService implements SmartLifecycle {
 
   private final SevenDaysDataProperties properties;
   private final GameLogImportService logImportService;
+  private final DockerCommandRunner dockerCommands;
   private final AtomicBoolean running = new AtomicBoolean(false);
   private final ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
     Thread thread = new Thread(runnable, "7dtd-docker-log-stream");
@@ -63,13 +65,7 @@ public class DockerLogStreamingService implements SmartLifecycle {
     while (running.get()) {
       GameLogImportService.StreamSession session = logImportService.openStreamSession(sourceName);
       try {
-        ProcessBuilder builder = new ProcessBuilder(List.of(
-            "docker",
-            "logs",
-            "-f",
-            "--since",
-            properties.docker().logSince(),
-            properties.docker().containerName()));
+        ProcessBuilder builder = dockerCommands.logStream(properties.docker().containerName());
         builder.redirectErrorStream(true);
         process = builder.start();
         log.info("7DTD docker log stream started. container={}", properties.docker().containerName());

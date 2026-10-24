@@ -20,6 +20,7 @@ public class GamePortalService {
   private final GameCatalogProperties properties;
   private final M_GamePortalStateRepository stateRepository;
   private final T_TimelinePostRepository timelineRepository;
+  private final GameServerStartGateway gateway;
 
   @Transactional(readOnly = true)
   public Map<String, ServerStatus> serverStatuses() {
@@ -28,7 +29,31 @@ public class GamePortalService {
         .collect(Collectors.toMap(M_GamePortalState::getGameId,
             state -> ServerStatus.from(state.getServerStatus())));
     ids.forEach(id -> states.putIfAbsent(id, ServerStatus.from(null)));
+    if (gateway.liveStatus()) {
+      var liveStatuses = gateway.currentStatuses(ids);
+      ids.forEach(id -> {
+        if (!"maintenance".equals(states.get(id).code())) {
+          states.put(id, ServerStatus.from(liveStatuses.get(id)));
+        }
+      });
+    }
     return states;
+  }
+
+  public boolean liveServerStatus() {
+    return gateway.liveStatus();
+  }
+
+  public List<ServerControl> servers(Map<String, ServerStatus> statuses) {
+    return properties.getCatalog().stream().map(game -> new ServerControl(
+        game.getId(), game.getSiteName(), game.isManualStart(), statuses.get(game.getId())))
+        .toList();
+  }
+
+  public record ServerControl(String id, String name, boolean manualStart, ServerStatus status) { }
+
+  public boolean canStart(String gameId) {
+    return supports(gameId) && configuredGame(gameId).isManualStart();
   }
 
   public record ServerStatus(String code, String label) {
@@ -46,7 +71,8 @@ public class GamePortalService {
   }
 
   public List<SiteCard> sites() {
-    return properties.getCatalog().stream().map(game -> new SiteCard(
+    return properties.getCatalog().stream().filter(GameCatalogProperties.Game::isSiteEnabled)
+        .map(game -> new SiteCard(
         game.getId(), game.getDisplayName(), game.getSiteName(), game.getSiteUrl(), game.getAccent()))
         .toList();
   }
@@ -84,9 +110,13 @@ public class GamePortalService {
   private GameCard card(GameCatalogProperties.Game game, M_GamePortalState state) {
     T_TimelinePost latest = timelineRepository
         .findTopByGameIdAndVisibleTrueOrderByPublishedAtDescIdDesc(game.getId()).orElse(null);
+    String status = state == null ? "error" : state.getServerStatus();
+    if (gateway.liveStatus() && !"maintenance".equals(status)) {
+      status = gateway.currentStatus(game.getId());
+    }
     return new GameCard(
         game.getId(), game.getDisplayName(), game.getSiteName(), game.getSiteUrl(), game.getAccent(),
-        state == null ? "error" : state.getServerStatus(),
+        status,
         state == null ? game.getProgress() : state.getProgress(),
         state == null ? game.getStage() : state.getStageName(),
         state == null ? game.getSchedule() : state.getScheduleText(),

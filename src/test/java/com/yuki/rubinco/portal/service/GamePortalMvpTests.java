@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -30,6 +31,7 @@ import org.springframework.transaction.support.TransactionTemplate;
     "spring.flyway.enabled=true",
     "app.sevendays.import.startup-enabled=false"
 })
+@WithMockUser(roles = "ADMIN")
 class GamePortalMvpTests {
   @Autowired private GamePortalService portalService;
   @Autowired private GameTimelineService timelineService;
@@ -53,6 +55,18 @@ class GamePortalMvpTests {
     });
     admin = new UsernamePasswordAuthenticationToken(
         "portal-admin", "n/a", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+  }
+
+  @Test
+  void automaticTerrariaCannotBeStartedAndAllManualGamesHaveStateRows() {
+    assertThat(startService.requestStart("terraria", "portal-admin").accepted()).isFalse();
+    assertThat(portalService.canStart("terraria")).isFalse();
+    for (String id : List.of("7dtd", "corekeeper", "minecraft")) {
+      assertThat(portalService.canStart(id)).isTrue();
+      assertThat(stateRepository.findById(id)).isPresent();
+    }
+    assertThat(portalService.sites()).extracting(GamePortalService.SiteCard::id)
+        .containsExactly("7dtd", "terraria");
   }
 
   @Test
@@ -82,7 +96,7 @@ class GamePortalMvpTests {
     assertThat(terraria.latestTimeline()).isEqualTo("Event body");
     List<GamePortalService.GameCard> cards = portalService.cards();
     assertThat(cards)
-        .extracting(GamePortalService.GameCard::id).containsExactly("7dtd", "terraria");
+        .extracting(GamePortalService.GameCard::id).containsExactly("7dtd", "terraria", "corekeeper", "minecraft");
     assertThat(cards).contains(terraria);
   }
 
@@ -151,13 +165,13 @@ class GamePortalMvpTests {
     var service = new GameStartService(portalService, stateRepository, gateway);
     var transaction = new TransactionTemplate(transactionManager);
     var start = CompletableFuture.supplyAsync(() -> transaction.execute(
-        ignored -> service.requestStart("terraria", "admin")));
+        ignored -> service.requestStart("7dtd", "admin")));
     CompletableFuture<GameTimelineService.TimelineEventView> event = null;
     try {
       assertThat(gatewayEntered.await(5, TimeUnit.SECONDS)).isTrue();
       event = CompletableFuture.supplyAsync(() -> {
         eventEntered.countDown();
-        return timelineService.create("terraria", input("Concurrent progress", 81, "Moon Lord"), admin);
+        return timelineService.create("7dtd", input("Concurrent progress", 81, "Moon Lord"), admin);
       });
       assertThat(eventEntered.await(5, TimeUnit.SECONDS)).isTrue();
       var pendingEvent = event;
@@ -171,7 +185,7 @@ class GamePortalMvpTests {
       }
     }
 
-    var state = stateRepository.findById("terraria").orElseThrow();
+    var state = stateRepository.findById("7dtd").orElseThrow();
     assertThat(state.getServerStatus()).isEqualTo("starting");
     assertThat(state.getProgress()).isEqualTo(81);
     assertThat(state.getStageName()).isEqualTo("Moon Lord");
@@ -248,18 +262,18 @@ class GamePortalMvpTests {
 
   @Test
   void startIsRejectedUnlessTheConfiguredServerIsOffline() {
-    var state = stateRepository.findById("terraria").orElseThrow();
+    var state = stateRepository.findById("7dtd").orElseThrow();
     state.setServerStatus("online");
     stateRepository.save(state);
 
-    var online = startService.requestStart("terraria", "portal-admin");
+    var online = startService.requestStart("7dtd", "portal-admin");
     assertThat(online.accepted()).isFalse();
     assertThat(online.status()).isEqualTo("online");
     assertThat(online.message()).contains("すでに稼働");
 
     state.setServerStatus("maintenance");
     stateRepository.save(state);
-    var maintenance = startService.requestStart("terraria", "portal-admin");
+    var maintenance = startService.requestStart("7dtd", "portal-admin");
     assertThat(maintenance.accepted()).isFalse();
     assertThat(maintenance.status()).isEqualTo("maintenance");
 

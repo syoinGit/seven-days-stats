@@ -57,9 +57,12 @@ jobs:
             --comment "Deploy Rubinco" \
             --parameters 'commands=[
               "set -eu",
+              "if [ \"$(systemctl show rubinco-watchpoint.service --property=User --value)\" != \"rubinco-web\" ]; then echo \"Prepare the restricted service drop-in and run daemon-reload before deployment; see docs/DOCKER_PERMISSIONS.md\" >&2; exit 1; fi",
+              "sudo -u rubinco-web sudo -n /usr/local/sbin/rubinco-game-control statuses > /dev/null",
               "cd /home/ec2-user/rubinco/apps/watchpoint/app",
               "aws s3 cp s3://rubinco-deploy-artifacts/watchpoint/app.jar app.jar.tmp",
               "test -s app.jar.tmp",
+              "chmod 0644 app.jar.tmp",
               "if [ -s app.jar ]; then cp -p app.jar app.previous.jar; fi",
               "mv app.jar.tmp app.jar",
               "if ! sudo systemctl restart rubinco-watchpoint.service; then if [ -s app.previous.jar ]; then cp -p app.previous.jar app.jar; sudo systemctl restart rubinco-watchpoint.service || true; fi; exit 1; fi",

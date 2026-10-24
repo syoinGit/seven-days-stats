@@ -44,8 +44,8 @@ app:
     cognito:
       enabled: false
   games:
-    # No AWS API is called unless a separately reviewed provider is implemented and selected.
-    start-provider: mock
+    # Opt in on EC2 after applying the container boot policy in docs/GAME_SERVERS.md.
+    start-provider: ${GAME_SERVER_START_PROVIDER:mock}
     catalog:
       - id: 7dtd
         display-name: Watchpoint
@@ -55,9 +55,10 @@ app:
         version: "Alpha 22"
         stage: "第1章・荒野の観測"
         progress: 18
-        schedule: "毎日 18:00–23:30 JST"
+        schedule: "サイトから起動"
         connection: "接続情報は準備中です"
       - id: terraria
+        manual-start: false
         display-name: ${TERRARIA_SITE_NAME:Luminite}
         site-name: Terraria
         site-url: ${app.platform.luminite-url}
@@ -65,8 +66,30 @@ app:
         version: "1.4.4"
         stage: "星明かりの地下層"
         progress: 42
-        schedule: "週末 20:00–23:30 JST"
+        schedule: "EC2起動時に自動起動"
         connection: "接続情報は準備中です"
+      - id: corekeeper
+        display-name: Core Keeper
+        site-name: Core Keeper
+        site-url: ${app.platform.portal-url}
+        site-enabled: false
+        accent: emerald
+        version: "サーバー設定に準拠"
+        stage: "冒険の記録を待っています"
+        progress: 0
+        schedule: "サイトから起動"
+        connection: "接続先は管理者に確認してください"
+      - id: minecraft
+        display-name: Minecraft
+        site-name: Minecraft
+        site-url: ${app.platform.portal-url}
+        site-enabled: false
+        accent: emerald
+        version: "サーバー設定に準拠"
+        stage: "冒険の記録を待っています"
+        progress: 0
+        schedule: "サイトから起動"
+        connection: "接続先は管理者に確認してください"
   sevendays:
     environment-name: local
     mode: file

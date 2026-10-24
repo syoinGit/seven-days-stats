@@ -41,6 +41,7 @@ public class CognitoSecurityConfig {
   @Order(1)
   SecurityFilterChain cognitoApiSecurityFilterChain(
       HttpSecurity http,
+      GameServerAccess gameServerAccess,
       JwtDecoder jwtDecoder,
       CorsConfigurationSource corsConfigurationSource) throws Exception {
     http
@@ -50,7 +51,7 @@ public class CognitoSecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/games/*/events").hasRole("ADMIN")
             .requestMatchers(HttpMethod.PUT, "/api/games/*/events/*").hasRole("ADMIN")
             .requestMatchers(HttpMethod.POST, "/api/games/*/start")
-            .hasAnyRole("MEMBER", "ADMIN")
+            .access(gameServerAccess.requests())
             .anyRequest().hasAnyRole("MEMBER", "ADMIN"))
         .oauth2ResourceServer(resource -> resource.jwt(jwt -> jwt
             .decoder(jwtDecoder)
@@ -70,6 +71,7 @@ public class CognitoSecurityConfig {
   @Order(2)
   SecurityFilterChain cognitoWebSecurityFilterChain(
       HttpSecurity http,
+      GameServerAccess gameServerAccess,
       GuestPrivacyFilter guestPrivacyFilter,
       CognitoOidcUserService oidcUserService,
       CognitoAuthenticationEntryPoint authenticationEntryPoint,
@@ -88,7 +90,7 @@ public class CognitoSecurityConfig {
             .requestMatchers("/maintenance/**", "/portal/maintenance/**").hasRole("ADMIN")
             .requestMatchers("/portal/profile").hasAnyRole("PLAYER", "MEMBER", "ADMIN")
             .requestMatchers(HttpMethod.POST, "/portal/actions/games/*/start")
-            .hasAnyRole("MEMBER", "PLAYER", "ADMIN")
+            .access(gameServerAccess.requests())
             .requestMatchers(
                 HttpMethod.POST, "/players/*/status", "/posts", "/posts/*/like",
                 "/posts/*/like.json", "/posts/*/react", "/posts/*/delete")

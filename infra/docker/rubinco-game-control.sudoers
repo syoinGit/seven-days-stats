@@ -1,0 +1,15 @@
+# Install as root:root 0440 at /etc/sudoers.d/rubinco-game-control, using visudo.
+# No wildcards, arbitrary Docker arguments, shells, or SETENV permissions.
+Cmnd_Alias RUBINCO_GAME_CONTROL = \
+    /usr/local/sbin/rubinco-game-control statuses, \
+    /usr/local/sbin/rubinco-game-control status 7dtd, \
+    /usr/local/sbin/rubinco-game-control status terraria, \
+    /usr/local/sbin/rubinco-game-control status corekeeper, \
+    /usr/local/sbin/rubinco-game-control status minecraft, \
+    /usr/local/sbin/rubinco-game-control start 7dtd, \
+    /usr/local/sbin/rubinco-game-control start corekeeper, \
+    /usr/local/sbin/rubinco-game-control start minecraft, \
+    /usr/local/sbin/rubinco-game-control logs 7dtd
+
+Defaults:rubinco-web env_reset, !requiretty
+rubinco-web ALL=(root) NOPASSWD: NOSETENV: RUBINCO_GAME_CONTROL

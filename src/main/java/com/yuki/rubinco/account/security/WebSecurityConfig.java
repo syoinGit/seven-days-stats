@@ -6,18 +6,21 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 
 @Configuration
+@EnableMethodSecurity
 public class WebSecurityConfig {
 
   @Bean
   @Profile("!cognito")
   SecurityFilterChain securityFilterChain(
       HttpSecurity http,
+      GameServerAccess gameServerAccess,
       GuestPrivacyFilter guestPrivacyFilter) throws Exception {
     http
         .authorizeHttpRequests(authorize -> authorize
@@ -34,7 +37,7 @@ public class WebSecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/games/*/events").hasRole("ADMIN")
             .requestMatchers(HttpMethod.PUT, "/api/games/*/events/*").hasRole("ADMIN")
             .requestMatchers(HttpMethod.POST, "/api/games/*/start", "/portal/actions/games/*/start")
-            .hasAnyRole("PLAYER", "ADMIN")
+            .access(gameServerAccess.requests())
             // External IDs are masked only in HTML; raw API data requires a member account.
             .requestMatchers("/api/**").hasAnyRole("PLAYER", "ADMIN")
             .requestMatchers(
