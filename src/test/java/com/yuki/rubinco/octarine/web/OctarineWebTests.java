@@ -13,6 +13,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.yuki.rubinco.octarine.ingest.CoreKeeperImportService;
+import com.yuki.rubinco.octarine.ingest.CoreKeeperWorld;
+import com.yuki.rubinco.octarine.ingest.CoreKeeperWorldStore;
+import com.yuki.rubinco.worldprogress.service.WorldSnapshotRecorder;
+import java.time.OffsetDateTime;
+import java.util.Map;
 import com.yuki.rubinco.worldprogress.repository.M_ProgressDefinitionRepository;
 import com.yuki.rubinco.worldprogress.repository.T_WorldImportRunRepository;
 import java.nio.file.Files;
@@ -39,7 +44,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
     "spring.flyway.enabled=true",
     "app.sevendays.import.startup-enabled=false",
     "app.corekeeper.quiet-period=0s",
-    "app.corekeeper.queue-poll-interval=1h"
+    "app.corekeeper.queue-poll-interval=1h",
+    "app.corekeeper.names-dir=src/test/resources/corekeeper-names"
 })
 @AutoConfigureMockMvc
 class OctarineWebTests {
@@ -47,6 +53,8 @@ class OctarineWebTests {
 
   @Autowired MockMvc mvc;
   @Autowired CoreKeeperImportService importService;
+  @Autowired CoreKeeperWorldStore store;
+  @Autowired com.yuki.rubinco.octarine.service.OctarineAiFacts aiFacts;
   @Autowired M_ProgressDefinitionRepository definitions;
   @Autowired T_WorldImportRunRepository runs;
   @Autowired JdbcTemplate jdbc;
@@ -59,7 +67,8 @@ class OctarineWebTests {
   @BeforeEach
   void importSuppliedWorld() throws Exception {
     jdbc.update("UPDATE M_GAME_WORLD SET latest_snapshot_id = NULL, published = TRUE");
-    for (String table : List.of("T_PROGRESS_EVENT", "T_PROGRESS_STATE", "T_WORLD_IMPORT_RUN",
+    for (String table : List.of("T_CK_CONTAINER_ITEM", "T_CK_CONTAINER", "T_CK_ITEM_TOTAL", "T_CK_ITEM_CHANGE",
+        "T_CK_OBJECT_COUNT", "T_CK_CROP_COUNT", "T_PROGRESS_EVENT", "T_PROGRESS_STATE", "T_WORLD_IMPORT_RUN",
         "M_GUIDE_RULE", "M_GUIDE_ARTICLE", "T_WORLD_SNAPSHOT")) {
       jdbc.update("DELETE FROM " + table);
     }
@@ -75,22 +84,99 @@ class OctarineWebTests {
   }
 
   @Test
-  void membersSeeProgressWithUnreachedBossNamesHidden() throws Exception {
+  void membersSeeOnlyAchievedProgressWithNoHintOfWhatRemains() throws Exception {
     mvc.perform(get("/octarine").with(member()))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("0 / 11")))
-        .andExpect(content().string(containsString("大壁の解放")))
-        .andExpect(content().string(containsString("取得対象外")))
-        .andExpect(content().string(containsString("？？？")))
-        .andExpect(content().string(containsString("初回観測")))
+        .andExpect(content().string(containsString("まだ達成を確認できた項目はありません")))
+        .andExpect(content().string(not(containsString("/ 11"))))
+        .andExpect(content().string(not(containsString("大壁の解放"))))
+        .andExpect(content().string(not(containsString("取得対象外"))))
+        .andExpect(content().string(not(containsString("？？？"))))
+        .andExpect(content().string(not(containsString("ネタバレ"))))
         .andExpect(content().string(not(containsString("Azeos"))))
-        .andExpect(content().string(not(containsString("boss_bird"))))
         .andExpect(content().string(not(containsString("/octarine/maintenance"))));
     mvc.perform(get("/octarine").param("spoilers", "true").with(member()))
-        .andExpect(content().string(containsString("Azeos the Sky Titan")));
+        .andExpect(content().string(not(containsString("Azeos"))));
     mvc.perform(get("/octarine/history").with(member()))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("大壁の解放")));
+        .andExpect(content().string(not(containsString("大壁の解放"))));
+
+    long wall = definitionId("great_wall_lowered");
+    Long snapshot = jdbc.queryForObject("SELECT latest_snapshot_id FROM M_GAME_WORLD WHERE game_id = 'corekeeper'", Long.class);
+    jdbc.update("UPDATE T_PROGRESS_STATE SET state = 'ACHIEVED' WHERE world_snapshot_id = ? AND progress_definition_id = ?",
+        snapshot, wall);
+    mvc.perform(get("/octarine").with(member()))
+        .andExpect(content().string(containsString("大壁の解放")))
+        .andExpect(content().string(not(containsString("Azeos"))));
+  }
+
+  @Test
+  void dataPagesSearchStoredItemsAndChestsFromTheLatestSnapshot() throws Exception {
+    mvc.perform(get("/octarine").with(member()))
+        .andExpect(content().string(containsString("ワールドの今")))
+        .andExpect(content().string(containsString("保管アイテム")));
+    mvc.perform(get("/octarine/items").with(member()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("テストコイン")))
+        .andExpect(content().string(containsString("耐久値")));
+    mvc.perform(get("/octarine/items").param("q", "てすとこいん").with(member()))
+        .andExpect(content().string(containsString("テストコイン")))
+        .andExpect(content().string(not(containsString("テスト鉄板"))));
+    mvc.perform(get("/octarine/items/2021").with(member()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("テスト宝箱")))
+        .andExpect(content().string(containsString("コアから東233・北83")));
+    mvc.perform(get("/octarine/items/1").with(member())).andExpect(status().isNotFound());
+
+    mvc.perform(get("/octarine/chests").param("q", "テストコイン").with(member()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("テスト宝箱")))
+        .andExpect(content().string(not(containsString("テスト商人"))));
+    mvc.perform(get("/octarine/chests").param("holder", "NPC").with(member()))
+        .andExpect(content().string(containsString("テスト商人")));
+    Long id = jdbc.queryForObject("SELECT MIN(ck_container_id) FROM T_CK_CONTAINER WHERE pos_x = 233 AND pos_z = 83",
+        Long.class);
+    mvc.perform(get("/octarine/chests/" + id).with(member()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("テストコイン")));
+    mvc.perform(get("/octarine/chests/" + (id + 99999)).with(member())).andExpect(status().isNotFound());
+
+    mvc.perform(get("/octarine/world").with(member()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("テストの実")))
+        .andExpect(content().string(containsString("生き物（敵・動物）")))
+        .andExpect(content().string(not(containsString("テスト大ボス"))));
+  }
+
+  @Test
+  void aiFactsUseOnlyWhatMembersCanSee() {
+    String facts = aiFacts.facts().orElseThrow();
+    assertThat(facts).contains("保管アイテム").contains("テストコイン");
+    assertThat(facts).doesNotContain("大壁の解放").doesNotContain("Azeos").doesNotContain("テスト大ボス");
+    jdbc.update("UPDATE M_GAME_WORLD SET published = FALSE WHERE game_id = 'corekeeper'");
+    assertThat(aiFacts.facts()).isEmpty();
+  }
+
+  @Test
+  void laterSavesRecordItemChangesButTheFirstIsABaseline() throws Exception {
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_ITEM_CHANGE", Integer.class)).isZero();
+    long coins = jdbc.queryForObject("SELECT total_amount FROM T_CK_ITEM_TOTAL WHERE object_id = 2021", Long.class);
+    Long worldId = jdbc.queryForObject("SELECT game_world_id FROM M_GAME_WORLD WHERE game_id = 'corekeeper' AND active",
+        Long.class);
+    var chest = new CoreKeeperWorld.Container("STORAGE", 100, 0, 5, -7, 18,
+        List.of(new CoreKeeperWorld.Slot(0, 2021, 75, 0)));
+    var world = new CoreKeeperWorld("f".repeat(64), 77, 0, false, List.of(), Map.of(), 2076732697L, null,
+        List.of(chest), List.of(), List.of(), 0);
+    store.store(worldId, false, world, new WorldSnapshotRecorder.SnapshotInput("f".repeat(64), 77,
+        "ck-dotsbin77-2", OffsetDateTime.now(), OffsetDateTime.now(), null,
+        "{\"summary\":{\"containers\":1}}", Map.of()));
+
+    mvc.perform(get("/octarine/items/2021").with(member()))
+        .andExpect(content().string(containsString(coins + " → 75")))
+        .andExpect(content().string(containsString("コアから東5・南7")));
+    mvc.perform(get("/octarine").with(member()))
+        .andExpect(content().string(containsString("保管アイテムの変化")))
+        .andExpect(content().string(containsString("減った")));
   }
 
   @Test
@@ -106,7 +192,7 @@ class OctarineWebTests {
 
     mvc.perform(get("/octarine/maintenance").with(admin()))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("ck-dotsbin77-1")))
+        .andExpect(content().string(containsString("ck-dotsbin77-2")))
         .andExpect(content().string(containsString("SUCCEEDED")));
     mvc.perform(post("/octarine/maintenance/import").with(admin()).with(csrf()))
         .andExpect(redirectedUrl("/octarine/maintenance"))
@@ -117,7 +203,7 @@ class OctarineWebTests {
   }
 
   @Test
-  void guideArticlesFollowRulesAndSpoilerSettingsAndAreEscaped() throws Exception {
+  void guideArticlesFollowRulesNeverShowSpoilersAndAreEscaped() throws Exception {
     long wall = definitionId("great_wall_lowered");
     saveArticle("大壁の先へ", "<script>alert(1)</script>手順メモ", false,
         "condition_" + wall, "SHOW:NOT_ACHIEVED");
@@ -130,9 +216,9 @@ class OctarineWebTests {
         .andExpect(content().string(not(containsString("<script>alert(1)</script>"))))
         .andExpect(content().string(not(containsString("大壁を越えた後"))))
         .andExpect(content().string(not(containsString("ネタバレ記事"))))
-        .andExpect(content().string(containsString("ネタバレを含む記事が1件")));
+        .andExpect(content().string(not(containsString("ネタバレを含む記事"))));
     mvc.perform(get("/octarine").param("spoilers", "true").with(member()))
-        .andExpect(content().string(containsString("ネタバレ記事")));
+        .andExpect(content().string(not(containsString("ネタバレ記事"))));
 
     long unsupported = definitionId("boss_slime");
     mvc.perform(post("/octarine/maintenance/articles").with(admin()).with(csrf())
@@ -150,9 +236,9 @@ class OctarineWebTests {
     jdbc.update("UPDATE M_GAME_WORLD SET published = FALSE WHERE game_id = 'corekeeper'");
     mvc.perform(get("/octarine").with(member()))
         .andExpect(content().string(containsString("準備中")))
-        .andExpect(content().string(not(containsString("大壁の解放"))));
+        .andExpect(content().string(not(containsString("まだ達成を確認できた項目はありません"))));
     mvc.perform(get("/octarine").with(admin()))
-        .andExpect(content().string(containsString("大壁の解放")));
+        .andExpect(content().string(containsString("まだ達成を確認できた項目はありません")));
   }
 
   @Test

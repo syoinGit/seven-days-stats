@@ -23,8 +23,11 @@ public class CoreKeeperImportProperties {
 
   private boolean importEnabled;
 
+  /** Object name table generated from the game (docs/OCTARINE.md); kept out of the repository. */
+  private Path namesDir;
+
   @NotNull
-  private Duration importInterval = Duration.ofMinutes(5);
+  private Duration importInterval = Duration.ofMinutes(10);
 
   @NotNull
   private DataSize maxCompressedSize = DataSize.ofMegabytes(64);

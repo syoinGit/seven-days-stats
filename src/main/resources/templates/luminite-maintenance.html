@@ -81,14 +81,14 @@
 
   <section class="luminite-panel" aria-labelledby="definitions-title">
     <div class="section-heading"><div><p class="eyebrow">ITEMS</p><h2 id="definitions-title">進捗項目</h2></div></div>
-    <p class="luminite-note">内部キーと判定元は変更できません。「ネタバレ」の項目は、未達のあいだ名前を伏せて表示します。</p>
+    <p class="luminite-note">内部キーと判定元は変更できません。公開ページには達成した項目だけを表示し、未達の項目や残りの数は出しません。</p>
     <form class="luminite-form luminite-definition" th:each="definition : ${definitions}" method="post"
           th:action="@{/luminite/maintenance/definitions/{id}(id=${definition.id})}">
       <small><code th:text="${definition.progressKey}"></code>
         <span th:text="${(definition.supported ? '取得対象' : '取得対象外') + ' / ' + (definition.sourceNote ?: definition.sourceKind)}"></span></small>
       <label><span>表示名</span><input name="displayName" maxlength="80" required th:value="${definition.displayName}"></label>
       <label><span>説明</span><input name="description" maxlength="400" th:value="${definition.description}"></label>
-      <label class="luminite-check"><input type="checkbox" name="spoiler" value="true" th:checked="${definition.spoiler}"> ネタバレ</label>
+      <label class="luminite-check"><input type="checkbox" name="spoiler" value="true" th:checked="${definition.spoiler}"> ネタバレ（参考。未達成の項目は常に非表示）</label>
       <div class="form-actions"><button type="submit">保存</button></div>
     </form>
   </section>
@@ -117,7 +117,7 @@
         <label><span>リンク名</span><input name="referenceLabel" maxlength="80" th:value="${article?.referenceLabel}"></label>
         <label><span>確認日</span><input name="verifiedOn" type="date" th:value="${article?.verifiedOn}"></label>
         <label><span>並び順</span><input name="sortOrder" type="number" th:value="${article?.sortOrder ?: 0}"></label>
-        <label class="luminite-check"><input type="checkbox" name="spoiler" value="true" th:checked="${article?.spoiler}"> ネタバレを含む</label>
+        <label class="luminite-check"><input type="checkbox" name="spoiler" value="true" th:checked="${article?.spoiler}"> ネタバレを含む（公開ページには出さない）</label>
         <label class="luminite-check"><input type="checkbox" name="published" value="true" th:checked="${article?.published}"> 公開</label>
         <fieldset>
           <legend>表示条件</legend>

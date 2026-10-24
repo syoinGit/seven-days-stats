@@ -2,6 +2,7 @@ package com.yuki.rubinco.octarine.web;
 
 import com.yuki.rubinco.octarine.ingest.CoreKeeperImportService;
 import com.yuki.rubinco.octarine.ingest.CoreKeeperWorldParser;
+import com.yuki.rubinco.octarine.names.CoreKeeperNames;
 import com.yuki.rubinco.worldprogress.service.WorldImportRunLog;
 import com.yuki.rubinco.worldprogress.service.WorldProgressAdminService;
 import java.time.LocalDate;
@@ -29,6 +30,7 @@ public class OctarineMaintenanceController {
   private static final String REDIRECT = "redirect:/octarine/maintenance";
   private final WorldProgressAdminService admin;
   private final WorldImportRunLog runLog;
+  private final CoreKeeperNames names;
 
   @GetMapping
   public String index(Model model, @RequestParam(defaultValue = "0") int page) {
@@ -38,6 +40,8 @@ public class OctarineMaintenanceController {
     model.addAttribute("articles", admin.articles(GAME_ID));
     model.addAttribute("conditions", WorldProgressAdminService.CONDITIONS);
     model.addAttribute("parserVersion", CoreKeeperWorldParser.PARSER_VERSION);
+    model.addAttribute("namesLoaded", names.loaded());
+    model.addAttribute("namesCount", names.count());
     model.addAttribute("containerVersion", CoreKeeperWorldParser.CONTAINER_VERSION);
     return "octarine-maintenance";
   }

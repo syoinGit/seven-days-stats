@@ -1,5 +1,6 @@
 package com.yuki.rubinco.octarine.ingest;
 
+import com.yuki.rubinco.portal.service.ServerActivityGate;
 import com.yuki.rubinco.worldprogress.service.WorldImportRunLog;
 import jakarta.annotation.PreDestroy;
 import java.time.OffsetDateTime;
@@ -22,6 +23,7 @@ public class CoreKeeperImportRunner implements ApplicationRunner {
   private final CoreKeeperImportProperties properties;
   private final CoreKeeperImportService importService;
   private final WorldImportRunLog runLog;
+  private final ServerActivityGate gate;
   private final ExecutorService worker = Executors.newSingleThreadExecutor(runnable -> {
     Thread thread = new Thread(runnable, "corekeeper-import");
     thread.setDaemon(true);
@@ -34,10 +36,13 @@ public class CoreKeeperImportRunner implements ApplicationRunner {
     if (interrupted > 0) log.warn("Marked interrupted Core Keeper imports. count={}", interrupted);
   }
 
-  @Scheduled(fixedDelayString = "${app.corekeeper.import-interval:5m}",
+  @Scheduled(fixedDelayString = "${app.corekeeper.import-interval:10m}",
       initialDelayString = "${app.corekeeper.import-initial-delay:1m}")
   public void scheduledImport() {
-    if (!properties.isImportEnabled()) return;
+    if (!properties.isImportEnabled()
+        || !gate.importAllowed("corekeeper-import", CoreKeeperImportService.GAME_ID)) {
+      return;
+    }
     submit(() -> {
       importService.runScheduled().ifPresent(run ->
           log.info("Core Keeper scheduled import finished. runId={}, status={}, errorCode={}",

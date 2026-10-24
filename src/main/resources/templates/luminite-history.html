@@ -19,16 +19,15 @@
       <div><p class="eyebrow">HISTORY</p><h1 id="history-title">進捗の履歴</h1></div>
     </div>
     <p class="luminite-note">
-      日時はサイトが初めて確認した時刻です。「状態が後退」はバックアップ復元などで保存内容が戻った場合にも記録されます。
-      「解析方式の更新による変更」はゲーム内の進行ではありません。
+      達成を確認した項目だけを表示します。日時はサイトが初めて確認した時刻で、実際に達成した時刻ではありません。
     </p>
-    <p th:if="${events.isEmpty()}" class="luminite-empty">まだ変化の記録はありません。</p>
+    <p th:if="${events.isEmpty()}" class="luminite-empty">まだ達成の記録はありません。</p>
     <ol class="luminite-events" th:unless="${events.isEmpty()}">
       <th:block th:each="event : ${events.content}"><li th:replace="~{fragments/octarine :: eventRow(${event})}"></li></th:block>
     </ol>
     <nav class="portal-feed-pages" aria-label="履歴のページ">
-      <a th:if="${events.hasPrevious()}" th:href="@{/luminite/history(page=${events.number - 1},spoilers=${spoilers})}">← 新しい記録</a>
-      <a th:if="${events.hasNext()}" th:href="@{/luminite/history(page=${events.number + 1},spoilers=${spoilers})}">過去の記録 →</a>
+      <a th:if="${events.hasPrevious()}" th:href="@{/luminite/history(page=${events.number - 1})}">← 新しい記録</a>
+      <a th:if="${events.hasNext()}" th:href="@{/luminite/history(page=${events.number + 1})}">過去の記録 →</a>
     </nav>
   </section>
   <section class="luminite-panel" th:if="${ctx != null}" aria-labelledby="activity-title">

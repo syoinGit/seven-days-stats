@@ -95,6 +95,9 @@ class LuminiteWebTests {
         .andExpect(content().string(containsString("テスト世界")))
         .andExpect(content().string(containsString("エキスパート")))
         .andExpect(content().string(containsString("クトゥルフのめだま")))
+        .andExpect(content().string(not(containsString("スライムキング"))))
+        .andExpect(content().string(not(containsString("ネタバレ"))))
+        .andExpect(content().string(not(containsString(" / 6"))))
         .andExpect(content().string(containsString("テスト鉄塊 +15")))
         .andExpect(content().string(containsString("討伐 +7")))
         .andExpect(content().string(containsString("新しい墓石")))
@@ -152,7 +155,8 @@ class LuminiteWebTests {
         .andExpect(content().string(not(containsString("<script>alert(1)</script>"))));
     mvc.perform(get("/luminite/history").with(member()))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("クトゥルフのめだま")));
+        .andExpect(content().string(containsString("クトゥルフのめだま")))
+        .andExpect(content().string(not(containsString("スライムキング"))));
   }
 
   @Test

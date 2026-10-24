@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Core Keeperのワールドデータから作る統計・アイテム検索サイト">
+  <title th:text="${'チェスト検索 | ' + game.displayName}">Octarine | Core Keeper</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='2')}">
+</head>
+<body class="octarine-body">
+<header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
+<main class="octarine-shell">
+  <nav th:replace="~{fragments/octarine :: tabs}"></nav>
+  <section class="octarine-panel" aria-labelledby="chests-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">STORAGE</p><h1 id="chests-title">チェスト検索</h1></div>
+      <span class="octarine-count" th:text="${containers.totalElements + '件'}">0件</span>
+    </div>
+    <div th:replace="~{fragments/octarine :: snapshot}"></div>
+    <p th:replace="~{fragments/octarine :: namesMissing}"></p>
+    <form class="octarine-search" method="get" th:action="@{/octarine/chests}" role="search">
+      <label><span>入っているアイテム・入れ物の名前</span><input type="search" name="q" maxlength="60" th:value="${q}" placeholder="例: Iron"></label>
+      <label><span>対象</span>
+        <select name="holder">
+          <option value="" th:selected="${holder == null}">チェストなどの入れ物</option>
+          <option value="NPC" th:selected="${holder == 'NPC'}">商人などの品ぞろえ</option>
+        </select>
+      </label>
+      <button type="submit">検索</button>
+    </form>
+    <p class="octarine-note">
+      条件を指定しないときは、中身が入っている物だけを表示します。地面に落ちているアイテムやお墓、まだ開けていない宝箱も含みます。
+      場所はコアを中心にしたタイル数です。
+    </p>
+    <p th:if="${containers.isEmpty()}" class="octarine-empty">当てはまる入れ物はありません。</p>
+    <ul class="octarine-containers" th:unless="${containers.isEmpty()}">
+      <li th:each="container : ${containers.content}">
+        <div class="octarine-container-head">
+          <a th:href="@{/octarine/chests/{id}(id=${container.id})}" th:text="${container.label}">Wood Chest</a>
+          <small th:text="${container.filled + ' / ' + container.slots + '枠'}">12 / 18枠</small>
+        </div>
+        <span th:replace="~{fragments/octarine :: place(${container.place})}"></span>
+        <ul class="octarine-slots" th:unless="${#lists.isEmpty(container.items)}">
+          <li th:each="slot : ${container.items}" th:classappend="${slot.match} ? 'match'">
+            <a th:href="@{/octarine/items/{id}(id=${slot.objectId})}"><span th:text="${slot.name}">Wood</span><b th:text="${slot.amount}" th:if="${slot.amount > 1}">99</b></a>
+          </li>
+        </ul>
+      </li>
+    </ul>
+    <nav class="portal-feed-pages" aria-label="チェスト検索のページ">
+      <a th:if="${containers.hasPrevious()}" th:href="@{/octarine/chests(q=${q},holder=${holder},page=${containers.number - 1})}">← 前へ</a>
+      <span th:if="${containers.totalPages > 1}" th:text="${(containers.number + 1) + ' / ' + containers.totalPages}"></span>
+      <a th:if="${containers.hasNext()}" th:href="@{/octarine/chests(q=${q},holder=${holder},page=${containers.number + 1})}">次へ →</a>
+    </nav>
+  </section>
+</main>
+</body>
+</html>

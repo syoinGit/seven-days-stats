@@ -14,6 +14,7 @@ app:
   corekeeper:
     world-file: ${COREKEEPER_WORLD_FILE:/home/ec2-user/rubinco/servers/corekeeper/server-data/worlds/0.world.gzip}
     import-enabled: ${COREKEEPER_IMPORT_ENABLED:true}
+    names-dir: ${COREKEEPER_NAMES_DIR:/etc/rubinco/corekeeper-names}
   terraria:
     # Enable after TERRARIA_WORLD_FILE points at the server's .wld (docs/LUMINITE.md).
     import-enabled: ${TERRARIA_IMPORT_ENABLED:false}
@@ -32,6 +33,8 @@ app:
       password: ${WATCHPOINT_BOOTSTRAP_PASSWORD:}
   ai:
     enabled: ${WATCHPOINT_AI_ENABLED:false}
+  world-ai:
+    enabled: ${WORLD_AI_ENABLED:false}
   survivor-karen:
     image-enabled: ${SURVIVOR_KAREN_IMAGE_ENABLED:false}
     image-bucket: ${WATCHPOINT_IMAGE_BUCKET:}

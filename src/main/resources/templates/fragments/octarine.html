@@ -4,8 +4,28 @@
 <li th:fragment="eventRow(event)" class="octarine-event" th:classappend="${'kind-' + #strings.toLowerCase(event.kind)}">
   <time th:datetime="${event.observedAt}" th:text="${event.observedLabel}">---</time>
   <b th:text="${event.label}">大壁の解放</b>
-  <span th:text="${event.previousLabel + ' → ' + event.newLabel}">未達 → 達成</span>
-  <small th:text="${event.kindLabel}">変化を確認</small>
+  <small th:text="${event.kindLabel}">達成を確認</small>
 </li>
+
+<nav th:fragment="tabs" class="octarine-tabs" aria-label="Octarineのページ">
+  <a th:href="@{/octarine}" th:classappend="${section == 'overview'} ? 'active'" th:attr="aria-current=${section == 'overview'} ? 'page'">概要</a>
+  <a th:href="@{/octarine/items}" th:classappend="${section == 'items'} ? 'active'" th:attr="aria-current=${section == 'items'} ? 'page'">アイテム</a>
+  <a th:href="@{/octarine/chests}" th:classappend="${section == 'chests'} ? 'active'" th:attr="aria-current=${section == 'chests'} ? 'page'">チェスト検索</a>
+  <a th:href="@{/octarine/world}" th:classappend="${section == 'world'} ? 'active'" th:attr="aria-current=${section == 'world'} ? 'page'">ワールド</a>
+  <a th:href="@{/octarine/history}" th:classappend="${section == 'history'} ? 'active'" th:attr="aria-current=${section == 'history'} ? 'page'">履歴</a>
+</nav>
+
+<p th:fragment="snapshot" class="octarine-note octarine-snapshot" th:if="${ctx != null and ctx.snapshotLabel != null}"
+   th:text="${'保存データの更新時刻 ' + ctx.snapshotLabel + ' 時点の内容です。ゲーム中の最新状態とは限りません。'}"></p>
+
+<p th:fragment="namesMissing" class="octarine-warning-inline" th:if="${namesLoaded != null and !namesLoaded}">
+  アイテム名の辞書がサーバーに置かれていないため、番号で表示しています。
+</p>
+
+<p th:fragment="amountNote" class="octarine-note">
+  「数」はゲームが保存している値で、素材などは個数、道具・武器・防具は残りの耐久値です。保存データからはどちらか区別できません。
+</p>
+
+<span th:fragment="place(place)" class="octarine-place" th:if="${place != null}" th:text="${place.label()}">コアから東120・北40</span>
 </body>
 </html>

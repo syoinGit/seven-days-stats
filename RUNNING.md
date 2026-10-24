@@ -108,7 +108,8 @@ supported; add only values that differ for your deployment.
 | `COGNITO_OCTARINE_CLIENT_ID` | Octarine's Cognito app client. While unset, the app starts and Octarine reuses the portal client, so Octarine login fails at Cognito until the client exists. |
 | `COREKEEPER_WORLD_FILE` | Production: `/home/ec2-user/rubinco/servers/corekeeper/server-data/worlds/0.world.gzip`; read-only. |
 | `COREKEEPER_IMPORT_ENABLED` | Production: `true`; local: `false`. Manual re-fetch from the maintenance screen works either way. |
-| `COREKEEPER_IMPORT_INTERVAL` | `5m` (minimum `1m`). |
+| `COREKEEPER_IMPORT_INTERVAL` | `10m` (minimum `1m`). |
+| `COREKEEPER_NAMES_DIR` | Production: `/etc/rubinco/corekeeper-names`. Generated object name table, kept out of the repository; without it names show as ids. |
 | `TERRARIA_WORLD_FILE` | Unset by default; the server's `.wld`, read-only. Find the path before setting it ([LUMINITE.md](docs/LUMINITE.md)). |
 | `TERRARIA_IMPORT_ENABLED` | `false`; enable after `TERRARIA_WORLD_FILE` is set. Manual re-fetch from the maintenance screen works either way. |
 | `TERRARIA_NAMES_DIR` | Production: `/etc/rubinco/terraria-names`. Generated item/NPC name tables, kept out of the repository; without them names show as ids. |
@@ -120,9 +121,15 @@ supported; add only values that differ for your deployment.
 | `SERVER_PORT` | Production: `8082`; local: `8080`. Local URLs follow the selected port. |
 | `SEVEN_DAYS_TELNET_ENABLED` | Production: `true`; local: `false`. |
 | `WATCHPOINT_AI_ENABLED` | `false`; enables Bedrock observations and manual diary generation. |
+| `WORLD_AI_ENABLED` | `false`; enables AI comments on the Octarine / Luminite statistics (same Bedrock model and IAM as Watchpoint AI). |
+| `WORLD_AI_INTERVAL` | `3h` (minimum `30m`); one post per world per interval while its server is online. |
 | `SURVIVOR_KAREN_IMAGE_ENABLED` | `false`; enables Karen image generation. |
 | `WATCHPOINT_IMAGE_BUCKET` | S3 bucket required when image generation is enabled. |
 | `WATCHPOINT_IMAGE_PUBLIC_BASE_URL` | Optional public delivery or CloudFront URL; otherwise the regional S3 object URL is stored. |
+
+Scheduled imports for every site (7DTD data/log/telnet, Luminite, Octarine) pause while the
+portal reports the game server as stopped, after one catch-up import right after it stops.
+AI posts run only while the server is online. Manual re-fetches are not paused.
 
 Changing `DOMAIN` or individual URLs also requires matching DNS, certificates, Nginx, and Cognito
 allowed callback/logout URLs. The SSM deployment health check uses port `8082`; changing
