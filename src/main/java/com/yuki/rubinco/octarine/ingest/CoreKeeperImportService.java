@@ -17,8 +17,11 @@ import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +36,10 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Reads the live save without stopping the server, copies it into memory, validates the copy and
@@ -47,12 +53,14 @@ public class CoreKeeperImportService {
 
   private final CoreKeeperImportProperties properties;
   private final WorldImportRunLog runLog;
-  private final WorldSnapshotRecorder recorder;
+  private final CoreKeeperWorldStore store;
   private final M_GameWorldRepository worlds;
   private final T_WorldSnapshotRepository snapshots;
   private final T_WorldImportRunRepository runs;
   private final M_ProgressDefinitionRepository definitions;
   private final ObjectMapper objectMapper;
+  private final ObjectMapper hashMapper = JsonMapper.builder()
+      .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS).build();
   private final CoreKeeperWorldParser parser;
   private final ReentrantLock importLock = new ReentrantLock();
   private final ExecutorService parseExecutor = Executors.newSingleThreadExecutor(runnable -> {
@@ -62,12 +70,12 @@ public class CoreKeeperImportService {
   });
 
   public CoreKeeperImportService(CoreKeeperImportProperties properties, WorldImportRunLog runLog,
-      WorldSnapshotRecorder recorder, M_GameWorldRepository worlds,
+      CoreKeeperWorldStore store, M_GameWorldRepository worlds,
       T_WorldSnapshotRepository snapshots, T_WorldImportRunRepository runs,
       M_ProgressDefinitionRepository definitions, ObjectMapper objectMapper) {
     this.properties = properties;
     this.runLog = runLog;
-    this.recorder = recorder;
+    this.store = store;
     this.worlds = worlds;
     this.snapshots = snapshots;
     this.runs = runs;
@@ -152,21 +160,47 @@ public class CoreKeeperImportService {
       run.setWorldSnapshotId(existing.get().getId());
       return runLog.finish(run, "UNCHANGED", null, null);
     }
-    Long previousSeed = latestSeed(world);
+    T_WorldSnapshot latest = world.getLatestSnapshotId() == null ? null
+        : snapshots.findById(world.getLatestSnapshotId()).orElse(null);
+    JsonNode latestJson = latest == null ? null : readTree(latest.getExtractedJson());
+    Long previousSeed = latestJson != null && latestJson.path("globalSeed").isIntegralNumber()
+        ? latestJson.get("globalSeed").asLong() : null;
     if (previousSeed != null && parsed.globalSeed() != null && !previousSeed.equals(parsed.globalSeed())) {
       return runLog.finish(run, "FAILED", "WORLD_MISMATCH",
           "登録中のワールドとシードが異なります。新しいワールドなら管理画面で世代を切り替えてください。");
     }
+    // The game saves every few minutes; creatures moving alone must not create a snapshot.
+    String contentHash = contentHash(parsed);
+    if (latest != null && CoreKeeperWorldParser.PARSER_VERSION.equals(latest.getParserVersion())
+        && contentHash.equals(latestJson == null ? null : latestJson.path("contentHash").asString(null))) {
+      run.setWorldSnapshotId(latest.getId());
+      return runLog.finish(run, "UNCHANGED", null, null);
+    }
 
-    var recorded = recorder.record(world.getId(), new WorldSnapshotRecorder.SnapshotInput(
-        parsed.sourceSha256(), parsed.containerVersion(), CoreKeeperWorldParser.PARSER_VERSION,
-        capturedAt, source.modifiedAt(), parsed.generationJson(), extractedJson(parsed),
-        states(parsed)));
-    if (recorded.isEmpty()) return runLog.finish(run, "UNCHANGED", null, null);
-    run.setWorldSnapshotId(recorded.get().snapshot().getId());
-    log.info("Core Keeper snapshot recorded. runId={}, snapshotId={}, events={}",
-        run.getId(), run.getWorldSnapshotId(), recorded.get().events().size());
+    var stored = store.store(world.getId(), latest == null, parsed,
+        new WorldSnapshotRecorder.SnapshotInput(parsed.sourceSha256(), parsed.containerVersion(),
+            CoreKeeperWorldParser.PARSER_VERSION, capturedAt, source.modifiedAt(),
+            parsed.generationJson(), extractedJson(parsed, contentHash), states(parsed)));
+    if (stored.isEmpty()) return runLog.finish(run, "UNCHANGED", null, null);
+    run.setWorldSnapshotId(stored.get().snapshotId());
+    log.info("Core Keeper snapshot recorded. runId={}, snapshotId={}, progressEvents={}, itemChanges={}",
+        run.getId(), run.getWorldSnapshotId(), stored.get().progressEvents(), stored.get().itemChanges());
     return runLog.finish(run, "SUCCEEDED", null, null);
+  }
+
+  /** Hash of the stored contents shown on the site; creature counts are left out on purpose. */
+  String contentHash(CoreKeeperWorld parsed) {
+    Map<String, Object> content = new LinkedHashMap<>();
+    content.put("greatWallLowered", parsed.greatWallLowered());
+    content.put("recordedObjects", parsed.recordedObjects());
+    content.put("containers", parsed.containers());
+    content.put("crops", parsed.crops());
+    try {
+      return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+          .digest(hashMapper.writeValueAsBytes(content)));
+    } catch (NoSuchAlgorithmException exception) {
+      throw new IllegalStateException(exception);
+    }
   }
 
   /** Supported items map to save fields; the full record list makes absence a real "not yet". */
@@ -200,26 +234,40 @@ public class CoreKeeperImportService {
         .isPresent();
   }
 
-  private Long latestSeed(M_GameWorld world) {
-    if (world.getLatestSnapshotId() == null) return null;
-    return snapshots.findById(world.getLatestSnapshotId()).map(snapshot -> {
-      try {
-        var seed = objectMapper.readTree(snapshot.getExtractedJson()).get("globalSeed");
-        return seed != null && seed.isIntegralNumber() ? seed.asLong() : null;
-      } catch (RuntimeException exception) {
-        return null;
-      }
-    }).orElse(null);
+  private JsonNode readTree(String json) {
+    try {
+      return objectMapper.readTree(json);
+    } catch (RuntimeException exception) {
+      return null;
+    }
   }
 
-  private String extractedJson(CoreKeeperWorld parsed) {
+  private String extractedJson(CoreKeeperWorld parsed, String contentHash) {
     Map<String, Object> json = new LinkedHashMap<>();
+    json.put("contentHash", contentHash);
     json.put("globalSeed", parsed.globalSeed());
     json.put("greatWallLowered", parsed.greatWallLowered());
     json.put("bossKilledFromGameLogic", new java.util.TreeMap<>(parsed.bossKilledFromGameLogic()));
     json.put("recordedObjects", parsed.recordedObjects());
-    json.put("notes", List.of("amount is a stored game value, not a verified kill or mining count."));
+    var totals = CoreKeeperWorldStore.itemTotals(parsed);
+    Map<String, Object> summary = new LinkedHashMap<>();
+    summary.put("containers", parsed.containers().stream()
+        .filter(container -> "STORAGE".equals(container.holder())).count());
+    summary.put("distinctItems", totals.size());
+    summary.put("storedSlots", totals.values().stream().mapToInt(CoreKeeperWorldStore.ItemTotal::slots).sum());
+    summary.put("entities", parsed.objects().stream().mapToInt(CoreKeeperWorld.ObjectTally::count).sum());
+    summary.put("creatures", count(parsed, "CREATURE"));
+    summary.put("crops", parsed.crops().stream().mapToInt(CoreKeeperWorld.CropTally::count).sum());
+    summary.put("skippedEntities", parsed.skippedEntities());
+    json.put("summary", summary);
+    json.put("notes", List.of("amount is a stored game value, not a verified kill or mining count.",
+        "container amounts are stack sizes for materials and durability for equipment."));
     return objectMapper.writeValueAsString(json);
+  }
+
+  private static int count(CoreKeeperWorld parsed, String category) {
+    return parsed.objects().stream().filter(tally -> category.equals(tally.category()))
+        .mapToInt(CoreKeeperWorld.ObjectTally::count).sum();
   }
 
   private CoreKeeperWorld parseWithTimeout(byte[] bytes)

@@ -215,7 +215,7 @@ class ApplicationConfigurationTests {
     runner.run(context -> {
       var properties = context.getBean(CoreKeeperImportProperties.class);
       assertThat(properties.isImportEnabled()).isFalse();
-      assertThat(properties.getImportInterval()).hasMinutes(5);
+      assertThat(properties.getImportInterval()).hasMinutes(10);
     });
     productionRunner().run(context -> {
       var properties = context.getBean(CoreKeeperImportProperties.class);

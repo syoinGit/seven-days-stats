@@ -183,10 +183,11 @@ public class LuminiteQueryService {
         e.anglersFinishedToday());
   }
 
-  public List<Stat> highlights(Context context, long bossesDone, long bossesTotal) {
+  /** Boss count is achieved-only; the total is never shown so progress stays a surprise. */
+  public List<Stat> highlights(Context context, long bossesDone) {
     var totals = context.summary().totals();
     return List.of(
-        new Stat("ボス", bossesDone + " / " + bossesTotal, "保存データで討伐を確認できたボス"),
+        new Stat("倒したボス", String.valueOf(bossesDone), "保存データで討伐を確認できたボス"),
         new Stat("保管アイテム", totals.distinctItems() + "種",
             String.format("合計 %,d 個（チェスト・飾り台）", totals.storedItems())),
         new Stat("討伐数", String.format("%,d", totals.bestiaryKills()),

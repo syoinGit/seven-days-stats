@@ -10,5 +10,8 @@ public interface T_ProgressEventRepository extends JpaRepository<T_ProgressEvent
   Page<T_ProgressEvent> findByGameWorldIdOrderByFirstObservedAtDescIdDesc(
       Long gameWorldId, Pageable pageable);
 
+  Page<T_ProgressEvent> findByGameWorldIdAndNewStateOrderByFirstObservedAtDescIdDesc(
+      Long gameWorldId, String newState, Pageable pageable);
+
   List<T_ProgressEvent> findByWorldSnapshotId(Long worldSnapshotId);
 }

@@ -1,5 +1,6 @@
 package com.yuki.rubinco.luminite.ingest;
 
+import com.yuki.rubinco.portal.service.ServerActivityGate;
 import com.yuki.rubinco.worldprogress.service.WorldImportRunLog;
 import jakarta.annotation.PreDestroy;
 import java.time.OffsetDateTime;
@@ -22,6 +23,7 @@ public class TerrariaImportRunner implements ApplicationRunner {
   private final TerrariaImportProperties properties;
   private final TerrariaImportService importService;
   private final WorldImportRunLog runLog;
+  private final ServerActivityGate gate;
   private final ExecutorService worker = Executors.newSingleThreadExecutor(runnable -> {
     Thread thread = new Thread(runnable, "terraria-import");
     thread.setDaemon(true);
@@ -37,7 +39,10 @@ public class TerrariaImportRunner implements ApplicationRunner {
   @Scheduled(fixedDelayString = "${app.terraria.import-interval:5m}",
       initialDelayString = "${app.terraria.import-initial-delay:1m}")
   public void scheduledImport() {
-    if (!properties.isImportEnabled()) return;
+    if (!properties.isImportEnabled()
+        || !gate.importAllowed("terraria-import", TerrariaImportService.GAME_ID)) {
+      return;
+    }
     submit(() -> {
       importService.runScheduled().ifPresent(run ->
           log.info("Terraria scheduled import finished. runId={}, status={}, errorCode={}",

@@ -34,8 +34,8 @@
   <section class="luminite-overview" aria-label="Terrariaサーバー概要">
     <article>
       <span class="eyebrow">PROGRESS</span>
-      <strong th:text="${overview.hasSnapshot ? overview.achievedCount + ' / ' + overview.supportedCount : '—'}">0 / 64</strong>
-      <p>保存データで確認できた進行項目の数です。</p>
+      <strong th:text="${overview.hasSnapshot ? overview.achievedCount : '—'}">0</strong>
+      <p>保存データで達成を確認できた項目の数です。</p>
     </article>
     <article>
       <span class="eyebrow">LAST CHECK</span>
@@ -106,25 +106,26 @@
         <p class="eyebrow">WORLD PROGRESS</p>
         <h2 id="luminite-progress-title">ワールドの進捗</h2>
       </div>
-      <a th:href="@{/luminite(spoilers=${!spoilers})}"
-         th:text="${spoilers ? '未到達の名前を隠す' : '未到達の名前を表示（ネタバレ）'}">未到達の名前を表示（ネタバレ）</a>
     </div>
     <p th:if="${!overview.hasSnapshot}" class="luminite-empty">まだワールドデータを取り込めていません。</p>
+    <p th:if="${overview.hasSnapshot and #lists.isEmpty(overview.items)}" class="luminite-empty">まだ達成を確認できた項目はありません。</p>
     <th:block th:if="${overview.hasSnapshot}"
               th:each="group : ${ {{'BOSS','ボス'},{'EVENT','イベント'},{'NPC','住人'},{'WORLD','ワールド'}} }">
-      <h3 class="luminite-group-title" th:text="${group[1]}">ボス</h3>
-      <ul class="luminite-progress">
-        <li th:each="item : ${overview.items}" th:if="${item.category == group[0]}"
-            th:classappend="${'state-' + (item.supported ? #strings.toLowerCase(item.state) : 'unsupported')}">
-          <span class="luminite-state" th:text="${item.stateLabel}">未達</span>
+      <th:block th:with="groupItems=${overview.items.?[category == '__${group[0]}__']}">
+      <h3 class="luminite-group-title" th:unless="${#lists.isEmpty(groupItems)}" th:text="${group[1]}">ボス</h3>
+      <ul class="luminite-progress" th:unless="${#lists.isEmpty(groupItems)}">
+        <li th:each="item : ${groupItems}" class="state-achieved">
+          <span class="luminite-state">達成</span>
           <span>
             <b th:text="${item.label}">クトゥルフの目</b>
             <small th:if="${item.description}" th:text="${item.description}"></small>
           </span>
         </li>
       </ul>
+      </th:block>
     </th:block>
     <p class="luminite-note">
+      達成した項目だけを表示します。まだの項目や、残りがいくつあるかは表示しません。
       ワールドファイルに記録されるフラグから判定しています。討伐に参加したプレイヤーや日時は保存されていないため表示できません。
     </p>
   </section>
@@ -133,7 +134,7 @@
     <div class="section-heading">
       <div><p class="eyebrow">NEXT GOALS</p><h2 id="luminite-guide-title">おすすめの次の目標</h2></div>
     </div>
-    <p th:if="${#lists.isEmpty(overview.guides) and overview.hiddenSpoilerGuides == 0}" class="luminite-empty">今の進行状況に合う記事はまだありません。</p>
+    <p th:if="${#lists.isEmpty(overview.guides)}" class="luminite-empty">今の進行状況に合う記事はまだありません。</p>
     <article class="luminite-guide" th:each="guide : ${overview.guides}">
       <h3 th:text="${guide.title}">記事タイトル</h3>
       <p th:text="${guide.body}">本文</p>
@@ -144,8 +145,6 @@
            th:text="${guide.referenceLabel ?: '参考リンク'}">参考リンク</a>
       </small>
     </article>
-    <p th:if="${overview.hiddenSpoilerGuides > 0}" class="luminite-note"
-       th:text="${'ネタバレを含む記事が' + overview.hiddenSpoilerGuides + '件あります。上の「未到達の名前を表示」で読めます。'}"></p>
   </section>
 
   <section class="luminite-panel" th:if="${activity != null}" aria-labelledby="luminite-activity-title">
@@ -166,8 +165,8 @@
 
   <section class="luminite-panel" th:if="${overview.hasSnapshot and !#lists.isEmpty(overview.recentEvents)}" aria-labelledby="luminite-changes-title">
     <div class="section-heading">
-      <div><p class="eyebrow">CHANGES</p><h2 id="luminite-changes-title">最近の進捗変化</h2></div>
-      <a th:href="@{/luminite/history(spoilers=${spoilers})}">すべての履歴 →</a>
+      <div><p class="eyebrow">CHANGES</p><h2 id="luminite-changes-title">最近の達成</h2></div>
+      <a th:href="@{/luminite/history}">すべての履歴 →</a>
     </div>
     <ol class="luminite-events">
       <th:block th:each="event : ${overview.recentEvents}"><li th:replace="~{fragments/octarine :: eventRow(${event})}"></li></th:block>

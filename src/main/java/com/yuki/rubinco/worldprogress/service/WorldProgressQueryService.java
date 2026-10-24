@@ -34,7 +34,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class WorldProgressQueryService {
   private static final DisplayTimeFormatter TIME = new DisplayTimeFormatter();
-  private static final String MASK = "？？？";
   private static final List<String> SUCCESSFUL_RUNS = List.of("SUCCEEDED", "UNCHANGED");
 
   private final M_GameWorldRepository worlds;
@@ -46,34 +45,36 @@ public class WorldProgressQueryService {
   private final M_GuideArticleRepository articles;
   private final M_GuideRuleRepository rules;
 
+  /**
+   * Progress is shown only once achieved: no unreached names, no denominator and nothing that
+   * hints at how much is left. {@code achievedCount} counts achieved items only.
+   */
   public record Overview(
       boolean worldConfigured, boolean visible, String worldName, String configuredNote,
       int generation, boolean hasSnapshot, String lastCheckedLabel, String freshnessLabel,
       boolean stale, Integer containerVersion, String parserVersion,
-      long achievedCount, long supportedCount, List<ProgressItem> items,
-      List<EventItem> recentEvents, List<GuideItem> guides, int hiddenSpoilerGuides) { }
+      long achievedCount, List<ProgressItem> items,
+      List<EventItem> recentEvents, List<GuideItem> guides) { }
 
-  public record ProgressItem(String label, String category, String state, String stateLabel,
-      boolean supported, boolean masked, String description) { }
+  public record ProgressItem(String label, String category, String description) { }
 
-  public record EventItem(String label, boolean masked, String previousLabel, String newLabel,
-      String kind, String kindLabel, OffsetDateTime observedAt, String observedLabel) { }
+  public record EventItem(String label, String kind, String kindLabel, OffsetDateTime observedAt,
+      String observedLabel) { }
 
   public record GuideItem(String title, String body, String gameVersion, String referenceUrl,
-      String referenceLabel, LocalDate verifiedOn, boolean spoiler) { }
+      String referenceLabel, LocalDate verifiedOn) { }
 
   @Transactional(readOnly = true)
-  public Overview overview(String gameId, boolean admin, boolean showSpoilers,
-      Duration staleAfter) {
+  public Overview overview(String gameId, boolean admin, Duration staleAfter) {
     M_GameWorld world = worlds.findFirstByGameIdAndActiveTrue(gameId).orElse(null);
     if (world == null) {
       return new Overview(false, false, null, null, 0, false, null, null, false, null, null,
-          0, 0, List.of(), List.of(), List.of(), 0);
+          0, List.of(), List.of(), List.of());
     }
     boolean visible = world.isPublished() || admin;
     if (!visible) {
       return new Overview(true, false, world.getDisplayName(), null, world.getGeneration(),
-          false, null, null, false, null, null, 0, 0, List.of(), List.of(), List.of(), 0);
+          false, null, null, false, null, null, 0, List.of(), List.of(), List.of());
     }
     List<M_ProgressDefinition> gameDefinitions =
         definitions.findByGameIdOrderBySortOrderAscIdAsc(gameId);
@@ -83,16 +84,12 @@ public class WorldProgressQueryService {
         : states.findByWorldSnapshotId(snapshot.getId()).stream().collect(Collectors.toMap(
             T_ProgressState::getProgressDefinitionId, row -> ProgressState.from(row.getState())));
 
-    List<ProgressItem> items = gameDefinitions.stream().map(definition -> {
-      ProgressState state = current.getOrDefault(definition.getId(), ProgressState.UNKNOWN);
-      boolean masked = masked(definition, state, showSpoilers);
-      return new ProgressItem(masked ? MASK : definition.getDisplayName(), definition.getCategory(),
-          state.name(), definition.isSupported() ? state.label() : "取得対象外",
-          definition.isSupported(), masked, masked ? null : definition.getDescription());
-    }).toList();
-    long supported = gameDefinitions.stream().filter(M_ProgressDefinition::isSupported).count();
-    long achieved = gameDefinitions.stream().filter(M_ProgressDefinition::isSupported)
-        .filter(definition -> current.get(definition.getId()) == ProgressState.ACHIEVED).count();
+    List<ProgressItem> items = gameDefinitions.stream()
+        .filter(definition -> definition.isSupported()
+            && current.get(definition.getId()) == ProgressState.ACHIEVED)
+        .map(definition -> new ProgressItem(definition.getDisplayName(), definition.getCategory(),
+            definition.getDescription()))
+        .toList();
 
     OffsetDateTime lastChecked = runs.findFirstByGameWorldIdAndStatusInOrderByFinishedAtDescIdDesc(
         world.getId(), SUCCESSFUL_RUNS).map(T_WorldImportRun::getFinishedAt)
@@ -100,10 +97,10 @@ public class WorldProgressQueryService {
     boolean stale = lastChecked == null
         || lastChecked.isBefore(OffsetDateTime.now().minus(staleAfter));
 
+    // Spoiler articles are never shown on the public pages; there is no reveal switch any more.
     List<GuideItem> guides = new java.util.ArrayList<>();
-    int hiddenSpoilers = 0;
     List<M_GuideArticle> published = articles.findByGameIdOrderBySortOrderAscIdAsc(gameId).stream()
-        .filter(M_GuideArticle::isPublished).toList();
+        .filter(M_GuideArticle::isPublished).filter(article -> !article.isSpoiler()).toList();
     Map<Long, List<M_GuideRule>> rulesByArticle = published.isEmpty() ? Map.of()
         : rules.findByGuideArticleIdIn(published.stream().map(M_GuideArticle::getId).toList())
             .stream().collect(Collectors.groupingBy(M_GuideRule::getGuideArticleId));
@@ -111,56 +108,39 @@ public class WorldProgressQueryService {
       if (!GuideRules.visible(rulesByArticle.getOrDefault(article.getId(), List.of()), current)) {
         continue;
       }
-      if (article.isSpoiler() && !showSpoilers) {
-        hiddenSpoilers++;
-        continue;
-      }
       guides.add(new GuideItem(article.getTitle(), article.getBody(), article.getGameVersion(),
-          article.getReferenceUrl(), article.getReferenceLabel(), article.getVerifiedOn(),
-          article.isSpoiler()));
+          article.getReferenceUrl(), article.getReferenceLabel(), article.getVerifiedOn()));
     }
 
     return new Overview(true, true, world.getDisplayName(), world.getConfiguredNote(),
         world.getGeneration(), snapshot != null, lastChecked == null ? null : TIME.format(lastChecked),
         freshness(lastChecked), stale, snapshot == null ? null : snapshot.getContainerVersion(),
-        snapshot == null ? null : snapshot.getParserVersion(), achieved, supported, items,
-        history(gameId, admin, showSpoilers, 0, 5).getContent(), List.copyOf(guides), hiddenSpoilers);
+        snapshot == null ? null : snapshot.getParserVersion(), items.size(), items,
+        history(gameId, admin, 0, 5).getContent(), List.copyOf(guides));
   }
 
+  /** Only events that reached "achieved"; other transitions would name unreached items. */
   @Transactional(readOnly = true)
-  public Page<EventItem> history(String gameId, boolean admin, boolean showSpoilers, int page,
-      int size) {
+  public Page<EventItem> history(String gameId, boolean admin, int page, int size) {
     M_GameWorld world = worlds.findFirstByGameIdAndActiveTrue(gameId).orElse(null);
     if (world == null || (!world.isPublished() && !admin)) {
       return Page.empty(PageRequest.of(page, size));
     }
     Map<Long, M_ProgressDefinition> byId = definitions.findByGameIdOrderBySortOrderAscIdAsc(gameId)
         .stream().collect(Collectors.toMap(M_ProgressDefinition::getId, Function.identity()));
-    return events.findByGameWorldIdOrderByFirstObservedAtDescIdDesc(world.getId(),
-        PageRequest.of(page, size)).map(event -> eventItem(event, byId, showSpoilers));
-  }
-
-  private EventItem eventItem(T_ProgressEvent event, Map<Long, M_ProgressDefinition> byId,
-      boolean showSpoilers) {
-    M_ProgressDefinition definition = byId.get(event.getProgressDefinitionId());
-    ProgressState state = ProgressState.from(event.getNewState());
-    boolean masked = definition == null || masked(definition, state, showSpoilers);
-    return new EventItem(masked ? MASK : definition.getDisplayName(), masked,
-        event.getPreviousState() == null ? "—" : ProgressState.from(event.getPreviousState()).label(),
-        state.label(), event.getChangeKind(), kindLabel(event.getChangeKind()),
-        event.getFirstObservedAt(), TIME.format(event.getFirstObservedAt()));
-  }
-
-  /** Unreached spoiler items stay hidden; achieved ones are no longer secrets in this world. */
-  private static boolean masked(M_ProgressDefinition definition, ProgressState state,
-      boolean showSpoilers) {
-    return definition.isSpoiler() && state != ProgressState.ACHIEVED && !showSpoilers;
+    return events.findByGameWorldIdAndNewStateOrderByFirstObservedAtDescIdDesc(world.getId(),
+        ProgressState.ACHIEVED.name(), PageRequest.of(page, size)).map(event -> {
+          M_ProgressDefinition definition = byId.get(event.getProgressDefinitionId());
+          return new EventItem(definition == null ? "（削除された項目）" : definition.getDisplayName(),
+              event.getChangeKind(), kindLabel(event.getChangeKind()), event.getFirstObservedAt(),
+              TIME.format(event.getFirstObservedAt()));
+        });
   }
 
   static String kindLabel(String kind) {
     return switch (kind) {
-      case "INITIAL" -> "初回観測";
-      case "CHANGED" -> "変化を確認";
+      case "INITIAL" -> "初回の取り込みで確認";
+      case "CHANGED" -> "達成を確認";
       case "REGRESSED" -> "状態が後退";
       case "PARSER_CHANGE" -> "解析方式の更新による変更";
       case "NEWLY_SUPPORTED" -> "新たに取得対象化";

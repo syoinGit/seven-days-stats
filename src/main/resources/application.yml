@@ -101,7 +101,9 @@ app:
     # Read-only copy source. Production path is set in application-production.yml.
     world-file: ${COREKEEPER_WORLD_FILE:corekeeper/server-data/worlds/0.world.gzip}
     import-enabled: ${COREKEEPER_IMPORT_ENABLED:false}
-    import-interval: ${COREKEEPER_IMPORT_INTERVAL:5m}
+    # Object name table generated from the game (docs/OCTARINE.md); kept out of the repository.
+    names-dir: ${COREKEEPER_NAMES_DIR:}
+    import-interval: ${COREKEEPER_IMPORT_INTERVAL:10m}
     max-compressed-size: ${COREKEEPER_MAX_COMPRESSED_SIZE:64MB}
     max-decompressed-size: ${COREKEEPER_MAX_DECOMPRESSED_SIZE:256MB}
     parse-timeout: 60s
@@ -158,6 +160,12 @@ app:
     schedule-interval: 30m
     initial-delay: 60s
     max-posts-per-day: 3
+  # AI comments on the Octarine / Luminite statistics. Uses the app.ai model; posts only while
+  # the game's server is online.
+  world-ai:
+    enabled: false
+    interval: ${WORLD_AI_INTERVAL:3h}
+    max-output-tokens: 300
   survivor-karen:
     image-enabled: false
     image-interval-days: 3

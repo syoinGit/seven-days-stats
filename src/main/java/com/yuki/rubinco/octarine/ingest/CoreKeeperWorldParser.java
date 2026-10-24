@@ -26,23 +26,18 @@ import tools.jackson.databind.ObjectMapper;
  */
 public final class CoreKeeperWorldParser {
   /** Changes whenever extraction rules change, so the same save is re-parsed after an upgrade. */
-  public static final String PARSER_VERSION = "ck-dotsbin77-1";
+  public static final String PARSER_VERSION = "ck-dotsbin77-2";
   public static final int CONTAINER_VERSION = 77;
 
   private static final byte[] MAGIC = "DOTSBIN!".getBytes(StandardCharsets.US_ASCII);
   private static final int HEADER_SIZE = 152;
   private static final int CHUNK_SIZE = 16384;
-  private static final int CHUNK_BUFFER = 16320;
+  private static final int CHUNK_BUFFER = CoreKeeperTypes.CHUNK_BUFFER;
   private static final String ARCHETYPE_NODE = "F5364E1CCB62466A9883F6F9554D4F0C";
   private static final String CHUNK_NODE = "2EA7CE3325F04D7A84CEAB46790C628A";
   private static final String BUFFER_NODE = "E33124BFAC2649D792DE36E4611DDD70";
-  private static final long ENTITY_TYPE = Long.parseUnsignedLong("2308415037858323387");
-  private static final long SINGLETON_TAG_TYPE = Long.parseUnsignedLong("8089487776991448321");
-  private static final long KILLED_ENEMIES_TYPE = Long.parseUnsignedLong("3317929161124881020");
-  private static final long GREAT_WALL_TYPE = Long.parseUnsignedLong("13321463714558854008");
-  private static final int KILLED_ENEMIES_COMPONENT_SIZE = 136;
-  private static final int KILLED_ENEMIES_INLINE_CAPACITY = 10;
   private static final int RECORD_SIZE = 12;
+  private static final int MAX_OBJECT_ID = 1_000_000;
   private static final byte[] GENERATION_PREFIX =
       "{\"globalSeed\"".getBytes(StandardCharsets.US_ASCII);
 
@@ -139,34 +134,173 @@ public final class CoreKeeperWorldParser {
     }
     check(o == bufferEnd, "Unexpected buffer trailing data");
 
-    Layout layout = new Layout(b, archetypes, chunkNode.start(), chunkCount);
-    Singleton killed = layout.singleton(KILLED_ENEMIES_TYPE, KILLED_ENEMIES_COMPONENT_SIZE);
-    int recordCount = b.i32(killed.at() + 8);
-    int capacity = b.i32(killed.at() + 12);
-    check(recordCount >= 0 && capacity >= recordCount && capacity >= KILLED_ENEMIES_INLINE_CAPACITY
-        && b.i64(killed.at()) == 0L, "Invalid object buffer");
-    byte[] external = patches.get(killed.chunk() + ":" + killed.offset());
-    check(external != null ? external.length == (long) capacity * RECORD_SIZE
-        : capacity == KILLED_ENEMIES_INLINE_CAPACITY, "Unsupported object buffer capacity");
-    Buffer data = external != null ? new Buffer(external)
-        : new Buffer(b.slice(killed.at() + 16, KILLED_ENEMIES_INLINE_CAPACITY * RECORD_SIZE));
-    check((long) recordCount * RECORD_SIZE <= data.length(), "Truncated object buffer");
+    Entities entities = readEntities(b, archetypes, patches, chunkNode.start(), chunkCount);
+    Map<String, Boolean> bosses = new LinkedHashMap<>();
+    GAME_LOGIC_BOSS_IDS.forEach((name, id) -> bosses.put(name,
+        entities.killed().stream().anyMatch(record -> record.objectId() == id)));
+    Generation generation = generation(b);
+    return new CoreKeeperWorld(sha256(input), version, b.length(), entities.greatWallLowered(),
+        List.copyOf(entities.killed()), Map.copyOf(bosses), generation.globalSeed(),
+        generation.json(), List.copyOf(entities.containers()), List.copyOf(entities.objects()),
+        List.copyOf(entities.crops()), entities.skipped());
+  }
+
+  private record Entities(List<CoreKeeperWorld.RecordedObject> killed, boolean greatWallLowered,
+      List<CoreKeeperWorld.Container> containers, List<CoreKeeperWorld.ObjectTally> objects,
+      List<CoreKeeperWorld.CropTally> crops, int skipped) { }
+
+  /** Decodes every chunk whose archetype is fully known; the rest are counted as skipped. */
+  private Entities readEntities(Buffer b, List<Archetype> archetypes, Map<String, byte[]> patches,
+      long chunkStart, int chunkCount) {
+    Map<Integer, List<Integer>> chunksByArchetype = new HashMap<>();
+    int[] seen = new int[archetypes.size()];
+    for (int k = 0; k < chunkCount; k++) {
+      long base = chunkStart + (long) k * CHUNK_SIZE;
+      int archetype = b.i32(base);
+      int count = b.i32(base + 16);
+      check(archetype >= 0 && archetype < archetypes.size() && count >= 0
+          && count <= CoreKeeperTypes.MAX_CHUNK_CAPACITY, "Invalid chunk header");
+      seen[archetype] += count;
+      chunksByArchetype.computeIfAbsent(archetype, key -> new ArrayList<>()).add(k);
+    }
+    for (int j = 0; j < archetypes.size(); j++) {
+      check(seen[j] == archetypes.get(j).count(), "Chunk entity counts do not match archetypes");
+    }
+
+    List<CoreKeeperWorld.RecordedObject> killed = null;
+    Boolean wall = null;
+    List<CoreKeeperWorld.Container> containers = new ArrayList<>();
+    Map<String, Integer> objectCounts = new java.util.TreeMap<>();
+    Map<String, Integer> cropCounts = new java.util.TreeMap<>();
+    int skipped = 0;
+    for (int j = 0; j < archetypes.size(); j++) {
+      Archetype archetype = archetypes.get(j);
+      if (archetype.count() == 0) continue;
+      CoreKeeperTypes.Layout layout = CoreKeeperTypes.layout(archetype.types());
+      if (layout == null) {
+        skipped += archetype.count();
+        continue;
+      }
+      for (int k : chunksByArchetype.getOrDefault(j, List.of())) {
+        long data = chunkStart + (long) k * CHUNK_SIZE + 64;
+        int count = b.i32(data - 64 + 16);
+        check(count <= layout.capacity(), "Chunk holds more entities than its archetype allows");
+        Chunk chunk = new Chunk(b, patches, k, data, layout);
+        if (layout.has(CoreKeeperTypes.KILLED_ENEMIES)) {
+          check(killed == null && count == 1, "Expected one killed-objects record");
+          killed = records(chunk.buffer(CoreKeeperTypes.KILLED_ENEMIES, 0));
+        }
+        if (layout.has(CoreKeeperTypes.GREAT_WALL)) {
+          check(wall == null && count == 1, "Expected one wall record");
+          int value = b.u8(chunk.at(CoreKeeperTypes.GREAT_WALL, 0));
+          check(value <= 1, "Invalid wall boolean");
+          wall = value == 1;
+        }
+        if (!layout.has(CoreKeeperTypes.OBJECT_DATA)) continue;
+        String category = category(layout);
+        for (int e = 0; e < count; e++) {
+          long object = chunk.at(CoreKeeperTypes.OBJECT_DATA, e);
+          int objectId = b.i32(object);
+          check(objectId >= 0 && objectId < MAX_OBJECT_ID, "Unexpected object id");
+          objectCounts.merge(objectId + ":" + category, 1, Integer::sum);
+          if (layout.has(CoreKeeperTypes.GROWING)) {
+            int stage = b.i32(chunk.at(CoreKeeperTypes.GROWING, e));
+            check(stage >= 0 && stage < 100, "Unexpected growth stage");
+            cropCounts.merge(objectId + ":" + stage, 1, Integer::sum);
+          }
+          if (layout.has(CoreKeeperTypes.CONTAINED_OBJECTS)) {
+            containers.add(container(chunk, e, objectId, b.i32(object + 8)));
+          }
+        }
+      }
+    }
+    check(killed != null && wall != null, "Expected world records");
+    List<CoreKeeperWorld.ObjectTally> objects = new ArrayList<>();
+    objectCounts.forEach((key, count) -> {
+      String[] parts = key.split(":");
+      objects.add(new CoreKeeperWorld.ObjectTally(Integer.parseInt(parts[0]), parts[1], count));
+    });
+    List<CoreKeeperWorld.CropTally> crops = new ArrayList<>();
+    cropCounts.forEach((key, count) -> {
+      String[] parts = key.split(":");
+      crops.add(new CoreKeeperWorld.CropTally(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]),
+          count));
+    });
+    containers.sort(java.util.Comparator.comparingInt(CoreKeeperWorld.Container::x)
+        .thenComparingInt(CoreKeeperWorld.Container::z)
+        .thenComparingInt(CoreKeeperWorld.Container::objectId));
+    return new Entities(killed, wall, containers, objects, crops, skipped);
+  }
+
+  private static String category(CoreKeeperTypes.Layout layout) {
+    if (layout.has(CoreKeeperTypes.CONTAINED_OBJECTS)) return "CONTAINER";
+    if (layout.has(CoreKeeperTypes.GROWING)) return "CROP";
+    if (layout.has(CoreKeeperTypes.SNAKE_BOSS_SEGMENT)) return "BOSS_PART";
+    boolean health = layout.has(CoreKeeperTypes.HEALTH);
+    if (health && layout.has(CoreKeeperTypes.CONDITIONS)) return "CREATURE";
+    if (layout.has(CoreKeeperTypes.LOOT_TABLE)) return health ? "BREAKABLE" : "DIG_SPOT";
+    return "OBJECT";
+  }
+
+  private static CoreKeeperWorld.Container container(Chunk chunk, int entity, int objectId,
+      int variation) {
+    check(chunk.layout().has(CoreKeeperTypes.TRANSLATION), "Container without a position");
+    long position = chunk.at(CoreKeeperTypes.TRANSLATION, entity);
+    float x = chunk.b().f32(position);
+    float z = chunk.b().f32(position + 8);
+    check(Float.isFinite(x) && Float.isFinite(z) && Math.abs(x) < 1e6 && Math.abs(z) < 1e6,
+        "Unexpected position");
+    Buffer slots = chunk.buffer(CoreKeeperTypes.CONTAINED_OBJECTS, entity);
+    int slotCount = slots.length() / RECORD_SIZE;
+    List<CoreKeeperWorld.Slot> items = new ArrayList<>();
+    for (int slot = 0; slot < slotCount; slot++) {
+      int id = slots.i32((long) slot * RECORD_SIZE);
+      check(id >= 0 && id < MAX_OBJECT_ID, "Unexpected contained object id");
+      if (id == 0) continue;
+      items.add(new CoreKeeperWorld.Slot(slot, id, slots.i32((long) slot * RECORD_SIZE + 4),
+          slots.i32((long) slot * RECORD_SIZE + 8)));
+    }
+    String holder = chunk.layout().has(CoreKeeperTypes.CONDITIONS) ? "NPC" : "STORAGE";
+    return new CoreKeeperWorld.Container(holder, objectId, variation, Math.round(x), Math.round(z),
+        slotCount, List.copyOf(items));
+  }
+
+  private static List<CoreKeeperWorld.RecordedObject> records(Buffer data) {
     List<CoreKeeperWorld.RecordedObject> records = new ArrayList<>();
-    for (int j = 0; j < recordCount; j++) {
+    for (int j = 0; j < data.length() / RECORD_SIZE; j++) {
       records.add(new CoreKeeperWorld.RecordedObject(data.i32((long) j * RECORD_SIZE),
           data.i32((long) j * RECORD_SIZE + 4), data.i32((long) j * RECORD_SIZE + 8)));
     }
+    return records;
+  }
 
-    Singleton wall = layout.singleton(GREAT_WALL_TYPE, 1);
-    int wallValue = b.u8(wall.at());
-    check(wallValue <= 1, "Invalid wall boolean");
+  /** One chunk's data area; offsets come from the archetype layout. */
+  private record Chunk(Buffer b, Map<String, byte[]> patches, int index, long data,
+      CoreKeeperTypes.Layout layout) {
+    long at(long type, int entity) {
+      return data + layout.offset(type)
+          + (long) CoreKeeperTypes.type(type).bytesInChunk() * entity;
+    }
 
-    Map<String, Boolean> bosses = new LinkedHashMap<>();
-    GAME_LOGIC_BOSS_IDS.forEach((name, id) ->
-        bosses.put(name, records.stream().anyMatch(record -> record.objectId() == id)));
-    Generation generation = generation(b);
-    return new CoreKeeperWorld(sha256(input), version, b.length(), wallValue == 1,
-        List.copyOf(records), Map.copyOf(bosses), generation.globalSeed(), generation.json());
+    /**
+     * A dynamic buffer's used elements. Small buffers live inside the chunk; once grown past
+     * their inline capacity the elements are stored as a patch keyed by chunk and offset.
+     */
+    Buffer buffer(long type, int entity) {
+      CoreKeeperTypes.Type info = CoreKeeperTypes.type(type);
+      int offset = Math.toIntExact(layout.offset(type) + (long) info.bytesInChunk() * entity);
+      long at = data + offset;
+      long pointer = b.i64(at);
+      int length = b.i32(at + 8);
+      int capacity = b.i32(at + 12);
+      check(pointer == 0L && length >= 0 && capacity >= info.inlineCapacity() && length <= capacity,
+          "Invalid buffer header");
+      long bytes = (long) length * info.size();
+      if (capacity == info.inlineCapacity()) return new Buffer(b.slice(at + 16, bytes));
+      byte[] external = patches.get(index + ":" + offset);
+      check(external != null && external.length >= bytes, "Missing buffer data");
+      return new Buffer(java.util.Arrays.copyOf(external, (int) bytes));
+    }
   }
 
   byte[] decompress(byte[] input) {
@@ -259,45 +393,7 @@ public final class CoreKeeperWorldParser {
     }
   }
 
-  private record Singleton(int chunk, int offset, long at) { }
-
   private record Generation(Long globalSeed, String json) { }
-
-  private record Layout(Buffer b, List<Archetype> archetypes, long chunkStart, int chunkCount) {
-    Singleton singleton(long type, int componentSize) {
-      int archetypeIndex = -1;
-      for (int j = 0; j < archetypes.size(); j++) {
-        if (archetypes.get(j).has(type)) {
-          check(archetypeIndex < 0, "Expected one target archetype");
-          archetypeIndex = j;
-        }
-      }
-      check(archetypeIndex >= 0, "Expected one target archetype");
-      Archetype archetype = archetypes.get(archetypeIndex);
-      check(archetype.count() == 1 && archetype.types().length == 3 && archetype.has(ENTITY_TYPE)
-          && archetype.has(SINGLETON_TAG_TYPE), "Unsupported singleton layout");
-      int capacity = CHUNK_BUFFER / (8 + componentSize);
-      while (align(8L * capacity) + align((long) componentSize * capacity) > CHUNK_BUFFER) {
-        capacity--;
-      }
-      int offset = Math.toIntExact(align(8L * capacity));
-      Singleton found = null;
-      for (int k = 0; k < chunkCount; k++) {
-        long base = chunkStart + (long) k * CHUNK_SIZE;
-        if (b.i32(base) == archetypeIndex) {
-          check(found == null, "Invalid singleton chunk");
-          found = new Singleton(k, offset, base + 64 + offset);
-          check(b.i32(base + 16) == 1, "Invalid singleton chunk");
-        }
-      }
-      check(found != null, "Invalid singleton chunk");
-      return found;
-    }
-
-    private static long align(long value) {
-      return (value + 63) / 64 * 64;
-    }
-  }
 
   /** Little-endian reads that report malformed offsets as format errors. */
   private static final class Buffer {
@@ -319,6 +415,10 @@ public final class CoreKeeperWorldParser {
 
     long i64(long offset) {
       return view.getLong(index(offset, 8));
+    }
+
+    float f32(long offset) {
+      return view.getFloat(index(offset, 4));
     }
 
     int u8(long offset) {

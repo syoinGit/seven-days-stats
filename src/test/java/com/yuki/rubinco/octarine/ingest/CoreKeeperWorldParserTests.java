@@ -38,6 +38,41 @@ class CoreKeeperWorldParserTests {
     assertThat(Files.readAllBytes(FIXTURE)).isEqualTo(input);
   }
 
+  /** Values cross-checked with an independent Python decoder of the same chunk layout. */
+  @Test
+  void decodesContainersObjectsAndCropsFromEveryKnownArchetype() throws Exception {
+    var world = parser.parse(Files.readAllBytes(FIXTURE));
+
+    assertThat(world.containers()).hasSize(211);
+    var chest = world.containers().stream().filter(c -> c.x() == 233 && c.z() == 83)
+        .findFirst().orElseThrow();
+    assertThat(chest.slotCount()).isEqualTo(18);
+    assertThat(chest.items()).contains(new CoreKeeperWorld.Slot(1, 2021, 30, 0));
+    assertThat(world.containers()).allSatisfy(container -> assertThat(container.items())
+        .allSatisfy(slot -> assertThat(slot.objectId()).isPositive()));
+    assertThat(world.skippedEntities()).isEqualTo(11);
+    assertThat(world.objects()).anySatisfy(tally -> {
+      assertThat(tally.category()).isEqualTo("CREATURE");
+      assertThat(tally.count()).isPositive();
+    });
+    assertThat(world.objects().stream().mapToInt(CoreKeeperWorld.ObjectTally::count).sum())
+        .isGreaterThan(35000);
+    assertThat(world.crops().stream().mapToInt(CoreKeeperWorld.CropTally::count).sum())
+        .isEqualTo(1676);
+  }
+
+  @Test
+  void layoutMatchesUnityRulesForASingletonAndAChestArchetype() {
+    var wall = CoreKeeperTypes.layout(new long[] {CoreKeeperTypes.GREAT_WALL,
+        CoreKeeperTypes.SINGLETON_TAG, CoreKeeperTypes.SIMULATE});
+    assertThat(wall.capacity()).isEqualTo(128);
+    assertThat(wall.offset(CoreKeeperTypes.GREAT_WALL)).isEqualTo(1024);
+    var killed = CoreKeeperTypes.layout(new long[] {CoreKeeperTypes.KILLED_ENEMIES,
+        CoreKeeperTypes.SINGLETON_TAG, CoreKeeperTypes.SIMULATE});
+    assertThat(killed.capacity()).isEqualTo(112);
+    assertThat(CoreKeeperTypes.layout(new long[] {42L})).isNull();
+  }
+
   @Test
   void rejectsTruncatedOrForeignInput() throws Exception {
     byte[] input = Files.readAllBytes(FIXTURE);

@@ -38,7 +38,6 @@ public class LuminiteController {
 
   @GetMapping("/luminite")
   public String index(Model model, Authentication authentication,
-      @RequestParam(defaultValue = "false") boolean spoilers,
       @RequestParam(defaultValue = "0") int page) {
     boolean admin = adminAccess.isAdmin(authentication);
     var game = portalService.card(GAME_ID);
@@ -46,23 +45,20 @@ public class LuminiteController {
     var timeline = timelineService.sharedTimeline(List.of(GAME_ID), safePage)
         .map(event -> new TimelineItem(event.eventType(), event.title(), event.body(),
             event.occurredAt(), TIME_FORMATTER.format(event.occurredAt()), event.actorPlayerId(), event.creatorSub()));
-    var overview = progress.overview(GAME_ID, admin, spoilers, importProperties.staleAfter());
+    var overview = progress.overview(GAME_ID, admin, importProperties.staleAfter());
     model.addAttribute("game", game);
     model.addAttribute("section", "overview");
     model.addAttribute("serverStatus", GamePortalService.ServerStatus.from(game.status()));
     model.addAttribute("overview", overview);
-    model.addAttribute("spoilers", spoilers);
     model.addAttribute("timeline", timeline.getContent());
     model.addAttribute("timelinePage", timeline);
     Optional<Context> context = overview.visible() ? luminite.context(admin) : Optional.empty();
     model.addAttribute("ctx", context.orElse(null));
     context.filter(Context::hasData).ifPresent(ctx -> {
-      long bosses = overview.items().stream().filter(item -> "BOSS".equals(item.category())).count();
-      long bossesDone = overview.items().stream()
-          .filter(item -> "BOSS".equals(item.category()) && "ACHIEVED".equals(item.state())).count();
+      long bossesDone = overview.items().stream().filter(item -> "BOSS".equals(item.category())).count();
       model.addAttribute("world", luminite.world(ctx.summary()));
       model.addAttribute("events", luminite.events(ctx.summary()));
-      model.addAttribute("highlights", luminite.highlights(ctx, bossesDone, bosses));
+      model.addAttribute("highlights", luminite.highlights(ctx, bossesDone));
       model.addAttribute("tiles", ctx.summary().tiles());
       model.addAttribute("activity", luminite.activity(ctx, 12));
     });
@@ -156,13 +152,11 @@ public class LuminiteController {
 
   @GetMapping("/luminite/history")
   public String history(Model model, Authentication authentication,
-      @RequestParam(defaultValue = "false") boolean spoilers,
       @RequestParam(defaultValue = "0") int page) {
     boolean admin = adminAccess.isAdmin(authentication);
     model.addAttribute("game", portalService.card(GAME_ID));
     model.addAttribute("section", "history");
-    model.addAttribute("events", progress.history(GAME_ID, admin, spoilers, clamp(page), 30));
-    model.addAttribute("spoilers", spoilers);
+    model.addAttribute("events", progress.history(GAME_ID, admin, clamp(page), 30));
     var context = luminite.context(admin).filter(Context::hasData);
     model.addAttribute("ctx", context.orElse(null));
     model.addAttribute("activity", context.map(ctx -> luminite.activity(ctx, 60)).orElse(List.of()));

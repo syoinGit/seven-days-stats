@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Core Keeperのワールドデータから作る統計・アイテム検索サイト">
+  <title th:text="${'入れ物 | ' + game.displayName}">Octarine | Core Keeper</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='2')}">
+</head>
+<body class="octarine-body">
+<header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
+<main class="octarine-shell">
+  <nav th:replace="~{fragments/octarine :: tabs}"></nav>
+  <section class="octarine-panel" aria-labelledby="chest-title">
+    <a class="octarine-back" th:href="@{/octarine/chests}">← チェスト検索</a>
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow" th:text="${container.holder}">保管</p>
+        <h1 id="chest-title" th:text="${container.label}">Wood Chest</h1>
+        <p class="octarine-sub"><span th:replace="~{fragments/octarine :: place(${container.place})}"></span></p>
+      </div>
+      <span class="octarine-count" th:text="${container.filled + ' / ' + container.slots + '枠'}">3 / 18枠</span>
+    </div>
+    <div th:replace="~{fragments/octarine :: snapshot}"></div>
+    <p th:if="${#lists.isEmpty(container.items)}" class="octarine-empty">空っぽです。</p>
+    <div class="octarine-table-wrap" th:unless="${#lists.isEmpty(container.items)}">
+      <table class="octarine-table">
+        <thead><tr><th>枠</th><th>アイテム</th><th>数</th></tr></thead>
+        <tbody>
+          <tr th:each="slot : ${container.items}">
+            <td class="num" th:text="${slot.slot + 1}">1</td>
+            <td><a th:href="@{/octarine/items/{id}(id=${slot.objectId})}" th:text="${slot.name}">Wood</a></td>
+            <td class="num" th:text="${slot.amount}">99</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p th:replace="~{fragments/octarine :: amountNote}"></p>
+  </section>
+</main>
+</body>
+</html>

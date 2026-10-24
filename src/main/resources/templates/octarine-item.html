@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Core Keeperのワールドデータから作る統計・アイテム検索サイト">
+  <title th:text="${'アイテム | ' + game.displayName}">Octarine | Core Keeper</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='2')}">
+</head>
+<body class="octarine-body">
+<header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
+<main class="octarine-shell">
+  <nav th:replace="~{fragments/octarine :: tabs}"></nav>
+  <section class="octarine-panel" aria-labelledby="item-title" th:with="item=${detail.item}">
+    <a class="octarine-back" th:href="@{/octarine/items}">← アイテム一覧</a>
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow" th:text="${'OBJECT #' + item.objectId}">OBJECT #1001</p>
+        <h1 id="item-title" th:text="${item.name}">Copper Bar</h1>
+        <p class="octarine-sub" th:if="${item.key != null and item.key != item.name}" th:text="${item.key}">CopperBar</p>
+      </div>
+    </div>
+    <div th:replace="~{fragments/octarine :: snapshot}"></div>
+    <ul class="octarine-stats">
+      <li><span>数の合計</span><strong th:text="${#numbers.formatInteger(item.amount, 1, 'COMMA')}">12</strong><small>保管中の枠の「数」の合計</small></li>
+      <li><span>枠</span><strong th:text="${item.slots}">3</strong><small>このアイテムが入っている枠の数</small></li>
+      <li><span>置き場所</span><strong th:text="${item.containers + 'か所'}">2か所</strong><small>入っている入れ物の数</small></li>
+      <li><span>最後の変化</span><strong class="octarine-small-value" th:text="${item.lastChanged}">---</strong><small>変化を確認した時刻</small></li>
+    </ul>
+    <p th:replace="~{fragments/octarine :: amountNote}"></p>
+
+    <h2 class="octarine-group-title">どこにある？</h2>
+    <p th:if="${#lists.isEmpty(detail.holders)}" class="octarine-empty">今はどの入れ物にも入っていません（以前は保管されていました）。</p>
+    <div class="octarine-table-wrap" th:unless="${#lists.isEmpty(detail.holders)}">
+      <table class="octarine-table">
+        <thead><tr><th>入れ物</th><th>種類</th><th>場所</th><th>数</th></tr></thead>
+        <tbody>
+          <tr th:each="holder : ${detail.holders}">
+            <td><a th:href="@{/octarine/chests/{id}(id=${holder.containerId})}" th:text="${holder.container}">Wood Chest</a></td>
+            <td th:text="${holder.holder}">保管</td>
+            <td><span th:replace="~{fragments/octarine :: place(${holder.place})}"></span></td>
+            <td class="num" th:text="${holder.amount}">5</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="octarine-group-title">数の変化</h2>
+    <p th:if="${#lists.isEmpty(detail.changes)}" class="octarine-empty">初回取り込み以降、変わっていません。</p>
+    <ol class="octarine-changes" th:unless="${#lists.isEmpty(detail.changes)}">
+      <li th:each="change : ${detail.changes}" th:classappend="${change.delta > 0 or (change.delta == 0 and change.currentSlots > change.previousSlots) ? 'up' : 'down'}">
+        <time th:text="${change.at}">---</time>
+        <span th:text="${change.previous + ' → ' + change.current + '（' + change.previousSlots + '枠 → ' + change.currentSlots + '枠）'}">3 → 5</span>
+        <b th:text="${(change.delta > 0 ? '+' : '') + change.delta}">+2</b>
+      </li>
+    </ol>
+    <p class="octarine-note">取り込みの間隔ごとの差分です。その間に出し入れがあっても、差し引きしか分かりません。商人の品ぞろえは数えていません。</p>
+  </section>
+</main>
+</body>
+</html>

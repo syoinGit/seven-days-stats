@@ -1,5 +1,6 @@
 package com.yuki.rubinco.watchpoint.ai;
 
+import com.yuki.rubinco.portal.service.ServerActivityGate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -11,10 +12,13 @@ import org.springframework.stereotype.Component;
 public class SurvivorKarenPublishingRunner {
 
   private final SurvivorKarenPublishingService publishingService;
+  private final ServerActivityGate gate;
 
   /** Frequent checks in the nightly uptime window honour each day's deterministic random slot. */
   @Scheduled(cron = "${app.survivor-karen.schedule-cron:0 */5 20-23 * * *}", zone = "Asia/Tokyo")
   public void publishDailyPost() {
+    // AI posts describe a live server; nothing is generated while it is stopped.
+    if (!gate.aiAllowed("7dtd")) return;
     try {
       var result = publishingService.publishIfDue();
       if (result.status() == SurvivorKarenPublishingService.PublishStatus.PUBLISHED) {

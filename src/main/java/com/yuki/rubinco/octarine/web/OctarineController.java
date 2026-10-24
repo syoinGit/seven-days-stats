@@ -3,63 +3,153 @@ package com.yuki.rubinco.octarine.web;
 import com.yuki.rubinco.account.security.AdminAccess;
 import com.yuki.rubinco.octarine.ingest.CoreKeeperImportProperties;
 import com.yuki.rubinco.octarine.ingest.CoreKeeperImportService;
+import com.yuki.rubinco.octarine.service.OctarineQueryService;
+import com.yuki.rubinco.octarine.service.OctarineQueryService.Context;
 import com.yuki.rubinco.portal.service.GamePortalService;
 import com.yuki.rubinco.portal.service.GameTimelineService;
 import com.yuki.rubinco.shared.DisplayTimeFormatter;
 import com.yuki.rubinco.worldprogress.service.WorldProgressQueryService;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.server.ResponseStatusException;
 
 @Controller
 @RequiredArgsConstructor
 public class OctarineController {
   private static final String GAME_ID = CoreKeeperImportService.GAME_ID;
   private static final DisplayTimeFormatter TIME_FORMATTER = new DisplayTimeFormatter();
+  private static final int PAGE_SIZE = 60;
 
   private final GamePortalService portalService;
   private final GameTimelineService timelineService;
   private final WorldProgressQueryService progress;
+  private final OctarineQueryService octarine;
   private final CoreKeeperImportProperties importProperties;
   private final AdminAccess adminAccess;
 
   @GetMapping("/octarine")
   public String index(Model model, Authentication authentication,
-      @RequestParam(defaultValue = "false") boolean spoilers,
       @RequestParam(defaultValue = "0") int page) {
+    boolean admin = adminAccess.isAdmin(authentication);
     var game = portalService.card(GAME_ID);
     int safePage = Math.max(0, Math.min(page, 1000000));
     var timeline = timelineService.sharedTimeline(List.of(GAME_ID), safePage)
         .map(event -> new TimelineItem(event.eventType(), event.title(), event.body(),
             event.occurredAt(), TIME_FORMATTER.format(event.occurredAt()),
             event.actorPlayerId(), event.creatorSub()));
+    var overview = progress.overview(GAME_ID, admin, importProperties.staleAfter());
     model.addAttribute("game", game);
+    model.addAttribute("section", "overview");
     model.addAttribute("serverStatus", GamePortalService.ServerStatus.from(game.status()));
-    model.addAttribute("overview", progress.overview(GAME_ID, adminAccess.isAdmin(authentication), spoilers,
-        importProperties.staleAfter()));
-    model.addAttribute("spoilers", spoilers);
+    model.addAttribute("overview", overview);
     model.addAttribute("timeline", timeline.getContent());
     model.addAttribute("timelinePage", timeline);
+    var context = overview.visible() ? octarine.context(admin).filter(Context::hasData) : java.util.Optional.<Context>empty();
+    model.addAttribute("ctx", context.orElse(null));
+    context.ifPresent(ctx -> {
+      model.addAttribute("highlights", octarine.highlights(ctx, overview.achievedCount()));
+      model.addAttribute("activity", octarine.activity(ctx, 8));
+    });
     return "octarine";
   }
 
   @GetMapping("/octarine/history")
   public String history(Model model, Authentication authentication,
-      @RequestParam(defaultValue = "false") boolean spoilers,
       @RequestParam(defaultValue = "0") int page) {
-    int safePage = Math.max(0, Math.min(page, 1000000));
+    boolean admin = adminAccess.isAdmin(authentication);
     model.addAttribute("game", portalService.card(GAME_ID));
-    model.addAttribute("events", progress.history(GAME_ID, adminAccess.isAdmin(authentication), spoilers,
-        safePage, 30));
-    model.addAttribute("spoilers", spoilers);
+    model.addAttribute("section", "history");
+    model.addAttribute("events", progress.history(GAME_ID, admin, clamp(page), 30));
+    var context = octarine.context(admin).filter(Context::hasData);
+    model.addAttribute("ctx", context.orElse(null));
+    model.addAttribute("activity", context.map(ctx -> octarine.activity(ctx, 60)).orElse(List.of()));
     return "octarine-history";
   }
 
+  @GetMapping("/octarine/items")
+  public String items(Model model, Authentication authentication,
+      @RequestParam(required = false) String q, @RequestParam(defaultValue = "amount") String sort,
+      @RequestParam(defaultValue = "0") int page) {
+    return withData(model, authentication, "items", ctx -> {
+      String query = trim(q);
+      model.addAttribute("q", query);
+      model.addAttribute("sort", sort);
+      model.addAttribute("items", octarine.items(ctx, query, sort, clamp(page), PAGE_SIZE));
+      return "octarine-items";
+    });
+  }
+
+  @GetMapping("/octarine/items/{objectId}")
+  public String item(Model model, Authentication authentication, @PathVariable int objectId) {
+    return withData(model, authentication, "items", ctx -> {
+      model.addAttribute("detail", octarine.item(ctx, objectId)
+          .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
+      return "octarine-item";
+    });
+  }
+
+  @GetMapping("/octarine/chests")
+  public String chests(Model model, Authentication authentication,
+      @RequestParam(required = false) String q, @RequestParam(required = false) String holder,
+      @RequestParam(defaultValue = "0") int page) {
+    return withData(model, authentication, "chests", ctx -> {
+      String query = trim(q);
+      String safeHolder = "NPC".equals(holder) ? "NPC" : null;
+      model.addAttribute("q", query);
+      model.addAttribute("holder", safeHolder);
+      model.addAttribute("containers", octarine.containers(ctx, query, safeHolder, clamp(page), 30));
+      return "octarine-chests";
+    });
+  }
+
+  @GetMapping("/octarine/chests/{containerId}")
+  public String chest(Model model, Authentication authentication, @PathVariable long containerId) {
+    return withData(model, authentication, "chests", ctx -> {
+      model.addAttribute("container", octarine.container(ctx, containerId)
+          .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
+      return "octarine-chest";
+    });
+  }
+
+  @GetMapping("/octarine/world")
+  public String world(Model model, Authentication authentication) {
+    return withData(model, authentication, "world", ctx -> {
+      model.addAttribute("summary", ctx.summary());
+      model.addAttribute("counts", octarine.objectCounts(ctx));
+      model.addAttribute("crops", octarine.crops(ctx));
+      return "octarine-world";
+    });
+  }
+
+  private String withData(Model model, Authentication authentication, String section,
+      Function<Context, String> view) {
+    model.addAttribute("game", portalService.card(GAME_ID));
+    model.addAttribute("section", section);
+    var context = octarine.context(adminAccess.isAdmin(authentication)).filter(Context::hasData);
+    if (context.isEmpty()) return "octarine-pending";
+    model.addAttribute("ctx", context.get());
+    model.addAttribute("namesLoaded", octarine.namesLoaded());
+    return view.apply(context.get());
+  }
+
+  private static String trim(String value) {
+    if (value == null || value.isBlank()) return null;
+    String stripped = value.strip();
+    return stripped.length() > 60 ? stripped.substring(0, 60) : stripped;
+  }
+
+  private static int clamp(int page) {
+    return Math.max(0, Math.min(page, 100000));
+  }
 
   public record TimelineItem(
       String eventType,
