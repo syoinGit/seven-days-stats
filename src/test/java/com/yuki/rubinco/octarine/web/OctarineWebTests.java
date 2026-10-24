@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.yuki.rubinco.octarine.ingest.CoreKeeperImportService;
 import com.yuki.rubinco.octarine.ingest.CoreKeeperWorld;
+import com.yuki.rubinco.octarine.ingest.CoreKeeperWorldParser;
 import com.yuki.rubinco.octarine.ingest.CoreKeeperWorldStore;
 import com.yuki.rubinco.worldprogress.service.WorldSnapshotRecorder;
 import java.time.OffsetDateTime;
@@ -36,6 +37,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:h2:mem:octarine_web;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
@@ -67,8 +69,8 @@ class OctarineWebTests {
   @BeforeEach
   void importSuppliedWorld() throws Exception {
     jdbc.update("UPDATE M_GAME_WORLD SET latest_snapshot_id = NULL, published = TRUE");
-    for (String table : List.of("T_CK_CONTAINER_ITEM", "T_CK_CONTAINER", "T_CK_ITEM_TOTAL", "T_CK_ITEM_CHANGE",
-        "T_CK_OBJECT_COUNT", "T_CK_CROP_COUNT", "T_PROGRESS_EVENT", "T_PROGRESS_STATE", "T_WORLD_IMPORT_RUN",
+    for (String table : List.of("T_CK_CONTAINER_ITEM", "T_CK_CONTAINER", "T_CK_CONTAINER_TRACK", "T_CK_ITEM_TOTAL",
+        "T_CK_ITEM_CHANGE", "T_PROGRESS_EVENT", "T_PROGRESS_STATE", "T_WORLD_IMPORT_RUN",
         "M_GUIDE_RULE", "M_GUIDE_ARTICLE", "T_WORLD_SNAPSHOT")) {
       jdbc.update("DELETE FROM " + table);
     }
@@ -111,72 +113,117 @@ class OctarineWebTests {
   }
 
   @Test
-  void dataPagesSearchStoredItemsAndChestsFromTheLatestSnapshot() throws Exception {
-    mvc.perform(get("/octarine").with(member()))
-        .andExpect(content().string(containsString("ワールドの今")))
-        .andExpect(content().string(containsString("保管アイテム")));
+  void untouchedContainersAndMerchantsStayHiddenUntilTheirContentsChange() throws Exception {
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER_TRACK", Integer.class)).isPositive();
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isZero();
     mvc.perform(get("/octarine/items").with(member()))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("テストコイン")))
-        .andExpect(content().string(containsString("耐久値")));
+        .andExpect(content().string(not(containsString("テストコイン"))));
+    mvc.perform(get("/octarine/items/2021").with(member())).andExpect(status().isNotFound());
+    mvc.perform(get("/octarine/chests").param("q", "テストコイン").with(member()))
+        .andExpect(content().string(containsString("当てはまる入れ物はありません")));
+    mvc.perform(get("/octarine/world").with(member())).andExpect(status().isNotFound());
+
+    storeLater(touchChest(sample(), 233, 83, 12), "e");
+
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isOne();
+    mvc.perform(get("/octarine").with(member()))
+        .andExpect(content().string(containsString("ワールドの今")))
+        .andExpect(content().string(containsString("使われた入れ物")))
+        .andExpect(content().string(not(containsString("生き物"))))
+        .andExpect(content().string(not(containsString("作物"))));
     mvc.perform(get("/octarine/items").param("q", "てすとこいん").with(member()))
         .andExpect(content().string(containsString("テストコイン")))
+        .andExpect(content().string(containsString("耐久値")))
         .andExpect(content().string(not(containsString("テスト鉄板"))));
     mvc.perform(get("/octarine/items/2021").with(member()))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("テスト宝箱")))
         .andExpect(content().string(containsString("コアから東233・北83")));
-    mvc.perform(get("/octarine/items/1").with(member())).andExpect(status().isNotFound());
-
-    mvc.perform(get("/octarine/chests").param("q", "テストコイン").with(member()))
-        .andExpect(status().isOk())
+    mvc.perform(get("/octarine/chests").with(member()))
         .andExpect(content().string(containsString("テスト宝箱")))
         .andExpect(content().string(not(containsString("テスト商人"))));
-    mvc.perform(get("/octarine/chests").param("holder", "NPC").with(member()))
-        .andExpect(content().string(containsString("テスト商人")));
-    Long id = jdbc.queryForObject("SELECT MIN(ck_container_id) FROM T_CK_CONTAINER WHERE pos_x = 233 AND pos_z = 83",
-        Long.class);
+    mvc.perform(get("/octarine/chests").param("q", "テスト商人").with(member()))
+        .andExpect(content().string(containsString("当てはまる入れ物はありません")));
+    Long id = jdbc.queryForObject("SELECT ck_container_id FROM T_CK_CONTAINER", Long.class);
     mvc.perform(get("/octarine/chests/" + id).with(member()))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("テストコイン")));
     mvc.perform(get("/octarine/chests/" + (id + 99999)).with(member())).andExpect(status().isNotFound());
 
-    mvc.perform(get("/octarine/world").with(member()))
-        .andExpect(status().isOk())
-        .andExpect(content().string(containsString("テストの実")))
-        .andExpect(content().string(containsString("生き物（敵・動物）")))
-        .andExpect(content().string(not(containsString("テスト大ボス"))));
+    // Once known, a container stays known even when it goes back to its first contents.
+    storeLater(sample(), "d");
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isOne();
   }
 
   @Test
-  void aiFactsUseOnlyWhatMembersCanSee() {
+  void aiFactsUseOnlyWhatMembersCanSee() throws Exception {
+    assertThat(aiFacts.facts().orElseThrow()).doesNotContain("テストコイン");
+    storeLater(touchChest(sample(), 233, 83, 12), "e");
     String facts = aiFacts.facts().orElseThrow();
     assertThat(facts).contains("保管アイテム").contains("テストコイン");
-    assertThat(facts).doesNotContain("大壁の解放").doesNotContain("Azeos").doesNotContain("テスト大ボス");
+    assertThat(facts).doesNotContain("大壁の解放").doesNotContain("Azeos").doesNotContain("テスト大ボス")
+        .doesNotContain("テスト商人").doesNotContain("生き物");
     jdbc.update("UPDATE M_GAME_WORLD SET published = FALSE WHERE game_id = 'corekeeper'");
     assertThat(aiFacts.facts()).isEmpty();
   }
 
   @Test
-  void laterSavesRecordItemChangesButTheFirstIsABaseline() throws Exception {
+  void aPlacedChestCountsOnceItIsFilledAndItsItemsAreLoggedAsChanges() throws Exception {
     assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_ITEM_CHANGE", Integer.class)).isZero();
-    long coins = jdbc.queryForObject("SELECT total_amount FROM T_CK_ITEM_TOTAL WHERE object_id = 2021", Long.class);
-    Long worldId = jdbc.queryForObject("SELECT game_world_id FROM M_GAME_WORLD WHERE game_id = 'corekeeper' AND active",
-        Long.class);
-    var chest = new CoreKeeperWorld.Container("STORAGE", 100, 0, 5, -7, 18,
+    var placed = new CoreKeeperWorld.Container("STORAGE", 100, 0, 5, -7, 18, List.of());
+    storeLater(withContainer(sample(), placed), "c");
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isZero();
+
+    var filled = new CoreKeeperWorld.Container("STORAGE", 100, 0, 5, -7, 18,
         List.of(new CoreKeeperWorld.Slot(0, 2021, 75, 0)));
-    var world = new CoreKeeperWorld("f".repeat(64), 77, 0, false, List.of(), Map.of(), 2076732697L, null,
-        List.of(chest), List.of(), List.of(), 0);
-    store.store(worldId, false, world, new WorldSnapshotRecorder.SnapshotInput("f".repeat(64), 77,
-        "ck-dotsbin77-2", OffsetDateTime.now(), OffsetDateTime.now(), null,
-        "{\"summary\":{\"containers\":1}}", Map.of()));
+    storeLater(withContainer(sample(), filled), "b");
 
     mvc.perform(get("/octarine/items/2021").with(member()))
-        .andExpect(content().string(containsString(coins + " → 75")))
-        .andExpect(content().string(containsString("コアから東5・南7")));
+        .andExpect(content().string(containsString("0 → 75")))
+        .andExpect(content().string(containsString("コアから東5・南7")))
+        .andExpect(content().string(not(containsString("コアから東233・北83"))));
     mvc.perform(get("/octarine").with(member()))
         .andExpect(content().string(containsString("保管アイテムの変化")))
-        .andExpect(content().string(containsString("減った")));
+        .andExpect(content().string(containsString("増えた")));
+  }
+
+  private CoreKeeperWorld sample() throws Exception {
+    return new CoreKeeperWorldParser(64L << 20, 256L << 20, new ObjectMapper())
+        .parse(Files.readAllBytes(Path.of("src/test/resources/corekeeper/new-world.world.gzip")));
+  }
+
+  /** The supplied world with one slot of the container at (x, z) set to a new amount. */
+  private static CoreKeeperWorld touchChest(CoreKeeperWorld world, int x, int z, int amount) {
+    var containers = world.containers().stream().map(container -> {
+      if (container.x() != x || container.z() != z) return container;
+      var items = new java.util.ArrayList<>(container.items());
+      var first = items.get(0);
+      items.set(0, new CoreKeeperWorld.Slot(first.slot(), first.objectId(), amount, first.variation()));
+      return new CoreKeeperWorld.Container(container.holder(), container.objectId(), container.variation(),
+          x, z, container.slotCount(), List.copyOf(items));
+    }).toList();
+    return copy(world, containers);
+  }
+
+  private static CoreKeeperWorld withContainer(CoreKeeperWorld world, CoreKeeperWorld.Container extra) {
+    var containers = new java.util.ArrayList<>(world.containers());
+    containers.add(extra);
+    return copy(world, containers);
+  }
+
+  private static CoreKeeperWorld copy(CoreKeeperWorld world, List<CoreKeeperWorld.Container> containers) {
+    return new CoreKeeperWorld(world.sourceSha256(), world.containerVersion(), world.decompressedBytes(),
+        world.greatWallLowered(), world.recordedObjects(), world.bossKilledFromGameLogic(), world.globalSeed(),
+        world.generationJson(), containers, world.skippedEntities());
+  }
+
+  private void storeLater(CoreKeeperWorld world, String shaDigit) {
+    Long worldId = jdbc.queryForObject("SELECT game_world_id FROM M_GAME_WORLD WHERE game_id = 'corekeeper' AND active",
+        Long.class);
+    store.store(worldId, false, world, new WorldSnapshotRecorder.SnapshotInput(shaDigit.repeat(64), 77,
+        "ck-dotsbin77-3", OffsetDateTime.now(), OffsetDateTime.now(), null,
+        "{\"summary\":{\"containers\":1}}", Map.of()));
   }
 
   @Test
@@ -192,7 +239,7 @@ class OctarineWebTests {
 
     mvc.perform(get("/octarine/maintenance").with(admin()))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("ck-dotsbin77-2")))
+        .andExpect(content().string(containsString("ck-dotsbin77-3")))
         .andExpect(content().string(containsString("SUCCEEDED")));
     mvc.perform(post("/octarine/maintenance/import").with(admin()).with(csrf()))
         .andExpect(redirectedUrl("/octarine/maintenance"))
