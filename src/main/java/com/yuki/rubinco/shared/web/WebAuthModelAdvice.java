@@ -7,6 +7,7 @@ import com.yuki.rubinco.account.web.AccountMaintenanceController;
 import com.yuki.rubinco.account.web.AuthenticationController;
 import com.yuki.rubinco.account.web.PortalProfileController;
 import com.yuki.rubinco.luminite.web.LuminiteController;
+import com.yuki.rubinco.luminite.web.LuminiteMaintenanceController;
 import com.yuki.rubinco.octarine.web.OctarineController;
 import com.yuki.rubinco.octarine.web.OctarineMaintenanceController;
 import com.yuki.rubinco.portal.config.PortalPlatformProperties;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
     DiaryController.class,
     PortalController.class,
     LuminiteController.class,
+    LuminiteMaintenanceController.class,
     OctarineController.class,
     OctarineMaintenanceController.class,
     AuthenticationController.class,

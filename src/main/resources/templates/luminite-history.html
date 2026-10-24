@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Terrariaのワールドデータから作る統計・アイテム検索サイト">
+  <title th:text="${'履歴 | ' + game.displayName}">Luminite | Terraria</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
+  <link rel="stylesheet" th:href="@{/css/luminite.css(v='1')}">
+</head>
+<body class="luminite-body">
+<header th:replace="~{fragments/navigation :: siteHeader(@{/luminite}, ${game.displayName}, '✦', 'TERRARIA EXPLORATION HUB', 'luminite-topbar')}"></header>
+<main class="luminite-shell">
+  <nav th:replace="~{fragments/luminite :: tabs}"></nav>
+  <section class="luminite-panel" aria-labelledby="history-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">HISTORY</p><h1 id="history-title">進捗の履歴</h1></div>
+    </div>
+    <p class="luminite-note">
+      日時はサイトが初めて確認した時刻です。「状態が後退」はバックアップ復元などで保存内容が戻った場合にも記録されます。
+      「解析方式の更新による変更」はゲーム内の進行ではありません。
+    </p>
+    <p th:if="${events.isEmpty()}" class="luminite-empty">まだ変化の記録はありません。</p>
+    <ol class="luminite-events" th:unless="${events.isEmpty()}">
+      <th:block th:each="event : ${events.content}"><li th:replace="~{fragments/octarine :: eventRow(${event})}"></li></th:block>
+    </ol>
+    <nav class="portal-feed-pages" aria-label="履歴のページ">
+      <a th:if="${events.hasPrevious()}" th:href="@{/luminite/history(page=${events.number - 1},spoilers=${spoilers})}">← 新しい記録</a>
+      <a th:if="${events.hasNext()}" th:href="@{/luminite/history(page=${events.number + 1},spoilers=${spoilers})}">過去の記録 →</a>
+    </nav>
+  </section>
+  <section class="luminite-panel" th:if="${ctx != null}" aria-labelledby="activity-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">ACTIVITY</p><h2 id="activity-title">アイテム・討伐・墓石の動き</h2></div>
+    </div>
+    <p th:if="${#lists.isEmpty(activity)}" class="luminite-empty">初回取り込み以降の変化はまだありません。</p>
+    <ol class="luminite-activity" th:unless="${#lists.isEmpty(activity)}">
+      <li th:each="item : ${activity}" th:classappend="${'kind-' + #strings.toLowerCase(item.kind)}">
+        <time th:datetime="${item.at}" th:text="${item.atLabel}">---</time>
+        <b th:text="${item.title}">保管アイテムの変化</b>
+        <p th:each="detail : ${item.details}" th:text="${detail}"></p>
+      </li>
+    </ol>
+  </section>
+</main>
+</body>
+</html>

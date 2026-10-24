@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Terrariaのワールドデータから作る統計・アイテム検索サイト">
+  <title th:text="${'討伐図鑑 | ' + game.displayName}">Luminite | Terraria</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
+  <link rel="stylesheet" th:href="@{/css/luminite.css(v='1')}">
+</head>
+<body class="luminite-body">
+<header th:replace="~{fragments/navigation :: siteHeader(@{/luminite}, ${game.displayName}, '✦', 'TERRARIA EXPLORATION HUB', 'luminite-topbar')}"></header>
+<main class="luminite-shell">
+  <nav th:replace="~{fragments/luminite :: tabs}"></nav>
+  <section class="luminite-panel" aria-labelledby="bestiary-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">BESTIARY</p><h1 id="bestiary-title">討伐図鑑</h1></div>
+    </div>
+    <div th:replace="~{fragments/luminite :: snapshot}"></div>
+    <ul class="luminite-stats">
+      <li><span>討伐数の合計</span><strong th:text="${#numbers.formatInteger(totals.bestiaryKills, 1, 'COMMA')}">0</strong><small>ワールド全体で倒した数</small></li>
+      <li><span>倒した種類</span><strong th:text="${totals.bestiaryKilledSpecies}">0</strong><small>1回以上倒した敵</small></li>
+      <li><span>見かけた</span><strong th:text="${totals.bestiarySighted}">0</strong><small>図鑑に「目撃」で載った生き物</small></li>
+      <li><span>話した</span><strong th:text="${totals.bestiaryChatted}">0</strong><small>話しかけたことのある住人</small></li>
+    </ul>
+    <form class="luminite-search" method="get" th:action="@{/luminite/bestiary}" role="search">
+      <label><span>名前</span><input type="search" name="q" maxlength="60" th:value="${q}" placeholder="例: スライム"></label>
+      <label><span>並び順</span>
+        <select name="sort">
+          <option value="kills" th:selected="${sort == 'kills'}">討伐数が多い順</option>
+          <option value="name" th:selected="${sort == 'name'}">名前順</option>
+        </select>
+      </label>
+      <button type="submit">検索</button>
+    </form>
+    <p class="luminite-note">図鑑の討伐数はワールド単位の記録で、誰が倒したかは分かりません。</p>
+    <p th:if="${#lists.isEmpty(rows)}" class="luminite-empty">当てはまる記録はありません。</p>
+    <ol class="luminite-ranking" th:unless="${#lists.isEmpty(rows)}" th:with="max=${rows[0].kills > 0 ? rows[0].kills : 1}">
+      <li th:each="row, stat : ${rows}">
+        <span class="rank" th:text="${stat.count}">1</span>
+        <span class="name">
+          <b th:text="${row.name}">グリーンスライム</b>
+          <small>
+            <span th:if="${row.englishName != null and row.englishName != row.name}" th:text="${row.englishName}">Green Slime</span>
+            <span th:if="${row.sighted}">目撃</span>
+            <span th:if="${row.chatted}">会話</span>
+          </small>
+        </span>
+        <span class="bar"><i th:style="${'width:' + (row.kills * 100 / max) + '%'}"></i></span>
+        <strong th:text="${#numbers.formatInteger(row.kills, 1, 'COMMA')}">120</strong>
+      </li>
+    </ol>
+  </section>
+</main>
+</body>
+</html>

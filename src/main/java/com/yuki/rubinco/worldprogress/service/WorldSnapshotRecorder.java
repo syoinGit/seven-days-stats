@@ -1,5 +1,6 @@
 package com.yuki.rubinco.worldprogress.service;
 
+import com.yuki.rubinco.portal.config.GameCatalogProperties;
 import com.yuki.rubinco.timeline.entity.T_TimelinePost;
 import com.yuki.rubinco.timeline.repository.T_TimelinePostRepository;
 import com.yuki.rubinco.worldprogress.entity.M_GameWorld;
@@ -33,6 +34,7 @@ public class WorldSnapshotRecorder {
   private final T_ProgressStateRepository states;
   private final T_ProgressEventRepository events;
   private final T_TimelinePostRepository timeline;
+  private final GameCatalogProperties catalog;
 
   public record SnapshotInput(
       String sourceSha256, Integer containerVersion, String parserVersion,
@@ -126,6 +128,11 @@ public class WorldSnapshotRecorder {
     return "CHANGED";
   }
 
+  private String siteName(String gameId) {
+    return catalog.getCatalog().stream().filter(game -> game.getId().equals(gameId))
+        .map(GameCatalogProperties.Game::getDisplayName).findFirst().orElse(gameId);
+  }
+
   /** Only genuine in-game changes reach the shared timeline; first observations stay quiet. */
   private void publishAchievements(M_GameWorld world, List<T_ProgressEvent> recordedEvents,
       List<M_ProgressDefinition> gameDefinitions) {
@@ -148,7 +155,7 @@ public class WorldSnapshotRecorder {
           + "」の達成をサイトが確認しました。表示時刻は確認した時刻で、実際の達成時刻とは異なる場合があります。");
       post.setMetadataJson("{}");
       post.setActorType("SYSTEM");
-      post.setActorName("Octarine");
+      post.setActorName(siteName(world.getGameId()));
       post.setSourceType("WORLD_PROGRESS");
       post.setSourceId(event.getId());
       post.setSourceHash(sourceHash);

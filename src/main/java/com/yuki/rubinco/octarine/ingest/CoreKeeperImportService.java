@@ -1,6 +1,7 @@
 package com.yuki.rubinco.octarine.ingest;
 
 import com.yuki.rubinco.worldprogress.entity.M_GameWorld;
+import com.yuki.rubinco.worldprogress.ingest.StableSourceReader;
 import com.yuki.rubinco.worldprogress.entity.M_ProgressDefinition;
 import com.yuki.rubinco.worldprogress.entity.T_WorldImportRun;
 import com.yuki.rubinco.worldprogress.entity.T_WorldSnapshot;
@@ -13,15 +14,10 @@ import com.yuki.rubinco.worldprogress.service.WorldImportRunLog;
 import com.yuki.rubinco.worldprogress.service.WorldSnapshotRecorder;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.AccessDeniedException;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -127,39 +123,15 @@ public class CoreKeeperImportService {
 
   private T_WorldImportRun importWorld(T_WorldImportRun run, M_GameWorld world, boolean scheduled)
       throws IOException, InterruptedException {
-    var file = properties.getWorldFile();
-    long maxBytes = properties.getMaxCompressedSize().toBytes();
-    byte[] bytes = null;
-    BasicFileAttributes before = null;
-    for (int attempt = 1; attempt <= properties.getReadAttempts() && bytes == null; attempt++) {
-      if (attempt > 1) Thread.sleep(properties.getRetryDelay().toMillis());
-      before = Files.readAttributes(file, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-      if (!before.isRegularFile()) {
-        return runLog.finish(run, "FAILED", "SOURCE_INVALID", "保存ファイルが通常ファイルではありません。");
-      }
-      run.setSourceSize(before.size());
-      run.setSourceModifiedAt(time(before));
-      if (before.size() > maxBytes) {
-        return runLog.finish(run, "FAILED", "SOURCE_TOO_LARGE", "保存ファイルがサイズ上限を超えています。");
-      }
-      if (scheduled && attempt == 1 && unchangedSinceLastRun(world, before)) {
-        return runLog.finish(run, "UNCHANGED", null, null);
-      }
-      if (time(before).isAfter(OffsetDateTime.now().minus(properties.getQuietPeriod()))) {
-        continue;
-      }
-      byte[] copy = read(file, maxBytes);
-      BasicFileAttributes after =
-          Files.readAttributes(file, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-      if (copy.length == before.size() && after.size() == before.size()
-          && after.lastModifiedTime().equals(before.lastModifiedTime())) {
-        bytes = copy;
-      }
-    }
-    if (bytes == null) {
-      return runLog.finish(run, "FAILED", "SOURCE_CHANGING",
-          "保存処理と重なった可能性があるため、今回の取り込みを見送りました。");
-    }
+    var source = StableSourceReader.read(properties.getWorldFile(), new StableSourceReader.Options(
+        properties.getMaxCompressedSize().toBytes(), properties.getReadAttempts(),
+        properties.getRetryDelay(), properties.getQuietPeriod()),
+        attributes -> scheduled && unchangedSinceLastRun(world, attributes));
+    run.setSourceSize(source.size());
+    run.setSourceModifiedAt(source.modifiedAt());
+    if (source.unchanged()) return runLog.finish(run, "UNCHANGED", null, null);
+    if (!source.ok()) return runLog.finish(run, "FAILED", source.failureCode(), source.failureMessage());
+    byte[] bytes = source.bytes();
     OffsetDateTime capturedAt = OffsetDateTime.now();
 
     CoreKeeperWorld parsed;
@@ -188,7 +160,7 @@ public class CoreKeeperImportService {
 
     var recorded = recorder.record(world.getId(), new WorldSnapshotRecorder.SnapshotInput(
         parsed.sourceSha256(), parsed.containerVersion(), CoreKeeperWorldParser.PARSER_VERSION,
-        capturedAt, time(before), parsed.generationJson(), extractedJson(parsed),
+        capturedAt, source.modifiedAt(), parsed.generationJson(), extractedJson(parsed),
         states(parsed)));
     if (recorded.isEmpty()) return runLog.finish(run, "UNCHANGED", null, null);
     run.setWorldSnapshotId(recorded.get().snapshot().getId());
@@ -223,7 +195,8 @@ public class CoreKeeperImportService {
         .filter(previous -> CoreKeeperWorldParser.PARSER_VERSION.equals(previous.getParserVersion()))
         .filter(previous -> Long.valueOf(attributes.size()).equals(previous.getSourceSize()))
         .filter(previous -> previous.getSourceModifiedAt() != null
-            && previous.getSourceModifiedAt().toInstant().equals(time(attributes).toInstant()))
+            && previous.getSourceModifiedAt().toInstant()
+                .equals(StableSourceReader.time(attributes).toInstant()))
         .isPresent();
   }
 
@@ -262,20 +235,6 @@ public class CoreKeeperImportService {
       if (exception.getCause() instanceof RuntimeException runtime) throw runtime;
       throw new IllegalStateException(exception.getCause());
     }
-  }
-
-  private static byte[] read(java.nio.file.Path file, long maxBytes) throws IOException {
-    try (InputStream stream = Files.newInputStream(file, LinkOption.NOFOLLOW_LINKS)) {
-      byte[] bytes = stream.readNBytes((int) Math.min(Integer.MAX_VALUE - 8, maxBytes + 1));
-      if (bytes.length > maxBytes) throw new IOException("Source grew past its limit");
-      return bytes;
-    }
-  }
-
-  private static OffsetDateTime time(BasicFileAttributes attributes) {
-    // Millisecond precision survives every supported database column type.
-    return attributes.lastModifiedTime().toInstant().truncatedTo(ChronoUnit.MILLIS)
-        .atOffset(ZoneOffset.UTC);
   }
 
   @PreDestroy
