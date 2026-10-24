@@ -99,14 +99,11 @@ public class OctarineController {
 
   @GetMapping("/octarine/chests")
   public String chests(Model model, Authentication authentication,
-      @RequestParam(required = false) String q, @RequestParam(required = false) String holder,
-      @RequestParam(defaultValue = "0") int page) {
+      @RequestParam(required = false) String q, @RequestParam(defaultValue = "0") int page) {
     return withData(model, authentication, "chests", ctx -> {
       String query = trim(q);
-      String safeHolder = "NPC".equals(holder) ? "NPC" : null;
       model.addAttribute("q", query);
-      model.addAttribute("holder", safeHolder);
-      model.addAttribute("containers", octarine.containers(ctx, query, safeHolder, clamp(page), 30));
+      model.addAttribute("containers", octarine.containers(ctx, query, clamp(page), 30));
       return "octarine-chests";
     });
   }
@@ -116,17 +113,8 @@ public class OctarineController {
     return withData(model, authentication, "chests", ctx -> {
       model.addAttribute("container", octarine.container(ctx, containerId)
           .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
+      model.addAttribute("changes", octarine.chestChanges(ctx, containerId, 100));
       return "octarine-chest";
-    });
-  }
-
-  @GetMapping("/octarine/world")
-  public String world(Model model, Authentication authentication) {
-    return withData(model, authentication, "world", ctx -> {
-      model.addAttribute("summary", ctx.summary());
-      model.addAttribute("counts", octarine.objectCounts(ctx));
-      model.addAttribute("crops", octarine.crops(ctx));
-      return "octarine-world";
     });
   }
 

@@ -22,24 +22,20 @@
     <div th:replace="~{fragments/octarine :: snapshot}"></div>
     <p th:replace="~{fragments/octarine :: namesMissing}"></p>
     <form class="octarine-search" method="get" th:action="@{/octarine/chests}" role="search">
-      <label><span>入っているアイテム・入れ物の名前</span><input type="search" name="q" maxlength="60" th:value="${q}" placeholder="例: Iron"></label>
-      <label><span>対象</span>
-        <select name="holder">
-          <option value="" th:selected="${holder == null}">チェストなどの入れ物</option>
-          <option value="NPC" th:selected="${holder == 'NPC'}">商人などの品ぞろえ</option>
-        </select>
-      </label>
+      <label><span>チェスト名（ラベル）・入っているアイテム</span><input type="search" name="q" maxlength="60" th:value="${q}" placeholder="例: Iron"></label>
       <button type="submit">検索</button>
     </form>
     <p class="octarine-note">
-      条件を指定しないときは、中身が入っている物だけを表示します。地面に落ちているアイテムやお墓、まだ開けていない宝箱も含みます。
+      ゲーム内でラベルを付けたチェストだけを表示します。サイトに出したいチェストには、チェストを開いてラベルを書いてください。
+      ラベルの無いチェスト・宝箱、商人の品ぞろえ、お墓、落ちているアイテムは出しません。
       場所はコアを中心にしたタイル数です。
     </p>
-    <p th:if="${containers.isEmpty()}" class="octarine-empty">当てはまる入れ物はありません。</p>
+    <p th:if="${containers.isEmpty()}" class="octarine-empty">当てはまるチェストはありません。</p>
     <ul class="octarine-containers" th:unless="${containers.isEmpty()}">
       <li th:each="container : ${containers.content}">
         <div class="octarine-container-head">
-          <a th:href="@{/octarine/chests/{id}(id=${container.id})}" th:text="${container.label}">Wood Chest</a>
+          <a th:href="@{/octarine/chests/{id}(id=${container.id})}" th:text="${container.name}">鉱石倉庫</a>
+          <small th:text="${container.kind}">Wood Chest</small>
           <small th:text="${container.filled + ' / ' + container.slots + '枠'}">12 / 18枠</small>
         </div>
         <span th:replace="~{fragments/octarine :: place(${container.place})}"></span>
@@ -51,9 +47,9 @@
       </li>
     </ul>
     <nav class="portal-feed-pages" aria-label="チェスト検索のページ">
-      <a th:if="${containers.hasPrevious()}" th:href="@{/octarine/chests(q=${q},holder=${holder},page=${containers.number - 1})}">← 前へ</a>
+      <a th:if="${containers.hasPrevious()}" th:href="@{/octarine/chests(q=${q},page=${containers.number - 1})}">← 前へ</a>
       <span th:if="${containers.totalPages > 1}" th:text="${(containers.number + 1) + ' / ' + containers.totalPages}"></span>
-      <a th:if="${containers.hasNext()}" th:href="@{/octarine/chests(q=${q},holder=${holder},page=${containers.number + 1})}">次へ →</a>
+      <a th:if="${containers.hasNext()}" th:href="@{/octarine/chests(q=${q},page=${containers.number + 1})}">次へ →</a>
     </nav>
   </section>
 </main>

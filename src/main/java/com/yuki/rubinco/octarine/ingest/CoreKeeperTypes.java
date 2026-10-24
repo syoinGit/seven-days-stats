@@ -54,10 +54,9 @@ final class CoreKeeperTypes {
   static final long OBJECT_DATA = hash("1510908940499422986");
   static final long TRANSLATION = hash("5560902727204706568");
   static final long HEALTH = hash("9718905805775528276");
-  static final long GROWING = hash("4073445497772281464");
-  static final long LOOT_TABLE = hash("15506877059273323975");
+  static final long CLAIMED_BY_PLAYER = hash("5201058450301913387");
+  static final long DESCRIPTION = hash("2145835212504974577");
   static final long CONDITIONS = hash("10190325920577701639");
-  static final long SNAKE_BOSS_SEGMENT = hash("9457240999318900283");
   static final long CONTAINED_OBJECTS = hash("8817826183114497276");
   static final long KILLED_ENEMIES = hash("3317929161124881020");
   static final long GREAT_WALL = hash("13321463714558854008");

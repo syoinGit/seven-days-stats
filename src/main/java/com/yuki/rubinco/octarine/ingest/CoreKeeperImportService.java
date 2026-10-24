@@ -188,13 +188,12 @@ public class CoreKeeperImportService {
     return runLog.finish(run, "SUCCEEDED", null, null);
   }
 
-  /** Hash of the stored contents shown on the site; creature counts are left out on purpose. */
+  /** Hash of what the site stores; autosaves that only move creatures create no snapshot. */
   String contentHash(CoreKeeperWorld parsed) {
     Map<String, Object> content = new LinkedHashMap<>();
     content.put("greatWallLowered", parsed.greatWallLowered());
     content.put("recordedObjects", parsed.recordedObjects());
     content.put("containers", parsed.containers());
-    content.put("crops", parsed.crops());
     try {
       return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
           .digest(hashMapper.writeValueAsBytes(content)));
@@ -249,25 +248,15 @@ public class CoreKeeperImportService {
     json.put("greatWallLowered", parsed.greatWallLowered());
     json.put("bossKilledFromGameLogic", new java.util.TreeMap<>(parsed.bossKilledFromGameLogic()));
     json.put("recordedObjects", parsed.recordedObjects());
-    var totals = CoreKeeperWorldStore.itemTotals(parsed);
+    // Diagnostics for administrators; pages show only containers the players have touched.
     Map<String, Object> summary = new LinkedHashMap<>();
     summary.put("containers", parsed.containers().stream()
         .filter(container -> "STORAGE".equals(container.holder())).count());
-    summary.put("distinctItems", totals.size());
-    summary.put("storedSlots", totals.values().stream().mapToInt(CoreKeeperWorldStore.ItemTotal::slots).sum());
-    summary.put("entities", parsed.objects().stream().mapToInt(CoreKeeperWorld.ObjectTally::count).sum());
-    summary.put("creatures", count(parsed, "CREATURE"));
-    summary.put("crops", parsed.crops().stream().mapToInt(CoreKeeperWorld.CropTally::count).sum());
     summary.put("skippedEntities", parsed.skippedEntities());
     json.put("summary", summary);
     json.put("notes", List.of("amount is a stored game value, not a verified kill or mining count.",
         "container amounts are stack sizes for materials and durability for equipment."));
     return objectMapper.writeValueAsString(json);
-  }
-
-  private static int count(CoreKeeperWorld parsed, String category) {
-    return parsed.objects().stream().filter(tally -> category.equals(tally.category()))
-        .mapToInt(CoreKeeperWorld.ObjectTally::count).sum();
   }
 
   private CoreKeeperWorld parseWithTimeout(byte[] bytes)

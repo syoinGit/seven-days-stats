@@ -20,8 +20,6 @@ public record CoreKeeperWorld(
     Long globalSeed,
     String generationJson,
     List<Container> containers,
-    List<ObjectTally> objects,
-    List<CropTally> crops,
     int skippedEntities) {
 
   public boolean hasRecordedObject(int objectId) {
@@ -31,20 +29,14 @@ public record CoreKeeperWorld(
   public record RecordedObject(int objectId, int amount, int variation) { }
 
   /**
-   * Anything holding items. {@code holder} is NPC for creatures that carry stock (merchants) and
-   * STORAGE for everything else: chests, pots, pedestals, dropped items, graves.
+   * Anything holding items, classified by its components: NPC for creatures that carry stock
+   * (merchants), GRAVE for player graves, LOOSE for things that cannot be broken (dropped items,
+   * the Core, statues) and STORAGE for placed objects such as chests, pots and pedestals.
+   * {@code label} is the text players wrote on it in game, or null when there is none.
    */
   public record Container(String holder, int objectId, int variation, int x, int z,
-      int slotCount, List<Slot> items) { }
+      int slotCount, List<Slot> items, String label) { }
 
   /** One filled slot. Empty slots (object id 0) are not listed. */
   public record Slot(int slot, int objectId, int amount, int variation) { }
-
-  /**
-   * Entities per object id. {@code category} is derived from which components the entity has,
-   * not from game data: CONTAINER, CROP, CREATURE, BOSS_PART, BREAKABLE, DIG_SPOT or OBJECT.
-   */
-  public record ObjectTally(int objectId, String category, int count) { }
-
-  public record CropTally(int objectId, int stage, int count) { }
 }

@@ -40,7 +40,7 @@ class CoreKeeperWorldParserTests {
 
   /** Values cross-checked with an independent Python decoder of the same chunk layout. */
   @Test
-  void decodesContainersObjectsAndCropsFromEveryKnownArchetype() throws Exception {
+  void decodesContainersFromEveryKnownArchetype() throws Exception {
     var world = parser.parse(Files.readAllBytes(FIXTURE));
 
     assertThat(world.containers()).hasSize(211);
@@ -51,14 +51,26 @@ class CoreKeeperWorldParserTests {
     assertThat(world.containers()).allSatisfy(container -> assertThat(container.items())
         .allSatisfy(slot -> assertThat(slot.objectId()).isPositive()));
     assertThat(world.skippedEntities()).isEqualTo(11);
-    assertThat(world.objects()).anySatisfy(tally -> {
-      assertThat(tally.category()).isEqualTo("CREATURE");
-      assertThat(tally.count()).isPositive();
-    });
-    assertThat(world.objects().stream().mapToInt(CoreKeeperWorld.ObjectTally::count).sum())
-        .isGreaterThan(35000);
-    assertThat(world.crops().stream().mapToInt(CoreKeeperWorld.CropTally::count).sum())
-        .isEqualTo(1676);
+    // Merchants, graves, and dropped items plus the Core and statues.
+    assertThat(world.containers().stream().collect(java.util.stream.Collectors.groupingBy(
+        CoreKeeperWorld.Container::holder, java.util.stream.Collectors.counting())))
+        .containsExactlyInAnyOrderEntriesOf(java.util.Map.of("NPC", 3L, "GRAVE", 6L, "LOOSE", 44L, "STORAGE", 158L));
+    // A new world: nobody has labelled a chest yet.
+    assertThat(world.containers()).allSatisfy(container -> assertThat(container.label()).isNull());
+  }
+
+  @Test
+  void chestLabelsAreUtf8AndBlankMeansNone() {
+    assertThat(CoreKeeperWorldParser.label("鉱石倉庫".getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+        .isEqualTo("鉱石倉庫");
+    assertThat(CoreKeeperWorldParser.label(" a\nb ".getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+        .isEqualTo("a b");
+    assertThat(CoreKeeperWorldParser.label(new byte[0])).isNull();
+    assertThat(CoreKeeperWorldParser.label("  ".getBytes(java.nio.charset.StandardCharsets.UTF_8))).isNull();
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> CoreKeeperWorldParser.label(new byte[] {(byte) 0xff}))
+        .isInstanceOf(CoreKeeperFormatException.class);
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> CoreKeeperWorldParser.label(new byte[1025]))
+        .isInstanceOf(CoreKeeperFormatException.class);
   }
 
   @Test
