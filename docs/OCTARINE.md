@@ -87,15 +87,14 @@ Web アプリは `rubinco-web` ユーザーで動く（[DOCKER_PERMISSIONS.md](D
 ```bash
 sudo sh -c 'umask 077; getfacl -R -p /home/ec2-user/rubinco/servers/corekeeper > /root/rubinco-corekeeper-acl.before'
 
-sudo setfacl -m u:rubinco-web:--x \
-  /home/ec2-user /home/ec2-user/rubinco /home/ec2-user/rubinco/servers \
-  /home/ec2-user/rubinco/servers/corekeeper /home/ec2-user/rubinco/servers/corekeeper/server-data
+sudo setfacl -m u:rubinco-web:--x /home/ec2-user /home/ec2-user/rubinco /home/ec2-user/rubinco/servers
+sudo setfacl -m u:rubinco-web:--x /home/ec2-user/rubinco/servers/corekeeper /home/ec2-user/rubinco/servers/corekeeper/server-data
 # 既存ファイルと、ゲームが今後作り直すファイルの両方を読めるようにする。
 sudo setfacl -R -m u:rubinco-web:r-X /home/ec2-user/rubinco/servers/corekeeper/server-data/worlds
 sudo setfacl -m d:u:rubinco-web:r-X /home/ec2-user/rubinco/servers/corekeeper/server-data/worlds
 
 # 確認（読めること、書けないこと）
-sudo -u rubinco-web head -c 4 /home/ec2-user/rubinco/servers/corekeeper/server-data/worlds/0.world.gzip | xxd
+sudo -u rubinco-web head -c 8 /home/ec2-user/rubinco/servers/corekeeper/server-data/worlds/0.world.gzip | od -An -tx1
 sudo -u rubinco-web test -w /home/ec2-user/rubinco/servers/corekeeper/server-data/worlds && echo "書き込めてしまう" || echo "OK: 書き込み不可"
 ```
 
@@ -103,17 +102,49 @@ sudo -u rubinco-web test -w /home/ec2-user/rubinco/servers/corekeeper/server-dat
 
 ### 2. DNS・Nginx・証明書
 
-- `octarine.rubinco.link` を既存 EC2 へ向ける（他のサイトと同じレコード種別）。
-- Nginx の `server_name` に `octarine.rubinco.link` を追加する（[設定例](../infra/nginx/game-portal.conf.example)）。
-- 証明書に `octarine.rubinco.link` を SAN として追加する（現行の Let's Encrypt 証明書の更新手順に合わせる）。
+本番（2026-10 時点）の構成:
+
+- DNS: `*.rubinco.link` 相当のレコードで、新しいサブドメインも最初から EC2 を向いている。
+  `getent hosts octarine.rubinco.link` で確認する。
+- 証明書: certbot（nginx 認証）の1枚 `watchpoint.rubinco.link` に全サイトを SAN として入れている。
+  パスは `/etc/letsencrypt/live/watchpoint.rubinco.link/`。
+- Nginx: `/etc/nginx/conf.d/` にサイトごとの設定ファイル（`rubinco-portal.conf` など）。
+  [設定例](../infra/nginx/game-portal.conf.example) は1ファイルにまとめた例で、本番の配置とは異なる。
+
+ブラウザやターミナルへの貼り付けで長い行が折り返されると、コマンドが分かれて失敗する。
+`\` による行継続やヒアドキュメントは使わず、短い1行ずつで実行する。
+
+```bash
+# 証明書に追加する。既存のドメインも必ずすべて列挙する（列挙しないと外れる）。
+sudo certbot certificates 2>&1 | grep -E "Certificate Name|Domains"
+sudo certbot certonly --nginx --cert-name watchpoint.rubinco.link --expand -d watchpoint.rubinco.link -d portal.rubinco.link -d luminite.rubinco.link -d octarine.rubinco.link
+
+# portal の設定をコピーしてドメイン名だけ置き換える（証明書のパスは同じ）。
+cd /etc/nginx/conf.d
+sudo sed "s/portal\.rubinco\.link/octarine.rubinco.link/g" rubinco-portal.conf | sudo tee rubinco-octarine.conf >/dev/null
+sudo nginx -t && sudo systemctl reload nginx
+curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" https://octarine.rubinco.link/
+```
+
+`certbot --nginx`（`certonly` なし）は、対応する `server_name` の設定ファイルが無いと
+「Could not automatically find a matching server block」で止まる。証明書自体は発行済みなので、
+再実行せずに設定ファイルを作る。同じドメインの組み合わせの再発行は週5回までに制限されている。
+
+設定ファイルが無いサブドメインも、443 の既定サーバー経由でアプリへ届いてしまう。
+動いているように見えても、サイトごとの設定ファイルを必ず置く。
 
 ### 3. Cognito アプリクライアント
 
 [infra/cognito/template.yaml](../infra/cognito/template.yaml) に `OctarineClient` を追加した。
-スタックを更新し、出力 `OctarineClientId` を `/etc/rubinco/watchpoint.env` に保存する。
+CloudFormation で「既存スタックの変更セットを作成」→ テンプレートを置き換え、
+変更が `OctarineClient` の追加だけであることを確認してから実行する。
+出力 `OctarineClientId` を `/etc/rubinco/watchpoint.env`（root 所有、`sudo` が必要）に保存する。
+User Pool は `COGNITO_ISSUER_URI` の値（リージョンと User Pool ID）で特定できる。
 
-```ini
-COGNITO_OCTARINE_CLIENT_ID=<OctarineClientId の値>
+```bash
+F=/etc/rubinco/watchpoint.env
+sudo grep -q '^COGNITO_OCTARINE' $F || echo "COGNITO_OCTARINE_CLIENT_ID=<OctarineClientId の値>" | sudo tee -a $F
+sudo grep -oE '^COGNITO_[A-Z_]+' $F
 ```
 
 **未設定でもアプリは起動する**（Octarine だけポータルのクライアント ID で代用する）。その間は
