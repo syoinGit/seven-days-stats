@@ -20,8 +20,6 @@ public record CoreKeeperWorld(
     Long globalSeed,
     String generationJson,
     List<Container> containers,
-    List<ObjectTally> objects,
-    List<CropTally> crops,
     int skippedEntities) {
 
   public boolean hasRecordedObject(int objectId) {
@@ -39,12 +37,4 @@ public record CoreKeeperWorld(
 
   /** One filled slot. Empty slots (object id 0) are not listed. */
   public record Slot(int slot, int objectId, int amount, int variation) { }
-
-  /**
-   * Entities per object id. {@code category} is derived from which components the entity has,
-   * not from game data: CONTAINER, CROP, CREATURE, BOSS_PART, BREAKABLE, DIG_SPOT or OBJECT.
-   */
-  public record ObjectTally(int objectId, String category, int count) { }
-
-  public record CropTally(int objectId, int stage, int count) { }
 }

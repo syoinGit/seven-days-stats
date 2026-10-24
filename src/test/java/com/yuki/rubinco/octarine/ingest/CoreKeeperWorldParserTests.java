@@ -40,7 +40,7 @@ class CoreKeeperWorldParserTests {
 
   /** Values cross-checked with an independent Python decoder of the same chunk layout. */
   @Test
-  void decodesContainersObjectsAndCropsFromEveryKnownArchetype() throws Exception {
+  void decodesContainersFromEveryKnownArchetype() throws Exception {
     var world = parser.parse(Files.readAllBytes(FIXTURE));
 
     assertThat(world.containers()).hasSize(211);
@@ -51,14 +51,6 @@ class CoreKeeperWorldParserTests {
     assertThat(world.containers()).allSatisfy(container -> assertThat(container.items())
         .allSatisfy(slot -> assertThat(slot.objectId()).isPositive()));
     assertThat(world.skippedEntities()).isEqualTo(11);
-    assertThat(world.objects()).anySatisfy(tally -> {
-      assertThat(tally.category()).isEqualTo("CREATURE");
-      assertThat(tally.count()).isPositive();
-    });
-    assertThat(world.objects().stream().mapToInt(CoreKeeperWorld.ObjectTally::count).sum())
-        .isGreaterThan(35000);
-    assertThat(world.crops().stream().mapToInt(CoreKeeperWorld.CropTally::count).sum())
-        .isEqualTo(1676);
   }
 
   @Test

@@ -50,17 +50,8 @@ public class OctarineAiFacts implements WorldAiFacts {
     }
     octarine.activity(ctx, 2).forEach(activity ->
         lines.add(activity.atLabel() + " " + activity.title() + " " + String.join(" / ", activity.details())));
-    var crops = octarine.crops(ctx);
-    if (!crops.isEmpty()) {
-      lines.add("作物: " + String.join("、", crops.stream().limit(5)
-          .map(crop -> crop.name() + " " + crop.total()).toList()));
-    }
-    var creatures = octarine.objectCounts(ctx).get(OctarineQueryService.categoryLabel("CREATURE"));
-    if (creatures != null && !creatures.isEmpty()) {
-      lines.add("記録されている生き物（多い順）: " + String.join("、", creatures.stream().limit(5)
-          .map(row -> row.name() + " " + row.count()).toList()));
-    }
-    lines.add("注意: アイテムの数は素材なら個数、装備なら耐久値。保存データの記録で、誰が何をしたかは分からない。");
+    lines.add("注意: 数えているのは、プレイヤーが出し入れしたチェストなどの中身だけ。アイテムの数は素材なら個数、"
+        + "装備なら耐久値。保存データの記録で、誰が何をしたかは分からない。");
     return Optional.of(String.join("\n", lines));
   }
 }

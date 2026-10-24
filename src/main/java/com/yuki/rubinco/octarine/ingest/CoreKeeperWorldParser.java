@@ -141,13 +141,11 @@ public final class CoreKeeperWorldParser {
     Generation generation = generation(b);
     return new CoreKeeperWorld(sha256(input), version, b.length(), entities.greatWallLowered(),
         List.copyOf(entities.killed()), Map.copyOf(bosses), generation.globalSeed(),
-        generation.json(), List.copyOf(entities.containers()), List.copyOf(entities.objects()),
-        List.copyOf(entities.crops()), entities.skipped());
+        generation.json(), List.copyOf(entities.containers()), entities.skipped());
   }
 
   private record Entities(List<CoreKeeperWorld.RecordedObject> killed, boolean greatWallLowered,
-      List<CoreKeeperWorld.Container> containers, List<CoreKeeperWorld.ObjectTally> objects,
-      List<CoreKeeperWorld.CropTally> crops, int skipped) { }
+      List<CoreKeeperWorld.Container> containers, int skipped) { }
 
   /** Decodes every chunk whose archetype is fully known; the rest are counted as skipped. */
   private Entities readEntities(Buffer b, List<Archetype> archetypes, Map<String, byte[]> patches,
@@ -170,8 +168,6 @@ public final class CoreKeeperWorldParser {
     List<CoreKeeperWorld.RecordedObject> killed = null;
     Boolean wall = null;
     List<CoreKeeperWorld.Container> containers = new ArrayList<>();
-    Map<String, Integer> objectCounts = new java.util.TreeMap<>();
-    Map<String, Integer> cropCounts = new java.util.TreeMap<>();
     int skipped = 0;
     for (int j = 0; j < archetypes.size(); j++) {
       Archetype archetype = archetypes.get(j);
@@ -197,17 +193,10 @@ public final class CoreKeeperWorldParser {
           wall = value == 1;
         }
         if (!layout.has(CoreKeeperTypes.OBJECT_DATA)) continue;
-        String category = category(layout);
         for (int e = 0; e < count; e++) {
           long object = chunk.at(CoreKeeperTypes.OBJECT_DATA, e);
           int objectId = b.i32(object);
           check(objectId >= 0 && objectId < MAX_OBJECT_ID, "Unexpected object id");
-          objectCounts.merge(objectId + ":" + category, 1, Integer::sum);
-          if (layout.has(CoreKeeperTypes.GROWING)) {
-            int stage = b.i32(chunk.at(CoreKeeperTypes.GROWING, e));
-            check(stage >= 0 && stage < 100, "Unexpected growth stage");
-            cropCounts.merge(objectId + ":" + stage, 1, Integer::sum);
-          }
           if (layout.has(CoreKeeperTypes.CONTAINED_OBJECTS)) {
             containers.add(container(chunk, e, objectId, b.i32(object + 8)));
           }
@@ -215,31 +204,10 @@ public final class CoreKeeperWorldParser {
       }
     }
     check(killed != null && wall != null, "Expected world records");
-    List<CoreKeeperWorld.ObjectTally> objects = new ArrayList<>();
-    objectCounts.forEach((key, count) -> {
-      String[] parts = key.split(":");
-      objects.add(new CoreKeeperWorld.ObjectTally(Integer.parseInt(parts[0]), parts[1], count));
-    });
-    List<CoreKeeperWorld.CropTally> crops = new ArrayList<>();
-    cropCounts.forEach((key, count) -> {
-      String[] parts = key.split(":");
-      crops.add(new CoreKeeperWorld.CropTally(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]),
-          count));
-    });
     containers.sort(java.util.Comparator.comparingInt(CoreKeeperWorld.Container::x)
         .thenComparingInt(CoreKeeperWorld.Container::z)
         .thenComparingInt(CoreKeeperWorld.Container::objectId));
-    return new Entities(killed, wall, containers, objects, crops, skipped);
-  }
-
-  private static String category(CoreKeeperTypes.Layout layout) {
-    if (layout.has(CoreKeeperTypes.CONTAINED_OBJECTS)) return "CONTAINER";
-    if (layout.has(CoreKeeperTypes.GROWING)) return "CROP";
-    if (layout.has(CoreKeeperTypes.SNAKE_BOSS_SEGMENT)) return "BOSS_PART";
-    boolean health = layout.has(CoreKeeperTypes.HEALTH);
-    if (health && layout.has(CoreKeeperTypes.CONDITIONS)) return "CREATURE";
-    if (layout.has(CoreKeeperTypes.LOOT_TABLE)) return health ? "BREAKABLE" : "DIG_SPOT";
-    return "OBJECT";
+    return new Entities(killed, wall, containers, skipped);
   }
 
   private static CoreKeeperWorld.Container container(Chunk chunk, int entity, int objectId,
