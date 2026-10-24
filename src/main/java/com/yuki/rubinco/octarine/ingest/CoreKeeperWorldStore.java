@@ -26,10 +26,15 @@ import org.springframework.transaction.annotation.Transactional;
  * Writes a snapshot and the Core Keeper tables in one transaction, so pages never mix contents
  * from two saves. The first snapshot of a world is a baseline and logs no item changes.
  *
- * <p>The save does not record who placed or opened a container. A container counts as known to
- * the players once its contents differ from the first time the site saw it: a chest someone
- * placed and filled, or a dungeon chest someone looted. Only known containers are stored and
- * totalled; merchants' stock is never stored.
+ * <p>The save does not record who placed or opened a container, so the site decides from what it
+ * sees. A storage container becomes a player chest for good when it appears after tracking
+ * began (someone placed it) or when its contents change (someone used it). It stops being one
+ * when it disappears. Only player chests are stored and totalled; merchants' stock, graves and
+ * dropped items never are.
+ *
+ * <p>Item changes describe what the players did: a placed chest logs its contents as added, but
+ * a world chest that becomes a player chest joins the totals without a change, so looting a
+ * dungeon chest does not show its leftovers as added.
  */
 @Service
 @RequiredArgsConstructor
@@ -41,6 +46,9 @@ public class CoreKeeperWorldStore {
 
   /** Stored totals per item: amount sum, filled slots and holding containers. */
   record ItemTotal(long amount, int slots, int containers) { }
+
+  /** Player chests in this save; {@code joined} are world chests that just became one. */
+  record Tracked(List<Container> chests, List<Container> joined) { }
 
   record Key(int objectId, int x, int z) {
     static Key of(Container container) {
@@ -55,53 +63,65 @@ public class CoreKeeperWorldStore {
     if (recorded.isEmpty()) return Optional.empty();
     Long snapshotId = recorded.get().snapshot().getId();
     OffsetDateTime now = OffsetDateTime.now();
-    List<Container> known = trackContainers(worldId, world.containers(), now);
-    replaceContainers(worldId, snapshotId, known);
-    int itemChanges = updateItemTotals(worldId, snapshotId, known, baseline, now);
+    Tracked tracked = trackContainers(worldId, world.containers(), now);
+    replaceContainers(worldId, snapshotId, tracked.chests());
+    int itemChanges = updateItemTotals(worldId, snapshotId, tracked, baseline, now);
     return Optional.of(new Stored(snapshotId, recorded.get().events().size(), itemChanges));
   }
 
   /**
-   * Records first sightings and returns the storage containers known to the players. Two
-   * containers on one tile cannot be told apart between saves, so they are never known.
+   * Updates the tracking rows and returns this save's player chests. On the first sighting of a
+   * world nothing is a player chest. Two containers on one tile cannot be told apart between
+   * saves, so they are left as they are.
    */
-  private List<Container> trackContainers(Long worldId, List<Container> containers,
-      OffsetDateTime now) {
+  private Tracked trackContainers(Long worldId, List<Container> containers, OffsetDateTime now) {
     Map<Key, List<Container>> byKey = new HashMap<>();
     containers.stream().filter(container -> "STORAGE".equals(container.holder()))
         .forEach(container -> byKey.computeIfAbsent(Key.of(container), key -> new ArrayList<>()).add(container));
     Map<Key, String> firstHashes = new HashMap<>();
-    Set<Key> known = new HashSet<>();
-    jdbc.query("SELECT object_id, pos_x, pos_z, first_content_hash, known_at FROM T_CK_CONTAINER_TRACK "
+    Set<Key> playerChests = new HashSet<>();
+    jdbc.query("SELECT object_id, pos_x, pos_z, first_content_hash, player_chest FROM T_CK_CONTAINER_TRACK "
         + "WHERE game_world_id = ?", rs -> {
           Key key = new Key(rs.getInt(1), rs.getInt(2), rs.getInt(3));
           firstHashes.put(key, rs.getString(4));
-          if (rs.getTimestamp(5) != null) known.add(key);
+          if (rs.getBoolean(5)) playerChests.add(key);
         }, worldId);
+    boolean firstSighting = firstHashes.isEmpty();
     Timestamp at = Timestamp.from(now.toInstant());
+    Set<Key> gone = new HashSet<>(firstHashes.keySet());
+    gone.removeAll(byKey.keySet());
     List<Object[]> inserts = new ArrayList<>();
-    List<Object[]> nowKnown = new ArrayList<>();
-    List<Container> result = new ArrayList<>();
-    for (Container container : containers) {
-      Key key = Key.of(container);
-      if (!"STORAGE".equals(container.holder()) || byKey.get(key).size() != 1) continue;
+    List<Object[]> turnedOn = new ArrayList<>();
+    List<Container> chests = new ArrayList<>();
+    List<Container> joined = new ArrayList<>();
+    byKey.forEach((key, found) -> {
+      if (found.size() != 1) return;
+      Container container = found.get(0);
       String hash = contentHash(container);
       String first = firstHashes.get(key);
       if (first == null) {
-        inserts.add(new Object[] {worldId, key.objectId(), key.x(), key.z(), hash, at});
-        continue;
+        inserts.add(new Object[] {worldId, key.objectId(), key.x(), key.z(), hash, at, !firstSighting,
+            firstSighting ? null : at});
+        if (!firstSighting) chests.add(container);
+      } else if (playerChests.contains(key)) {
+        chests.add(container);
+      } else if (!first.equals(hash)) {
+        turnedOn.add(new Object[] {at, worldId, key.objectId(), key.x(), key.z()});
+        chests.add(container);
+        joined.add(container);
       }
-      if (!known.contains(key)) {
-        if (first.equals(hash)) continue;
-        nowKnown.add(new Object[] {at, worldId, key.objectId(), key.x(), key.z()});
-      }
-      result.add(container);
-    }
+    });
     jdbc.batchUpdate("INSERT INTO T_CK_CONTAINER_TRACK (game_world_id, object_id, pos_x, pos_z, "
-        + "first_content_hash, first_seen_at) VALUES (?, ?, ?, ?, ?, ?)", inserts);
-    jdbc.batchUpdate("UPDATE T_CK_CONTAINER_TRACK SET known_at = ? WHERE game_world_id = ? AND object_id = ? "
-        + "AND pos_x = ? AND pos_z = ?", nowKnown);
-    return result;
+        + "first_content_hash, first_seen_at, player_chest, player_chest_since) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        inserts);
+    jdbc.batchUpdate("UPDATE T_CK_CONTAINER_TRACK SET player_chest = TRUE, player_chest_since = ? "
+        + "WHERE game_world_id = ? AND object_id = ? AND pos_x = ? AND pos_z = ?", turnedOn);
+    jdbc.batchUpdate("DELETE FROM T_CK_CONTAINER_TRACK WHERE game_world_id = ? AND object_id = ? "
+        + "AND pos_x = ? AND pos_z = ?", gone.stream()
+            .map(key -> new Object[] {worldId, key.objectId(), key.x(), key.z()}).toList());
+    chests.sort(java.util.Comparator.comparingInt(Container::x).thenComparingInt(Container::z)
+        .thenComparingInt(Container::objectId));
+    return new Tracked(chests, joined);
   }
 
   static String contentHash(Container container) {
@@ -161,9 +181,10 @@ public class CoreKeeperWorldStore {
         items);
   }
 
-  private int updateItemTotals(Long worldId, Long snapshotId, List<Container> known,
-      boolean baseline, OffsetDateTime now) {
-    Map<Integer, ItemTotal> totals = itemTotals(known);
+  private int updateItemTotals(Long worldId, Long snapshotId, Tracked tracked, boolean baseline,
+      OffsetDateTime now) {
+    Map<Integer, ItemTotal> totals = itemTotals(tracked.chests());
+    Map<Integer, ItemTotal> joined = itemTotals(tracked.joined());
     Map<Integer, ItemTotal> existing = new HashMap<>();
     jdbc.query("SELECT object_id, total_amount, slot_count, container_count FROM T_CK_ITEM_TOTAL "
         + "WHERE game_world_id = ?", rs -> {
@@ -179,15 +200,19 @@ public class CoreKeeperWorldStore {
     for (int id : ids) {
       ItemTotal total = totals.getOrDefault(id, none);
       ItemTotal previous = existing.get(id);
+      ItemTotal before = previous == null ? none : previous;
+      // Contents of world chests that just joined count as already there.
+      ItemTotal quiet = joined.getOrDefault(id, none);
+      long fromAmount = before.amount() + quiet.amount();
+      int fromSlots = before.slots() + quiet.slots();
+      if (!baseline && (fromAmount != total.amount() || fromSlots != total.slots())) {
+        changes.add(new Object[] {worldId, snapshotId, id, fromAmount, total.amount(), fromSlots,
+            total.slots(), at});
+      }
       if (previous == null) {
         inserts.add(new Object[] {worldId, id, total.amount(), total.slots(), total.containers(), at, at});
-        if (!baseline) changes.add(new Object[] {worldId, snapshotId, id, 0L, total.amount(), 0, total.slots(), at});
       } else if (previous.amount() != total.amount() || previous.slots() != total.slots()) {
         updates.add(new Object[] {total.amount(), total.slots(), total.containers(), at, worldId, id});
-        if (!baseline) {
-          changes.add(new Object[] {worldId, snapshotId, id, previous.amount(), total.amount(),
-              previous.slots(), total.slots(), at});
-        }
       } else if (previous.containers() != total.containers()) {
         jdbc.update("UPDATE T_CK_ITEM_TOTAL SET container_count = ? WHERE game_world_id = ? AND object_id = ?",
             total.containers(), worldId, id);

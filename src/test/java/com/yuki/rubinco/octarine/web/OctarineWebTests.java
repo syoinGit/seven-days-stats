@@ -113,8 +113,10 @@ class OctarineWebTests {
   }
 
   @Test
-  void untouchedContainersAndMerchantsStayHiddenUntilTheirContentsChange() throws Exception {
-    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER_TRACK", Integer.class)).isPositive();
+  void worldChestsAndMerchantsStayHiddenUntilTheirContentsChange() throws Exception {
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER_TRACK", Integer.class)).isEqualTo(158);
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER_TRACK WHERE player_chest", Integer.class))
+        .isZero();
     assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isZero();
     mvc.perform(get("/octarine/items").with(member()))
         .andExpect(status().isOk())
@@ -127,6 +129,8 @@ class OctarineWebTests {
     storeLater(touchChest(sample(), 233, 83, 12), "e");
 
     assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isOne();
+    // Looting a world chest is not "adding" its leftovers.
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_ITEM_CHANGE", Integer.class)).isZero();
     mvc.perform(get("/octarine").with(member()))
         .andExpect(content().string(containsString("ワールドの今")))
         .andExpect(content().string(containsString("使われた入れ物")))
@@ -151,9 +155,10 @@ class OctarineWebTests {
         .andExpect(content().string(containsString("テストコイン")));
     mvc.perform(get("/octarine/chests/" + (id + 99999)).with(member())).andExpect(status().isNotFound());
 
-    // Once known, a container stays known even when it goes back to its first contents.
+    // Once a player chest, it stays one even when it goes back to its first contents.
     storeLater(sample(), "d");
     assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isOne();
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_ITEM_CHANGE", Integer.class)).isPositive();
   }
 
   @Test
@@ -169,16 +174,14 @@ class OctarineWebTests {
   }
 
   @Test
-  void aPlacedChestCountsOnceItIsFilledAndItsItemsAreLoggedAsChanges() throws Exception {
-    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_ITEM_CHANGE", Integer.class)).isZero();
+  void aPlacedChestIsAPlayerChestAtOnceAndStopsBeingOneWhenRemoved() throws Exception {
     var placed = new CoreKeeperWorld.Container("STORAGE", 100, 0, 5, -7, 18, List.of());
     storeLater(withContainer(sample(), placed), "c");
-    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isZero();
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isOne();
 
     var filled = new CoreKeeperWorld.Container("STORAGE", 100, 0, 5, -7, 18,
         List.of(new CoreKeeperWorld.Slot(0, 2021, 75, 0)));
     storeLater(withContainer(sample(), filled), "b");
-
     mvc.perform(get("/octarine/items/2021").with(member()))
         .andExpect(content().string(containsString("0 → 75")))
         .andExpect(content().string(containsString("コアから東5・南7")))
@@ -186,6 +189,19 @@ class OctarineWebTests {
     mvc.perform(get("/octarine").with(member()))
         .andExpect(content().string(containsString("保管アイテムの変化")))
         .andExpect(content().string(containsString("増えた")));
+
+    storeLater(sample(), "a");
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isZero();
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER_TRACK WHERE pos_x = 5 AND pos_z = -7",
+        Integer.class)).isZero();
+    mvc.perform(get("/octarine/items/2021").with(member()))
+        .andExpect(content().string(containsString("75 → 0")));
+
+    // Graves and dropped items are not chests, even when they appear later.
+    var grave = new CoreKeeperWorld.Container("GRAVE", 100, 0, 9, 9, 10,
+        List.of(new CoreKeeperWorld.Slot(0, 1002, 3, 0)));
+    storeLater(withContainer(sample(), grave), "9");
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_CK_CONTAINER", Integer.class)).isZero();
   }
 
   private CoreKeeperWorld sample() throws Exception {

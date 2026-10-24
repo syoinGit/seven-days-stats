@@ -228,7 +228,10 @@ public final class CoreKeeperWorldParser {
       items.add(new CoreKeeperWorld.Slot(slot, id, slots.i32((long) slot * RECORD_SIZE + 4),
           slots.i32((long) slot * RECORD_SIZE + 8)));
     }
-    String holder = chunk.layout().has(CoreKeeperTypes.CONDITIONS) ? "NPC" : "STORAGE";
+    CoreKeeperTypes.Layout layout = chunk.layout();
+    String holder = layout.has(CoreKeeperTypes.CONDITIONS) ? "NPC"
+        : layout.has(CoreKeeperTypes.CLAIMED_BY_PLAYER) ? "GRAVE"
+        : layout.has(CoreKeeperTypes.HEALTH) ? "STORAGE" : "LOOSE";
     return new CoreKeeperWorld.Container(holder, objectId, variation, Math.round(x), Math.round(z),
         slotCount, List.copyOf(items));
   }

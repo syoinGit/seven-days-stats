@@ -1,8 +1,10 @@
--- Octarine shows only containers the players have used. The save does not say who placed or
--- opened a container, so a container counts as known once its contents differ from the first
--- time the site saw it. Merchants' stock is no longer stored.
+-- Octarine shows only player chests. The save does not say who placed or opened a container,
+-- so the site decides from what it sees: a storage container that appears after tracking began,
+-- or whose contents change, becomes a player chest for good. Merchants' stock is not stored.
 
--- Every storage container seen, keyed by type and tile (two cannot share a tile).
+-- Every storage container present in the latest snapshot, keyed by type and tile (two cannot
+-- share a tile). The row is removed when the container disappears, so one placed again later
+-- on the same tile counts as new.
 CREATE TABLE T_CK_CONTAINER_TRACK (
     game_world_id BIGINT NOT NULL REFERENCES M_GAME_WORLD (game_world_id),
     object_id INTEGER NOT NULL,
@@ -11,8 +13,8 @@ CREATE TABLE T_CK_CONTAINER_TRACK (
     -- SHA-256 of the contents when first seen.
     first_content_hash VARCHAR(64) NOT NULL,
     first_seen_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    -- Set once the contents differ from the first sighting; never cleared.
-    known_at TIMESTAMP WITH TIME ZONE,
+    player_chest BOOLEAN NOT NULL,
+    player_chest_since TIMESTAMP WITH TIME ZONE,
     PRIMARY KEY (game_world_id, object_id, pos_x, pos_z)
 );
 

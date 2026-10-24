@@ -51,6 +51,10 @@ class CoreKeeperWorldParserTests {
     assertThat(world.containers()).allSatisfy(container -> assertThat(container.items())
         .allSatisfy(slot -> assertThat(slot.objectId()).isPositive()));
     assertThat(world.skippedEntities()).isEqualTo(11);
+    // Merchants, graves, and dropped items plus the Core and statues.
+    assertThat(world.containers().stream().collect(java.util.stream.Collectors.groupingBy(
+        CoreKeeperWorld.Container::holder, java.util.stream.Collectors.counting())))
+        .containsExactlyInAnyOrderEntriesOf(java.util.Map.of("NPC", 3L, "GRAVE", 6L, "LOOSE", 44L, "STORAGE", 158L));
   }
 
   @Test

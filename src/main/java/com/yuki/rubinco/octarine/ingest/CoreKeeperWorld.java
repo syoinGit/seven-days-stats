@@ -29,8 +29,9 @@ public record CoreKeeperWorld(
   public record RecordedObject(int objectId, int amount, int variation) { }
 
   /**
-   * Anything holding items. {@code holder} is NPC for creatures that carry stock (merchants) and
-   * STORAGE for everything else: chests, pots, pedestals, dropped items, graves.
+   * Anything holding items, classified by its components: NPC for creatures that carry stock
+   * (merchants), GRAVE for player graves, LOOSE for things that cannot be broken (dropped items,
+   * the Core, statues) and STORAGE for placed objects such as chests, pots and pedestals.
    */
   public record Container(String holder, int objectId, int variation, int x, int z,
       int slotCount, List<Slot> items) { }
