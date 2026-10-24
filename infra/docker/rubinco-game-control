@@ -27,11 +27,19 @@ docker_local() {
 case "${1-}" in
   statuses)
     [[ $# == 1 ]] || deny
+    available=0
     for game in 7dtd terraria corekeeper minecraft; do
       container="$(container_for "$game")"
-      state="$(docker_local inspect --type container --format '{{json .State}}' "$container")"
+      if state="$(docker_local inspect --type container --format '{{json .State}}' "$container")"; then
+        available=$((available + 1))
+      else
+        # A missing/broken container must not hide the state of the other games.
+        state='{"Status":"unavailable"}'
+      fi
       printf '%s %s\n' "$game" "$state"
     done
+    # Keep the deployment preflight failing when Docker is entirely unavailable.
+    [[ "$available" -gt 0 ]]
     ;;
   status)
     [[ $# == 2 ]] || deny
@@ -43,6 +51,13 @@ case "${1-}" in
     case "$2" in 7dtd|corekeeper|minecraft) ;; *) deny ;; esac
     container="$(container_for "$2")"
     docker_local start "$container"
+    ;;
+  stop)
+    [[ $# == 2 ]] || deny
+    case "$2" in 7dtd|corekeeper|minecraft) ;; *) deny ;; esac
+    container="$(container_for "$2")"
+    # SIGTERM first so the game can save; Docker sends SIGKILL after the fixed grace period.
+    docker_local stop --time 120 "$container"
     ;;
   logs)
     [[ $# == 2 && "$2" == 7dtd ]] || deny

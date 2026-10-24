@@ -36,7 +36,8 @@ public class WebSecurityConfig {
             .requestMatchers("/portal/profile").hasAnyRole("PLAYER", "MEMBER", "ADMIN")
             .requestMatchers(HttpMethod.POST, "/api/games/*/events").hasRole("ADMIN")
             .requestMatchers(HttpMethod.PUT, "/api/games/*/events/*").hasRole("ADMIN")
-            .requestMatchers(HttpMethod.POST, "/api/games/*/start", "/portal/actions/games/*/start")
+            .requestMatchers(HttpMethod.POST, "/api/games/*/start", "/api/games/*/stop",
+                "/portal/actions/games/*/start", "/portal/actions/games/*/stop")
             .access(gameServerAccess.requests())
             // External IDs are masked only in HTML; raw API data requires a member account.
             .requestMatchers("/api/**").hasAnyRole("PLAYER", "ADMIN")

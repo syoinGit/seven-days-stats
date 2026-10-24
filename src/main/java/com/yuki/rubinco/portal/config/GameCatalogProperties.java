@@ -22,6 +22,10 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "app.games")
 public class GameCatalogProperties {
+  @Min(1)
+  @Max(1048576)
+  private int memoryBudgetMib = 2560;
+
   @Valid
   @NotEmpty
   private List<@NotNull @Valid Game> catalog = new ArrayList<>();
@@ -62,6 +66,10 @@ public class GameCatalogProperties {
     private boolean siteEnabled = true;
 
     private boolean manualStart = true;
+
+    @Min(1)
+    @Max(1048576)
+    private int memoryMib = 1024;
 
     @AssertTrue(message = "Game site URL must use HTTPS, except on loopback hosts")
     public boolean isSiteUrlSecure() {

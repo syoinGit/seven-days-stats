@@ -94,11 +94,18 @@
 .portal-body .event-author + h3 { margin-top:8px; }
 
 .server-controls { margin-top:28px; }
+.server-memory-budget { margin:12px 0 6px; font-size:13px; font-weight:700; }
+.server-memory-note, .server-memory-required { color:#a6a8b5; font-size:11px; line-height:1.6; }
+.server-memory-reason { color:#e7bd80; font-size:11px; line-height:1.6; }
 .server-control { margin-top:10px; padding:16px; border:1px solid #ffffff15; border-radius:12px; background:#202127; }
 .server-control h3 { margin:0 0 10px; font-size:13px; }
 .server-control form { margin-top:12px; }
 .server-start-button { width:100%; min-height:40px; border:0; border-radius:8px; background:var(--portal-accent); color:#2d211c; font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
 .server-start-button:disabled { opacity:.4; cursor:default; }
+.status-chip.status-stopping { color:#f3c969; border-color:#f3c969; }
+.server-control .server-stop-form { margin-top:8px; }
+.server-stop-button { width:100%; min-height:36px; border:1px solid #de5b6480; border-radius:8px; background:transparent; color:#ff9ca1; font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+.server-stop-button:disabled { opacity:.35; cursor:default; }
 .server-auto-start { display:block; margin-top:12px; color:var(--portal-muted); font-size:11px; }
 .server-action-message { margin:10px 0 0; color:var(--portal-muted); font-size:11px; line-height:1.7; overflow-wrap:anywhere; }
 .server-action-message:empty { display:none; }

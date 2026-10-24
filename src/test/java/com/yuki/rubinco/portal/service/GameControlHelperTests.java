@@ -16,11 +16,12 @@ class GameControlHelperTests {
   @TempDir Path directory;
   private Path helper;
   private Path record;
+  private Path docker;
 
   @BeforeEach
   void setUp() throws Exception {
     record = directory.resolve("arguments");
-    Path docker = directory.resolve("fake-docker");
+    docker = directory.resolve("fake-docker");
     Files.writeString(docker, "#!/bin/sh\n"
         + "printf '%s\\n' \"$HOME\" \"${DOCKER_HOST:-unset}\" \"${DOCKER_CONFIG:-unset}\" \"$@\" > "
         + quote(record) + "\nprintf '%s\\n' '{\"Status\":\"exited\"}'\n");
@@ -39,6 +40,12 @@ class GameControlHelperTests {
       assertThat(Files.readAllLines(record)).containsExactly("/root", "unset", "unset",
           "--host=unix:///var/run/docker.sock", "start", target.getValue());
     }
+    for (var target : Map.of("7dtd", "7dtd", "corekeeper", "rubinco-corekeeper",
+        "minecraft", "rubinco-minecraft").entrySet()) {
+      assertThat(execute(Map.of(), "stop", target.getKey())).isZero();
+      assertThat(Files.readAllLines(record)).containsExactly("/root", "unset", "unset",
+          "--host=unix:///var/run/docker.sock", "stop", "--time", "120", target.getValue());
+    }
     assertThat(execute(Map.of(), "status", "terraria")).isZero();
     assertThat(Files.readAllLines(record)).endsWith("inspect", "--type", "container", "--format",
         "{{json .State}}", "terraria");
@@ -51,7 +58,9 @@ class GameControlHelperTests {
         new String[] {"start", "7dtd; touch injected"}, new String[] {"status", "--help"},
         new String[] {"status", "7dtd", "extra"}, new String[] {"statuses", "extra"},
         new String[] {"logs", "terraria"}, new String[] {"logs", "7dtd", "--since", "24h"},
-        new String[] {"run", "alpine"}, new String[] {"stop", "7dtd"}, new String[] {"exec", "7dtd", "sh"})) {
+        new String[] {"run", "alpine"}, new String[] {"stop", "terraria"},
+        new String[] {"stop", "seven-days-postgres"}, new String[] {"stop", "7dtd", "--time", "0"},
+        new String[] {"exec", "7dtd", "sh"})) {
       assertThat(execute(Map.of(), arguments)).isEqualTo(64);
       assertThat(record).doesNotExist();
     }
@@ -84,6 +93,28 @@ class GameControlHelperTests {
     assertThat(Files.readAllLines(output)).containsExactly(
         "7dtd {\"Status\":\"exited\"}", "terraria {\"Status\":\"exited\"}",
         "corekeeper {\"Status\":\"exited\"}", "minecraft {\"Status\":\"exited\"}");
+  }
+
+  @Test
+  void failedContainerDoesNotHideLaterHealthyContainers() throws Exception {
+    Files.writeString(docker, "#!/bin/sh\n"
+        + "for argument in \"$@\"; do\n"
+        + "  if [ \"$argument\" = '7dtd' ]; then exit 1; fi\n"
+        + "done\n"
+        + "printf '%s\\n' '{\"Status\":\"running\"}'\n");
+    Path output = directory.resolve("statuses");
+    var process = new ProcessBuilder(helper.toString(), "statuses")
+        .redirectOutput(output.toFile()).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+    assertThat(process.waitFor()).isZero();
+    assertThat(Files.readAllLines(output)).containsExactly(
+        "7dtd {\"Status\":\"unavailable\"}", "terraria {\"Status\":\"running\"}",
+        "corekeeper {\"Status\":\"running\"}", "minecraft {\"Status\":\"running\"}");
+  }
+
+  @Test
+  void unavailableDockerStillFailsTheDeploymentPreflight() throws Exception {
+    Files.writeString(docker, "#!/bin/sh\nexit 1\n");
+    assertThat(execute(Map.of(), "statuses")).isEqualTo(1);
   }
 
   private int execute(Map<String, String> environment, String... arguments) throws Exception {

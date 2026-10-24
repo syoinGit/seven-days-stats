@@ -8,6 +8,11 @@ import java.util.Map;
 public interface GameServerStartGateway {
   StartResult requestStart(String gameId, String requestedBy);
 
+  /** Accepted stops may finish asynchronously; the result then reports {@code stopping}. */
+  default StartResult requestStop(String gameId, String requestedBy) {
+    return new StartResult(false, "error", "このサーバーはサイトから停止できません。");
+  }
+
   default String currentStatus(String gameId) {
     return null;
   }
@@ -20,6 +25,10 @@ public interface GameServerStartGateway {
     Map<String, String> statuses = new LinkedHashMap<>();
     gameIds.forEach(id -> statuses.put(id, currentStatus(id)));
     return statuses;
+  }
+
+  default Map<String, String> freshStatuses(List<String> gameIds) {
+    return currentStatuses(gameIds);
   }
 
   record StartResult(boolean accepted, String status, String message) { }

@@ -2,16 +2,21 @@ package com.yuki.rubinco.portal.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import com.yuki.rubinco.portal.config.DockerGameServerProperties;
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
 class DockerGameServerStartGatewayTests {
   private final DockerCommandRunner runner = mock(DockerCommandRunner.class);
   private final DockerGameServerStartGateway gateway = new DockerGameServerStartGateway(
-      runner, new ObjectMapper());
+      runner, new ObjectMapper(), new DockerGameServerProperties());
 
   @Test
   void startsOnlyTheFixedContainerForEachManualGame() {
@@ -67,5 +72,70 @@ class DockerGameServerStartGatewayTests {
         .containsEntry("7dtd", "offline").containsEntry("terraria", "online")
         .containsEntry("minecraft", "error");
     verify(runner, times(1)).run(any(String[].class));
+  }
+
+  @Test
+  void invalidStateDoesNotHideTheOtherGames() {
+    when(runner.run("statuses"))
+        .thenReturn("7dtd not-json\ncorekeeper {\"Status\":\"running\"}");
+    assertThat(gateway.currentStatuses(List.of("7dtd", "corekeeper")))
+        .containsEntry("7dtd", "error").containsEntry("corekeeper", "online");
+  }
+
+  @Test
+  void admissionAlwaysRefreshesEvenWhenTheDisplayCacheSaysOffline() {
+    when(runner.run("statuses"))
+        .thenReturn("7dtd {\"Status\":\"exited\"}", "7dtd {\"Status\":\"running\"}");
+    assertThat(gateway.currentStatuses(List.of("7dtd"))).containsEntry("7dtd", "offline");
+    assertThat(gateway.freshStatuses(List.of("7dtd"))).containsEntry("7dtd", "online");
+    verify(runner, times(2)).run("statuses");
+  }
+
+  @Test
+  void stopRunsInTheBackgroundWithTheLongTimeoutAndReportsStoppingUntilDone() throws Exception {
+    var release = new CountDownLatch(1);
+    var finished = new CountDownLatch(1);
+    when(runner.run("status", "7dtd")).thenReturn("{\"Status\":\"running\"}");
+    when(runner.run(any(Duration.class), eq("stop"), eq("7dtd"))).thenAnswer(ignored -> {
+      release.await(5, TimeUnit.SECONDS);
+      finished.countDown();
+      return "";
+    });
+
+    var result = gateway.requestStop("7dtd", "member");
+
+    assertThat(result.accepted()).isTrue();
+    assertThat(result.status()).isEqualTo("stopping");
+    assertThat(gateway.currentStatus("7dtd")).isEqualTo("stopping");
+    assertThat(gateway.requestStart("7dtd", "member").accepted()).isFalse();
+    assertThat(gateway.requestStop("7dtd", "member").accepted()).isFalse();
+    release.countDown();
+    assertThat(finished.await(5, TimeUnit.SECONDS)).isTrue();
+    verify(runner, timeout(5000)).run(Duration.ofSeconds(150), "stop", "7dtd");
+    verify(runner, never()).run("start", "7dtd");
+  }
+
+  @Test
+  void stopIsLimitedToRunningManualGames() {
+    when(runner.run("status", "minecraft")).thenReturn("{\"Status\":\"exited\"}");
+    assertThat(gateway.requestStop("minecraft", "member").accepted()).isFalse();
+    for (String id : List.of("terraria", "postgres", "7dtd; touch /tmp/x")) {
+      assertThat(gateway.requestStop(id, "member").accepted()).isFalse();
+    }
+    verify(runner, never()).run(any(Duration.class), any(String[].class));
+  }
+
+  @Test
+  void failedStopReleasesTheStoppingMarker() throws Exception {
+    when(runner.run("status", "corekeeper")).thenReturn("{\"Status\":\"running\"}");
+    when(runner.run(any(Duration.class), eq("stop"), eq("corekeeper")))
+        .thenThrow(new IllegalStateException("Docker command timed out"));
+    assertThat(gateway.requestStop("corekeeper", "member").accepted()).isTrue();
+    verify(runner, timeout(5000)).run(any(Duration.class), eq("stop"), eq("corekeeper"));
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+    while (!"online".equals(gateway.currentStatus("corekeeper")) && System.nanoTime() < deadline) {
+      Thread.sleep(10);
+    }
+    assertThat(gateway.currentStatus("corekeeper")).isEqualTo("online");
   }
 }

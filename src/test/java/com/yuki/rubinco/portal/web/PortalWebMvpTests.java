@@ -30,7 +30,8 @@ import org.springframework.test.web.servlet.MockMvc;
     "spring.datasource.driver-class-name=org.h2.Driver",
     "spring.jpa.hibernate.ddl-auto=validate",
     "spring.flyway.enabled=true",
-    "app.sevendays.import.startup-enabled=false"
+    "app.sevendays.import.startup-enabled=false",
+    "app.games.memory-budget-mib=16384"
 })
 @AutoConfigureMockMvc
 class PortalWebMvpTests {

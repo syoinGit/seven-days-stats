@@ -164,6 +164,29 @@ class ApplicationConfigurationTests {
     });
   }
 
+  @Test
+  void gameMemoryReservationsFollowEnvironmentOverrides() {
+    runner.withPropertyValues("GAME_MEMORY_BUDGET_MIB=6144", "SEVEN_DAYS_MEMORY_MIB=3072")
+        .run(context -> {
+          assertThat(context).hasNotFailed();
+          var games = context.getBean(GameCatalogProperties.class);
+          assertThat(games.getMemoryBudgetMib()).isEqualTo(6144);
+          assertThat(games.getCatalog().getFirst().getMemoryMib()).isEqualTo(3072);
+        });
+  }
+
+  @Test
+  void zeroMemoryCannotDisableTheAdmissionLimit() {
+    runner.withPropertyValues("GAME_MEMORY_BUDGET_MIB=0").run(context -> {
+      assertThat(context).hasFailed();
+      assertThat(context.getStartupFailure()).hasStackTraceContaining("memoryBudgetMib");
+    });
+    runner.withPropertyValues("SEVEN_DAYS_MEMORY_MIB=0").run(context -> {
+      assertThat(context).hasFailed();
+      assertThat(context.getStartupFailure()).hasStackTraceContaining("memoryMib");
+    });
+  }
+
   private ApplicationContextRunner productionRunner() {
     return runner.withPropertyValues(
         "spring.profiles.active=production,cognito",

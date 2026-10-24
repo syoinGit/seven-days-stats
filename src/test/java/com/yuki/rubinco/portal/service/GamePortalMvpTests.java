@@ -29,7 +29,8 @@ import org.springframework.transaction.support.TransactionTemplate;
     "spring.datasource.driver-class-name=org.h2.Driver",
     "spring.jpa.hibernate.ddl-auto=validate",
     "spring.flyway.enabled=true",
-    "app.sevendays.import.startup-enabled=false"
+    "app.sevendays.import.startup-enabled=false",
+    "app.games.memory-budget-mib=16384"
 })
 @WithMockUser(roles = "ADMIN")
 class GamePortalMvpTests {
@@ -37,6 +38,7 @@ class GamePortalMvpTests {
   @Autowired private GameTimelineService timelineService;
   @Autowired private TimelinePostService watchpointTimelineService;
   @Autowired private GameStartService startService;
+  @Autowired private GameMemoryBudget memoryBudget;
   @Autowired private T_TimelinePostRepository timelineRepository;
   @Autowired private T_TimelinePostReactionRepository reactionRepository;
   @Autowired private M_GamePortalStateRepository stateRepository;
@@ -162,7 +164,7 @@ class GamePortalMvpTests {
       }
       return new GameServerStartGateway.StartResult(true, "starting", "accepted");
     };
-    var service = new GameStartService(portalService, stateRepository, gateway);
+    var service = new GameStartService(portalService, stateRepository, gateway, memoryBudget);
     var transaction = new TransactionTemplate(transactionManager);
     var start = CompletableFuture.supplyAsync(() -> transaction.execute(
         ignored -> service.requestStart("7dtd", "admin")));
@@ -189,6 +191,60 @@ class GamePortalMvpTests {
     assertThat(state.getServerStatus()).isEqualTo("starting");
     assertThat(state.getProgress()).isEqualTo(81);
     assertThat(state.getStageName()).isEqualTo("Moon Lord");
+  }
+
+  @Test
+  void concurrentDifferentGamesShareOneBudgetAcrossServiceInstances() throws Exception {
+    var properties = new com.yuki.rubinco.portal.config.GameCatalogProperties();
+    properties.setMemoryBudgetMib(1024);
+    properties.setCatalog(List.of("7dtd", "minecraft").stream().map(id -> {
+      var game = new com.yuki.rubinco.portal.config.GameCatalogProperties.Game();
+      game.setId(id);
+      game.setMemoryMib(1024);
+      return game;
+    }).toList());
+    var budget = new GameMemoryBudget(properties);
+    var entered = new CountDownLatch(1);
+    var release = new CountDownLatch(1);
+    var secondEntered = new CountDownLatch(1);
+    var calls = new java.util.concurrent.atomic.AtomicInteger();
+    GameServerStartGateway gateway = (id, actor) -> {
+      calls.incrementAndGet();
+      entered.countDown();
+      try {
+        if (!release.await(5, TimeUnit.SECONDS)) throw new IllegalStateException("timeout");
+      } catch (InterruptedException exception) {
+        Thread.currentThread().interrupt();
+        throw new IllegalStateException(exception);
+      }
+      return new GameServerStartGateway.StartResult(true, "starting", "accepted");
+    };
+    var firstService = new GameStartService(portalService, stateRepository, gateway, budget);
+    var secondService = new GameStartService(portalService, stateRepository, gateway, budget);
+    var transaction = new TransactionTemplate(transactionManager);
+    var first = CompletableFuture.supplyAsync(() -> transaction.execute(
+        ignored -> firstService.requestStart("7dtd", "admin")));
+    CompletableFuture<GameServerStartGateway.StartResult> second = null;
+    try {
+      assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+      second = CompletableFuture.supplyAsync(() -> transaction.execute(ignored -> {
+        secondEntered.countDown();
+        return secondService.requestStart("minecraft", "admin");
+      }));
+      assertThat(secondEntered.await(5, TimeUnit.SECONDS)).isTrue();
+      var pending = second;
+      assertThatThrownBy(() -> pending.get(200, TimeUnit.MILLISECONDS))
+          .isInstanceOf(TimeoutException.class);
+    } finally {
+      release.countDown();
+    }
+    assertThat(first.get(5, TimeUnit.SECONDS).accepted()).isTrue();
+    var refused = second.get(5, TimeUnit.SECONDS);
+    assertThat(refused.accepted()).isFalse();
+    assertThat(refused.message()).contains("メモリ枠");
+    assertThat(calls.get()).isEqualTo(1);
+    assertThat(stateRepository.findById("minecraft").orElseThrow().getServerStatus())
+        .isEqualTo("offline");
   }
 
   @Test

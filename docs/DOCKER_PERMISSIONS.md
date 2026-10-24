@@ -15,9 +15,11 @@ root 所有の固定ヘルパーを、引数まで限定した sudo 設定で呼
 | --- | --- |
 | 状態取得 | 7dtd / Terraria / Core Keeper / Minecraft |
 | 起動 | 7dtd / Core Keeper / Minecraft |
+| 停止（`docker stop --time 120` 固定） | 7dtd / Core Keeper / Minecraft |
 | ログ取得（直近5分から追尾） | 7dtd のみ。既存の Watchpoint ログ取り込み用 |
 
-停止・削除・コンテナ作成・`exec`・任意のオプション・PostgreSQL 操作は許可しない。
+Terraria の停止・削除・コンテナ作成・`exec`・任意のオプション・PostgreSQL 操作は許可しない。
+停止の猶予秒数はヘルパー内で固定し、呼び出し側から変更できない。
 Terraria の自動起動方針と既存コンテナのデータは変更しない。
 
 ## 反映の順序
@@ -283,7 +285,7 @@ GitHub Actions がビルドした JAR は、ローカルビルドとチェック
 
 ## 6. 動作確認と戻し方
 
-メンバーによる停止中のゲームの起動、Terraria の自動起動表示、ゲストの操作拒否、
+メンバーによる停止中のゲームの起動と稼働中のゲームの停止、Terraria の自動起動表示、ゲストの操作拒否、
 7dtd を稼働させた後の Watchpoint のログ取り込みを確認する。
 `systemctl show` に表示された MainPID に対して `ps -p <PID> -o user,group,args` も確認する。
 

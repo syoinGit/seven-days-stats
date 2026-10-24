@@ -7,7 +7,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import com.yuki.rubinco.portal.entity.M_GamePortalState;
 import com.yuki.rubinco.portal.repository.M_GamePortalStateRepository;
-import java.util.Optional;
+import java.util.List;
+import java.util.Map;
+import com.yuki.rubinco.portal.config.GameCatalogProperties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -27,7 +29,11 @@ class GameStartServiceTests {
 
   @BeforeEach
   void setUp() {
-    service = new GameStartService(portalService, stateRepository, gateway);
+    var properties = new GameCatalogProperties();
+    var game = new GameCatalogProperties.Game();
+    game.setId("7dtd");
+    properties.setCatalog(List.of(game));
+    service = new GameStartService(portalService, stateRepository, gateway, new GameMemoryBudget(properties));
   }
 
   @Test
@@ -46,13 +52,62 @@ class GameStartServiceTests {
     state.setServerStatus("starting");
     when(portalService.supports("7dtd")).thenReturn(true);
     when(portalService.canStart("7dtd")).thenReturn(true);
-    when(stateRepository.findForUpdate("7dtd")).thenReturn(Optional.of(state));
+    when(stateRepository.findAllForUpdate()).thenReturn(List.of(state));
     when(gateway.liveStatus()).thenReturn(true);
-    when(gateway.currentStatus("7dtd")).thenReturn("offline");
+    when(gateway.freshStatuses(List.of("7dtd"))).thenReturn(Map.of("7dtd", "offline"));
     when(gateway.requestStart("7dtd", "member"))
         .thenReturn(new GameServerStartGateway.StartResult(true, "starting", "accepted"));
     assertThat(service.requestStart("7dtd", "member").accepted()).isTrue();
     verify(gateway).requestStart("7dtd", "member");
+  }
+
+  @Test
+  void stopReachesTheGatewayOnlyForARunningManualGame() {
+    M_GamePortalState state = new M_GamePortalState();
+    state.setGameId("7dtd");
+    state.setServerStatus("offline");
+    when(portalService.supports("7dtd")).thenReturn(true);
+    when(portalService.canStart("7dtd")).thenReturn(true);
+    when(stateRepository.findAllForUpdate()).thenReturn(List.of(state));
+    when(gateway.liveStatus()).thenReturn(true);
+    when(gateway.freshStatuses(List.of("7dtd")))
+        .thenReturn(Map.of("7dtd", "offline"), Map.of("7dtd", "online"));
+    when(gateway.requestStop("7dtd", "member"))
+        .thenReturn(new GameServerStartGateway.StartResult(true, "stopping", "stopping"));
+
+    var offline = service.requestStop("7dtd", "member");
+    assertThat(offline.accepted()).isFalse();
+    assertThat(offline.message()).contains("すでに停止");
+    verify(gateway, never()).requestStop("7dtd", "member");
+
+    var online = service.requestStop("7dtd", "member");
+    assertThat(online.accepted()).isTrue();
+    assertThat(online.status()).isEqualTo("stopping");
+    verify(gateway).requestStop("7dtd", "member");
+  }
+
+  @Test
+  void automaticServerIsNeverStoppedFromTheSite() {
+    when(portalService.supports("terraria")).thenReturn(true);
+    var result = service.requestStop("terraria", "member");
+    assertThat(result.accepted()).isFalse();
+    org.mockito.Mockito.verifyNoInteractions(gateway, stateRepository);
+  }
+
+  @Test
+  void stoppingGameCannotBeStartedAgainUntilItIsOffline() {
+    M_GamePortalState state = new M_GamePortalState();
+    state.setGameId("7dtd");
+    state.setServerStatus("offline");
+    when(portalService.supports("7dtd")).thenReturn(true);
+    when(portalService.canStart("7dtd")).thenReturn(true);
+    when(stateRepository.findAllForUpdate()).thenReturn(List.of(state));
+    when(gateway.liveStatus()).thenReturn(true);
+    when(gateway.freshStatuses(List.of("7dtd"))).thenReturn(Map.of("7dtd", "stopping"));
+    var result = service.requestStart("7dtd", "member");
+    assertThat(result.accepted()).isFalse();
+    assertThat(result.status()).isEqualTo("stopping");
+    verify(gateway, never()).requestStart("7dtd", "member");
   }
 
   @Test
@@ -62,7 +117,7 @@ class GameStartServiceTests {
     state.setServerStatus("maintenance");
     when(portalService.supports("7dtd")).thenReturn(true);
     when(portalService.canStart("7dtd")).thenReturn(true);
-    when(stateRepository.findForUpdate("7dtd")).thenReturn(Optional.of(state));
+    when(stateRepository.findAllForUpdate()).thenReturn(List.of(state));
     when(gateway.liveStatus()).thenReturn(true);
     assertThat(service.requestStart("7dtd", "member").accepted()).isFalse();
     verify(gateway, never()).currentStatus("7dtd");
@@ -76,7 +131,7 @@ class GameStartServiceTests {
     state.setServerStatus("offline");
     when(portalService.supports("7dtd")).thenReturn(true);
     when(portalService.canStart("7dtd")).thenReturn(true);
-    when(stateRepository.findForUpdate("7dtd")).thenReturn(Optional.of(state));
+    when(stateRepository.findAllForUpdate()).thenReturn(List.of(state));
     when(gateway.requestStart("7dtd", "unsafe__actor"))
         .thenThrow(new IllegalStateException("sensitive provider detail"));
 
@@ -103,7 +158,7 @@ class GameStartServiceTests {
     state.setServerStatus(null);
     when(portalService.supports("7dtd")).thenReturn(true);
     when(portalService.canStart("7dtd")).thenReturn(true);
-    when(stateRepository.findForUpdate("7dtd")).thenReturn(Optional.of(state));
+    when(stateRepository.findAllForUpdate()).thenReturn(List.of(state));
 
     var result = service.requestStart("7dtd", "member");
 
@@ -121,7 +176,7 @@ class GameStartServiceTests {
     CountDownLatch releaseGateway = new CountDownLatch(1);
     when(portalService.supports("7dtd")).thenReturn(true);
     when(portalService.canStart("7dtd")).thenReturn(true);
-    when(stateRepository.findForUpdate("7dtd")).thenReturn(Optional.of(state));
+    when(stateRepository.findAllForUpdate()).thenReturn(List.of(state));
     when(gateway.requestStart("7dtd", "first-member")).thenAnswer(ignored -> {
       gatewayEntered.countDown();
       if (!releaseGateway.await(2, TimeUnit.SECONDS)) {

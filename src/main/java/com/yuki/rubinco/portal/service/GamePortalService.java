@@ -21,6 +21,7 @@ public class GamePortalService {
   private final M_GamePortalStateRepository stateRepository;
   private final T_TimelinePostRepository timelineRepository;
   private final GameServerStartGateway gateway;
+  private final GameMemoryBudget memoryBudget;
 
   @Transactional(readOnly = true)
   public Map<String, ServerStatus> serverStatuses() {
@@ -37,7 +38,15 @@ public class GamePortalService {
         }
       });
     }
+    var memory = memorySnapshot(states);
+    states.replaceAll((id, status) -> new ServerStatus(status.code(), status.label(),
+        memory.allocations().get(id)));
     return states;
+  }
+
+  public GameMemoryBudget.Snapshot memorySnapshot(Map<String, ServerStatus> statuses) {
+    return memoryBudget.evaluate(statuses.entrySet().stream()
+        .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().code())));
   }
 
   public boolean liveServerStatus() {
@@ -56,13 +65,16 @@ public class GamePortalService {
     return supports(gameId) && configuredGame(gameId).isManualStart();
   }
 
-  public record ServerStatus(String code, String label) {
+  public record ServerStatus(String code, String label, GameMemoryBudget.Allocation memory) {
+    public ServerStatus(String code, String label) { this(code, label, null); }
+
     public static ServerStatus from(String value) {
       if (value == null) return new ServerStatus("unknown", "未確認");
       return switch (value) {
         case "online" -> new ServerStatus(value, "稼働中");
         case "offline" -> new ServerStatus(value, "停止中");
         case "starting" -> new ServerStatus(value, "起動中");
+        case "stopping" -> new ServerStatus(value, "停止処理中");
         case "maintenance" -> new ServerStatus(value, "メンテナンス中");
         case "error" -> new ServerStatus(value, "エラー");
         default -> new ServerStatus("unknown", "未確認");

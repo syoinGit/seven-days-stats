@@ -49,23 +49,44 @@ test("unsupported dialogs keep normal links and the visible fallback form", () =
   assert.doesNotThrow(() => page({ present: false }));
 });
 
-function serverPage(fetch, { live = false, csrf = "csrf-test" } = {}) {
+function serverPage(fetch, { live = false, csrf = "csrf-test", budget = 2560,
+  memory = 1024, extraSlots = [], status = "offline", confirm = () => true } = {}) {
   const handlers = {};
+  const stopHandlers = {};
+  const confirmations = [];
+  const stopButton = { disabled: false };
   const timers = [];
   const button = { disabled: false };
   const message = { textContent: "" };
+  const reason = { textContent: "" };
+  const summary = { textContent: "" };
   const form = {
-    dataset: { startServer: "7dtd", status: "offline" },
+    dataset: { startServer: "7dtd", status },
     action: "/portal/actions/games/7dtd/start",
     querySelector: () => button,
-    closest: () => ({ querySelector: () => message }),
+    closest: () => ({ querySelector: (selector) => selector === "[data-memory-reason]" ? reason : message }),
     addEventListener: (name, callback) => { handlers[name] = callback; }
+  };
+  const stopForm = {
+    dataset: { stopServer: "7dtd", status, serverName: "7 Days to Die" },
+    action: "/portal/actions/games/7dtd/stop",
+    querySelector: () => stopButton,
+    closest: form.closest,
+    addEventListener: (name, callback) => { stopHandlers[name] = callback; }
   };
   const chip = {
     dataset: { serverStatus: "7dtd" }, textContent: "停止中",
     classList: { add() {}, remove() {} }
   };
-  const controls = { dataset: { liveServerStatus: String(live) }, querySelectorAll: () => [form] };
+  const servers = [{ dataset: { server: "7dtd", status, memoryMib: String(memory) } },
+    ...extraSlots.map((slot) => ({ dataset: { server: slot.id, status: slot.status, memoryMib: String(slot.memory) } }))];
+  const chips = [chip, ...extraSlots.map((slot) => ({
+    dataset: { serverStatus: slot.id }, textContent: "", classList: { add() {}, remove() {} }
+  }))];
+  const controls = { dataset: { liveServerStatus: String(live), memoryBudgetMib: String(budget) },
+    querySelectorAll: (selector) => ({ "[data-server]": servers, "[data-start-server]": [form],
+      "[data-stop-server]": [stopForm] })[selector] || [],
+    querySelector: () => summary };
   const document = {
     visibilityState: "visible",
     querySelector: (selector) => {
@@ -74,10 +95,13 @@ function serverPage(fetch, { live = false, csrf = "csrf-test" } = {}) {
       if (selector === 'meta[name="_csrf_header"]') return { content: "X-CSRF-TOKEN" };
       return null;
     },
-    querySelectorAll: (selector) => selector === "[data-server-status]" ? [chip] : []
+    querySelectorAll: (selector) => selector === "[data-server-status]" ? chips : []
   };
-  vm.runInNewContext(source, { document, fetch, AbortSignal, setTimeout: (callback) => timers.push(callback) });
-  return { form, button, message, chip, timers, submit: () => handlers.submit({ preventDefault() {} }) };
+  vm.runInNewContext(source, { document, fetch, AbortSignal, setTimeout: (callback) => timers.push(callback),
+    confirm: (text) => { confirmations.push(text); return confirm(text); } });
+  return { form, button, stopForm, stopButton, message, reason, summary, chip, timers, confirmations,
+    submit: () => handlers.submit({ preventDefault() {} }),
+    stop: () => stopHandlers.submit({ preventDefault() {} }) };
 }
 
 test("start sends a CSRF protected request and blocks duplicate submissions", async () => {
@@ -129,4 +153,89 @@ test("live polling follows external stops and disables controls if status lookup
   await page.timers.shift()();
   assert.equal(page.button.disabled, true);
   assert.equal(page.chip.textContent, "未確認");
+});
+
+
+test("memory budget blocks the button and network request even for an offline game", async () => {
+  let calls = 0;
+  const page = serverPage(async () => { calls++; }, {
+    budget: 2560, memory: 2048,
+    extraSlots: [{ id: "terraria", status: "online", memory: 1024 }]
+  });
+  assert.equal(page.button.disabled, true);
+  assert.match(page.reason.textContent, /メモリ枠が不足/);
+  assert.equal(page.summary.textContent, "1.0 GiB");
+  await page.submit();
+  assert.equal(calls, 0);
+});
+
+test("polling releases stopped reservations and accepted starts immediately reserve their full budget", async () => {
+  const page = serverPage(async (_url, options) => options.method === "POST"
+    ? { ok: true, json: async () => ({ accepted: true, status: "starting" }) }
+    : { ok: true, json: async () => ({ "7dtd": { code: "offline" }, terraria: { code: "offline" } }) }, {
+    live: true, budget: 2048, memory: 2048,
+    extraSlots: [{ id: "terraria", status: "online", memory: 1024 }]
+  });
+  assert.equal(page.button.disabled, true);
+  await page.timers.shift()();
+  assert.equal(page.button.disabled, false);
+  assert.equal(page.reason.textContent, "");
+  await page.submit();
+  assert.equal(page.summary.textContent, "2.0 GiB");
+  assert.equal(page.button.disabled, true);
+});
+
+test("an unknown other game blocks a start and marks the reservation total unknown", () => {
+  const page = serverPage(async () => {}, {
+    extraSlots: [{ id: "terraria", status: "error", memory: 1024 }]
+  });
+  assert.equal(page.button.disabled, true);
+  assert.equal(page.summary.textContent, "未確認");
+  assert.match(page.reason.textContent, /状態を確認できない/);
+});
+
+test("stop is enabled only for running games, asks for confirmation, and reports stopping", async () => {
+  const calls = [];
+  const page = serverPage(async (...args) => {
+    calls.push(args);
+    return { ok: true, json: async () => ({ accepted: true, status: "stopping", message: "停止を開始しました" }) };
+  }, { status: "online" });
+  assert.equal(page.stopButton.disabled, false);
+  assert.equal(page.button.disabled, true);
+  await page.stop();
+  assert.equal(page.confirmations.length, 1);
+  assert.match(page.confirmations[0], /7 Days to Die.*切断/);
+  assert.equal(calls[0][0], "/portal/actions/games/7dtd/stop");
+  assert.equal(calls[0][1].method, "POST");
+  assert.equal(calls[0][1].headers["X-CSRF-TOKEN"], "csrf-test");
+  assert.equal(page.chip.textContent, "停止処理中");
+  assert.equal(page.message.textContent, "停止を開始しました");
+  assert.equal(page.stopButton.disabled, true);
+  assert.equal(page.button.disabled, true);
+  assert.equal(page.summary.textContent, "1.0 GiB");
+});
+
+test("a declined confirmation or a stopped game sends no stop request", async () => {
+  let calls = 0;
+  const declined = serverPage(async () => { calls++; }, { status: "online", confirm: () => false });
+  await declined.stop();
+  assert.equal(declined.confirmations.length, 1);
+  const offline = serverPage(async () => { calls++; });
+  assert.equal(offline.stopButton.disabled, true);
+  await offline.stop();
+  assert.equal(offline.confirmations.length, 0);
+  assert.equal(calls, 0);
+});
+
+test("polling re-enables stop for a running game and start once it has stopped", async () => {
+  let status = "online";
+  const page = serverPage(async () => ({ ok: true, json: async () => ({ "7dtd": { code: status } }) }),
+    { live: true, status: "stopping" });
+  assert.equal(page.stopButton.disabled, true);
+  await page.timers.shift()();
+  assert.equal(page.stopButton.disabled, false);
+  status = "offline";
+  await page.timers.shift()();
+  assert.equal(page.stopButton.disabled, true);
+  assert.equal(page.button.disabled, false);
 });
