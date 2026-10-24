@@ -35,12 +35,14 @@ app:
     portal-url: ${PORTAL_SITE_URL:https://portal.${app.platform.domain}}
     watchpoint-url: ${WATCHPOINT_SITE_URL:https://watchpoint.${app.platform.domain}}
     luminite-url: ${LUMINITE_SITE_URL:https://luminite.${app.platform.domain}}
+    octarine-url: ${OCTARINE_SITE_URL:https://octarine.${app.platform.domain}}
     auth-url: ${AUTH_SITE_URL:https://auth.${app.platform.domain}}
     api-url: ${API_BASE_URL:https://api.${app.platform.domain}}
     allowed-origins:
       - ${app.platform.portal-url}
       - ${app.platform.watchpoint-url}
       - ${app.platform.luminite-url}
+      - ${app.platform.octarine-url}
     cognito:
       enabled: false
   games:
@@ -74,11 +76,10 @@ app:
         connection: "接続情報は準備中です"
       - id: corekeeper
         memory-mib: ${COREKEEPER_MEMORY_MIB:1024}
-        display-name: Core Keeper
+        display-name: ${COREKEEPER_SITE_NAME:Octarine}
         site-name: Core Keeper
-        site-url: ${app.platform.portal-url}
-        site-enabled: false
-        accent: emerald
+        site-url: ${app.platform.octarine-url}
+        accent: magenta
         version: "サーバー設定に準拠"
         stage: "冒険の記録を待っています"
         progress: 0
@@ -96,6 +97,15 @@ app:
         progress: 0
         schedule: "サイトから起動"
         connection: "接続先は管理者に確認してください"
+  corekeeper:
+    # Read-only copy source. Production path is set in application-production.yml.
+    world-file: ${COREKEEPER_WORLD_FILE:corekeeper/server-data/worlds/0.world.gzip}
+    import-enabled: ${COREKEEPER_IMPORT_ENABLED:false}
+    import-interval: ${COREKEEPER_IMPORT_INTERVAL:5m}
+    max-compressed-size: ${COREKEEPER_MAX_COMPRESSED_SIZE:64MB}
+    max-decompressed-size: ${COREKEEPER_MAX_DECOMPRESSED_SIZE:256MB}
+    parse-timeout: 60s
+    run-retention: ${COREKEEPER_IMPORT_RUN_RETENTION:90d}
   sevendays:
     environment-name: local
     mode: file

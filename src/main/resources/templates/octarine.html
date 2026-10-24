@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Core Keeperのワールド進捗と冒険記録をまとめる個別ゲームサイト">
+  <title th:text="${game.displayName + ' | Core Keeper'}">Octarine | Core Keeper</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='1')}">
+</head>
+<body class="octarine-body">
+<header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
+
+<main class="octarine-shell">
+  <section class="octarine-hero" aria-labelledby="octarine-title">
+    <p class="eyebrow">CORE KEEPER / SHARED WORLD</p>
+    <h1 id="octarine-title" th:text="${game.displayName}">Octarine</h1>
+    <p>地下に眠るコアと、仲間たちが掘り進んだ記録。</p>
+    <p class="octarine-world" th:if="${overview.worldConfigured}">
+      <b th:text="${overview.worldName}">Core Keeper ワールド</b>
+      <span th:text="${'第' + overview.generation + '世代'}">第1世代</span>
+    </p>
+    <a th:if="${currentAdmin}" class="octarine-admin-link" th:href="@{/octarine/maintenance}">管理画面 →</a>
+  </section>
+
+  <section th:if="${!overview.visible}" class="octarine-panel" aria-label="準備中">
+    <p class="octarine-empty">このワールドの進捗は準備中です。</p>
+  </section>
+
+  <th:block th:if="${overview.visible}">
+  <section class="octarine-overview" aria-label="Core Keeperワールド概要">
+    <article>
+      <span class="eyebrow">PROGRESS</span>
+      <strong th:text="${overview.hasSnapshot ? overview.achievedCount + ' / ' + overview.supportedCount : '—'}">0 / 11</strong>
+      <p>取得対象のうち達成した項目数です。全体のクリア率ではありません。</p>
+    </article>
+    <article>
+      <span class="eyebrow">LAST CHECK</span>
+      <strong th:text="${overview.freshnessLabel}">未取得</strong>
+      <p th:if="${overview.lastCheckedLabel}" th:text="${'最終確認 ' + overview.lastCheckedLabel}"></p>
+      <p th:if="${overview.stale}" class="octarine-warning">取得が遅れているか、失敗しています。表示は最後に正常に読めた内容です。</p>
+    </article>
+    <article>
+      <span class="eyebrow">SERVER</span>
+      <strong class="status-chip" th:classappend="${'status-' + serverStatus.code}" th:text="${serverStatus.label}">停止中</strong>
+      <p th:text="${game.connection}">接続先は管理者に確認してください</p>
+    </article>
+  </section>
+
+  <section class="octarine-panel" aria-labelledby="octarine-progress-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">WORLD PROGRESS</p>
+        <h2 id="octarine-progress-title">ワールドの進捗</h2>
+      </div>
+      <a th:href="@{/octarine(spoilers=${!spoilers})}"
+         th:text="${spoilers ? '未到達の名前を隠す' : '未到達の名前を表示（ネタバレ）'}">未到達の名前を表示（ネタバレ）</a>
+    </div>
+    <p th:if="${!overview.hasSnapshot}" class="octarine-empty">まだ保存データを取り込めていません。</p>
+    <ul th:if="${overview.hasSnapshot}" class="octarine-progress">
+      <li th:each="item : ${overview.items}" th:classappend="${'state-' + (item.supported ? #strings.toLowerCase(item.state) : 'unsupported')}">
+        <span class="octarine-state" th:text="${item.stateLabel}">未達</span>
+        <span>
+          <b th:text="${item.label}">大壁の解放</b>
+          <small th:if="${item.description}" th:text="${item.description}"></small>
+        </span>
+      </li>
+    </ul>
+    <p class="octarine-note">
+      保存データから確認できる項目だけを表示しています。「取得対象外」は判定方法を検証できていない項目で、未達という意味ではありません。
+      キャラクターの装備やスキルではなく、このワールドの進行状況です。
+    </p>
+  </section>
+
+  <section class="octarine-panel" aria-labelledby="octarine-guide-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">NEXT GOALS</p>
+        <h2 id="octarine-guide-title">おすすめの次の目標</h2>
+      </div>
+    </div>
+    <p class="octarine-note">ワールドの進行状況から選んだ記事です。挑戦できることを保証するものではありません。</p>
+    <p th:if="${#lists.isEmpty(overview.guides) and overview.hiddenSpoilerGuides == 0}" class="octarine-empty">今の進行状況に合う記事はまだありません。</p>
+    <article class="octarine-guide" th:each="guide : ${overview.guides}">
+      <h3 th:text="${guide.title}">記事タイトル</h3>
+      <p th:text="${guide.body}">本文</p>
+      <small>
+        <span th:if="${guide.gameVersion}" th:text="${'対象バージョン ' + guide.gameVersion}"></span>
+        <span th:if="${guide.verifiedOn}" th:text="${'確認日 ' + guide.verifiedOn}"></span>
+        <a th:if="${guide.referenceUrl}" th:href="${guide.referenceUrl}" rel="noopener noreferrer" target="_blank"
+           th:text="${guide.referenceLabel ?: '参考リンク'}">参考リンク</a>
+      </small>
+    </article>
+    <p th:if="${overview.hiddenSpoilerGuides > 0}" class="octarine-note"
+       th:text="${'ネタバレを含む記事が' + overview.hiddenSpoilerGuides + '件あります。上の「未到達の名前を表示」で読めます。'}"></p>
+  </section>
+
+  <section class="octarine-panel" aria-labelledby="octarine-changes-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">CHANGES</p>
+        <h2 id="octarine-changes-title">最近の進捗変化</h2>
+      </div>
+      <a th:href="@{/octarine/history(spoilers=${spoilers})}">すべての履歴 →</a>
+    </div>
+    <p th:if="${#lists.isEmpty(overview.recentEvents)}" class="octarine-empty">まだ変化の記録はありません。</p>
+    <ol class="octarine-events" th:unless="${#lists.isEmpty(overview.recentEvents)}">
+      <th:block th:each="event : ${overview.recentEvents}"><li th:replace="~{fragments/octarine :: eventRow(${event})}"></li></th:block>
+    </ol>
+    <p class="octarine-note">日時はサイトが初めて確認した時刻です。実際に達成した時刻や参加者ではありません。</p>
+  </section>
+  </th:block>
+
+  <section class="octarine-panel" aria-labelledby="octarine-timeline-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">CORE KEEPER ONLY</p>
+        <h2 id="octarine-timeline-title">Core Keeperのタイムライン</h2>
+      </div>
+      <a th:href="${portalUrl}">ポータルへ戻る →</a>
+    </div>
+    <ol class="feed" id="timeline">
+      <li th:if="${#lists.isEmpty(timeline)}" class="empty">
+        <span th:text="${timelinePage.number == 0 ? 'Core Keeperの記録はまだありません。' : 'このページの記録はありません。'}"></span>
+      </li>
+      <li class="feed-item" th:each="item : ${timeline}">
+        <img class="user-avatar" th:src="${@portalProfileService.avatar(item.actorPlayerId, item.creatorSub, profileDirectory, currentViewer)}" alt="" loading="lazy">
+        <div class="feed-meta">
+          <b th:text="${item.eventType}">PROGRESS</b>
+          <time th:datetime="${item.occurredAt}" th:text="${item.occurredAtLabel}">---</time>
+        </div>
+        <h3 th:text="${item.title}">探索記録</h3>
+        <p th:text="${item.body}">探索記録の本文</p>
+      </li>
+    </ol>
+    <nav class="portal-feed-pages" aria-label="Core Keeperタイムラインのページ">
+      <a th:if="${timelinePage.hasPrevious()}" th:href="@{/octarine(page=${timelinePage.number - 1})} + '#timeline'">← 新しい記録</a>
+      <a th:if="${timelinePage.hasNext()}" th:href="@{/octarine(page=${timelinePage.number + 1})} + '#timeline'">過去の記録 →</a>
+    </nav>
+  </section>
+</main>
+</body>
+</html>

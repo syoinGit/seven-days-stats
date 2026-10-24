@@ -68,7 +68,7 @@ class GamePortalMvpTests {
       assertThat(stateRepository.findById(id)).isPresent();
     }
     assertThat(portalService.sites()).extracting(GamePortalService.SiteCard::id)
-        .containsExactly("7dtd", "terraria");
+        .containsExactly("7dtd", "terraria", "corekeeper");
   }
 
   @Test

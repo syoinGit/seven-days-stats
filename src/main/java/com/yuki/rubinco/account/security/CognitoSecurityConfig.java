@@ -72,6 +72,7 @@ public class CognitoSecurityConfig {
   SecurityFilterChain cognitoWebSecurityFilterChain(
       HttpSecurity http,
       GameServerAccess gameServerAccess,
+      AdminAccess adminAccess,
       GuestPrivacyFilter guestPrivacyFilter,
       CognitoOidcUserService oidcUserService,
       CognitoAuthenticationEntryPoint authenticationEntryPoint,
@@ -87,6 +88,7 @@ public class CognitoSecurityConfig {
             .requestMatchers(HttpMethod.TRACE, "/**").denyAll()
             .requestMatchers(HttpMethod.OPTIONS, "/**").denyAll()
             .requestMatchers(HttpMethod.GET, "/").permitAll()
+            .requestMatchers("/octarine/maintenance/**").access(adminAccess.requests())
             .requestMatchers("/maintenance/**", "/portal/maintenance/**").hasRole("ADMIN")
             .requestMatchers("/portal/profile").hasAnyRole("PLAYER", "MEMBER", "ADMIN")
             .requestMatchers(HttpMethod.POST,
@@ -128,10 +130,7 @@ public class CognitoSecurityConfig {
   }
 
   OAuth2TokenValidator<Jwt> cognitoClaimsValidator(PortalPlatformProperties properties) {
-    List<String> configuredClients = Arrays.asList(
-        properties.getCognito().getPortalClientId(),
-        properties.getCognito().getWatchpointClientId(),
-        properties.getCognito().getLuminiteClientId());
+    List<String> configuredClients = properties.getCognito().dedicatedClientIds();
     Set<String> acceptedClients = new HashSet<>(configuredClients);
     if (configuredClients.stream().anyMatch(value ->
         value == null || value.isBlank() || !value.equals(value.strip()))

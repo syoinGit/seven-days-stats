@@ -119,3 +119,5 @@
 .account-link-row label { display:grid; gap:8px; font-size:12px; }
 .account-link-row select { width:100%; min-width:0; padding:12px; border:1px solid #ffffff25; border-radius:8px; background:#14151a; color:var(--text); }
 @media(max-width:680px) { .account-link-row { grid-template-columns:minmax(0, 1fr) auto; }.account-link-row > div { grid-column:1/-1; }.portal-maintenance .panel { padding:18px; } }
+
+.portal-site-rail .game-magenta { color:#f29bd8; border-color:#7d4a6f; }

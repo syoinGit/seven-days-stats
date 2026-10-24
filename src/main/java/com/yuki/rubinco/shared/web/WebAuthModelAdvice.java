@@ -7,6 +7,8 @@ import com.yuki.rubinco.account.web.AccountMaintenanceController;
 import com.yuki.rubinco.account.web.AuthenticationController;
 import com.yuki.rubinco.account.web.PortalProfileController;
 import com.yuki.rubinco.luminite.web.LuminiteController;
+import com.yuki.rubinco.octarine.web.OctarineController;
+import com.yuki.rubinco.octarine.web.OctarineMaintenanceController;
 import com.yuki.rubinco.portal.config.PortalPlatformProperties;
 import com.yuki.rubinco.portal.web.PortalController;
 import com.yuki.rubinco.watchpoint.web.AiAnalysisMaintenanceController;
@@ -25,6 +27,8 @@ import org.springframework.web.bind.annotation.ModelAttribute;
     DiaryController.class,
     PortalController.class,
     LuminiteController.class,
+    OctarineController.class,
+    OctarineMaintenanceController.class,
     AuthenticationController.class,
     PortalProfileController.class,
     AccountMaintenanceController.class,
@@ -57,5 +61,6 @@ public class WebAuthModelAdvice {
     model.addAttribute("portalUrl", platformProperties.portalPageUrl());
     model.addAttribute("watchpointUrl", platformProperties.getWatchpointUrl());
     model.addAttribute("luminiteUrl", platformProperties.getLuminiteUrl());
+    model.addAttribute("octarineUrl", platformProperties.getOctarineUrl());
   }
 }

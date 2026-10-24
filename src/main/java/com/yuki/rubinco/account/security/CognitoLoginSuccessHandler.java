@@ -22,6 +22,7 @@ public class CognitoLoginSuccessHandler implements AuthenticationSuccessHandler 
     response.sendRedirect(switch (registration) {
       case "watchpoint" -> "/dashboard";
       case "luminite" -> "/luminite";
+      case "octarine" -> "/octarine";
       default -> "/portal";
     });
   }

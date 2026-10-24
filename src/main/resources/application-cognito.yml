@@ -5,6 +5,7 @@ app:
       portal-client-id: ${COGNITO_PORTAL_CLIENT_ID}
       watchpoint-client-id: ${COGNITO_WATCHPOINT_CLIENT_ID}
       luminite-client-id: ${COGNITO_LUMINITE_CLIENT_ID}
+      octarine-client-id: ${COGNITO_OCTARINE_CLIENT_ID:}
 
 spring:
   security:
@@ -34,6 +35,15 @@ spring:
             client-authentication-method: none
             authorization-grant-type: authorization_code
             redirect-uri: ${app.platform.luminite-url}/login/oauth2/code/luminite
+            scope: [openid, profile, email]
+          octarine:
+            provider: cognito
+            # Falls back to the portal client so the app starts before the Octarine client exists.
+            # Octarine login then fails at Cognito (callback not registered) until it is created.
+            client-id: ${COGNITO_OCTARINE_CLIENT_ID:${COGNITO_PORTAL_CLIENT_ID}}
+            client-authentication-method: none
+            authorization-grant-type: authorization_code
+            redirect-uri: ${app.platform.octarine-url}/login/oauth2/code/octarine
             scope: [openid, profile, email]
       resourceserver:
         jwt:

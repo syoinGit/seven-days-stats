@@ -11,6 +11,9 @@ server:
         secure: true
 
 app:
+  corekeeper:
+    world-file: ${COREKEEPER_WORLD_FILE:/home/ec2-user/rubinco/servers/corekeeper/server-data/worlds/0.world.gzip}
+    import-enabled: ${COREKEEPER_IMPORT_ENABLED:true}
   sevendays:
     environment-name: production
     mode: docker

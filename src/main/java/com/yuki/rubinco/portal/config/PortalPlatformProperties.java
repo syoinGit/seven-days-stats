@@ -35,6 +35,9 @@ public class PortalPlatformProperties {
   private String luminiteUrl = "https://luminite.rubinco.link";
 
   @NotBlank
+  private String octarineUrl = "https://octarine.rubinco.link";
+
+  @NotBlank
   private String authUrl = "https://auth.rubinco.link";
 
   @NotBlank
@@ -44,7 +47,8 @@ public class PortalPlatformProperties {
   private List<@NotBlank String> allowedOrigins = List.of(
       "https://portal.rubinco.link",
       "https://watchpoint.rubinco.link",
-      "https://luminite.rubinco.link");
+      "https://luminite.rubinco.link",
+      "https://octarine.rubinco.link");
 
   @Valid
   @NotNull
@@ -55,10 +59,7 @@ public class PortalPlatformProperties {
     if (cognito == null || !cognito.isEnabled()) {
       return true;
     }
-    List<String> clientIds = Arrays.asList(
-        cognito.getPortalClientId(),
-        cognito.getWatchpointClientId(),
-        cognito.getLuminiteClientId());
+    List<String> clientIds = cognito.dedicatedClientIds();
     return clientIds.stream().allMatch(PortalPlatformProperties::isTrimmedText)
         && new HashSet<>(clientIds).size() == clientIds.size();
   }
@@ -66,6 +67,7 @@ public class PortalPlatformProperties {
   @AssertTrue(message = "Platform URLs and CORS origins must be valid HTTP(S) locations")
   public boolean isPlatformUrlConfigurationValid() {
     if (!isHttpUrl(portalUrl) || !isHttpUrl(watchpointUrl) || !isHttpUrl(luminiteUrl)
+        || !isHttpUrl(octarineUrl)
         || !isHttpOrigin(authUrl) || !isHttpUrl(apiUrl) || allowedOrigins == null) {
       return false;
     }
@@ -78,6 +80,7 @@ public class PortalPlatformProperties {
     String normalizedDomain = normalizeHost(domain);
     if (normalized.equals("portal." + normalizedDomain)) return "portal";
     if (normalized.equals("luminite." + normalizedDomain)) return "luminite";
+    if (normalized.equals("octarine." + normalizedDomain)) return "octarine";
     return "watchpoint";
   }
 
@@ -104,6 +107,7 @@ public class PortalPlatformProperties {
     return switch (registrationForHost(host)) {
       case "portal" -> portalUrl;
       case "luminite" -> luminiteUrl;
+      case "octarine" -> octarineUrl;
       default -> watchpointUrl;
     };
   }
@@ -172,11 +176,25 @@ public class PortalPlatformProperties {
     private String portalClientId;
     private String watchpointClientId;
     private String luminiteClientId;
+    /**
+     * Optional until the Octarine app client exists in Cognito. While blank, the Octarine
+     * registration reuses the portal client (see application-cognito.yml).
+     */
+    private String octarineClientId;
+
+    /** Every configured site client, each of which must be unique. */
+    public List<String> dedicatedClientIds() {
+      List<String> ids = new java.util.ArrayList<>(Arrays.asList(
+          portalClientId, watchpointClientId, luminiteClientId));
+      if (hasText(octarineClientId)) ids.add(octarineClientId);
+      return ids;
+    }
 
     public String clientId(String registration) {
       return switch (registration) {
         case "portal" -> portalClientId;
         case "luminite" -> luminiteClientId;
+        case "octarine" -> hasText(octarineClientId) ? octarineClientId : portalClientId;
         default -> watchpointClientId;
       };
     }
