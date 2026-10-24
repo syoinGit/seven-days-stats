@@ -137,5 +137,36 @@ class DockerGameServerStartGatewayTests {
       Thread.sleep(10);
     }
     assertThat(gateway.currentStatus("corekeeper")).isEqualTo("online");
+    assertThat(gateway.controlNotices().get("corekeeper")).contains("停止の完了を確認できませんでした");
+  }
+
+  @Test
+  void failedStopLeavesANoticeUntilTheServerIsDown() throws Exception {
+    failStop("7dtd");
+    assertThat(gateway.controlNotices().get("7dtd")).startsWith("停止に失敗しました");
+
+    doReturn("{\"Status\":\"exited\"}").when(runner).run("status", "7dtd");
+    assertThat(gateway.currentStatus("7dtd")).isEqualTo("offline");
+    assertThat(gateway.controlNotices()).doesNotContainKey("7dtd");
+  }
+
+  @Test
+  void aNewStopAttemptClearsTheEarlierNotice() throws Exception {
+    failStop("minecraft");
+    doReturn("").when(runner).run(any(Duration.class), eq("stop"), eq("minecraft"));
+    assertThat(gateway.requestStop("minecraft", "member").accepted()).isTrue();
+    assertThat(gateway.controlNotices()).doesNotContainKey("minecraft");
+  }
+
+  private void failStop(String gameId) throws Exception {
+    when(runner.run("status", gameId)).thenReturn("{\"Status\":\"running\"}");
+    when(runner.run(any(Duration.class), eq("stop"), eq(gameId)))
+        .thenThrow(new IllegalStateException("Docker command failed"));
+    assertThat(gateway.requestStop(gameId, "member").accepted()).isTrue();
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+    while ((!gateway.controlNotices().containsKey(gameId) || "stopping".equals(gateway.currentStatus(gameId)))
+        && System.nanoTime() < deadline) {
+      Thread.sleep(10);
+    }
   }
 }

@@ -39,8 +39,9 @@ public class GamePortalService {
       });
     }
     var memory = memorySnapshot(states);
+    var notices = gateway.controlNotices();
     states.replaceAll((id, status) -> new ServerStatus(status.code(), status.label(),
-        memory.allocations().get(id)));
+        memory.allocations().get(id), notices.get(id)));
     return states;
   }
 
@@ -65,8 +66,9 @@ public class GamePortalService {
     return supports(gameId) && configuredGame(gameId).isManualStart();
   }
 
-  public record ServerStatus(String code, String label, GameMemoryBudget.Allocation memory) {
-    public ServerStatus(String code, String label) { this(code, label, null); }
+  public record ServerStatus(String code, String label, GameMemoryBudget.Allocation memory,
+      String notice) {
+    public ServerStatus(String code, String label) { this(code, label, null, null); }
 
     public static ServerStatus from(String value) {
       if (value == null) return new ServerStatus("unknown", "未確認");
