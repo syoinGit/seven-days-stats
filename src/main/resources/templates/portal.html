@@ -10,7 +10,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/portal.css(v='3')}">
+  <link rel="stylesheet" th:href="@{/css/portal.css(v='4')}">
   <script defer th:src="@{/js/portal.js(v='7')}"></script>
 </head>
 <body class="portal-body">
@@ -23,7 +23,7 @@
   <nav aria-label="ゲームサイト">
     <a th:each="site : ${sites}" th:href="${loggedIn ? siteEntries[site.id] : site.siteUrl}"
        th:classappend="${'game-' + site.accent}" th:attr="aria-label=${site.siteName + ' / ' + site.displayName + 'へ'}">
-      <span class="server-icon"><span aria-hidden="true" th:text="${site.id == 'terraria' ? '✦' : '◈'}">◈</span>
+      <span class="server-icon"><span aria-hidden="true" th:text="${site.id == 'terraria' ? '✦' : site.id == 'corekeeper' ? '◆' : '◈'}">◈</span>
         <small th:text="${site.id == '7dtd' ? '7DTD' : site.siteName}">7DTD</small></span>
       <span class="server-site"><b th:text="${site.displayName}">Watchpoint</b>
         <span class="status-chip" th:attr="data-server-status=${site.id}" th:classappend="${'status-' + serverStatuses[site.id].code}" th:text="${serverStatuses[site.id].label}">未確認</span>
@@ -77,7 +77,7 @@
   <div class="form-notice success" th:if="${param.logout}">ログアウトしました。</div>
   <section th:if="${!loggedIn}" class="portal-welcome" aria-label="ポータルについて">
     <h2>仲間と遊ぶ、世界をつなぐ。</h2>
-    <p>Watchpointで7 Days to Dieの冒険記録を、LuminiteでTerrariaの進行状況を。サイドバーから各サイトへ移動できます。</p>
+    <p>Watchpointで7 Days to Dieの冒険記録を、LuminiteでTerrariaの、OctarineでCore Keeperの進行状況を。サイドバーから各サイトへ移動できます。</p>
     <div class="game-grid">
       <article class="game-card public-game-card" th:each="site : ${sites}">
         <p class="eyebrow" th:text="${site.siteName}"></p>

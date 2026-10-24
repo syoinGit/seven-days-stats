@@ -21,6 +21,7 @@ public class WebSecurityConfig {
   SecurityFilterChain securityFilterChain(
       HttpSecurity http,
       GameServerAccess gameServerAccess,
+      AdminAccess adminAccess,
       GuestPrivacyFilter guestPrivacyFilter) throws Exception {
     http
         .authorizeHttpRequests(authorize -> authorize
@@ -32,6 +33,7 @@ public class WebSecurityConfig {
             .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
             .requestMatchers(HttpMethod.OPTIONS, "/**").denyAll()
             .requestMatchers(HttpMethod.GET, "/").permitAll()
+            .requestMatchers("/octarine/maintenance/**").access(adminAccess.requests())
             .requestMatchers("/maintenance/**", "/portal/maintenance/**").hasRole("ADMIN")
             .requestMatchers("/portal/profile").hasAnyRole("PLAYER", "MEMBER", "ADMIN")
             .requestMatchers(HttpMethod.POST, "/api/games/*/events").hasRole("ADMIN")

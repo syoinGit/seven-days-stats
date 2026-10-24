@@ -7,6 +7,7 @@ app:
     portal-url: ${app.platform.auth-url}/portal
     watchpoint-url: ${app.platform.auth-url}/dashboard
     luminite-url: ${app.platform.auth-url}/luminite
+    octarine-url: ${app.platform.auth-url}/octarine
     auth-url: http://localhost:${server.port:8080}
     api-url: ${app.platform.auth-url}/api
     allowed-origins:

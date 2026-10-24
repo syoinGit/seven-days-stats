@@ -1,6 +1,7 @@
 package com.yuki.rubinco.infrastructure.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.yuki.rubinco.octarine.ingest.CoreKeeperImportProperties;
 import com.yuki.rubinco.portal.config.GameCatalogProperties;
 import com.yuki.rubinco.portal.config.PortalPlatformProperties;
 import com.yuki.rubinco.watchpoint.ingest.SevenDaysDataProperties;
@@ -75,6 +76,7 @@ class ApplicationConfigurationTests {
       assertThat(platform.getPortalUrl()).isEqualTo("https://portal.games.example.com");
       assertThat(platform.getWatchpointUrl()).isEqualTo("https://watchpoint.games.example.com");
       assertThat(platform.getLuminiteUrl()).isEqualTo("https://luminite.games.example.com");
+      assertThat(platform.getOctarineUrl()).isEqualTo("https://octarine.games.example.com");
       assertThat(platform.getAuthUrl()).isEqualTo("https://auth.games.example.com");
       assertThat(platform.getApiUrl()).isEqualTo("https://api.games.example.com");
       assertSiteReferences(context.getEnvironment(), platform,
@@ -97,6 +99,7 @@ class ApplicationConfigurationTests {
         "PORTAL_SITE_URL=https://portal.example.com",
         "WATCHPOINT_SITE_URL=https://watchpoint.example.com",
         "LUMINITE_SITE_URL=https://luminite.example.com",
+        "OCTARINE_SITE_URL=https://octarine.example.com",
         "AUTH_SITE_URL=https://auth.example.com",
         "API_BASE_URL=https://api.example.com",
         "TERRARIA_SITE_NAME=Moonlight").run(context -> {
@@ -121,6 +124,7 @@ class ApplicationConfigurationTests {
           assertThat(platform.getPortalUrl()).isEqualTo("https://portal.example.com");
           assertThat(platform.getWatchpointUrl()).isEqualTo("https://watchpoint.example.com");
           assertThat(platform.getLuminiteUrl()).isEqualTo("https://luminite.example.com");
+          assertThat(platform.getOctarineUrl()).isEqualTo("https://octarine.example.com");
           assertThat(platform.getAuthUrl()).isEqualTo("https://auth.example.com");
           assertThat(platform.getApiUrl()).isEqualTo("https://api.example.com");
           assertThat(catalog.getCatalog().get(1).getDisplayName()).isEqualTo("Moonlight");
@@ -148,12 +152,14 @@ class ApplicationConfigurationTests {
       assertThat(platform.getPortalUrl()).isEqualTo("http://localhost:9091/portal");
       assertThat(platform.getWatchpointUrl()).isEqualTo("http://localhost:9091/dashboard");
       assertThat(platform.getLuminiteUrl()).isEqualTo("http://localhost:9091/luminite");
+      assertThat(platform.getOctarineUrl()).isEqualTo("http://localhost:9091/octarine");
       assertThat(platform.getApiUrl()).isEqualTo("http://localhost:9091/api");
       assertThat(platform.getAllowedOrigins()).containsExactly("http://localhost:9091");
       assertThat(platform.getCognito().isEnabled()).isFalse();
       assertThat(catalog.getCatalog().stream().filter(GameCatalogProperties.Game::isSiteEnabled).toList())
           .extracting(GameCatalogProperties.Game::getSiteUrl)
-          .containsExactly(platform.getWatchpointUrl(), platform.getLuminiteUrl());
+          .containsExactly(platform.getWatchpointUrl(), platform.getLuminiteUrl(),
+              platform.getOctarineUrl());
       assertThat(catalog.getCatalog()).extracting(GameCatalogProperties.Game::getId)
           .containsExactly("7dtd", "terraria", "corekeeper", "minecraft");
       assertThat(game.mode()).isEqualTo("file");
@@ -187,6 +193,40 @@ class ApplicationConfigurationTests {
     });
   }
 
+  @Test
+  void octarineReusesThePortalClientUntilItsOwnCognitoClientIsConfigured() {
+    String clientId = "spring.security.oauth2.client.registration.octarine.client-id";
+    productionRunner().run(context -> {
+      assertThat(context).hasNotFailed();
+      assertThat(context.getEnvironment().getProperty(clientId)).isEqualTo("portal-client");
+      assertThat(context.getBean(PortalPlatformProperties.class).getCognito().clientId("octarine"))
+          .isEqualTo("portal-client");
+    });
+    productionRunner().withPropertyValues("COGNITO_OCTARINE_CLIENT_ID=octarine-client").run(context -> {
+      assertThat(context).hasNotFailed();
+      assertThat(context.getEnvironment().getProperty(clientId)).isEqualTo("octarine-client");
+    });
+    productionRunner().withPropertyValues("COGNITO_OCTARINE_CLIENT_ID=luminite-client")
+        .run(context -> assertThat(context).hasFailed());
+  }
+
+  @Test
+  void coreKeeperImportsReadTheProductionSaveOnlyInProduction() {
+    runner.run(context -> {
+      var properties = context.getBean(CoreKeeperImportProperties.class);
+      assertThat(properties.isImportEnabled()).isFalse();
+      assertThat(properties.getImportInterval()).hasMinutes(5);
+    });
+    productionRunner().run(context -> {
+      var properties = context.getBean(CoreKeeperImportProperties.class);
+      assertThat(properties.isImportEnabled()).isTrue();
+      assertThat(properties.getWorldFile()).isEqualTo(Path.of(
+          "/home/ec2-user/rubinco/servers/corekeeper/server-data/worlds/0.world.gzip"));
+    });
+    runner.withPropertyValues("COREKEEPER_IMPORT_INTERVAL=10s")
+        .run(context -> assertThat(context).hasFailed());
+  }
+
   private ApplicationContextRunner productionRunner() {
     return runner.withPropertyValues(
         "spring.profiles.active=production,cognito",
@@ -200,11 +240,12 @@ class ApplicationConfigurationTests {
 
   private void assertSiteReferences(
       Environment environment, PortalPlatformProperties platform, GameCatalogProperties catalog) {
-    assertThat(platform.getAllowedOrigins()).containsExactly(
-        platform.getPortalUrl(), platform.getWatchpointUrl(), platform.getLuminiteUrl());
+    assertThat(platform.getAllowedOrigins()).containsExactly(platform.getPortalUrl(),
+        platform.getWatchpointUrl(), platform.getLuminiteUrl(), platform.getOctarineUrl());
     assertThat(catalog.getCatalog().stream().filter(GameCatalogProperties.Game::isSiteEnabled).toList())
         .extracting(GameCatalogProperties.Game::getSiteUrl)
-        .containsExactly(platform.getWatchpointUrl(), platform.getLuminiteUrl());
+        .containsExactly(platform.getWatchpointUrl(), platform.getLuminiteUrl(),
+            platform.getOctarineUrl());
     String registrationPrefix = "spring.security.oauth2.client.registration.";
     assertThat(environment.getProperty(registrationPrefix + "portal.redirect-uri"))
         .isEqualTo(platform.getPortalUrl() + "/login/oauth2/code/portal");
@@ -212,6 +253,8 @@ class ApplicationConfigurationTests {
         .isEqualTo(platform.getWatchpointUrl() + "/login/oauth2/code/watchpoint");
     assertThat(environment.getProperty(registrationPrefix + "luminite.redirect-uri"))
         .isEqualTo(platform.getLuminiteUrl() + "/login/oauth2/code/luminite");
+    assertThat(environment.getProperty(registrationPrefix + "octarine.redirect-uri"))
+        .isEqualTo(platform.getOctarineUrl() + "/login/oauth2/code/octarine");
     assertThat(environment.getProperty(registrationPrefix + "portal.client-id"))
         .isEqualTo(platform.getCognito().getPortalClientId());
     assertThat(environment.getProperty(registrationPrefix + "watchpoint.client-id"))
@@ -224,7 +267,8 @@ class ApplicationConfigurationTests {
 
   @Configuration(proxyBeanMethods = false)
   @EnableConfigurationProperties({
-      SevenDaysDataProperties.class, PortalPlatformProperties.class, GameCatalogProperties.class
+      SevenDaysDataProperties.class, PortalPlatformProperties.class, GameCatalogProperties.class,
+      CoreKeeperImportProperties.class
   })
   static class PropertiesConfiguration {
   }

@@ -33,6 +33,10 @@ public class SiteHostRoutingFilter extends OncePerRequestFilter {
         response.sendRedirect("/luminite");
         return;
       }
+      if ("octarine".equals(registration)) {
+        response.sendRedirect("/octarine");
+        return;
+      }
     }
     filterChain.doFilter(request, response);
   }

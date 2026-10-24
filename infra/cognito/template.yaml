@@ -133,6 +133,30 @@ Resources:
       RefreshTokenValidity: 30
       TokenValidityUnits: {AccessToken: minutes, IdToken: minutes, RefreshToken: days}
 
+  OctarineClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: octarine-web
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows: [ALLOW_REFRESH_TOKEN_AUTH]
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid, profile, email]
+      SupportedIdentityProviders: [COGNITO]
+      ReadAttributes: [email, email_verified, preferred_username]
+      WriteAttributes: [email]
+      CallbackURLs:
+        - !Sub https://octarine.${RootDomain}/login/oauth2/code/octarine
+      LogoutURLs:
+        - !Sub https://octarine.${RootDomain}
+      EnableTokenRevocation: true
+      PreventUserExistenceErrors: ENABLED
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits: {AccessToken: minutes, IdToken: minutes, RefreshToken: days}
+
   AuthDomain:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
@@ -164,5 +188,7 @@ Outputs:
     Value: !Ref WatchpointClient
   LuminiteClientId:
     Value: !Ref LuminiteClient
+  OctarineClientId:
+    Value: !Ref OctarineClient
   AuthDomainName:
     Value: !Sub auth.${RootDomain}

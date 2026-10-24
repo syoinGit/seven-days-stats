@@ -82,6 +82,7 @@ The production reverse proxy sends these hosts to the same Spring process while 
 - `portal.rubinco.link`
 - `watchpoint.rubinco.link`
 - `luminite.rubinco.link`
+- `octarine.rubinco.link` (Core Keeper; see [docs/OCTARINE.md](docs/OCTARINE.md))
 - `api.rubinco.link`
 
 Use [infra/nginx/game-portal.conf.example](infra/nginx/game-portal.conf.example) as a merge reference,
@@ -100,9 +101,14 @@ supported; add only values that differ for your deployment.
 
 | Setting | Default and purpose |
 | --- | --- |
-| `DOMAIN` | `rubinco.link`; derives Portal, Watchpoint, Luminite, auth, and API URLs. |
-| `PORTAL_SITE_URL`, `WATCHPOINT_SITE_URL`, `LUMINITE_SITE_URL`, `AUTH_SITE_URL`, `API_BASE_URL` | Override individual URLs when hosts do not follow the domain convention. CORS origins, game links, and OAuth callbacks follow the configured site URLs. |
+| `DOMAIN` | `rubinco.link`; derives Portal, Watchpoint, Luminite, Octarine, auth, and API URLs. |
+| `PORTAL_SITE_URL`, `WATCHPOINT_SITE_URL`, `LUMINITE_SITE_URL`, `OCTARINE_SITE_URL`, `AUTH_SITE_URL`, `API_BASE_URL` | Override individual URLs when hosts do not follow the domain convention. CORS origins, game links, and OAuth callbacks follow the configured site URLs. |
 | `TERRARIA_SITE_NAME` | Optional display-name override for Luminite. |
+| `COREKEEPER_SITE_NAME` | Optional display-name override for Octarine. |
+| `COGNITO_OCTARINE_CLIENT_ID` | Octarine's Cognito app client. While unset, the app starts and Octarine reuses the portal client, so Octarine login fails at Cognito until the client exists. |
+| `COREKEEPER_WORLD_FILE` | Production: `/home/ec2-user/rubinco/servers/corekeeper/server-data/worlds/0.world.gzip`; read-only. |
+| `COREKEEPER_IMPORT_ENABLED` | Production: `true`; local: `false`. Manual re-fetch from the maintenance screen works either way. |
+| `COREKEEPER_IMPORT_INTERVAL` | `5m` (minimum `1m`). |
 | `GAME_SERVER_START_PROVIDER` | `mock`; set to `docker` on EC2 to start existing game containers from the portal. First apply [restricted Docker permissions](docs/DOCKER_PERMISSIONS.md) and [the boot policy](docs/GAME_SERVERS.md). |
 | `SEVEN_DAYS_ROOT` | Production: `/home/ec2-user/7dtd`; local: `7dtd`. |
 | `SEVEN_DAYS_CONFIG_DIRECTORY` | Production: `${SEVEN_DAYS_ROOT}/data`. |
