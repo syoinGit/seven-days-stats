@@ -104,8 +104,9 @@ sudo -u rubinco-web test -w /home/ec2-user/rubinco/servers/corekeeper/server-dat
 
 本番（2026-10 時点）の構成:
 
-- DNS: `*.rubinco.link` 相当のレコードで、新しいサブドメインも最初から EC2 を向いている。
-  `getent hosts octarine.rubinco.link` で確認する。
+- DNS: Route 53 の `rubinco.link` ゾーンに、サイトごとの A レコード（シンプル、TTL 300）で
+  EC2 の Elastic IP を登録している。ワイルドカードではないので、新しいサイトはレコードを追加する。
+  `octarine.rubinco.link` は登録済み。`getent hosts octarine.rubinco.link` で確認する。
 - 証明書: certbot（nginx 認証）の1枚 `watchpoint.rubinco.link` に全サイトを SAN として入れている。
   パスは `/etc/letsencrypt/live/watchpoint.rubinco.link/`。
 - Nginx: `/etc/nginx/conf.d/` にサイトごとの設定ファイル（`rubinco-portal.conf` など）。
