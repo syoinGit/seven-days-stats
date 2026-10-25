@@ -37,11 +37,11 @@ public class GuildCards {
                      Integer affinityMax, Integer trustMin, Integer warinessMin, String thread, Integer cooldownDays,
                      boolean adults, Integer ageGapMin, boolean memorial,
                      String faction, String faith, String village, String aFaction, String bFaction, String aFaith, String bFaith,
-                     List<String> aChanged, boolean former) {
+                     List<String> aChanged, boolean former, String gender, boolean smitten, String aHome, String homes) {
     /** Whether the card is about villages, factions or faiths at all. */
     boolean affiliation() {
       return faction != null || faith != null || village != null || aFaction != null || bFaction != null || aFaith != null
-          || bFaith != null || !aChanged.isEmpty() || former;
+          || bFaith != null || !aChanged.isEmpty() || former || aHome != null || homes != null;
     }
   }
 
@@ -97,7 +97,9 @@ public class GuildCards {
         choice(when, "faction", SAME_OR_DIFFERENT, id), choice(when, "faith", SAME_OR_DIFFERENT, id),
         choice(when, "village", SAME_OR_DIFFERENT, id), choice(when, "a_faction", Set.of("none", "member"), id),
         choice(when, "b_faction", Set.of("none", "member"), id), choice(when, "a_faith", Set.of("none", "believer"), id),
-        choice(when, "b_faith", Set.of("none", "believer"), id), strings(when.get("a_changed")), Boolean.TRUE.equals(when.get("former")));
+        choice(when, "b_faith", Set.of("none", "believer"), id), strings(when.get("a_changed")), Boolean.TRUE.equals(when.get("former")),
+        choice(when, "gender", SAME_OR_DIFFERENT, id), Boolean.TRUE.equals(when.get("smitten")),
+        choice(when, "a_home", Set.of("grantford", "elmwood", "tsukikage"), id), choice(when, "homes", SAME_OR_DIFFERENT, id));
     if (!CHANGES.containsAll(condition.aChanged())) throw new IllegalStateException("Unknown a_changed in guild card " + id);
     List<Outcome> outcomes = new ArrayList<>();
     for (Object item : list(raw.get("outcomes"))) {

@@ -238,7 +238,7 @@ class GuildTests {
       var results = executor.invokeAll(List.<java.util.concurrent.Callable<String>>of(() -> interactions.runHour(HOUR), () -> interactions.runHour(HOUR)));
       for (var result : results) assertThat(result.get()).isNotNull();
     }
-    assertThat(interactions.runHour(HOUR.plusMinutes(30))).contains("すでに処理済み");
+    assertThat(interactions.runHour(HOUR.plusMinutes(20))).contains("すでに処理済み");
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isEqualTo(1);
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_HOURLY_JOB WHERE status = 'SUCCEEDED'")).isEqualTo(1);
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION_PARTICIPANT")).isEqualTo(2);
@@ -265,14 +265,19 @@ class GuildTests {
         jdbc.update("INSERT INTO T_GUILD_VISIT (visit_date,character_id,seat,morning,afternoon,evening) VALUES (?,?,?,'a','b','c')", date, ids.get(seat), seat);
       }
       if (day == 40) jdbc.update("UPDATE M_GUILD_CHARACTER SET status = 'DEAD' WHERE id = ?", ids.get(3));
-      for (int hour = 0; hour < 24; hour++) interactions.runHour(date.atTime(hour, 0).atZone(GuildService.TOKYO));
+      for (int hour = 0; hour < 24; hour++) {
+        interactions.runHour(date.atTime(hour, 3).atZone(GuildService.TOKYO));
+        interactions.runHour(date.atTime(hour, 33).atZone(GuildService.TOKYO));
+      }
     }
-    // Only the three slots run; at most three interactions a day.
-    assertThat(count("SELECT COUNT(*) FROM T_GUILD_HOURLY_JOB")).isEqualTo(60 * 3);
-    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isGreaterThan(60 * 2);
+    // Two slots in each of the three hours; at most six interactions a day.
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_HOURLY_JOB")).isEqualTo(60 * 6);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isGreaterThan(60 * 5);
+    assertThat(jdbc.queryForList("SELECT DISTINCT SUBSTRING(slot_key, 14, 3) FROM T_GUILD_HOURLY_JOB ORDER BY 1", String.class))
+        .containsExactly(":00", ":30");
     assertThat(jdbc.queryForList("SELECT DISTINCT SUBSTRING(slot_key, 12, 2) FROM T_GUILD_HOURLY_JOB ORDER BY 1", String.class))
         .containsExactly("20", "21", "22");
-    assertThat(count("SELECT MAX(n) FROM (SELECT COUNT(*) n FROM T_GUILD_INTERACTION GROUP BY SUBSTRING(slot_key, 1, 10)) t")).isLessThanOrEqualTo(3);
+    assertThat(count("SELECT MAX(n) FROM (SELECT COUNT(*) n FROM T_GUILD_INTERACTION GROUP BY SUBSTRING(slot_key, 1, 10)) t")).isLessThanOrEqualTo(6);
     // Every change an event made is in the history, and the last one is where the resident is now.
     for (long id : ids) {
       for (String[] kind : new String[][] {{"village", "current_village"}, {"faction", "faction"}, {"faith", "faith"}}) {
@@ -408,6 +413,31 @@ class GuildTests {
     assertThat(GuildInteractionService.attraction(java.util.Map.of("affinity", -3), mixed, cool)).containsEntry("affinity", -3);
   }
 
+  /** Interactions run in the evening, so every card must be able to fall then; gender and taste cards are read. */
+  @Test void everyCardCanFallInTheEvening() {
+    var cards = new GuildCards().cards();
+    assertThat(cards).hasSizeGreaterThan(170);
+    // Every placeholder a card writes is one code fills.
+    var known = java.util.Set.of("{a}", "{b}", "{dead}", "{a_job}", "{b_job}", "{a_home}", "{b_home}", "{a_faction}", "{b_faction}",
+        "{a_faith}", "{b_faith}", "{a_village}", "{b_village}");
+    for (var card : cards) {
+      for (var outcome : card.outcomes()) {
+        String text = outcome.summary() + outcome.template() + (outcome.open() == null ? "" : outcome.open().summary());
+        var used = java.util.regex.Pattern.compile("\\{[a-z_]+}").matcher(text);
+        while (used.find()) assertThat(known).as(card.id()).contains(used.group());
+      }
+    }
+    var a = new GuildInteractionService.Person(1, "リネ", 28, "女性", "薬師", "穏やか",
+        new GuildInteractionService.Affiliation("tsukikage", "elmwood", "none", "none", "エルムウッド", "無所属", "無信仰", null, null,
+            java.util.Set.of(), List.of(), "月影郷"));
+    var b = new GuildInteractionService.Person(2, "ロアン", 30, "男性", null, "無口");
+    var pair = new GuildInteractionService.Pair(a, b, GuildInteractionService.Rel.NONE, GuildInteractionService.Rel.NONE, null, null, 0, 0, List.of(), null);
+    assertThat(GuildInteractionService.fill("{a}は{a_job}、{a_home}の生まれ。{b}は{b_job}、{b_home}の生まれ。", pair))
+        .isEqualTo("リネは薬師、月影郷の生まれ。ロアンは暮らし、グランフォードの生まれ。");
+    assertThat(cards).allMatch(card -> card.when().phases().isEmpty() || card.when().phases().contains("evening"));
+    assertThat(cards).anyMatch(card -> "different".equals(card.when().gender())).anyMatch(card -> card.when().smitten());
+  }
+
   @Test void oneSidedFeelingsBecomeACrush() throws Exception {
     long rine = resident("リネ", 28, "ALIVE", 0);
     long roan = resident("ロアン", 30, "ALIVE", 1);
@@ -427,6 +457,35 @@ class GuildTests {
     // The log says who is who.
     mvc.perform(get("/guild/log")).andExpect(status().isOk())
         .andExpect(content().string(containsString("リネ（28歳・女性・冒険者・グランフォード） × ロアン（30歳・男性・冒険者・グランフォード）")));
+  }
+
+  /** Men and women get their own hair, accessories and cuts, and every part they can get is drawn in the sprite sheet. */
+  @Test void looksAreSplitByGenderAndEveryPartIsDrawn() throws Exception {
+    String sheet = new String(new org.springframework.core.io.ClassPathResource("static/img/guild-people.svg").getInputStream().readAllBytes(),
+        java.nio.charset.StandardCharsets.UTF_8);
+    java.util.Set<String> drawn = new java.util.HashSet<>();
+    var ids = java.util.regex.Pattern.compile("<symbol id=\"([^\"]+)\"").matcher(sheet);
+    while (ids.find()) drawn.add(ids.group(1));
+    java.util.Set<String> outfits = new java.util.HashSet<>();
+    for (String occupation : GuildPeople.OUTFITS.keySet()) {
+      for (int i = 0; i < 30; i++) {
+        var man = people.look("男性", occupation);
+        var woman = people.look("女性", occupation);
+        assertThat(GuildPeople.MALE_HAIR).contains(man.hair());
+        assertThat(GuildPeople.FEMALE_HAIR).contains(woman.hair());
+        assertThat(GuildPeople.MALE_ACCESSORIES).contains(man.accessory());
+        assertThat(GuildPeople.FEMALE_ACCESSORIES).contains(woman.accessory());
+        assertThat(man.layers()).contains("face-m");
+        assertThat(woman.layers()).contains("face-f");
+        assertThat(drawn).containsAll(man.layers()).containsAll(woman.layers());
+        outfits.add(man.outfit());
+        outfits.add(woman.outfit());
+      }
+    }
+    assertThat(outfits).contains("samurai", "samurai_f", "ronin", "miko", "miko_m", "farmer_f", "merchant_f", "watch_f");
+    // Hair, accessories and every women's cut actually differ from the men's.
+    assertThat(GuildPeople.MALE_HAIR).doesNotContainAnyElementsOf(GuildPeople.FEMALE_HAIR);
+    for (String cut : GuildPeople.WOMEN.values()) assertThat(GuildPeople.OUTFITS.values()).doesNotContain(cut);
   }
 
   @Test void theTavernSeatsTen() throws Exception {
@@ -564,7 +623,7 @@ class GuildTests {
         .andExpect(content().string(containsString("ヨーロッパ系の名")))
         .andExpect(content().string(containsString("<dt>出身地</dt><dd>グランフォード</dd>")))
         .andExpect(content().string(containsString("<dt>信仰</dt><dd>無信仰</dd>")))
-        .andExpect(content().string(containsString("guild-people.svg?v=2#outfit-")))
+        .andExpect(content().string(containsString("guild-people.svg?v=3#outfit-")))
         .andExpect(content().string(containsString("7 Days to Die・")))
         .andExpect(content().string(containsString("zombieGuild10を1体倒した日から生まれました")))
         .andExpect(content().string(containsString("10:00 古い家でzombieGuild10を倒した")))
@@ -743,16 +802,18 @@ class GuildTests {
       assertThat(d.reading()).startsWith("出入りの多い");
     });
     for (int i = 0; i < 40; i++) {
-      // A woman knight wears the women's cut of plate; outfits without their own legs get a skirt.
+      // Women wear the women's cut; outfits without their own legs get a skirt.
       var look = people.look("女性", i % 2 == 0 ? "騎士" : "鍛冶屋");
-      assertThat(look.outfit()).isIn("knight_f", "crafter");
+      assertThat(look.outfit()).isIn("knight_f", "crafter_f");
       assertThat(look.layers()).startsWith("body").contains("outfit-" + look.outfit());
       assertThat(look.style()).matches("(--[a-z0-9]+:#[0-9a-f]{6};?)+");
     }
     assertThat(GuildPeople.Look.of("knight", "short", "#000000", "#ffffff", "#123456", "#654321", "男性").layers())
-        .containsExactly("body", "outfit-knight", "hair-short", "hat-knight");
-    assertThat(GuildPeople.Look.of("cook", "bob", "#000000", "#ffffff", "#123456", "#654321", "女性").layers())
-        .containsExactly("body", "legs-skirt", "outfit-cook", "hair-bob", "hat-cook");
+        .containsExactly("body", "face-m", "outfit-knight", "hair-short", "hat-knight");
+    assertThat(GuildPeople.Look.of("cook_f", "bob", "#000000", "#ffffff", "#123456", "#654321", "女性", "ribbon", "#3a5a8a").layers())
+        .containsExactly("body", "face-f", "outfit-cook_f", "hair-bob", "acc-ribbon", "hat-cook_f");
+    assertThat(GuildPeople.Look.of("adventurer", "short", "#000000", "#ffffff", "#123456", "#654321", "男性", "glasses", "#3a5a8a").style())
+        .endsWith(";--eye:#3a5a8a");
     assertThat(GuildPeople.Look.of("cook", "bob", "red;background:url(x)", "#ffffff", "#123456", "#654321", "女性")).isNull();
     assertThat(GuildPeople.Lineage.JAPANESE.fits("灯子")).isTrue();
     assertThat(GuildPeople.Lineage.JAPANESE.fits("リネ")).isFalse();
@@ -807,15 +868,22 @@ class GuildTests {
 
   @Test void savedRosterDoesNotChangeAfterBirthAndRenderPreviewFixtures() throws Exception {
     // Explicitly synthetic preview residents, never inserted in a real application database.
-    for (int i = 1; i <= 5; i++) {
-      jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance) VALUES (?,'terraria',?,'小さな街で暮らす職人。今日は道具の手入れをしています。','表示確認用の架空データです。','静かな話し方。手仕事が好きで、方向音痴。',?)",
-          LocalDate.now(GuildService.TOKYO).minusDays(i), List.of("ロアン", "ミナ", "エルド", "トト", "シエラ").get(i-1), List.of("ember", "moss", "violet").get(i % 3));
+    List<String> jobs = List.of("騎士", "料理人", "侍", "巫女", "商人", "猟師", "聖職者", "冒険者", "浪人", "農家");
+    for (int i = 1; i <= 10; i++) {
+      String gender = i % 2 == 0 ? "女性" : "男性";
+      var look = people.look(gender, jobs.get(i - 1));
+      jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,gender,occupation,outfit,"
+          + "hair_style,hair_color,skin_color,cloth_color,cloth2_color,accessory,eye_color) VALUES (?,'terraria',?,'小さな街で暮らす職人。今日は道具の手入れをしています。',"
+          + "'表示確認用の架空データです。','静かな話し方。手仕事が好きで、方向音痴。',?,?,?,?,?,?,?,?,?,?,?)",
+          LocalDate.now(GuildService.TOKYO).minusDays(i), List.of("ロアン", "ミナ", "エルド", "トト", "シエラ", "カイ", "ノエル", "ユナ", "ガロ", "リタ").get(i - 1),
+          List.of("ember", "moss", "violet").get(i % 3), gender, jobs.get(i - 1), look.outfit(), look.hair(), look.hairColor(), look.skin(),
+          look.cloth(), look.cloth2(), look.accessory(), look.eye());
     }
     guild.prepareToday();
     var before = guild.room(ZonedDateTime.now());
     source(); guild.generateToday();
     assertThat(guild.room(ZonedDateTime.now())).isEqualTo(before);
-    assertThat(before.visits()).hasSize(5);
+    assertThat(before.visits()).hasSize(10);
     var root = java.nio.file.Path.of("target/guild-preview");
     java.nio.file.Files.createDirectories(root.resolve("guild/characters"));
     for (String path : List.of("/guild", "/guild/characters", "/guild/visitors", "/guild/board")) {

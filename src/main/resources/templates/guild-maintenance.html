@@ -21,8 +21,8 @@
   <form method="post" th:action="@{/guild/maintenance/visits}"><button type="submit">来店者を引き直す</button></form>
 </section>
 
-<section class="guild-panel" id="interactions"><h2>交流（1日最大3件）</h2>
-  <p th:text="${'毎日 ' + #strings.listJoin(interactionHours, '時・') + '時の3分（日本時間）に、今日の来店者のうち2人が交流します。1日の上限は' + interactionDailyMax + '件です。'}">毎日 9時・12時・15時・18時・21時の3分（日本時間）に交流します。</p>
+<section class="guild-panel" id="interactions"><h2>交流（1日最大6件）</h2>
+  <p th:text="${'毎日 ' + #strings.listJoin(interactionHours, '時・') + '時の3分と33分（日本時間）に、今日の来店者10人の中から2人が交流します。1日の上限は' + interactionDailyMax + '件です。'}">毎日 9時・12時・15時・18時・21時の3分（日本時間）に交流します。</p>
   <p>参加者・出来事・結果・関係の変化・村や派閥や信仰の変化はプログラムが決め、AIは場面の文章だけを書きます。AIに渡すのは、その二人と、二人に関わる村・派閥・信仰の設定だけです。同じ枠に2件以上は起きません。失敗した枠を後から埋めることはしません。枠以外の時間にボタンを押しても交流は起きません。</p>
   <p th:unless="${enabled}">現在、交流の自動実行は無効です（GUILD_ENABLED）。下のボタンからは実行できます。</p>
   <form method="post" th:action="@{/guild/maintenance/interaction}"><button type="submit" th:text="${'この時間（' + currentSlot + '）の交流を起こす'}">この時間の交流を起こす</button></form>
