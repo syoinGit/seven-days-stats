@@ -14,13 +14,17 @@
     <p class="guild-clock" th:text="${#temporals.format(room.date, 'M月d日') + ' · ' + (room.phase == 'morning' ? '朝' : (room.phase == 'afternoon' ? '昼' : '夜'))}">10月25日 · 夜</p>
   </div>
   <section class="guild-room" th:classappend="${room.phase}" aria-label="ギルド兼酒場の一室。人物を選ぶと紹介を読めます。">
-    <div class="room-wall" aria-hidden="true"><div class="room-window"></div><div class="room-sign">THE GUILD</div><div class="room-window second"></div></div>
-    <a class="room-board" href="/guild/board">依頼掲示板<span>今日は穏やかな一日</span></a>
-    <div class="room-counter" aria-hidden="true"><span>食事と、ひと息。</span><i></i></div>
-    <a class="room-shelf" href="/guild/characters" aria-label="記録棚：住人名簿">記録棚</a>
+    <!-- Upstairs: four seats (6-9). Downstairs: six seats (0-5). Talk is drawn among all ten. -->
+    <div class="room-upper" aria-hidden="true"><div class="room-wall"><div class="room-window"></div><div class="room-sign">THE GUILD</div><div class="room-window second"></div></div></div>
+    <div class="room-table table-three" aria-hidden="true"></div><div class="room-table table-four" aria-hidden="true"></div>
+    <div class="room-rail" aria-hidden="true"></div><div class="room-beam" aria-hidden="true"></div>
+    <div class="room-lower" aria-hidden="true"><div class="room-wall"><span class="room-lamp one"></span><span class="room-lamp two"></span></div></div>
+    <div class="room-stairs" aria-hidden="true"></div>
+    <span class="room-floor-label up" aria-hidden="true">2F</span><span class="room-floor-label down" aria-hidden="true">1F</span>
+    <div class="room-counter" aria-hidden="true"><i></i></div>
     <div class="room-fireplace" aria-hidden="true"><div class="fire"></div></div>
-    <div class="room-table table-one" aria-hidden="true"></div><div class="room-table table-two" aria-hidden="true"></div><div class="room-table table-three" aria-hidden="true"></div><div class="room-table table-four" aria-hidden="true"></div>
-    <div class="room-rug" aria-hidden="true"></div><span class="room-door" aria-hidden="true">入口</span>
+    <div class="room-table table-one" aria-hidden="true"></div><div class="room-table table-two" aria-hidden="true"></div>
+    <div class="room-rug" aria-hidden="true"></div>
     <a th:each="visit : ${room.visits}" class="room-person"
        th:with="said=${scene != null ? scene.lines.get(visit.character.id) : null}, talking=${scene != null and scene.lines.containsKey(visit.character.id)}"
        th:classappend="${'seat-' + visit.seat + ' ' + visit.character.appearance + (talking ? ' talking' : '')}"
