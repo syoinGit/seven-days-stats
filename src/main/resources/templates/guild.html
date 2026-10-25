@@ -13,36 +13,46 @@
     <h1 class="guild-plate"><small>THE UNATTENDED GUILD</small>無人の冒険者ギルド</h1>
     <p class="guild-clock" th:text="${#temporals.format(room.date, 'M月d日') + ' · ' + (room.phase == 'morning' ? '朝' : (room.phase == 'afternoon' ? '昼' : '夜'))}">10月25日 · 夜</p>
   </div>
-  <!-- One floor at a time, or tonight's dungeon (the radios drive the CSS): downstairs six seats (0-5), upstairs four (6-9). Talk is drawn among all ten. Works without JS. -->
-  <input class="floor-radio" type="radio" name="guild-floor" id="guild-floor-1" checked>
-  <input class="floor-radio" type="radio" name="guild-floor" id="guild-floor-2">
-  <input class="floor-radio" type="radio" name="guild-floor" id="guild-view-dungeon">
+  <!-- The tavern is four places seen one at a time from inside (GuildTavern says who is where); the map picks the place.
+       Or tonight's dungeon. The radios drive the CSS, so it works without JS. -->
+  <input th:each="area : ${tavern.areas}" class="area-radio" type="radio" name="guild-view" th:id="${'guild-area-' + area.key}"
+         th:checked="${area.key == tavern.current}" th:attr="aria-label=${area.name}">
+  <input class="area-radio" type="radio" name="guild-view" id="guild-view-dungeon" aria-label="ダンジョン">
   <div class="guild-controls">
-    <div class="guild-floors" role="group" aria-label="階の切り替え">
-      <label for="guild-floor-1" th:classappend="${floors.talkDown ? 'talk' : ''}" th:text="${'1F（' + floors.downstairs + '人）'}">1F（6人）</label>
-      <label for="guild-floor-2" th:classappend="${floors.talkUp ? 'talk' : ''}" th:text="${'2F（' + floors.upstairs + '人）'}">2F（4人）</label>
-    </div>
+    <label class="guild-back" th:for="${'guild-area-' + tavern.current}">酒場に戻る</label>
     <label class="guild-dungeon-button" for="guild-view-dungeon"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=3#tab-dungeon"></use></svg>ダンジョン<span th:if="${todayRun != null and !todayRun.back()}" class="pop-live">探索中</span></label>
   </div>
-  <section class="guild-room" th:classappend="${room.phase}" aria-label="ギルド兼酒場の一室。人物を選ぶと紹介を読めます。">
-    <div class="room-inner">
-    <div class="room-upper" aria-hidden="true"><div class="room-wall"><div class="room-window"></div><div class="room-sign">THE GUILD</div><div class="room-window second"></div></div></div>
-    <div class="room-table table-three" aria-hidden="true"></div><div class="room-table table-four" aria-hidden="true"></div>
-    <div class="room-rail" aria-hidden="true"></div><div class="room-beam" aria-hidden="true"></div>
-    <div class="room-lower" aria-hidden="true"><div class="room-wall"><span class="room-lamp one"></span><span class="room-lamp two"></span></div></div>
-    <div class="room-stairs" aria-hidden="true"></div>
-    <div class="room-counter" aria-hidden="true"><i></i></div>
-    <div class="room-fireplace" aria-hidden="true"><div class="fire"></div></div>
-    <div class="room-table table-one" aria-hidden="true"></div><div class="room-table table-two" aria-hidden="true"></div>
-    <div class="room-rug" aria-hidden="true"></div>
-    <a th:each="visit : ${room.visits}" class="room-person"
-       th:with="said=${scene != null ? scene.lines.get(visit.character.id) : null}, talking=${scene != null and scene.lines.containsKey(visit.character.id)}"
-       th:classappend="${'seat-' + visit.seat + ' ' + (visit.seat >= 6 ? 'upstairs ' : 'downstairs ') + visit.character.appearance + (talking ? ' talking' : '')}"
-       th:href="@{/guild/characters/{id}(id=${visit.character.id})}" th:attr="aria-label=${visit.character.name + '：' + (said != null ? said : visit.line)}">
-      <span class="person-bubble" th:text="${said != null ? said : visit.line}"></span>
-      <svg th:replace="~{fragments/guild :: sprite(${visit.character})}"></svg>
-      <span class="person-name" th:text="${visit.character.name}"></span>
-    </a>
+  <section class="guild-room" th:classappend="${room.phase}" aria-label="ギルド兼酒場。見取り図で場所を選べます。人物を選ぶと紹介を読めます。">
+    <div th:each="area : ${tavern.areas}" class="tv-area" th:classappend="${'tv-' + area.key}">
+      <div class="tv-back" aria-hidden="true">
+        <th:block th:if="${area.key == 'counter'}"><span class="tv-window"></span><span class="tv-beam"></span><span class="tv-shelf"></span><span class="tv-lamp one"></span><span class="tv-lamp two"></span></th:block>
+        <th:block th:if="${area.key == 'tables'}"><span class="tv-window"></span><span class="tv-window second"></span><span class="tv-beam"></span><span class="tv-lamp one"></span><span class="tv-lamp two"></span><span class="tv-walker"><i></i></span></th:block>
+        <th:block th:if="${area.key == 'board'}"><span class="tv-candle"></span><span class="tv-candle right"></span></th:block>
+        <th:block th:if="${area.key == 'hearth'}"><span class="tv-glow"></span><span class="tv-fireplace"><span class="tv-fire"><i></i><i></i><i></i></span><span class="tv-spark"></span><span class="tv-spark two"></span><span class="tv-spark three"></span></span><span class="tv-rug"></span><span class="tv-sleeper"><i></i></span><span class="tv-zz"></span></th:block>
+      </div>
+      <a th:if="${area.key == 'board'}" class="tv-cork" href="/guild/board" aria-label="依頼掲示板を開く"><i></i><i></i><i></i><i></i><i></i><i></i></a>
+      <a th:each="seat : ${area.seats}" class="room-person"
+         th:with="visit=${seat.visit}, said=${scene != null ? scene.lines.get(seat.visit.character.id) : null}, talking=${scene != null and scene.lines.containsKey(seat.visit.character.id)}"
+         th:classappend="${'slot-' + seat.slot + ' ' + visit.character.appearance + (talking ? ' talking' : '')}"
+         th:href="@{/guild/characters/{id}(id=${visit.character.id})}" th:attr="aria-label=${visit.character.name + '：' + (said != null ? said : visit.line)}">
+        <span class="person-bubble" th:text="${said != null ? said : visit.line}"></span>
+        <svg th:replace="~{fragments/guild :: sprite(${visit.character})}"></svg>
+        <span class="person-name" th:text="${visit.character.name}"></span>
+      </a>
+      <div class="tv-front" aria-hidden="true">
+        <th:block th:if="${area.key == 'counter' or area.key == 'tables'}"><span th:each="seat : ${area.seats}" class="tv-mug" th:classappend="${'slot-' + seat.slot}"></span></th:block>
+        <th:block th:if="${area.key == 'counter'}"><span class="tv-bar"></span><span class="tv-cat"><i></i></span></th:block>
+        <th:block th:if="${area.key == 'tables'}"><span class="tv-table"></span><span class="tv-table second"></span></th:block>
+        <th:block th:if="${area.key == 'hearth'}"><span class="tv-sofa"></span></th:block>
+      </div>
+      <p class="tv-title"><b th:text="${area.name}">カウンター</b><th:block th:text="${area.count() == 0 ? '誰もいない' : area.count() + '人'}">3人</th:block></p>
+    </div>
+    <div class="tv-light" aria-hidden="true"></div>
+    <div class="tv-map" role="group" aria-label="酒場の見取り図">
+      <label th:each="area : ${tavern.areas}" class="tv-zone" th:for="${'guild-area-' + area.key}" th:classappend="${'z-' + area.key + (area.talk ? ' talk' : '')}"
+             th:title="${area.talk ? area.name + '（会話中）' : area.name}">
+        <b th:text="${area.name}">カウンター</b><span class="tv-dots"><i th:each="seat : ${area.seats}"></i></span>
+      </label>
     </div>
     <div class="room-empty" th:if="${#lists.isEmpty(room.visits)}"><strong>暖炉に火が入りました。</strong><p>まだ静かな酒場です。<br>最初の住人が訪れる日を待っています。</p></div>
   </section>
