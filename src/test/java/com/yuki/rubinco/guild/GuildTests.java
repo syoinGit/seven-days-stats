@@ -45,6 +45,7 @@ class GuildTests {
   @Autowired GuildProperties properties;
   @Autowired GuildDungeon dungeon;
   @Autowired GuildVoice voices;
+  @Autowired GuildSignboard signboard;
   @Autowired JdbcTemplate jdbc;
   @Autowired MockMvc mvc;
   @MockitoBean BedrockTextClient bedrock;
@@ -387,6 +388,70 @@ class GuildTests {
     assertThat(scene.script()).extracting(GuildChronicle.Turn::text).containsExactly("「今日は冷えるね。」", "「火のそばに座ろう。」");
     long rine = jdbc.queryForObject("SELECT id FROM M_GUILD_CHARACTER WHERE name = 'リネ'", Long.class);
     assertThat(scene.turnsOf(rine)).singleElement().extracting(GuildChronicle.Turn::index).isEqualTo(0);
+  }
+
+  /** Mire's script hangs together: three topics a day, every node they reach, today's facts filled, no placeholder left. */
+  @Test void theSignboardScriptHangsTogether() throws Exception {
+    assertThat(signboard.version()).isNotBlank();
+    // Every {count:...} names a real village, faction or faith.
+    String yaml = new String(new org.springframework.core.io.ClassPathResource("guild/signboard.yml").getInputStream().readAllBytes(),
+        java.nio.charset.StandardCharsets.UTF_8).replaceAll("(?m)^#.*$", "");
+    java.util.Set<String> names = new java.util.HashSet<>();
+    world.villages().values().forEach(v -> names.add(v.name()));
+    world.factions().values().forEach(f -> names.add(f.name()));
+    world.faiths().values().forEach(f -> names.add(f.name()));
+    var counted = java.util.regex.Pattern.compile("\\{count:([^}]+)}").matcher(yaml);
+    while (counted.find()) assertThat(names).contains(counted.group(1));
+    java.util.Map<String, Integer> counts = new java.util.HashMap<>();
+    names.forEach(name -> counts.put(name, 3));
+    var busy = new GuildSignboard.Facts(4, 12, "リネ", "古い坑道で戦闘中", "リネとロアン", "run-out", counts);
+    var empty = new GuildSignboard.Facts(0, 0, null, null, null, "run-none", java.util.Map.of());
+    java.util.Set<String> offered = new java.util.HashSet<>();
+    StringBuilder busyText = new StringBuilder();
+    for (int day = 0; day < 60; day++) {
+      var date = LocalDate.of(2026, 10, 1).plusDays(day);
+      var talk = signboard.talk(date, busy);
+      assertThat(talk.date()).isEqualTo(date.toString());
+      assertThat(talk.topics()).hasSize(GuildSignboard.TOPICS_PER_DAY).doesNotHaveDuplicates();
+      talk.topics().forEach(topic -> offered.add(topic.key()));
+      for (var topic : talk.topics()) assertThat(talk.nodes()).containsKey(topic.start());
+      talk.nodes().values().forEach(node -> node.choices().forEach(choice -> assertThat(talk.nodes()).containsKey(choice.next())));
+      assertThat(talk.opener()).isNotEmpty();
+      assertThat(talk.nodes().values()).allSatisfy(node -> assertThat(node.lines()).isNotEmpty());
+      var lines = new java.util.ArrayList<GuildSignboard.Line>(talk.opener());
+      talk.nodes().values().forEach(node -> lines.addAll(node.lines()));
+      assertThat(lines).allSatisfy(line -> {
+        assertThat(line.text()).doesNotContain("{");
+        assertThat(GuildSignboard.FACES).contains(line.face());
+      });
+      lines.forEach(line -> busyText.append(line.text()).append('\n'));
+      // With nothing to tell, the lines that need a fact are left out instead of guessed.
+      var quiet = signboard.talk(date, empty);
+      var quietLines = new java.util.ArrayList<GuildSignboard.Line>(quiet.opener());
+      quiet.nodes().values().forEach(node -> quietLines.addAll(node.lines()));
+      assertThat(quietLines).allSatisfy(line -> assertThat(line.text()).doesNotContain("{").doesNotContain("リネ").doesNotContain("坑道で戦闘中"));
+    }
+    assertThat(offered).containsExactlyInAnyOrderElementsOf(signboard.topics().stream().map(GuildSignboard.Topic::key).toList());
+    assertThat(busyText.toString()).contains("リネ").contains("古い坑道で戦闘中").contains("グランフォード");
+    // The same day always gives the same talk.
+    assertThat(signboard.talk(LocalDate.of(2026, 10, 25), busy)).isEqualTo(signboard.talk(LocalDate.of(2026, 10, 25), busy));
+  }
+
+  /** Anyone may fetch today's talk; it carries only what the public tavern already shows, and the tavern has the button. */
+  @Test void mireTalksToAnyoneWithPublicFactsOnly() throws Exception {
+    resident("リネ", 28, "ALIVE", 0);
+    var facts = signboard.facts(ZonedDateTime.now(GuildService.TOKYO));
+    assertThat(facts.newest()).isEqualTo("リネ");
+    assertThat(facts.residents()).isEqualTo(1);
+    mvc.perform(get("/guild/signboard")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("\"name\":\"ミレ\"")))
+        .andExpect(content().string(containsString("\"topics\":[")))
+        .andExpect(content().string(not(containsString("core-keeper"))))
+        .andExpect(content().string(not(containsString("記録から。"))));
+    mvc.perform(get("/guild")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("data-signboard-open")))
+        .andExpect(content().string(containsString("id=\"guild-signboard\"")))
+        .andExpect(content().string(containsString("guild-signboard.svg?v=1#mire-normal")));
   }
 
   @Test void writerAcceptsOnlyParticipantsAndChangesCodeMade() {

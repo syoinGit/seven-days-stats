@@ -302,3 +302,39 @@
 .tv-party .tv-mug.slot-0{left:calc(14% + 14px)}.tv-party .tv-mug.slot-1{left:calc(38% + 14px)}.tv-party .tv-mug.slot-2{left:calc(62% + 14px)}.tv-party .tv-mug.slot-3{left:calc(86% + 14px)}
 .tv-loot{bottom:84px;left:50%}
 }
+/* Mire, the girl painted on the sign: the button, and the talk drawn as the counter seen from a stool. */
+.guild-sign-button{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 4px;background:#201927;border:2px solid #89634b;color:#ffe0a8;font:inherit;font-size:12px;letter-spacing:.06em;cursor:pointer}
+.guild-sign-button:hover{background:#3a2738}.guild-sign-button:focus-visible{outline:3px solid #ebbe92;outline-offset:2px}.guild-sign-button[hidden]{display:none}
+.guild-sign-button svg{width:24px;height:22px;background:#4a3238}.guild-sign-button .pop-live[hidden]{display:none}
+.signboard{width:min(760px,calc(100% - 24px));max-height:calc(100dvh - 24px);padding:0;border:4px solid #89634b;background:#201927;color:#e9dfdf;box-shadow:0 0 0 3px #1c1420,0 0 0 7px #4a3438,0 30px 70px #000c;overflow:hidden}
+.signboard[open]{display:flex;flex-direction:column}.signboard::backdrop{background:#0b0810c8}
+.sb-scene{position:relative;flex:none;height:340px;overflow:hidden;background:radial-gradient(circle at 76% 18%,#ffcf7a40,transparent 34%),linear-gradient(transparent 60%,#0000004d),repeating-linear-gradient(90deg,#4a3238 0 46px,#452e35 46px 92px)}
+.sb-shelf{position:absolute;left:5%;top:84px;width:28%;height:44px;border-bottom:8px solid #6a4b45;box-shadow:0 6px #2a1f2e;background:linear-gradient(90deg,transparent 0 6px,#6b8f6a 6px 16px,transparent 16px 24px,#9b4a4a 24px 32px,transparent 32px 42px,#c9a25a 42px 48px,transparent 48px 58px,#5a6f9a 58px 68px,transparent 68px) bottom/100% 30px repeat-x}
+.sb-shelf::before{content:"";position:absolute;inset:auto 0 30px;height:6px;background:linear-gradient(90deg,transparent 0 9px,#3b2a2e 9px 13px,transparent 13px 26px,#3b2a2e 26px 30px,transparent 30px 61px,#3b2a2e 61px 65px,transparent 65px) repeat-x}
+.sb-shelf.low{left:auto;right:5%;top:150px;width:24%}
+.sb-lamp{position:absolute;left:76%;top:0;width:4px;height:44px;background:#2a1f2e}
+.sb-lamp::after{content:"";position:absolute;left:-9px;top:44px;width:22px;height:16px;background:#ffcf7a;border:3px solid #6a4b45;box-shadow:0 0 30px 10px #ffcf7a55;animation:sb-flicker 3.2s steps(2) infinite}
+.sb-mire{position:absolute;z-index:1;left:50%;bottom:42px;width:256px;height:304px;transform:translateX(-50%)}
+.sb-mire.hop{animation:sb-hop .3s steps(2)}
+.sb-blink{opacity:0}.sb-mire.blinks .sb-blink{animation:sb-blink 4.6s steps(1) infinite}
+.sb-counter{position:absolute;z-index:2;left:0;right:0;bottom:0;height:42px;background:repeating-linear-gradient(90deg,#765044 0 120px,#6e4a40 120px 240px);border-top:12px solid #aa7956;box-shadow:inset 0 6px #5c3d35}
+.sb-counter i{position:absolute;right:16%;bottom:42px;width:22px;height:26px;background:#d9c7a0;border:3px solid #6a4b45;border-top-width:6px;border-top-color:#f3eee2}
+.sb-counter i::after{content:"";position:absolute;right:-10px;top:4px;width:6px;height:10px;border:3px solid #6a4b45;border-left:0}
+.sb-box{position:relative;flex:1;min-height:170px;padding:14px 22px 18px;background:#2a1f2e;border-top:4px solid #6c4c45;cursor:pointer;overflow-y:auto}
+.sb-name{display:inline-block;margin:0 0 10px;padding:3px 14px;background:#9a6578;border:2px solid #d19b9a;color:#fff;font-size:14px;letter-spacing:.12em}
+.sb-name small{margin-left:8px;font-size:10px;color:#ffe0a8}
+.sb-text{margin:0;min-height:3.8em;font-size:16px;line-height:1.9;color:#f3e6dc}
+.sb-next{position:absolute;right:14px;bottom:8px;padding:4px 8px;background:none;border:0;color:#ebbe92;font-size:13px;cursor:pointer;animation:sb-next 1s steps(2) infinite}.sb-next[hidden]{display:none}
+.sb-choices{display:flex;flex-direction:column;gap:8px;margin-top:10px}.sb-choices:empty{display:none}
+.sb-choices button{padding:9px 14px;text-align:left;background:#201927;border:2px solid #493348;color:#f0d8c2;font:inherit;font-size:14px;cursor:pointer}
+.sb-choices button::before{content:"▸ ";color:#c28f9b}
+.sb-choices button:hover,.sb-choices button:focus-visible{background:#3a2738;border-color:#89634b;color:#ffe0a8;outline:none}
+.sb-close{position:absolute;z-index:3;top:10px;right:10px;display:grid;place-items:center;width:36px;height:36px;background:#9a6578;border:2px solid #d19b9a;color:#fff;font-size:22px;line-height:1;cursor:pointer}
+.sb-close:focus-visible{outline:3px solid #ebbe92;outline-offset:2px}
+.signboard.loading .sb-mire{opacity:.55}
+@keyframes sb-hop{50%{transform:translate(-50%,-4px)}}
+@keyframes sb-blink{0%{opacity:0}94%{opacity:1}97%{opacity:0}}
+@keyframes sb-next{50%{transform:translateY(3px)}}
+@keyframes sb-flicker{50%{box-shadow:0 0 26px 8px #ffcf7a44}}
+@media(max-width:650px){.guild-sign-button{font-size:11px;padding:2px 8px 2px 3px}.sb-scene{height:250px}.sb-mire{width:192px;height:228px;bottom:33px}.sb-counter{height:30px}.sb-counter i{bottom:30px}.sb-box{padding:12px 14px 16px}.sb-text{font-size:15px}.sb-shelf{top:56px;width:34%}.sb-shelf.low{top:118px;width:30%}}
+@media(prefers-reduced-motion:reduce){.sb-mire.hop,.sb-mire.blinks .sb-blink,.sb-next,.sb-lamp::after{animation:none}}
