@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class DockerCommandRunner {
+  static final String TIMED_OUT = "Docker command timed out";
   private static final int MAX_OUTPUT_BYTES = 16 * 1024;
   private final DockerGameServerProperties properties;
 
@@ -35,7 +36,7 @@ public class DockerCommandRunner {
       process = builder.start();
       process.getOutputStream().close();
       if (!process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
-        throw new IllegalStateException("Docker command timed out");
+        throw new IllegalStateException(TIMED_OUT);
       }
       if (process.exitValue() != 0) {
         throw new IllegalStateException("Docker command failed");

@@ -57,6 +57,11 @@ if (serverControls) {
         || !stoppable(form.dataset.status);
     });
   };
+  const updateNotice = (gameId, notice) => {
+    serverControls.querySelectorAll("[data-control-notice]").forEach((element) => {
+      if (element.dataset.controlNotice === gameId) element.textContent = notice || "";
+    });
+  };
   const updateStatus = (gameId, status) => {
     const code = Object.hasOwn(labels, status) ? status : "unknown";
     if (reservations.has(gameId)) reservations.get(gameId).status = code;
@@ -89,6 +94,7 @@ if (serverControls) {
       if (!response.ok) throw new Error("Server request failed");
       const result = await response.json();
       message.textContent = result.message || text.done;
+      if (result.accepted) updateNotice(gameId, "");
       updateStatus(gameId, result.status);
     } catch (_error) {
       message.textContent = text.failed;
@@ -132,8 +138,16 @@ if (serverControls) {
         });
         if (!response.ok) throw new Error("Status request failed");
         const statuses = await response.json();
-        chips.forEach((chip) => updateStatus(chip.dataset.serverStatus,
-          statuses[chip.dataset.serverStatus]?.code));
+        chips.forEach((chip) => {
+          const status = statuses[chip.dataset.serverStatus];
+          updateStatus(chip.dataset.serverStatus, status?.code);
+          updateNotice(chip.dataset.serverStatus, status?.notice);
+          // A stop that ended (or failed) replaces the "stop started" message.
+          if (status?.notice || status?.code === "offline") {
+            const message = serverControls.querySelector(`[data-server="${chip.dataset.serverStatus}"] .server-action-message`);
+            if (message && status.code !== "stopping") message.textContent = "";
+          }
+        });
       } catch (_error) {
         chips.forEach((chip) => updateStatus(chip.dataset.serverStatus, "unknown"));
       } finally {

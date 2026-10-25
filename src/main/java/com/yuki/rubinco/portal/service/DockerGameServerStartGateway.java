@@ -2,6 +2,10 @@ package com.yuki.rubinco.portal.service;
 
 import com.yuki.rubinco.portal.config.DockerGameServerProperties;
 import jakarta.annotation.PreDestroy;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,9 +34,17 @@ public class DockerGameServerStartGateway implements GameServerStartGateway {
   // A graceful stop outlives the HTTP request, so it runs here while polling reports "stopping".
   private final ExecutorService stopExecutor = Executors.newVirtualThreadPerTaskExecutor();
   private final Set<String> stopping = ConcurrentHashMap.newKeySet();
+  // The last failed stop per game, shown next to the controls until it expires or is superseded.
+  private final Map<String, StopFailure> stopFailures = new ConcurrentHashMap<>();
   private volatile Snapshot snapshot;
 
   private record Snapshot(List<String> gameIds, Map<String, String> statuses, long expiresAt) { }
+
+  private record StopFailure(boolean timedOut, Instant at) { }
+
+  private static final Duration NOTICE_LIFETIME = Duration.ofMinutes(30);
+  private static final DateTimeFormatter NOTICE_TIME =
+      DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.of("Asia/Tokyo"));
 
   @Override
   public synchronized Map<String, String> freshStatuses(List<String> gameIds) {
@@ -92,7 +104,22 @@ public class DockerGameServerStartGateway implements GameServerStartGateway {
   }
 
   private String withStop(String gameId, String status) {
+    // Once the container is down, an earlier failure no longer describes the server.
+    if ("offline".equals(status)) stopFailures.remove(gameId);
     return stopping.contains(gameId) && !"offline".equals(status) ? "stopping" : status;
+  }
+
+  @Override
+  public Map<String, String> controlNotices() {
+    Instant now = Instant.now();
+    stopFailures.values().removeIf(failure -> failure.at().plus(NOTICE_LIFETIME).isBefore(now));
+    Map<String, String> notices = new LinkedHashMap<>();
+    stopFailures.forEach((gameId, failure) -> notices.put(gameId, failure.timedOut()
+        ? "停止の完了を確認できませんでした（" + NOTICE_TIME.format(failure.at())
+            + "）。状態が変わらない場合は管理者に連絡してください。"
+        : "停止に失敗しました（" + NOTICE_TIME.format(failure.at())
+            + "）。もう一度試すか、管理者に連絡してください。"));
+    return notices;
   }
 
   private String status(String json) {
@@ -136,6 +163,7 @@ public class DockerGameServerStartGateway implements GameServerStartGateway {
       return new StartResult(false, "stopping", "停止処理中です。しばらくお待ちください。");
     }
     snapshot = null;
+    stopFailures.remove(gameId);
     try {
       stopExecutor.execute(() -> stop(gameId));
     } catch (RejectedExecutionException exception) {
@@ -149,8 +177,10 @@ public class DockerGameServerStartGateway implements GameServerStartGateway {
     try {
       runner.run(properties.getStopTimeout(), "stop", gameId);
     } catch (RuntimeException exception) {
-      log.warn("Docker stop failed. gameId={}, failureType={}",
-          gameId, exception.getClass().getSimpleName());
+      boolean timedOut = DockerCommandRunner.TIMED_OUT.equals(exception.getMessage());
+      stopFailures.put(gameId, new StopFailure(timedOut, Instant.now()));
+      log.warn("Docker stop failed. gameId={}, failureType={}, reason={}",
+          gameId, exception.getClass().getSimpleName(), exception.getMessage());
     } finally {
       stopping.remove(gameId);
       snapshot = null;

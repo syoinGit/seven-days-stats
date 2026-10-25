@@ -10,8 +10,8 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/portal.css(v='4')}">
-  <script defer th:src="@{/js/portal.js(v='7')}"></script>
+  <link rel="stylesheet" th:href="@{/css/portal.css(v='5')}">
+  <script defer th:src="@{/js/portal.js(v='8')}"></script>
 </head>
 <body class="portal-body">
 <header th:replace="~{fragments/portal-header :: header}"></header>
@@ -62,6 +62,8 @@
       <small th:unless="${server.manualStart}" class="server-auto-start">自動起動</small>
       <p class="server-memory-reason" data-memory-reason
          th:text="${server.manualStart and server.status.code == 'offline' ? server.status.memory.reason : ''}"></p>
+      <p class="server-control-notice" role="alert" th:attr="data-control-notice=${server.id}"
+         th:text="${server.status.notice}"></p>
       <p class="server-action-message" role="status" aria-live="polite"></p>
     </article>
   </section>

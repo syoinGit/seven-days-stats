@@ -31,5 +31,10 @@ public interface GameServerStartGateway {
     return currentStatuses(gameIds);
   }
 
+  /** Short messages about recent control failures, keyed by game id. */
+  default Map<String, String> controlNotices() {
+    return Map.of();
+  }
+
   record StartResult(boolean accepted, String status, String message) { }
 }

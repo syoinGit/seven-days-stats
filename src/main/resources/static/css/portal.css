@@ -109,6 +109,8 @@
 .server-auto-start { display:block; margin-top:12px; color:var(--portal-muted); font-size:11px; }
 .server-action-message { margin:10px 0 0; color:var(--portal-muted); font-size:11px; line-height:1.7; overflow-wrap:anywhere; }
 .server-action-message:empty { display:none; }
+.server-control-notice { margin:10px 0 0; padding:6px 8px; border:1px solid #ff9ca1; color:#ffb8bc; font-size:11px; line-height:1.6; overflow-wrap:anywhere; }
+.server-control-notice:empty { display:none; }
 @media (max-width:680px) { .server-controls { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }.server-controls > h2, .server-controls > p { grid-column:1/-1; margin:0; }.server-control { margin:0; } }
 
 .portal-maintenance { width:min(1000px, calc(100% - 40px)); margin:36px auto 72px; }
