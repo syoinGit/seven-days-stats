@@ -1,9 +1,9 @@
 package com.yuki.rubinco.guild;
 
-import com.yuki.rubinco.luminite.names.TerrariaItemCategory;
 import com.yuki.rubinco.luminite.names.TerrariaNames;
 import com.yuki.rubinco.octarine.names.CoreKeeperNames;
 import com.yuki.rubinco.octarine.names.ItemCategory;
+import com.yuki.rubinco.watchpoint.readmodel.PoiNameService;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
@@ -18,51 +18,58 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 /**
- * A resident is born from one "memory": up to ten records from a three-hour window of a past day in
- * one game, mostly about one category (fishing, a blood moon, a trip...). The draw goes game, then
- * category, then window, so a game that logs many kills cannot crowd out the rest. Records never
- * carry player names or ids, only what happened, so the memory can be shown publicly.
+ * A resident is born from one "memory": a small, concrete piece of play with a few lines of facts.
+ * <ul>
+ *   <li>7 Days to Die: a place first reached on foot (a POI within 80m), or one kind of enemy
+ *       defeated on one day, with where it happened. The rest of the log is too noisy to use.</li>
+ *   <li>Terraria: a day's gains in chests, a boss or event achieved, or a chest at least half full.</li>
+ *   <li>Core Keeper: one chest's gains on a day, a boss or the Great Wall achieved, or a chest at least
+ *       half full.</li>
+ * </ul>
+ * The draw goes game, kind, group (an enemy type, a kind of place...), memory, each step even, so common
+ * zombies or one busy day cannot crowd out the rest. Facts never carry player names, ids, chest labels
+ * or positions, so the memory can be shown publicly.
  */
 @Service
 @RequiredArgsConstructor
 public class GuildSourceService {
-  static final int WINDOW_HOURS = 3;
-  static final int MAX_EVENTS = 10;
-  /** Of the ten, at most this many are the category's own records; the rest give context. */
-  private static final int FOCUS_EVENTS = 7;
-  private static final int MAX_ROWS = 5000;
+  static final int LOG_FACTS = 3;
+  static final int CHEST_FACTS = 6;
+  private static final int POI_RADIUS = 80;
   private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("H:mm");
   private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("M月d日");
   static final Map<String, String> GAMES = Map.of(
       "7dtd", "7 Days to Die", "terraria", "Terraria", "corekeeper", "Core Keeper");
-  /** Every category a memory can be about. A game offers only those its records actually show. */
+  /** Kinds of memory, then the categories residents born before them kept (shown, never drawn). */
   static final Map<String, String> CATEGORIES = categories();
-  private static final Pattern FISH = Pattern.compile(
-      "(?i).*(bass|trout|salmon|tuna|snapper|shrimp|crate|fish|koi|cod|carp|minnow|tetra|piranha|prismite).*");
-  private static final Pattern SEED = Pattern.compile("(?i).*seed.*");
+  private static final Map<String, String> PROGRESS = Map.of("BOSS", "ボス討伐", "EVENT", "イベント", "WORLD", "世界の変化");
+  private static final Set<ItemCategory> EQUIPMENT = Set.of(ItemCategory.WEAPON, ItemCategory.ARMOR, ItemCategory.TOOL);
+  // A kill by a player, not by a zombie or an animal.
+  private static final String PLAYER_KILL = " LOWER(k.player_name) NOT LIKE 'zombie%' AND LOWER(k.player_name) NOT LIKE 'animal%' ";
+  private static final String JST_DATE = "CAST(%s AT TIME ZONE 'Asia/Tokyo' AS DATE)";
 
   private final JdbcTemplate jdbc;
   private final GuildProperties properties;
   private final TerrariaNames terrariaNames;
   private final CoreKeeperNames coreKeeperNames;
+  private final PoiNameService poiNames;
 
-  /** label: "Terraria・10月3日 21時〜24時の記録（釣り）"; facts: one "21:14 バスが3個増えた" per line; from: the window's start. */
+  /** label: "7 Days to Die・10月3日 ゾンビを12体倒した日"; facts: one "21:14 古い家でゾンビを倒した" per line; from: when it happened. */
   public record Source(String key, String game, String category, String label, String facts, OffsetDateTime from) { }
 
   /** Either a memory, or why none was chosen. */
   public record Choice(Optional<Source> source, String skipped) { }
 
-  /** Unused windows per game and category, for the maintenance page. */
+  /** Unused memories per game and kind, for the maintenance page. */
   public record Inventory(String game, String category, int unused) {
     public String gameName() {
       return GAMES.getOrDefault(game, game);
@@ -73,113 +80,56 @@ public class GuildSourceService {
     }
   }
 
-  private record Event(OffsetDateTime at, String text, String category) { }
-
-  private record Slot(String game, LocalDate date, int window, String category) {
-    String key() {
-      return "memory:" + game + ":" + date + ":" + window * WINDOW_HOURS;
-    }
-  }
+  /** One unused memory. group spreads the draw; detail holds what memory() needs to read it back. */
+  private record Seed(String game, String kind, String key, String group, OffsetDateTime at, List<Object> detail) { }
 
   private static Map<String, String> categories() {
     Map<String, String> map = new LinkedHashMap<>();
-    map.put("bloodmoon", "ブラッドムーン");
-    map.put("combat", "戦い");
-    map.put("survival", "倒れた夜");
-    map.put("exploration", "探索");
-    map.put("gathering", "採集");
-    map.put("travel", "遠出");
-    map.put("fishing", "釣り");
-    map.put("building", "建築");
-    map.put("mining", "採掘");
-    map.put("boss", "大物との戦い");
-    map.put("hunting", "狩り");
-    map.put("cooking", "料理");
-    map.put("farming", "畑仕事");
+    map.put("place", "訪れた場所");
+    map.put("hunt", "倒したもの");
+    map.put("gain", "増えた蓄え");
+    map.put("milestone", "果たしたこと");
+    map.put("chest", "宝箱の中身");
+    for (String[] old : new String[][] {{"bloodmoon", "ブラッドムーン"}, {"combat", "戦い"}, {"survival", "倒れた夜"},
+        {"exploration", "探索"}, {"gathering", "採集"}, {"travel", "遠出"}, {"fishing", "釣り"}, {"building", "建築"},
+        {"mining", "採掘"}, {"boss", "大物との戦い"}, {"hunting", "狩り"}, {"cooking", "料理"}, {"farming", "畑仕事"}}) {
+      map.put(old[0], old[1]);
+    }
     return Collections.unmodifiableMap(map);
   }
 
-  // Each game's records as (happened_at, kind, detail, amount). Two range parameters per branch.
-  private static final Map<String, String> EVENTS = Map.of(
-      "7dtd", """
-          SELECT k.occurred_at AS happened_at, 'kill' AS kind,
-            COALESCE((SELECT tr.display_text FROM M_JAPANESE_TRANSLATION tr
-              WHERE tr.localization_key = k.target_entity_type LIMIT 1), k.target_entity_type) AS detail, 0 AS amount
-          FROM T_ENTITY_KILL_TRANSACTION k WHERE k.occurred_at >= ? AND k.occurred_at < ?
-            AND LOWER(k.player_name) NOT LIKE 'zombie%' AND LOWER(k.player_name) NOT LIKE 'animal%'
-          UNION ALL SELECT occurred_at, 'join', CAST(NULL AS VARCHAR), 0 FROM T_PLAYER_JOIN_TRANSACTION
-            WHERE occurred_at >= ? AND occurred_at < ?
-          UNION ALL SELECT occurred_at, 'leave', CAST(NULL AS VARCHAR), 0 FROM T_PLAYER_LEAVE_TRANSACTION
-            WHERE occurred_at >= ? AND occurred_at < ?
-          UNION ALL SELECT occurred_at, event_type, CAST(NULL AS VARCHAR), 0 FROM T_WORLD_EVENT_TRANSACTION
-            WHERE event_type IN ('PLAYER_DEATH', 'BLOOD_MOON', 'WANDERING_HORDE', 'SCOUT_HORDE', 'SCREAMER_SPAWN', 'AIR_DROP')
-              AND occurred_at >= ? AND occurred_at < ?
-          UNION ALL SELECT occurred_at, 'sleeper', CAST(NULL AS VARCHAR), 0 FROM T_SLEEPER_TRANSACTION
-            WHERE transaction_type <> 'SLEEPER_RESTORE' AND occurred_at >= ? AND occurred_at < ?
-          UNION ALL SELECT occurred_at, 'levelup',
-            CASE WHEN xp_from_harvesting >= xp_from_loot AND xp_from_harvesting >= xp_from_kill THEN 'harvest'
-              WHEN xp_from_loot >= xp_from_kill THEN 'loot' ELSE 'kill' END, 0
-            FROM T_LEVEL_XP_SUMMARY_TRANSACTION WHERE occurred_at >= ? AND occurred_at < ?
-          UNION ALL SELECT occurred_at, 'drive', CAST(NULL AS VARCHAR), CAST(movement_distance AS BIGINT)
-            FROM T_VEHICLE_POSITION_TRANSACTION WHERE event_type = 'VEHICLE_MOVE' AND movement_distance >= 50
-              AND occurred_at >= ? AND occurred_at < ?
-          """,
-      "terraria", """
-          SELECT observed_at AS happened_at, 'item' AS kind, CAST(item_id AS VARCHAR) AS detail,
-            new_total - previous_total AS amount FROM T_TERRARIA_ITEM_CHANGE WHERE observed_at >= ? AND observed_at < ?
-          UNION ALL SELECT observed_at, 'kill', npc_key, new_kills - previous_kills FROM T_TERRARIA_KILL_CHANGE
-            WHERE observed_at >= ? AND observed_at < ?
-          UNION ALL SELECT e.first_observed_at, 'progress', d.display_name, 0 FROM T_PROGRESS_EVENT e
-            JOIN M_PROGRESS_DEFINITION d ON d.progress_definition_id = e.progress_definition_id
-            WHERE d.game_id = 'terraria' AND e.change_kind = 'CHANGED' AND d.spoiler = FALSE
-              AND e.first_observed_at >= ? AND e.first_observed_at < ?
-          """,
-      "corekeeper", """
-          SELECT connected_at AS happened_at, 'join' AS kind, CAST(NULL AS VARCHAR) AS detail, 0 AS amount
-            FROM T_CK_SESSION WHERE connected_at >= ? AND connected_at < ?
-          UNION ALL SELECT disconnected_at, 'leave', CAST(NULL AS VARCHAR), 0 FROM T_CK_SESSION
-            WHERE disconnected_at >= ? AND disconnected_at < ?
-          UNION ALL SELECT observed_at, 'item', CAST(object_id AS VARCHAR), new_amount - previous_amount
-            FROM T_CK_ITEM_CHANGE WHERE observed_at >= ? AND observed_at < ?
-          UNION ALL SELECT e.first_observed_at, 'progress', d.display_name, 0 FROM T_PROGRESS_EVENT e
-            JOIN M_PROGRESS_DEFINITION d ON d.progress_definition_id = e.progress_definition_id
-            WHERE d.game_id = 'corekeeper' AND e.change_kind = 'CHANGED' AND d.spoiler = FALSE
-              AND e.first_observed_at >= ? AND e.first_observed_at < ?
-          """);
-
   /**
-   * A random unused memory from a day before today. Recent days are preferred by recent-ratio, and a
-   * category that already makes up category-cap of the last category-window residents is left out.
+   * A random unused memory. Recent ones are preferred by recent-ratio (chests count as recent: they are
+   * as of the latest import), and a kind that already makes up category-cap of the last category-window
+   * residents is left out.
    */
   public Choice choose(LocalDate today) {
-    List<Slot> slots = slots(today);
-    if (slots.isEmpty()) return new Choice(Optional.empty(), "まだ使っていない過去の記録がありません。人物の追加を見送りました。");
+    List<Seed> seeds = seeds(today);
+    if (seeds.isEmpty()) return new Choice(Optional.empty(), "まだ使っていない記録がありません。人物の追加を見送りました。");
     Set<String> capped = cappedCategories();
-    List<Slot> allowed = slots.stream().filter(slot -> !capped.contains(slot.category())).toList();
+    List<Seed> allowed = seeds.stream().filter(seed -> !capped.contains(seed.kind())).toList();
     if (allowed.isEmpty()) {
       return new Choice(Optional.empty(), "残っている記録が、直近の住人と同じ種類（"
           + capped.stream().map(CATEGORIES::get).collect(Collectors.joining("・")) + "）だけでした。偏りを防ぐため見送りました。");
     }
     LocalDate cutoff = today.minusDays(properties.recentDays());
     boolean recent = ThreadLocalRandom.current().nextDouble() < properties.recentRatio();
-    Optional<Source> source = pick(allowed, slot -> recent == !slot.date().isBefore(cutoff));
-    if (source.isEmpty()) source = pick(allowed, slot -> true);
-    return new Choice(source, source.isPresent() ? null : "まだ使っていない過去の記録がありません。人物の追加を見送りました。");
+    Optional<Source> source = pick(allowed, seed -> recent == !jst(seed.at()).isBefore(cutoff));
+    if (source.isEmpty()) source = pick(allowed, seed -> true);
+    return new Choice(source, source.isPresent() ? null : "使える記録が見つかりませんでした。人物の追加を見送りました。");
   }
 
-  /** How many unused windows each game offers per category. */
+  /** How many unused memories each game offers per kind. */
   public List<Inventory> inventory(LocalDate today) {
     Map<String, Map<String, Integer>> counts = new TreeMap<>();
-    for (Slot slot : slots(today)) {
-      counts.computeIfAbsent(slot.game(), game -> new TreeMap<>()).merge(slot.category(), 1, Integer::sum);
-    }
+    for (Seed seed : seeds(today)) counts.computeIfAbsent(seed.game(), game -> new TreeMap<>()).merge(seed.kind(), 1, Integer::sum);
     List<Inventory> rows = new ArrayList<>();
-    counts.forEach((game, categories) -> categories.forEach((category, unused) -> rows.add(new Inventory(game, category, unused))));
+    counts.forEach((game, kinds) -> kinds.forEach((kind, unused) -> rows.add(new Inventory(game, kind, unused))));
     rows.sort(Comparator.comparing(Inventory::game).thenComparing(row -> List.copyOf(CATEGORIES.keySet()).indexOf(row.category())));
     return rows;
   }
 
-  /** Categories of the last category-window residents, newest first (null for those born before categories). */
+  /** Kinds of the last category-window residents, newest first (null for those born before kinds). */
   public List<String> recentCategories() {
     return jdbc.queryForList("SELECT s.category FROM T_GUILD_SOURCE s JOIN M_GUILD_CHARACTER c ON c.id = s.character_id "
         + "ORDER BY c.id DESC LIMIT ?", String.class, properties.categoryWindow());
@@ -192,173 +142,287 @@ public class GuildSourceService {
         .map(Map.Entry::getKey).collect(Collectors.toSet());
   }
 
-  /** Game first, then one of its categories, then a window: each step is an even draw. */
-  private Optional<Source> pick(List<Slot> slots, Predicate<Slot> wanted) {
-    Map<String, Map<String, List<Slot>>> pool = new TreeMap<>();
-    slots.stream().filter(wanted).forEach(slot -> pool.computeIfAbsent(slot.game(), game -> new TreeMap<>())
-        .computeIfAbsent(slot.category(), category -> new ArrayList<>()).add(slot));
-    List<String> games = new ArrayList<>(pool.keySet());
-    if (games.isEmpty()) return Optional.empty();
-    var random = ThreadLocalRandom.current();
-    Map<String, List<Slot>> categories = pool.get(games.get(random.nextInt(games.size())));
-    List<Slot> windows = categories.get(new ArrayList<>(categories.keySet()).get(random.nextInt(categories.size())));
-    return memory(windows.get(random.nextInt(windows.size())));
+  /** Game, kind, group, then a memory, each an even draw. A memory that reads back empty is dropped and redrawn. */
+  private Optional<Source> pick(List<Seed> seeds, Predicate<Seed> wanted) {
+    List<Seed> pool = new ArrayList<>(seeds.stream().filter(wanted).toList());
+    for (int attempt = 0; attempt < 20 && !pool.isEmpty(); attempt++) {
+      List<Seed> narrowed = pool;
+      for (Function<Seed, String> step : List.<Function<Seed, String>>of(Seed::game, Seed::kind, Seed::group)) {
+        Map<String, List<Seed>> by = narrowed.stream().collect(Collectors.groupingBy(step, TreeMap::new, Collectors.toList()));
+        narrowed = new ArrayList<>(by.values()).get(ThreadLocalRandom.current().nextInt(by.size()));
+      }
+      Seed seed = narrowed.get(ThreadLocalRandom.current().nextInt(narrowed.size()));
+      Optional<Source> source = memory(seed);
+      if (source.isPresent()) return source;
+      pool.remove(seed);
+    }
+    return Optional.empty();
   }
 
-  /** Every unused (game, day, window, category) before today. */
-  private List<Slot> slots(LocalDate today) {
+  /** Every unused memory. Logged ones must be from a day before today; chests are as of the latest import. */
+  private List<Seed> seeds(LocalDate today) {
+    OffsetDateTime before = start(today);
+    List<Seed> seeds = new ArrayList<>();
+    places(before, seeds);
+    hunts(before, seeds);
+    terrariaGains(before, seeds);
+    coreKeeperGains(before, seeds);
+    for (String game : List.of("terraria", "corekeeper")) {
+      Long world = world(game);
+      if (world == null) continue;
+      var snapshot = latestSnapshot(world);
+      if (snapshot == null) continue;
+      milestones(game, game.equals("terraria") ? List.of("BOSS", "EVENT") : List.of("BOSS", "WORLD"), snapshot, before, seeds);
+      chests(game, world, snapshot.getValue(), seeds);
+    }
     Set<String> used = new HashSet<>(jdbc.queryForList("SELECT source_key FROM T_GUILD_SOURCE", String.class));
-    List<Slot> slots = new ArrayList<>();
-    for (String game : EVENTS.keySet()) {
-      Map<String, Set<String>> windows = new TreeMap<>();
-      Map<String, Slot> first = new LinkedHashMap<>();
-      jdbc.query("SELECT DISTINCT CAST(happened_at AT TIME ZONE 'Asia/Tokyo' AS DATE) AS d, "
-          + "EXTRACT(HOUR FROM happened_at AT TIME ZONE 'Asia/Tokyo') AS h, kind, "
-          + "CASE WHEN kind IN ('item', 'levelup') THEN detail END AS detail, "
-          + "CASE WHEN amount > 0 THEN 1 WHEN amount < 0 THEN -1 ELSE 0 END AS direction FROM ("
-          + EVENTS.get(game) + ") e", rs -> {
-            Slot slot = new Slot(game, rs.getObject("d", LocalDate.class), rs.getInt("h") / WINDOW_HOURS, null);
-            String category = category(game, rs.getString("kind"), rs.getString("detail"), rs.getInt("direction"));
-            Set<String> found = windows.computeIfAbsent(slot.key(), key -> new TreeSet<>());
-            first.putIfAbsent(slot.key(), slot);
-            if (category != null) found.add(category);
-          }, range(game, start(LocalDate.of(2000, 1, 1)), start(today)));
-      windows.forEach((key, categories) -> {
-        if (used.contains(key)) return;
-        Slot slot = first.get(key);
-        for (String category : bloodMoon(categories)) slots.add(new Slot(game, slot.date(), slot.window(), category));
-      });
+    seeds.removeIf(seed -> used.contains(seed.key()));
+    return seeds;
+  }
+
+  private void places(OffsetDateTime before, List<Seed> seeds) {
+    jdbc.query("""
+        SELECT poi.id, poi.category, MIN(pos.occurred_at) FROM M_WORLD_POI poi JOIN T_PLAYER_POSITION_TRANSACTION pos
+          ON pos.position_x BETWEEN poi.x - ? AND poi.x + ? AND pos.position_z BETWEEN poi.z - ? AND poi.z + ?
+         AND (pos.position_x - poi.x) * (pos.position_x - poi.x) + (pos.position_z - poi.z) * (pos.position_z - poi.z) <= ?
+         AND pos.movement_mode <> 'VEHICLE' AND pos.occurred_at < ?
+        WHERE COALESCE(poi.category, '') <> 'part' AND poi.poi_name NOT LIKE 'part_%'
+        GROUP BY poi.id, poi.category
+        """, rs -> {
+          long id = rs.getLong(1);
+          seeds.add(new Seed("7dtd", "place", "7dtd:place:" + id, String.valueOf(rs.getString(2)),
+              rs.getObject(3, OffsetDateTime.class), List.of(id)));
+        }, POI_RADIUS, POI_RADIUS, POI_RADIUS, POI_RADIUS, POI_RADIUS * POI_RADIUS, before);
+  }
+
+  private void hunts(OffsetDateTime before, List<Seed> seeds) {
+    String day = JST_DATE.formatted("k.occurred_at");
+    jdbc.query("SELECT " + day + ", k.target_entity_type, MIN(k.occurred_at) FROM T_ENTITY_KILL_TRANSACTION k "
+        + "WHERE k.occurred_at < ? AND" + PLAYER_KILL + "GROUP BY " + day + ", k.target_entity_type", rs -> {
+          LocalDate date = rs.getObject(1, LocalDate.class);
+          String type = rs.getString(2);
+          seeds.add(new Seed("7dtd", "hunt", "7dtd:hunt:" + date + ":" + type, type, rs.getObject(3, OffsetDateTime.class), List.of(date, type)));
+        }, before);
+  }
+
+  private void terrariaGains(OffsetDateTime before, List<Seed> seeds) {
+    String day = JST_DATE.formatted("observed_at");
+    jdbc.query("SELECT " + day + ", MIN(observed_at) FROM T_TERRARIA_ITEM_CHANGE WHERE new_total > previous_total AND observed_at < ? "
+        + "GROUP BY " + day, rs -> {
+          LocalDate date = rs.getObject(1, LocalDate.class);
+          seeds.add(new Seed("terraria", "gain", "terraria:gain:" + date, date.toString(), rs.getObject(2, OffsetDateTime.class), List.of(date)));
+        }, before);
+  }
+
+  private void coreKeeperGains(OffsetDateTime before, List<Seed> seeds) {
+    String day = JST_DATE.formatted("observed_at");
+    jdbc.query("SELECT " + day + ", pos_x, pos_z, MIN(observed_at) FROM T_CK_CHEST_CHANGE WHERE new_amount > previous_amount "
+        + "AND observed_at < ? GROUP BY " + day + ", pos_x, pos_z", rs -> {
+          LocalDate date = rs.getObject(1, LocalDate.class);
+          int x = rs.getInt(2);
+          int z = rs.getInt(3);
+          seeds.add(new Seed("corekeeper", "gain", "corekeeper:gain:" + date + ":" + x + ":" + z, date.toString(),
+              rs.getObject(4, OffsetDateTime.class), List.of(date, x, z)));
+        }, before);
+  }
+
+  /** Achieved in the latest snapshot. When it was first seen achieved is the memory's time; before records began, the snapshot's. */
+  private void milestones(String game, List<String> categories, Map.Entry<Long, OffsetDateTime> snapshot, OffsetDateTime before, List<Seed> seeds) {
+    jdbc.query("""
+        SELECT d.progress_key, d.category, (SELECT MIN(e.first_observed_at) FROM T_PROGRESS_EVENT e
+          WHERE e.progress_definition_id = d.progress_definition_id AND e.new_state = 'ACHIEVED' AND e.change_kind = 'CHANGED')
+        FROM M_PROGRESS_DEFINITION d JOIN T_PROGRESS_STATE s ON s.progress_definition_id = d.progress_definition_id
+        WHERE s.world_snapshot_id = ? AND s.state = 'ACHIEVED' AND d.game_id = ? AND d.support_status = 'SUPPORTED'
+          AND d.category IN (?, ?)
+        """, rs -> {
+          OffsetDateTime achieved = rs.getObject(3, OffsetDateTime.class);
+          if (achieved != null && !achieved.isBefore(before)) return;
+          String key = rs.getString(1);
+          seeds.add(new Seed(game, "milestone", game + ":milestone:" + key, rs.getString(2),
+              achieved != null ? achieved : snapshot.getValue(), achieved != null ? List.of(key, achieved) : List.of(key)));
+        }, snapshot.getKey(), game, categories.get(0), categories.get(1));
+  }
+
+  /** Player chests at least half full. Rows are rebuilt every import, so a chest is known by its place. */
+  private void chests(String game, long world, OffsetDateTime captured, List<Seed> seeds) {
+    String sql = game.equals("terraria")
+        ? "SELECT terraria_container_id, tile_x, tile_y FROM T_TERRARIA_CONTAINER WHERE game_world_id = ? AND container_kind = 'CHEST' "
+          + "AND managed = TRUE AND slot_count > 0 AND filled_slots * 2 >= slot_count"
+        // Only containers players labelled are stored (V46); the label itself is never read here.
+        : "SELECT ck_container_id, pos_x, pos_z FROM T_CK_CONTAINER WHERE game_world_id = ? AND holder = 'STORAGE' "
+          + "AND slot_count > 0 AND filled_slots * 2 >= slot_count";
+    jdbc.query(sql, rs -> {
+      String key = game + ":chest:" + rs.getInt(2) + ":" + rs.getInt(3);
+      seeds.add(new Seed(game, "chest", key, key, captured, List.of(rs.getLong(1))));
+    }, world);
+  }
+
+  private Optional<Source> memory(Seed seed) {
+    String game = GAMES.get(seed.game());
+    String day = DAY.format(seed.at().atZoneSameInstant(GuildService.TOKYO));
+    List<String> facts;
+    String label;
+    switch (seed.game() + ":" + seed.kind()) {
+      case "7dtd:place" -> {
+        long id = (Long) seed.detail().get(0);
+        var poi = jdbc.queryForMap("SELECT poi_name, x, z FROM M_WORLD_POI WHERE id = ?", id);
+        String place = poiNames.displayName((String) poi.get("poi_name"));
+        int x = ((Number) poi.get("x")).intValue();
+        int z = ((Number) poi.get("z")).intValue();
+        facts = new ArrayList<>(List.of(time(seed.at()) + " " + place + "に足を踏み入れた"));
+        facts.addAll(jdbc.query("SELECT k.occurred_at, k.target_entity_type FROM T_ENTITY_KILL_TRANSACTION k "
+            + "WHERE k.occurred_at >= ? AND k.occurred_at < ? AND" + PLAYER_KILL + "AND k.player_position_x IS NOT NULL "
+            + "AND (k.player_position_x - ?) * (k.player_position_x - ?) + (k.player_position_z - ?) * (k.player_position_z - ?) <= ? "
+            + "ORDER BY k.occurred_at LIMIT ?", (rs, row) -> time(rs.getObject(1, OffsetDateTime.class)) + " " + place + "で"
+            + enemy(rs.getString(2)) + "を倒した", seed.at(), seed.at().plusHours(3), x, x, z, z, POI_RADIUS * POI_RADIUS, LOG_FACTS - 1));
+        label = game + "・" + day + " " + place + "を訪れた日";
+      }
+      case "7dtd:hunt" -> {
+        LocalDate date = (LocalDate) seed.detail().get(0);
+        String type = (String) seed.detail().get(1);
+        record Kill(OffsetDateTime at, Integer x, Integer z) { }
+        List<Kill> kills = jdbc.query("SELECT k.occurred_at, k.player_position_x, k.player_position_z FROM T_ENTITY_KILL_TRANSACTION k "
+            + "WHERE k.occurred_at >= ? AND k.occurred_at < ? AND k.target_entity_type = ? AND" + PLAYER_KILL + "ORDER BY k.occurred_at",
+            (rs, row) -> new Kill(rs.getObject(1, OffsetDateTime.class), (Integer) rs.getObject(2), (Integer) rs.getObject(3)),
+            start(date), start(date.plusDays(1)), type);
+        if (kills.isEmpty()) return Optional.empty();
+        String name = enemy(type);
+        // The first, the last and one between: how the day went, not just its busiest minutes.
+        List<Kill> picked = kills.size() <= LOG_FACTS ? kills : List.of(kills.getFirst(), kills.get(kills.size() / 2), kills.getLast());
+        facts = picked.stream().map(kill -> {
+          String place = kill.x() == null ? null : nearestPlace(kill.x(), kill.z());
+          return time(kill.at()) + " " + (place == null ? "" : place + "で") + name + "を倒した";
+        }).toList();
+        label = game + "・" + day + " " + name + "を" + kills.size() + "体倒した日";
+      }
+      case "terraria:gain" -> {
+        LocalDate date = (LocalDate) seed.detail().get(0);
+        facts = gains(jdbc.query("SELECT observed_at, item_id, new_total - previous_total FROM T_TERRARIA_ITEM_CHANGE "
+            + "WHERE observed_at >= ? AND observed_at < ? AND new_total > previous_total ORDER BY new_total - previous_total DESC",
+            (rs, row) -> terrariaGain(rs.getObject(1, OffsetDateTime.class), rs.getInt(2), rs.getLong(3)), start(date), start(date.plusDays(1))));
+        label = game + "・" + day + "に宝箱へ増えたもの";
+      }
+      case "corekeeper:gain" -> {
+        LocalDate date = (LocalDate) seed.detail().get(0);
+        facts = gains(jdbc.query("SELECT observed_at, object_id, new_amount - previous_amount, previous_slots, new_slots FROM T_CK_CHEST_CHANGE "
+            + "WHERE observed_at >= ? AND observed_at < ? AND pos_x = ? AND pos_z = ? AND new_amount > previous_amount "
+            + "ORDER BY new_amount - previous_amount DESC", (rs, row) -> coreKeeperGain(rs.getObject(1, OffsetDateTime.class), rs.getInt(2),
+            rs.getLong(3), (Integer) rs.getObject(4), (Integer) rs.getObject(5)), start(date), start(date.plusDays(1)),
+            seed.detail().get(1), seed.detail().get(2)));
+        label = game + "・" + day + "にひとつの宝箱へ増えたもの";
+      }
+      case "terraria:milestone", "corekeeper:milestone" -> {
+        var definition = jdbc.queryForMap("SELECT display_name, category, spoiler FROM M_PROGRESS_DEFINITION WHERE game_id = ? AND progress_key = ?",
+            seed.game(), seed.detail().get(0));
+        // Spoilers are counted but never named, here as on every public page.
+        String name = Boolean.TRUE.equals(definition.get("spoiler")) ? "名を伏せた大物" : (String) definition.get("display_name");
+        String kind = PROGRESS.getOrDefault((String) definition.get("category"), "達成");
+        boolean dated = seed.detail().size() > 1;
+        facts = new ArrayList<>(List.of(dated ? time(seed.at()) + " 「" + name + "」を果たした（" + kind + "）"
+            : "「" + name + "」は記録が始まる前に果たされていた（" + kind + "）"));
+        if (dated) {
+          LocalDate date = jst(seed.at());
+          List<String> gains = seed.game().equals("terraria")
+              ? gains(jdbc.query("SELECT observed_at, item_id, new_total - previous_total FROM T_TERRARIA_ITEM_CHANGE WHERE observed_at >= ? "
+                  + "AND observed_at < ? AND new_total > previous_total ORDER BY new_total - previous_total DESC",
+                  (rs, row) -> terrariaGain(rs.getObject(1, OffsetDateTime.class), rs.getInt(2), rs.getLong(3)), start(date), start(date.plusDays(1))))
+              : gains(jdbc.query("SELECT observed_at, object_id, new_amount - previous_amount, previous_slots, new_slots FROM T_CK_CHEST_CHANGE "
+                  + "WHERE observed_at >= ? AND observed_at < ? AND new_amount > previous_amount ORDER BY new_amount - previous_amount DESC",
+                  (rs, row) -> coreKeeperGain(rs.getObject(1, OffsetDateTime.class), rs.getInt(2), rs.getLong(3),
+                      (Integer) rs.getObject(4), (Integer) rs.getObject(5)), start(date), start(date.plusDays(1))));
+          gains.stream().limit(LOG_FACTS - 1).forEach(facts::add);
+        }
+        label = game + "・" + (dated ? day + "の" : "") + kind + "の記録";
+      }
+      case "terraria:chest" -> {
+        facts = jdbc.query("SELECT item_id, SUM(stack) FROM T_TERRARIA_CONTAINER_ITEM WHERE terraria_container_id = ? "
+            + "GROUP BY item_id ORDER BY SUM(stack) DESC, item_id", (rs, row) -> {
+              int id = rs.getInt(1);
+              String name = terrariaNames.item(id).label();
+              return unknown(name) ? null : name + "×" + rs.getLong(2) + "（" + terrariaNames.itemCategory(id).label() + "）";
+            }, seed.detail().get(0)).stream().filter(java.util.Objects::nonNull).limit(CHEST_FACTS).toList();
+        label = game + "・宝箱のひとつ（" + day + "の取り込み時点）";
+      }
+      case "corekeeper:chest" -> {
+        facts = jdbc.query("SELECT object_id, COUNT(*), SUM(amount) FROM T_CK_CONTAINER_ITEM WHERE ck_container_id = ? "
+            + "GROUP BY object_id ORDER BY COUNT(*) DESC, object_id", (rs, row) -> {
+              var name = coreKeeperNames.object(rs.getInt(1));
+              // Equipment stores durability where stacks store a count: count its slots instead.
+              long count = EQUIPMENT.contains(name.category()) ? rs.getLong(2) : rs.getLong(3);
+              return unknown(name.label()) ? null : name.label() + "×" + count + "（" + name.category().label() + "）";
+            }, seed.detail().get(0)).stream().filter(java.util.Objects::nonNull).limit(CHEST_FACTS).toList();
+        label = game + "・宝箱のひとつ（" + day + "の取り込み時点）";
+      }
+      default -> throw new IllegalStateException("unknown memory " + seed.kind());
     }
-    return slots;
+    if (facts.isEmpty()) return Optional.empty();
+    String text = String.join("\n", facts);
+    return Optional.of(new Source(seed.key(), seed.game(), seed.kind(), label, text.length() > 1000 ? text.substring(0, 1000) : text, seed.at()));
   }
 
-  /** On a blood moon night, the fighting is the blood moon. */
-  private static Set<String> bloodMoon(Set<String> categories) {
-    if (!categories.contains("bloodmoon")) return categories;
-    Set<String> merged = new TreeSet<>(categories);
-    merged.remove("combat");
-    return merged;
+  private record Gain(OffsetDateTime at, String text, String category) { }
+
+  /** The largest gains, one per item category first so a day of dirt does not hide the rest; then by time. */
+  private static List<String> gains(List<Gain> rows) {
+    List<Gain> known = rows.stream().filter(java.util.Objects::nonNull).toList();
+    List<Gain> picked = new ArrayList<>();
+    Set<String> categories = new HashSet<>();
+    for (Gain gain : known) if (picked.size() < LOG_FACTS && categories.add(gain.category())) picked.add(gain);
+    for (Gain gain : known) if (picked.size() < LOG_FACTS && !picked.contains(gain)) picked.add(gain);
+    return picked.stream().sorted(Comparator.comparing(Gain::at)).map(gain -> time(gain.at()) + " " + gain.text()).toList();
   }
 
-  /** Up to ten records of one window: mostly the category's own, the rest for context, in time order. */
-  private Optional<Source> memory(Slot slot) {
-    OffsetDateTime from = start(slot.date()).plusHours((long) slot.window() * WINDOW_HOURS);
-    List<Event> events = jdbc.query("SELECT * FROM (" + EVENTS.get(slot.game()) + ") e LIMIT " + MAX_ROWS,
-        (rs, row) -> event(slot.game(), rs.getObject(1, OffsetDateTime.class), rs.getString(2), rs.getString(3), rs.getLong(4)),
-        range(slot.game(), from, from.plusHours(WINDOW_HOURS))).stream().filter(e -> e.text() != null).toList();
-    boolean bloodMoon = events.stream().anyMatch(e -> "bloodmoon".equals(e.category()));
-    List<Event> focus = new ArrayList<>();
-    List<Event> context = new ArrayList<>();
-    for (Event event : events) {
-      String category = bloodMoon && "combat".equals(event.category()) ? "bloodmoon" : event.category();
-      (slot.category().equals(category) ? focus : context).add(event);
-    }
-    if (focus.isEmpty()) return Optional.empty();
-    Collections.shuffle(focus);
-    Collections.shuffle(context);
-    List<Event> picked = new ArrayList<>(focus.subList(0, Math.min(FOCUS_EVENTS, focus.size())));
-    context.stream().limit(MAX_EVENTS - picked.size()).forEach(picked::add);
-    // Fill from the focus again when there is little context.
-    focus.stream().skip(Math.min(FOCUS_EVENTS, focus.size())).limit(MAX_EVENTS - picked.size()).forEach(picked::add);
-    picked.sort(Comparator.comparing(Event::at));
-    String facts = picked.stream()
-        .map(e -> TIME.format(e.at().atZoneSameInstant(GuildService.TOKYO)) + " " + e.text())
-        .collect(Collectors.joining("\n"));
-    int hour = slot.window() * WINDOW_HOURS;
-    String label = GAMES.get(slot.game()) + "・" + DAY.format(slot.date()) + " " + hour + "時〜" + (hour + WINDOW_HOURS)
-        + "時の記録（" + CATEGORIES.get(slot.category()) + "）";
-    return Optional.of(new Source(slot.key(), slot.game(), slot.category(), label,
-        facts.length() > 1000 ? facts.substring(0, 1000) : facts, from));
+  private Gain terrariaGain(OffsetDateTime at, int id, long amount) {
+    String name = terrariaNames.item(id).label();
+    return unknown(name) ? null : new Gain(at, "宝箱の" + name + "が" + amount + "個増えた", terrariaNames.itemCategory(id).name());
   }
 
-  /** The category a record speaks for, or null when it only gives context (arrivals, items used up). */
-  private String category(String game, String kind, String detail, int direction) {
-    return switch (game + ":" + kind) {
-      case "7dtd:kill", "7dtd:WANDERING_HORDE", "7dtd:SCOUT_HORDE", "7dtd:SCREAMER_SPAWN" -> "combat";
-      case "7dtd:BLOOD_MOON" -> "bloodmoon";
-      case "7dtd:PLAYER_DEATH" -> "survival";
-      case "7dtd:AIR_DROP", "7dtd:sleeper" -> "exploration";
-      case "7dtd:drive" -> "travel";
-      case "7dtd:levelup" -> switch (String.valueOf(detail)) {
-        case "harvest" -> "gathering";
-        case "loot" -> "exploration";
-        default -> "combat";
-      };
-      case "terraria:item" -> direction > 0 ? terrariaItem(Integer.parseInt(detail)) : null;
-      case "terraria:kill" -> "hunting";
-      case "terraria:progress", "corekeeper:progress" -> "boss";
-      case "corekeeper:join" -> "exploration";
-      case "corekeeper:item" -> direction > 0 ? coreKeeperItem(Integer.parseInt(detail)) : null;
-      default -> null;
-    };
-  }
-
-  private String terrariaItem(int id) {
-    var name = terrariaNames.item(id);
-    if (FISH.matcher(name.key() + " " + name.en()).matches()) return "fishing";
-    TerrariaItemCategory category = terrariaNames.itemCategory(id);
-    return switch (category) {
-      case ORE -> "mining";
-      case BLOCK, PLACEABLE -> "building";
-      default -> null;
-    };
-  }
-
-  private String coreKeeperItem(int id) {
+  private Gain coreKeeperGain(OffsetDateTime at, int id, long amount, Integer previousSlots, Integer newSlots) {
     var name = coreKeeperNames.object(id);
-    if (SEED.matcher(name.key() + " " + name.en()).matches()) return "farming";
-    ItemCategory category = name.category();
-    return switch (category) {
-      case FOOD -> "cooking";
-      case ORE -> "mining";
-      case PLACEABLE -> "building";
-      default -> null;
-    };
-  }
-
-  private Event event(String game, OffsetDateTime at, String kind, String detail, long amount) {
-    String text = switch (game + ":" + kind) {
-      case "7dtd:kill" -> detail + "を倒した";
-      case "7dtd:join" -> "誰かがこの地にやって来た";
-      case "7dtd:leave" -> "誰かが旅立った";
-      case "7dtd:PLAYER_DEATH" -> "誰かが倒れた";
-      case "7dtd:BLOOD_MOON" -> "ブラッドムーンが昇った";
-      case "7dtd:WANDERING_HORDE", "7dtd:SCOUT_HORDE" -> "ゾンビの群れが近づいてきた";
-      case "7dtd:SCREAMER_SPAWN" -> "スクリーマーの叫び声が響いた";
-      case "7dtd:AIR_DROP" -> "補給物資が空から降ってきた";
-      case "7dtd:sleeper" -> "誰かが建物の奥へ踏み込んだ";
-      case "7dtd:levelup" -> switch (String.valueOf(detail)) {
-        case "harvest" -> "採集を重ねて腕が上がった";
-        case "loot" -> "物資を探し歩いて腕が上がった";
-        default -> "戦いを重ねて腕が上がった";
-      };
-      case "7dtd:drive" -> "乗り物で" + amount + "mほど走った";
-      case "terraria:item" -> change(terrariaNames.item(Integer.parseInt(detail)).label(), amount);
-      case "terraria:kill" -> terrariaNames.npc(detail).label() + "を" + amount + "体倒した";
-      case "corekeeper:join" -> "誰かが洞窟へ降りてきた";
-      case "corekeeper:leave" -> "誰かが地上へ戻った";
-      case "corekeeper:item" -> change(coreKeeperNames.object(Integer.parseInt(detail)).label(), amount);
-      case "terraria:progress", "corekeeper:progress" -> detail + "を達成した";
-      default -> null;
-    };
-    String category = text == null ? null
-        : category(game, kind, kind.equals("item") || kind.equals("levelup") ? detail : null, Long.signum(amount));
-    return new Event(at, text, category);
-  }
-
-  private static String change(String name, long amount) {
-    if (amount == 0) return null;
-    return amount > 0 ? name + "が" + amount + "個増えた" : name + "が" + -amount + "個減った";
-  }
-
-  private static Object[] range(String game, OffsetDateTime from, OffsetDateTime to) {
-    int branches = EVENTS.get(game).split("\\?").length / 2;
-    Object[] args = new Object[branches * 2];
-    for (int i = 0; i < branches; i++) {
-      args[i * 2] = from;
-      args[i * 2 + 1] = to;
+    if (unknown(name.label())) return null;
+    long count = amount;
+    if (EQUIPMENT.contains(name.category())) {
+      if (previousSlots == null || newSlots == null || newSlots <= previousSlots) return null;
+      count = newSlots - previousSlots;
     }
-    return args;
+    return new Gain(at, "宝箱に" + name.label() + "が" + count + "個増えた", name.category().name());
+  }
+
+  /** The nearest place within 80m of a point, or null in the wilds. */
+  private String nearestPlace(int x, int z) {
+    return jdbc.query("SELECT poi_name FROM M_WORLD_POI WHERE x BETWEEN ? AND ? AND z BETWEEN ? AND ? "
+        + "AND (x - ?) * (x - ?) + (z - ?) * (z - ?) <= ? AND COALESCE(category, '') <> 'part' AND poi_name NOT LIKE 'part_%' "
+        + "ORDER BY (x - ?) * (x - ?) + (z - ?) * (z - ?) LIMIT 1", (rs, row) -> poiNames.displayName(rs.getString(1)),
+        x - POI_RADIUS, x + POI_RADIUS, z - POI_RADIUS, z + POI_RADIUS, x, x, z, z, POI_RADIUS * POI_RADIUS, x, x, z, z)
+        .stream().findFirst().orElse(null);
+  }
+
+  private String enemy(String type) {
+    return jdbc.queryForList("SELECT display_text FROM M_JAPANESE_TRANSLATION WHERE localization_key = ? LIMIT 1", String.class, type)
+        .stream().findFirst().orElse(type);
+  }
+
+  private Long world(String game) {
+    return jdbc.queryForList("SELECT game_world_id FROM M_GAME_WORLD WHERE game_id = ? AND active = TRUE ORDER BY game_world_id DESC LIMIT 1",
+        Long.class, game).stream().findFirst().orElse(null);
+  }
+
+  private Map.Entry<Long, OffsetDateTime> latestSnapshot(long world) {
+    return jdbc.query("SELECT world_snapshot_id, captured_at FROM T_WORLD_SNAPSHOT WHERE game_world_id = ? ORDER BY captured_at DESC LIMIT 1",
+        (rs, row) -> Map.entry(rs.getLong(1), rs.getObject(2, OffsetDateTime.class)), world).stream().findFirst().orElse(null);
+  }
+
+  /** Items missing from the names tables ("#7", "アイテム #7") tell the AI nothing, so they are left out. */
+  static boolean unknown(String name) {
+    return name == null || name.contains("#");
+  }
+
+  private static String time(OffsetDateTime at) {
+    return TIME.format(at.atZoneSameInstant(GuildService.TOKYO));
+  }
+
+  private static LocalDate jst(OffsetDateTime at) {
+    return at.atZoneSameInstant(GuildService.TOKYO).toLocalDate();
   }
 
   private static OffsetDateTime start(LocalDate date) {

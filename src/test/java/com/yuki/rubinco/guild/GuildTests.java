@@ -40,6 +40,7 @@ class GuildTests {
   @Autowired GuildInteractionService interactions;
   @Autowired GuildInteractionWriter writer;
   @Autowired GuildChronicle chronicle;
+  @Autowired GuildDossier dossier;
   @Autowired JdbcTemplate jdbc;
   @Autowired MockMvc mvc;
   @MockitoBean BedrockTextClient bedrock;
@@ -58,10 +59,13 @@ class GuildTests {
         "T_GUILD_RELATION", "T_GUILD_BOND", "T_GUILD_HOURLY_JOB", "T_GUILD_SOURCE", "T_GUILD_VISIT", "T_GUILD_DAY", "T_GUILD_JOB", "M_GUILD_CHARACTER", "T_CK_SESSION", "M_CK_PLAYER")) {
       jdbc.update("DELETE FROM " + table);
     }
-    for (String table : List.of("T_PLAYER_JOIN_TRANSACTION", "T_WORLD_EVENT_TRANSACTION", "T_ENTITY_KILL_TRANSACTION")) {
+    for (String table : List.of("T_PLAYER_JOIN_TRANSACTION", "T_WORLD_EVENT_TRANSACTION", "T_ENTITY_KILL_TRANSACTION", "T_PLAYER_POSITION_TRANSACTION")) {
       jdbc.update("DELETE FROM " + table + " WHERE source_file = 'guild-test'");
     }
     String snapshots = "(SELECT world_snapshot_id FROM T_WORLD_SNAPSHOT WHERE parser_version = 'guild-test')";
+    jdbc.update("DELETE FROM M_WORLD_POI WHERE source_hash LIKE 'guild-test%'");
+    jdbc.update("DELETE FROM T_PROGRESS_EVENT WHERE world_snapshot_id IN " + snapshots);
+    jdbc.update("DELETE FROM T_CK_CHEST_CHANGE WHERE world_snapshot_id IN " + snapshots);
     jdbc.update("DELETE FROM T_PROGRESS_STATE WHERE world_snapshot_id IN " + snapshots);
     jdbc.update("DELETE FROM T_CK_CONTAINER WHERE world_snapshot_id IN " + snapshots);
     jdbc.update("DELETE FROM T_WORLD_SNAPSHOT WHERE parser_version = 'guild-test'");
@@ -95,42 +99,94 @@ class GuildTests {
     return jdbc.queryForObject(sql, Integer.class, args);
   }
 
-  /** One Core Keeper session 70 days ago, 10:00-10:30 JST: exactly one memory (the 9-12 window). */
+  /**
+   * One memory: a player defeated "zombieGuild10" beside an old house 70 days ago at 10:00 JST. A Core Keeper
+   * player and session exist too, only to prove neither their name nor id ever leaves.
+   */
   private void source() {
     sourceAt(10);
   }
 
+  /** Each hour is a different enemy, so a separate memory. */
   private void sourceAt(int hour) {
     var at = LocalDate.now(GuildService.TOKYO).minusDays(70).atTime(hour, 0).atZone(GuildService.TOKYO).toOffsetDateTime();
     jdbc.update("INSERT INTO M_CK_PLAYER (steam_id,player_name,first_seen_at,last_seen_at) VALUES (?,'PRIVATE_PLAYER_SECRET',?,?)",
         "76561123456789" + hour, at, at);
     long id = jdbc.queryForObject("SELECT MAX(id) FROM M_CK_PLAYER", Long.class);
     jdbc.update("INSERT INTO T_CK_SESSION (ck_player_id,player_name,connected_at,disconnected_at) VALUES (?,'PRIVATE_PLAYER_SECRET',?,?)", id, at, at.plusMinutes(30));
+    poi("house_old", 1000, 2000);
+    kill(at, "zombieGuild" + hour, 1010, 2010, "source-" + hour);
   }
 
-  /** The AI reads the world as it was then: the earlier snapshot's achievements, spoilers unnamed, a chest without its label. */
-  @Test void theAiReadsTheWorldAroundTheMemoryWithoutPlayersOrChestLabels() {
-    source();
+  private long poi(String name, int x, int z) {
+    String hash = "guild-test-" + name + "-" + x + "-" + z;
+    if (count("SELECT COUNT(*) FROM M_WORLD_POI WHERE source_hash = ?", hash) == 0) {
+      jdbc.update("INSERT INTO M_WORLD_POI (source_hash,world_name,poi_name,category,x,y,z) VALUES (?,'PRIVATE_WORLD',?,'house',?,40,?)", hash, name, x, z);
+    }
+    return jdbc.queryForObject("SELECT id FROM M_WORLD_POI WHERE source_hash = ?", Long.class, hash);
+  }
+
+  private void walk(OffsetDateTime at, int x, int z, String mode, String hash) {
+    jdbc.update("INSERT INTO T_PLAYER_POSITION_TRANSACTION (occurred_at,player_name,player_entity_id,position_x,position_z,position_source_type,"
+        + "source_event_hash,source_file,movement_mode) VALUES (?,'PRIVATE_NAME',1,?,?,'TEST',?,'guild-test',?)", at, x, z, "guild-test-" + hash, mode);
+  }
+
+  /**
+   * Core Keeper memories are a chest's gains, a chest at least half full, or a milestone. Spoilers stay
+   * unnamed, chest labels and places never leave, and the AI reads the progress as it was then.
+   */
+  @Test void coreKeeperMemoriesComeFromChestsAndMilestones() {
     long world = jdbc.queryForObject("SELECT game_world_id FROM M_GAME_WORLD WHERE game_id = 'corekeeper' AND active = TRUE", Long.class);
-    var memory = LocalDate.now(GuildService.TOKYO).minusDays(70).atTime(10, 0).atZone(GuildService.TOKYO).toOffsetDateTime();
-    long then = snapshot(world, memory.minusDays(1), "a");
-    long now = snapshot(world, memory.plusDays(60), "b");
-    for (String key : List.of("great_wall_lowered", "boss_bird")) achieve(then, key);
-    for (String key : List.of("great_wall_lowered", "boss_bird", "boss_octopus")) achieve(now, key);
-    jdbc.update("INSERT INTO T_CK_CONTAINER (game_world_id,world_snapshot_id,holder,object_id,variation,pos_x,pos_z,slot_count,filled_slots,label) "
-        + "VALUES (?,?,'STORAGE',1,0,123,456,10,2,'PRIVATE_PLAYER_SECRETの箱')", world, now);
-    long chest = jdbc.queryForObject("SELECT MAX(ck_container_id) FROM T_CK_CONTAINER", Long.class);
-    jdbc.update("INSERT INTO T_CK_CONTAINER_ITEM (ck_container_id,game_world_id,slot,object_id,amount,variation) VALUES (?,?,0,7,30,0),(?,?,1,7,30,0)",
-        chest, world, chest, world);
-    guild.generateToday();
-    verify(bedrock).generate(anyString(), argThat(prompt -> prompt.contains("その頃の世界=")
-        && prompt.contains("ボス討伐 1/") && prompt.contains("世界の変化 1/1") && prompt.contains("大壁の解放")
-        && !prompt.contains("Azeos") && !prompt.contains("Omoroth") && !prompt.contains("#7")
-        && prompt.contains("洞窟へ降りた回数: 1回") && prompt.contains("性別の選択肢=女性、男性")
-        && !prompt.contains("PRIVATE_PLAYER_SECRET") && !prompt.contains("765611") && !prompt.contains("123")), eq(1200), anyFloat(), any());
-    long id = guild.characters(0).getFirst().id();
-    // Item names come from the game's tables, absent in tests: an unnamed chest is left out rather than shown as ids.
-    assertThat(guild.worlds().get(id)).contains("大壁の解放").doesNotContain("倉庫のひとつ").doesNotContain("PRIVATE_PLAYER_SECRET");
+    var lowered = LocalDate.now(GuildService.TOKYO).minusDays(20).atTime(15, 30).atZone(GuildService.TOKYO).toOffsetDateTime();
+    long then = snapshot(world, lowered.minusDays(1), "a");
+    long now = snapshot(world, LocalDate.now(GuildService.TOKYO).minusDays(1).atStartOfDay(GuildService.TOKYO).toOffsetDateTime(), "b");
+    achieve(then, "boss_bird");
+    for (String key : List.of("great_wall_lowered", "boss_bird")) achieve(now, key);
+    jdbc.update("INSERT INTO T_PROGRESS_EVENT (game_world_id,progress_definition_id,world_snapshot_id,previous_state,new_state,change_kind,first_observed_at) "
+        + "SELECT ?, progress_definition_id, ?, 'NOT_ACHIEVED', 'ACHIEVED', 'CHANGED', ? FROM M_PROGRESS_DEFINITION "
+        + "WHERE game_id = 'corekeeper' AND progress_key = 'great_wall_lowered'", world, now, lowered);
+    // A half-full chest counts, a nearly empty one does not. Item names are absent in tests, so its memory reads back empty.
+    for (int filled : new int[] {5, 1}) {
+      jdbc.update("INSERT INTO T_CK_CONTAINER (game_world_id,world_snapshot_id,holder,object_id,variation,pos_x,pos_z,slot_count,filled_slots,label) "
+          + "VALUES (?,?,'STORAGE',1,0,?,456,10,?,'PRIVATE_PLAYER_SECRETの箱')", world, now, 123 + filled, filled);
+    }
+    jdbc.update("INSERT INTO T_CK_CHEST_CHANGE (game_world_id,world_snapshot_id,chest_object_id,pos_x,pos_z,label,object_id,previous_amount,new_amount,observed_at) "
+        + "VALUES (?,?,1,128,456,'PRIVATE_PLAYER_SECRETの箱',7,0,30,?)", world, now, lowered);
+    assertThat(sources.inventory(LocalDate.now(GuildService.TOKYO))).containsExactly(
+        new GuildSourceService.Inventory("corekeeper", "gain", 1), new GuildSourceService.Inventory("corekeeper", "milestone", 2),
+        new GuildSourceService.Inventory("corekeeper", "chest", 1));
+    java.util.Set<String> facts = new java.util.HashSet<>();
+    for (int i = 0; i < 40; i++) sources.choose(LocalDate.now(GuildService.TOKYO)).source().ifPresent(source -> {
+      assertThat(source.category()).isEqualTo("milestone");
+      assertThat(source.label() + source.facts()).doesNotContain("PRIVATE").doesNotContain("Azeos").doesNotContain("#").doesNotContain("456");
+      facts.add(source.facts());
+    });
+    assertThat(facts).containsExactlyInAnyOrder("15:30 「大壁の解放」を果たした（世界の変化）", "「名を伏せた大物」は記録が始まる前に果たされていた（ボス討伐）");
+    // The dated milestone is read against the snapshot before it: the bird was down, the wall not yet.
+    var wall = new GuildSourceService.Source("corekeeper:milestone:great_wall_lowered", "corekeeper", "milestone", "x", "x", lowered);
+    assertThat(dossier.build(wall)).contains("ボス討伐 1/").contains("世界の変化 0/1").doesNotContain("Azeos");
+  }
+
+  @Test void sevenDaysMemoriesArePlacesReachedOnFootAndEnemiesDefeated() {
+    var day = LocalDate.now(GuildService.TOKYO).minusDays(3);
+    var noon = day.atTime(12, 0).atZone(GuildService.TOKYO).toOffsetDateTime();
+    long house = poi("house_old", 1000, 2000);
+    poi("store_pharmacy", 5000, 5000);
+    walk(noon, 1020, 2030, "WALK", "walk");
+    walk(noon, 5000, 5010, "VEHICLE", "drive");
+    kill(noon.plusMinutes(10), "zombieGuildA", 1010, 2000, "a1");
+    kill(noon.plusMinutes(20), "zombieGuildB", 3000, 3000, "b1");
+    // World events, joins and the blood moon schedule are no longer memories.
+    worldEvent(noon, "BLOOD_MOON", "moon");
+    worldEvent(noon, "AIR_DROP", "air");
+    assertThat(sources.inventory(LocalDate.now(GuildService.TOKYO))).containsExactly(
+        new GuildSourceService.Inventory("7dtd", "place", 1), new GuildSourceService.Inventory("7dtd", "hunt", 2));
+    java.util.Map<String, String> seen = new java.util.HashMap<>();
+    for (int i = 0; i < 60; i++) sources.choose(LocalDate.now(GuildService.TOKYO)).source().ifPresent(source -> seen.put(source.key(), source.facts()));
+    assertThat(seen).containsEntry("7dtd:place:" + house, "12:00 古い家に足を踏み入れた\n12:10 古い家でzombieGuildAを倒した")
+        .containsEntry("7dtd:hunt:" + day + ":zombieGuildA", "12:10 古い家でzombieGuildAを倒した")
+        .containsEntry("7dtd:hunt:" + day + ":zombieGuildB", "12:20 zombieGuildBを倒した");
+    assertThat(seen.values()).allSatisfy(facts -> assertThat(facts).doesNotContain("PRIVATE").doesNotContain("薬局"));
   }
 
   private long snapshot(long world, OffsetDateTime at, String hash) {
@@ -140,8 +196,38 @@ class GuildTests {
   }
 
   private void achieve(long snapshot, String key) {
+    achieve(snapshot, "corekeeper", key);
+  }
+
+  private void achieve(long snapshot, String game, String key) {
     jdbc.update("INSERT INTO T_PROGRESS_STATE (world_snapshot_id,progress_definition_id,state) SELECT ?, progress_definition_id, 'ACHIEVED' "
-        + "FROM M_PROGRESS_DEFINITION WHERE game_id = 'corekeeper' AND progress_key = ?", snapshot, key);
+        + "FROM M_PROGRESS_DEFINITION WHERE game_id = ? AND progress_key = ?", snapshot, game, key);
+  }
+
+  /** Terraria: a day's chest gains, bosses and events achieved (town NPCs are not), and chests at least half full. */
+  @Test void terrariaMemoriesComeFromChestGainsMilestonesAndFullChests() {
+    long world = jdbc.queryForObject("SELECT game_world_id FROM M_GAME_WORLD WHERE game_id = 'terraria' AND active = TRUE", Long.class);
+    long now = snapshot(world, LocalDate.now(GuildService.TOKYO).minusDays(1).atStartOfDay(GuildService.TOKYO).toOffsetDateTime(), "t");
+    for (String key : List.of("boss_eye", "event_goblins", "npc_goblin")) achieve(now, "terraria", key);
+    var day = LocalDate.now(GuildService.TOKYO).minusDays(4).atTime(20, 0).atZone(GuildService.TOKYO).toOffsetDateTime();
+    jdbc.update("INSERT INTO T_TERRARIA_ITEM_CHANGE (game_world_id,world_snapshot_id,item_id,previous_total,new_total,observed_at) VALUES "
+        + "(?,?,1,0,5,?),(?,?,2,9,3,?)", world, now, day, world, now, day.minusDays(1));
+    for (int filled : new int[] {20, 40, 3}) {
+      jdbc.update("INSERT INTO T_TERRARIA_CONTAINER (game_world_id,world_snapshot_id,container_kind,tile_x,tile_y,name,slot_count,filled_slots,managed) "
+          + "VALUES (?,?,'CHEST',?,10,'PRIVATE_PLAYER_SECRET',40,?,TRUE)", world, now, filled, filled);
+    }
+    try {
+      assertThat(sources.inventory(LocalDate.now(GuildService.TOKYO))).containsExactly(
+          new GuildSourceService.Inventory("terraria", "gain", 1), new GuildSourceService.Inventory("terraria", "milestone", 2),
+          new GuildSourceService.Inventory("terraria", "chest", 2));
+      java.util.Set<String> facts = new java.util.HashSet<>();
+      for (int i = 0; i < 40; i++) sources.choose(LocalDate.now(GuildService.TOKYO)).source().ifPresent(source -> facts.add(source.facts()));
+      assertThat(facts).containsExactlyInAnyOrder("「クトゥルフのめだま」は記録が始まる前に果たされていた（ボス討伐）",
+          "「ゴブリンしんりゃく」は記録が始まる前に果たされていた（イベント）");
+    } finally {
+      jdbc.update("DELETE FROM T_TERRARIA_ITEM_CHANGE WHERE world_snapshot_id = ?", now);
+      jdbc.update("DELETE FROM T_TERRARIA_CONTAINER WHERE world_snapshot_id = ?", now);
+    }
   }
 
   @Test void anHourHoldsOneInteractionEvenWhenRunTwiceAtOnce() throws Exception {
@@ -327,10 +413,10 @@ class GuildTests {
         .andExpect(content().string(containsString("記録から読み取られたこと：出入りの多い短い一日から")))
         .andExpect(content().string(containsString("ヨーロッパ系の名")))
         .andExpect(content().string(containsString("guild-people.svg?v=2#outfit-")))
-        .andExpect(content().string(containsString("Core Keeper・")))
-        .andExpect(content().string(containsString("9時〜12時の記録（探索）から生まれました")))
-        .andExpect(content().string(containsString("10:00 誰かが洞窟へ降りてきた")))
-        .andExpect(content().string(containsString("10:30 誰かが地上へ戻った")))
+        .andExpect(content().string(containsString("7 Days to Die・")))
+        .andExpect(content().string(containsString("zombieGuild10を1体倒した日から生まれました")))
+        .andExpect(content().string(containsString("10:00 古い家でzombieGuild10を倒した")))
+        .andExpect(content().string(not(containsString("PRIVATE_WORLD"))))
         .andExpect(content().string(not(containsString("PRIVATE_PLAYER_SECRET"))))
         .andExpect(content().string(not(containsString("765611"))))
         .andExpect(content().string(not(containsString("source_key"))));
@@ -415,29 +501,31 @@ class GuildTests {
   @Test void memoriesComeFromPastDaysOnlyAndNeverNamePlayers() {
     var yesterday = LocalDate.now(GuildService.TOKYO).minusDays(1).atTime(21, 5).atZone(GuildService.TOKYO).toOffsetDateTime();
     jdbc.update("INSERT INTO T_PLAYER_JOIN_TRANSACTION (occurred_at,player_name,player_entity_id,platform_id,cross_platform_id,source_file,source_log_hash,created_at) VALUES (?,'PRIVATE_NAME',1,'PRIVATE_PLATFORM','PRIVATE_CROSS','guild-test','guild-test-hash',?)", yesterday, yesterday);
-    assertThat(sources.choose(LocalDate.now(GuildService.TOKYO)).source()).isEmpty();
     worldEvent(yesterday.plusMinutes(1), "AIR_DROP", "air");
+    assertThat(sources.choose(LocalDate.now(GuildService.TOKYO)).source()).isEmpty();
+    kill(yesterday.plusMinutes(2), "zombieGuild", null, null, "yesterday");
+    // A zombie killing an animal is not a player's memory.
+    jdbc.update("INSERT INTO T_ENTITY_KILL_TRANSACTION (occurred_at,player_name,player_entity_id,target_entity_type,target_entity_id,source_file,source_log_hash) "
+        + "VALUES (?,'zombieBoe',9,'animalRabbit',2,'guild-test','guild-test-zombie')", yesterday);
     assertThat(sources.choose(LocalDate.now(GuildService.TOKYO)).source()).hasValueSatisfying(source -> {
       assertThat(source.game()).isEqualTo("7dtd");
-      assertThat(source.category()).isEqualTo("exploration");
-      assertThat(source.label()).startsWith("7 Days to Die・").endsWith("21時〜24時の記録（探索）");
-      assertThat(source.facts()).isEqualTo("21:05 誰かがこの地にやって来た\n21:06 補給物資が空から降ってきた");
+      assertThat(source.category()).isEqualTo("hunt");
+      assertThat(source.label()).startsWith("7 Days to Die・").endsWith("zombieGuildを1体倒した日");
+      assertThat(source.facts()).isEqualTo("21:07 zombieGuildを倒した");
       assertThat(source.key() + source.facts() + source.label()).doesNotContain("PRIVATE");
     });
-    jdbc.update("UPDATE T_WORLD_EVENT_TRANSACTION SET occurred_at = ? WHERE source_file='guild-test'", OffsetDateTime.now());
+    jdbc.update("UPDATE T_ENTITY_KILL_TRANSACTION SET occurred_at = ? WHERE source_file='guild-test'", OffsetDateTime.now());
     assertThat(sources.choose(LocalDate.now(GuildService.TOKYO)).source()).isEmpty();
   }
 
-  @Test void tenRecordsAtMostAndInTimeOrder() {
+  @Test void aDayOfOneEnemyGivesItsFirstMiddleAndLastKill() {
     var day = LocalDate.now(GuildService.TOKYO).minusDays(3);
     for (int minute = 0; minute < 30; minute++) {
-      worldEvent(day.atTime(13, minute).atZone(GuildService.TOKYO).toOffsetDateTime(), "AIR_DROP", "air-" + minute);
+      kill(day.atTime(13, minute).atZone(GuildService.TOKYO).toOffsetDateTime(), "zombieGuild", null, null, "k-" + minute);
     }
     var source = sources.choose(LocalDate.now(GuildService.TOKYO)).source().orElseThrow();
-    List<String> lines = source.facts().lines().toList();
-    assertThat(lines).hasSize(10);
-    assertThat(lines).isSortedAccordingTo(java.util.Comparator.comparing(line -> java.time.LocalTime.parse(line.split(" ")[0], java.time.format.DateTimeFormatter.ofPattern("H:mm"))));
-    assertThat(source.label()).endsWith("12時〜15時の記録（探索）");
+    assertThat(source.facts()).isEqualTo("13:00 zombieGuildを倒した\n13:15 zombieGuildを倒した\n13:29 zombieGuildを倒した");
+    assertThat(source.label()).endsWith("zombieGuildを30体倒した日");
   }
 
   private void worldEvent(OffsetDateTime at, String type, String hash) {
@@ -445,42 +533,32 @@ class GuildTests {
         + "VALUES (?,?,'PRIVATE_NAME','guild-test',?,'PRIVATE_RAW')", at, type, "guild-test-" + hash);
   }
 
-  private void kill(OffsetDateTime at, String hash) {
-    jdbc.update("INSERT INTO T_ENTITY_KILL_TRANSACTION (occurred_at,player_name,player_entity_id,target_entity_type,target_entity_id,source_file,source_log_hash) "
-        + "VALUES (?,'PRIVATE_NAME',1,'zombieBoe',2,'guild-test',?)", at, "guild-test-" + hash);
-  }
-
-  @Test void bloodMoonFightsAreOneCategoryAndOtherFightsAnother() {
-    var moon = LocalDate.now(GuildService.TOKYO).minusDays(5).atTime(22, 0).atZone(GuildService.TOKYO).toOffsetDateTime();
-    var noon = LocalDate.now(GuildService.TOKYO).minusDays(4).atTime(13, 0).atZone(GuildService.TOKYO).toOffsetDateTime();
-    worldEvent(moon, "BLOOD_MOON", "moon");
-    kill(moon.plusMinutes(5), "moon-kill");
-    kill(noon, "noon-kill");
-    assertThat(sources.inventory(LocalDate.now(GuildService.TOKYO))).containsExactly(
-        new GuildSourceService.Inventory("7dtd", "bloodmoon", 1), new GuildSourceService.Inventory("7dtd", "combat", 1));
+  private void kill(OffsetDateTime at, String type, Integer x, Integer z, String hash) {
+    jdbc.update("INSERT INTO T_ENTITY_KILL_TRANSACTION (occurred_at,player_name,player_entity_id,target_entity_type,target_entity_id,source_file,source_log_hash,"
+        + "player_position_x,player_position_z) VALUES (?,'PRIVATE_NAME',1,?,2,'guild-test',?,?,?)", at, type, "guild-test-" + hash, x, z);
   }
 
   @Test void aCategoryAtItsCapIsLeftOutUntilOthersArrive() throws Exception {
-    // Three recent residents (the cap) were born from exploration memories.
+    // Three recent residents (the cap) were born from enemies defeated.
     for (int i = 1; i <= 3; i++) {
-      jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance) VALUES (?,'corekeeper',?,'紹介','出自','性格','moss')",
+      jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance) VALUES (?,'7dtd',?,'紹介','出自','性格','moss')",
           LocalDate.now(GuildService.TOKYO).minusDays(i), "テスト" + "アイウ".charAt(i - 1));
       long id = jdbc.queryForObject("SELECT MAX(id) FROM M_GUILD_CHARACTER", Long.class);
-      jdbc.update("INSERT INTO T_GUILD_SOURCE (character_id,source_key,facts,memory_label,category) VALUES (?,?,'x','x','exploration')", id, "memory:test:" + i);
+      jdbc.update("INSERT INTO T_GUILD_SOURCE (character_id,source_key,facts,memory_label,category) VALUES (?,?,'x','x','hunt')", id, "memory:test:" + i);
     }
     source();
     var choice = sources.choose(LocalDate.now(GuildService.TOKYO));
     assertThat(choice.source()).isEmpty();
-    assertThat(choice.skipped()).contains("探索").contains("偏り");
+    assertThat(choice.skipped()).contains("倒したもの").contains("偏り");
     assertThat(guild.generateToday()).contains("偏り");
     verifyNoInteractions(bedrock);
     mvc.perform(get("/guild/maintenance").with(user("admin").roles("ADMIN"))).andExpect(status().isOk())
-        .andExpect(content().string(containsString("直近の住人（新しい順）: 探索、探索、探索")))
-        .andExpect(content().string(containsString("<td>Core Keeper</td><td>探索</td><td>1</td>")));
-    // A fight from another game is still welcome.
-    kill(LocalDate.now(GuildService.TOKYO).minusDays(2).atTime(13, 0).atZone(GuildService.TOKYO).toOffsetDateTime(), "other");
+        .andExpect(content().string(containsString("直近の住人（新しい順）: 倒したもの、倒したもの、倒したもの")))
+        .andExpect(content().string(containsString("<td>7 Days to Die</td><td>倒したもの</td><td>1</td>")));
+    // A place reached on foot is still welcome.
+    walk(LocalDate.now(GuildService.TOKYO).minusDays(2).atTime(13, 0).atZone(GuildService.TOKYO).toOffsetDateTime(), 1000, 2000, "WALK", "other");
     assertThat(sources.choose(LocalDate.now(GuildService.TOKYO)).source()).hasValueSatisfying(source ->
-        assertThat(source.category()).isEqualTo("combat"));
+        assertThat(source.category()).isEqualTo("place"));
   }
 
   @Test void theAiChoosesOnlyWhatIsOfferedAndCrowdedChoicesAreLeftOut() {
@@ -559,7 +637,7 @@ class GuildTests {
     assertThat(guild.room(ZonedDateTime.now()).visits()).hasSize(2);
     mvc.perform(get("/guild/maintenance").with(admin)).andExpect(status().isOk())
         .andExpect(content().string(containsString("今日迎えた住人: 2 / 2 人")))
-        .andExpect(content().string(containsString("Core Keeper・")));
+        .andExpect(content().string(containsString("7 Days to Die・")));
 
     long id = guild.characters(0).getFirst().id();
     mvc.perform(post("/guild/maintenance/characters/" + id + "/delete").with(user("member").roles("PLAYER")).with(csrf()))
