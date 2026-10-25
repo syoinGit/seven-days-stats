@@ -99,6 +99,16 @@ class OctarineWebTests {
         .andExpect(content().string(not(containsString("/octarine/maintenance"))));
     mvc.perform(get("/octarine").param("spoilers", "true").with(member()))
         .andExpect(content().string(not(containsString("Azeos"))));
+    // Same page structure as Luminite: tabs on top, the page, then a sidebar with the server and the timeline.
+    mvc.perform(get("/octarine").with(member()))
+        .andExpect(content().string(containsString("class=\"octarine-tabs\"")))
+        .andExpect(content().string(containsString("aria-current=\"page\" class=\"active\">概要</a>")))
+        .andExpect(content().string(containsString("class=\"oc-side\"")))
+        .andExpect(content().string(containsString("octarine-server-title")))
+        .andExpect(content().string(containsString("octarine-timeline-title")))
+        .andExpect(content().string(not(containsString("ck-menu"))));
+    mvc.perform(get("/octarine/players").with(member()))
+        .andExpect(content().string(containsString("aria-current=\"page\" class=\"active\">接続とプレイ時間</a>")));
     mvc.perform(get("/octarine/history").with(member()))
         .andExpect(status().isOk())
         .andExpect(content().string(not(containsString("大壁の解放"))));

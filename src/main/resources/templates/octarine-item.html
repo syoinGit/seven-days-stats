@@ -8,13 +8,12 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='header-5')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='6')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='7')}">
 </head>
 <body class="octarine-body">
 <header th:replace="~{fragments/header :: appHeader('corekeeper', 'octarine-topbar')}"></header>
-<main class="octarine-shell ck-console">
-  <nav th:replace="~{fragments/octarine :: menu}"></nav>
-  <div class="ck-screen">
+<main class="octarine-shell">
+  <nav th:replace="~{fragments/octarine :: tabs}"></nav>
   <section class="octarine-panel" aria-labelledby="item-title" th:with="item=${detail.item}">
     <a class="octarine-back" th:href="@{/octarine/items}">← アイテム一覧</a>
     <div class="section-heading">
@@ -61,7 +60,6 @@
     </ol>
     <p class="octarine-note">取り込みの間隔ごとの差分です。その間に出し入れがあっても、差し引きしか分かりません。ラベルを付けた・外したときの中身は、増減に数えません。</p>
   </section>
-  </div>
 </main>
 </body>
 </html>
