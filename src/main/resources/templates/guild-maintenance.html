@@ -45,7 +45,9 @@
     <li th:each="character : ${characters}">
       <div><a th:href="@{/guild/characters/{id}(id=${character.id})}" th:text="${character.name}">リネ</a>
         <small th:text="${#temporals.format(character.bornOn, 'yyyy年M月d日') + ' 誕生' + (character.profile().isEmpty() ? '' : ' / ' + character.profile())}"></small>
-        <p th:text="${character.memoryLabel ?: character.gameName() + '（記憶の記録なし）'}"></p></div>
+        <p th:text="${character.memoryLabel ?: character.gameName() + '（記憶の記録なし）'}"></p>
+        <details th:if="${worlds[character.id] != null}"><summary>AIが読んだ「その頃の世界」</summary>
+          <pre class="guild-world" th:text="${worlds[character.id]}"></pre></details></div>
       <form method="post" th:action="@{/guild/maintenance/characters/{id}/delete(id=${character.id})}">
         <label><input type="checkbox" name="confirm" required> 削除する</label>
         <button type="submit">削除</button>

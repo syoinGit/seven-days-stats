@@ -29,10 +29,7 @@ import org.springframework.test.web.servlet.MockMvc;
     "spring.datasource.url=jdbc:h2:mem:guild;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000",
     "spring.datasource.driver-class-name=org.h2.Driver", "spring.jpa.hibernate.ddl-auto=validate",
     "spring.flyway.enabled=true", "app.sevendays.import.startup-enabled=false",
-    "app.guild.enabled=true", "app.guild.visit-initial-delay=1h", "app.guild.daily-limit=2",
-    // Women only and European names only, so drafts and profiles are predictable.
-    "app.guild.female-ratio=1", "app.guild.lineage-weights.japanese=0", "app.guild.lineage-weights.north=0",
-    "app.guild.lineage-weights.desert=0", "app.guild.lineage-weights.steppe=0"
+    "app.guild.enabled=true", "app.guild.visit-initial-delay=1h", "app.guild.daily-limit=2"
 })
 @AutoConfigureMockMvc
 class GuildTests {
@@ -47,9 +44,14 @@ class GuildTests {
   @Autowired MockMvc mvc;
   @MockitoBean BedrockTextClient bedrock;
   static final String DRAFT = """
-      {"name":"リネ","age":28,"introduction":"旅の道具を直す職人。小さな店を持ちたい。",
+      {"reading":"出入りの多い短い一日から、身軽に動き回る暮らしが見えた。","gender":"女性","occupation":"冒険者",
+       "lineage":"ヨーロッパ系","name":"リネ","age":28,"introduction":"旅の道具を直す職人。小さな店を持ちたい。",
        "personality":"慎重な話し方。修理は得意だが道に迷う。節約家なのに本には目がない。"}
       """;
+
+  /** Every choice open, as for a town with no residents yet. */
+  static final GuildPeople.Options OPEN = new GuildPeople.Options(GuildPeople.GENDERS,
+      GuildPeople.OUTFITS.keySet().stream().sorted().toList(), List.of(GuildPeople.Lineage.values()), List.of());
 
   @BeforeEach void setup() {
     for (String table : List.of("T_GUILD_RELATION_EVENT", "T_GUILD_THREAD", "T_GUILD_INTERACTION_PARTICIPANT", "T_GUILD_INTERACTION",
@@ -59,6 +61,9 @@ class GuildTests {
     for (String table : List.of("T_PLAYER_JOIN_TRANSACTION", "T_WORLD_EVENT_TRANSACTION", "T_ENTITY_KILL_TRANSACTION")) {
       jdbc.update("DELETE FROM " + table + " WHERE source_file = 'guild-test'");
     }
+    String snapshots = "(SELECT world_snapshot_id FROM T_WORLD_SNAPSHOT WHERE parser_version = 'guild-test')";
+    jdbc.update("DELETE FROM T_PROGRESS_STATE WHERE world_snapshot_id IN " + snapshots);
+    jdbc.update("DELETE FROM T_CK_CONTAINER WHERE world_snapshot_id IN " + snapshots);
     jdbc.update("DELETE FROM T_WORLD_SNAPSHOT WHERE parser_version = 'guild-test'");
     reset(bedrock);
     when(bedrock.generate(anyString(), anyString(), anyInt(), anyFloat(), any())).thenReturn(DRAFT);
@@ -101,6 +106,42 @@ class GuildTests {
         "76561123456789" + hour, at, at);
     long id = jdbc.queryForObject("SELECT MAX(id) FROM M_CK_PLAYER", Long.class);
     jdbc.update("INSERT INTO T_CK_SESSION (ck_player_id,player_name,connected_at,disconnected_at) VALUES (?,'PRIVATE_PLAYER_SECRET',?,?)", id, at, at.plusMinutes(30));
+  }
+
+  /** The AI reads the world as it was then: the earlier snapshot's achievements, spoilers unnamed, a chest without its label. */
+  @Test void theAiReadsTheWorldAroundTheMemoryWithoutPlayersOrChestLabels() {
+    source();
+    long world = jdbc.queryForObject("SELECT game_world_id FROM M_GAME_WORLD WHERE game_id = 'corekeeper' AND active = TRUE", Long.class);
+    var memory = LocalDate.now(GuildService.TOKYO).minusDays(70).atTime(10, 0).atZone(GuildService.TOKYO).toOffsetDateTime();
+    long then = snapshot(world, memory.minusDays(1), "a");
+    long now = snapshot(world, memory.plusDays(60), "b");
+    for (String key : List.of("great_wall_lowered", "boss_bird")) achieve(then, key);
+    for (String key : List.of("great_wall_lowered", "boss_bird", "boss_octopus")) achieve(now, key);
+    jdbc.update("INSERT INTO T_CK_CONTAINER (game_world_id,world_snapshot_id,holder,object_id,variation,pos_x,pos_z,slot_count,filled_slots,label) "
+        + "VALUES (?,?,'STORAGE',1,0,123,456,10,2,'PRIVATE_PLAYER_SECRETの箱')", world, now);
+    long chest = jdbc.queryForObject("SELECT MAX(ck_container_id) FROM T_CK_CONTAINER", Long.class);
+    jdbc.update("INSERT INTO T_CK_CONTAINER_ITEM (ck_container_id,game_world_id,slot,object_id,amount,variation) VALUES (?,?,0,7,30,0),(?,?,1,7,30,0)",
+        chest, world, chest, world);
+    guild.generateToday();
+    verify(bedrock).generate(anyString(), argThat(prompt -> prompt.contains("その頃の世界=")
+        && prompt.contains("ボス討伐 1/") && prompt.contains("世界の変化 1/1") && prompt.contains("大壁の解放")
+        && !prompt.contains("Azeos") && !prompt.contains("Omoroth") && !prompt.contains("#7")
+        && prompt.contains("洞窟へ降りた回数: 1回") && prompt.contains("性別の選択肢=女性、男性")
+        && !prompt.contains("PRIVATE_PLAYER_SECRET") && !prompt.contains("765611") && !prompt.contains("123")), eq(1200), anyFloat(), any());
+    long id = guild.characters(0).getFirst().id();
+    // Item names come from the game's tables, absent in tests: an unnamed chest is left out rather than shown as ids.
+    assertThat(guild.worlds().get(id)).contains("大壁の解放").doesNotContain("倉庫のひとつ").doesNotContain("PRIVATE_PLAYER_SECRET");
+  }
+
+  private long snapshot(long world, OffsetDateTime at, String hash) {
+    jdbc.update("INSERT INTO T_WORLD_SNAPSHOT (game_world_id,source_sha256,parser_version,captured_at,parsed_at,validation_status,extracted_json) "
+        + "VALUES (?,?,'guild-test',?,?,'VALID','{}')", world, "guild-test-" + hash, at, at);
+    return jdbc.queryForObject("SELECT world_snapshot_id FROM T_WORLD_SNAPSHOT WHERE source_sha256 = ?", Long.class, "guild-test-" + hash);
+  }
+
+  private void achieve(long snapshot, String key) {
+    jdbc.update("INSERT INTO T_PROGRESS_STATE (world_snapshot_id,progress_definition_id,state) SELECT ?, progress_definition_id, 'ACHIEVED' "
+        + "FROM M_PROGRESS_DEFINITION WHERE game_id = 'corekeeper' AND progress_key = ?", snapshot, key);
   }
 
   @Test void anHourHoldsOneInteractionEvenWhenRunTwiceAtOnce() throws Exception {
@@ -277,13 +318,13 @@ class GuildTests {
       for (var result : results) assertThat(result.get()).isNotNull();
     }
     assertThat(guild.characters(0)).hasSize(1);
-    verify(bedrock, times(1)).generate(anyString(), argThat(prompt -> !prompt.contains("PRIVATE_PLAYER_SECRET") && !prompt.contains("765611")), eq(900), anyFloat(), any());
+    verify(bedrock, times(1)).generate(anyString(), argThat(prompt -> !prompt.contains("PRIVATE_PLAYER_SECRET") && !prompt.contains("765611")), eq(1200), anyFloat(), any());
     assertThat(sources.choose(LocalDate.now(GuildService.TOKYO)).source()).isEmpty();
     var character = guild.characters(0).getFirst();
     mvc.perform(get("/guild/characters/" + character.id())).andExpect(status().isOk())
         .andExpect(content().string(containsString("リネ")))
-        .andExpect(content().string(org.hamcrest.Matchers.anyOf(containsString("28歳・女性・冒険者"),
-            containsString("28歳・女性・商人"), containsString("28歳・女性・猟師"))))
+        .andExpect(content().string(containsString("28歳・女性・冒険者")))
+        .andExpect(content().string(containsString("記録から読み取られたこと：出入りの多い短い一日から")))
         .andExpect(content().string(containsString("ヨーロッパ系の名")))
         .andExpect(content().string(containsString("guild-people.svg?v=2#outfit-")))
         .andExpect(content().string(containsString("Core Keeper・")))
@@ -442,18 +483,38 @@ class GuildTests {
         assertThat(source.category()).isEqualTo("combat"));
   }
 
-  @Test void codeChoosesOccupationGenderAndLookFromTheMemory() {
-    for (int i = 0; i < 40; i++) {
-      var plan = people.plan("bloodmoon");
-      assertThat(plan.gender()).isEqualTo("女性");
-      assertThat(plan.occupation()).isIn("夜警", "騎士", "冒険者", "聖職者");
-      assertThat(plan.lineage()).isEqualTo(GuildPeople.Lineage.EUROPEAN);
-      // A woman knight wears the women's cut of plate; outfits without their own legs get a skirt.
-      if (plan.occupation().equals("騎士")) assertThat(plan.look().outfit()).isEqualTo("knight_f");
-      assertThat(plan.look().layers()).startsWith("body").contains("outfit-" + plan.look().outfit());
-      assertThat(plan.look().style()).matches("(--[a-z0-9]+:#[0-9a-f]{6};?)+");
+  @Test void theAiChoosesOnlyWhatIsOfferedAndCrowdedChoicesAreLeftOut() {
+    assertThat(people.options()).satisfies(options -> {
+      assertThat(options.genders()).containsExactly("女性", "男性");
+      assertThat(options.occupations()).contains("鍛冶屋", "漁師", "騎士");
+      assertThat(options.recent()).isEmpty();
+    });
+    // Seven women, three blacksmiths and five of European names among the last ten: none is offered again.
+    for (int i = 0; i < 10; i++) {
+      jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,gender,occupation,name_lineage) "
+          + "VALUES (?,'7dtd',?,'旅の者。','記録から。','穏やか。','moss',?,?,?)", LocalDate.now(GuildService.TOKYO).minusDays(200 + i),
+          "住人" + (char) ('ア' + i * 2), i < 7 ? "女性" : "男性", i < 3 ? "鍛冶屋" : "農家", i < 5 ? "european" : i < 8 ? "japanese" : "north");
     }
-    assertThat(people.plan("fishing").occupation()).isIn("漁師", "料理人", "農家");
+    var crowded = people.options();
+    assertThat(crowded.genders()).containsExactly("男性");
+    assertThat(crowded.occupations()).doesNotContain("鍛冶屋", "農家").contains("漁師", "騎士");
+    assertThat(crowded.lineages()).doesNotContain(GuildPeople.Lineage.EUROPEAN).contains(GuildPeople.Lineage.JAPANESE);
+    assertThat(crowded.recent()).hasSize(5).allMatch(line -> line.matches(".+（(女性|男性)・(鍛冶屋|農家)・(日本系|北方系)）"));
+    assertThatThrownBy(() -> generator.validate(DRAFT, crowded)).hasMessage("Gender not offered");
+    var draft = generator.validate(DRAFT, OPEN);
+    assertThat(draft).satisfies(d -> {
+      assertThat(d.gender()).isEqualTo("女性");
+      assertThat(d.occupation()).isEqualTo("冒険者");
+      assertThat(d.lineage()).isEqualTo(GuildPeople.Lineage.EUROPEAN);
+      assertThat(d.reading()).startsWith("出入りの多い");
+    });
+    for (int i = 0; i < 40; i++) {
+      // A woman knight wears the women's cut of plate; outfits without their own legs get a skirt.
+      var look = people.look("女性", i % 2 == 0 ? "騎士" : "鍛冶屋");
+      assertThat(look.outfit()).isIn("knight_f", "crafter");
+      assertThat(look.layers()).startsWith("body").contains("outfit-" + look.outfit());
+      assertThat(look.style()).matches("(--[a-z0-9]+:#[0-9a-f]{6};?)+");
+    }
     assertThat(GuildPeople.Look.of("knight", "short", "#000000", "#ffffff", "#123456", "#654321", "男性").layers())
         .containsExactly("body", "outfit-knight", "hair-short", "hat-knight");
     assertThat(GuildPeople.Look.of("cook", "bob", "#000000", "#ffffff", "#123456", "#654321", "女性").layers())
@@ -538,7 +599,7 @@ class GuildTests {
     // A code fence, a lead-in sentence, short numbers, line breaks and an extra key are all fine.
     String fenced = "人物を作りました。\n```json\n" + DRAFT.replace("小さな店", "3年後に小さな店").replace("節約家", "\\n節約家")
         .replace("\"personality\"", "\"note\":\"x\",\"personality\"") + "\n```";
-    var draft = generator.validate(fenced, GuildPeople.Lineage.EUROPEAN);
+    var draft = generator.validate(fenced, OPEN);
     assertThat(draft.introduction()).contains("3年後に小さな店");
     assertThat(draft.personality()).contains("目がない").doesNotContain("\n");
     assertThat(draft.age()).isEqualTo(28);
@@ -547,8 +608,10 @@ class GuildTests {
   @Test void schemaRejectsUnsafeOrUnknownContent() {
     for (String bad : List.of(DRAFT.replace("28", "200"), DRAFT.replace("\"age\":28,", ""), DRAFT.replace("リネ", "<script>"),
         DRAFT.replace("リネ", "https://secret"), DRAFT.replace("リネ", "76561123456"), DRAFT.replace("リネ", "凛"),
-        DRAFT.replace("リネ", "リネリネリネリネリ"), DRAFT.replace("\"リネ\"", "null"))) {
-      assertThatThrownBy(() -> generator.validate(bad, GuildPeople.Lineage.EUROPEAN)).isInstanceOf(RuntimeException.class);
+        DRAFT.replace("リネ", "リネリネリネリネリ"), DRAFT.replace("\"リネ\"", "null"), DRAFT.replace("\"女性\"", "\"その他\""),
+        DRAFT.replace("冒険者", "魔王"), DRAFT.replace("ヨーロッパ系", "日本系"), DRAFT.replace("ヨーロッパ系", "月の民"),
+        DRAFT.replace("\"reading\":\"出入りの多い短い一日から、身軽に動き回る暮らしが見えた。\",", ""))) {
+      assertThatThrownBy(() -> generator.validate(bad, OPEN)).isInstanceOf(RuntimeException.class);
     }
   }
 }

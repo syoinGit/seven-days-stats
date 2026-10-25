@@ -34,6 +34,7 @@
   <h3>生まれた記憶</h3>
   <th:block th:if="${!#lists.isEmpty(character.memoryLines())}"><p th:text="${character.memoryLabel + 'から生まれました。'}">7 Days to Die・10月3日 21時〜24時の記録から生まれました。</p>
     <ol class="guild-memory"><li th:each="line : ${character.memoryLines()}" th:text="${line}">21:14 ゾンビを倒した</li></ol>
+    <p class="guild-reading" th:if="${character.reading != null}" th:text="${'記録から読み取られたこと：' + character.reading}">釣果の多い一日から、海辺で暮らす人だと読み取られた。</p>
     <p class="guild-footer">記録の「誰か」は、その時間にいたプレイヤーです。名前は残していません。</p></th:block>
   <p th:if="${#lists.isEmpty(character.memoryLines())}" th:text="${character.origin}"></p>
   <h3>この街での関係</h3>

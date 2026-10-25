@@ -56,8 +56,8 @@ public class GuildSourceService {
   private final TerrariaNames terrariaNames;
   private final CoreKeeperNames coreKeeperNames;
 
-  /** label: "Terraria・10月3日 21時〜24時の記録（釣り）"; facts: one "21:14 バスが3個増えた" per line. */
-  public record Source(String key, String game, String category, String label, String facts) { }
+  /** label: "Terraria・10月3日 21時〜24時の記録（釣り）"; facts: one "21:14 バスが3個増えた" per line; from: the window's start. */
+  public record Source(String key, String game, String category, String label, String facts, OffsetDateTime from) { }
 
   /** Either a memory, or why none was chosen. */
   public record Choice(Optional<Source> source, String skipped) { }
@@ -268,7 +268,7 @@ public class GuildSourceService {
     String label = GAMES.get(slot.game()) + "・" + DAY.format(slot.date()) + " " + hour + "時〜" + (hour + WINDOW_HOURS)
         + "時の記録（" + CATEGORIES.get(slot.category()) + "）";
     return Optional.of(new Source(slot.key(), slot.game(), slot.category(), label,
-        facts.length() > 1000 ? facts.substring(0, 1000) : facts));
+        facts.length() > 1000 ? facts.substring(0, 1000) : facts, from));
   }
 
   /** The category a record speaks for, or null when it only gives context (arrivals, items used up). */

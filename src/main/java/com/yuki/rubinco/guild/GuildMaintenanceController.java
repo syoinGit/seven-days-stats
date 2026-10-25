@@ -30,6 +30,7 @@ public class GuildMaintenanceController {
         .map(category -> category == null ? "（分類なし）" : GuildSourceService.CATEGORIES.getOrDefault(category, category)).toList());
     model.addAttribute("categoryWindow", properties.categoryWindow());
     model.addAttribute("categoryCap", properties.categoryCap());
+    model.addAttribute("worlds", guild.worlds());
     model.addAttribute("hourlyJobs", interactions.jobs());
     model.addAttribute("currentSlot", GuildInteractionService.slot(java.time.ZonedDateTime.now(GuildService.TOKYO)));
     return "guild-maintenance";
