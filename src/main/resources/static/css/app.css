@@ -724,3 +724,40 @@ body .topbar.app-header { flex-wrap:nowrap; gap:12px; min-height:64px; padding:1
   .site-icon { width:32px; height:32px; }
   .account-menu summary .user-avatar { width:36px; height:36px; }
 }
+
+/* Rubinco design layer: modern surfaces with pixel details, shared by every site. */
+:root {
+  --rb-bg:#121318;
+  --rb-surface:#1b1c23;
+  --rb-surface-2:#24252e;
+  --rb-line:#ffffff14;
+  --rb-text:#f1eee9;
+  --rb-muted:#9c9ba8;
+  --rb-ruby:#ff4f74;
+  --rb-radius:14px;
+  /* Square corners cut one pixel step in: buttons and badges read as game UI. */
+  --rb-notch:polygon(0 4px, 4px 4px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 4px), 0 calc(100% - 4px));
+}
+body .topbar.app-header { border-bottom:1px solid var(--rb-line); background:color-mix(in srgb, var(--rb-bg) 84%, transparent); backdrop-filter:blur(14px) saturate(140%); }
+.topbar.app-header::after { display:none; }
+.app-header .site-links { gap:14px; padding:4px 2px 8px; margin-bottom:-6px; }
+.app-header .site-links a { position:relative; padding:0; border:0; border-radius:0; opacity:.6; transition:opacity .12s ease, transform .12s steps(2); }
+.app-header .site-links a:hover, .app-header .site-links a:focus-visible { transform:translateY(-2px); }
+.app-header .site-links a.active { box-shadow:none; }
+/* The current site: a short pixel bar under its icon. */
+.app-header .site-links a::after { content:""; position:absolute; left:50%; bottom:-8px; width:16px; height:4px; background:var(--site); transform:translateX(-50%) scaleX(0); transition:transform .12s steps(3); }
+.app-header .site-links a.site-portal { --site:var(--rb-ruby); }
+.app-header .site-links a.active::after { transform:translateX(-50%) scaleX(1); }
+.app-header .site-links a:focus-visible { outline:2px solid var(--site); outline-offset:3px; }
+.site-icon { image-rendering:pixelated; }
+.account-menu summary { border-radius:10px; }
+.account-menu summary .user-avatar { border-radius:10px; }
+.account-menu[open] summary .user-avatar { box-shadow:0 0 0 2px var(--rb-ruby); }
+.account-menu-panel { border-color:var(--rb-line); border-radius:var(--rb-radius); background:var(--rb-surface); }
+/* Status shown as a pixel square and a word, used by the portal servers. */
+.pixel-status { display:inline-flex; align-items:center; gap:7px; padding:0; border:0; background:none; color:var(--rb-muted); font-family:inherit; font-size:12px; font-weight:600; line-height:1.2; letter-spacing:0; text-transform:none; }
+.pixel-status::before { content:""; width:8px; height:8px; flex:none; background:currentColor; box-shadow:0 0 0 2px color-mix(in srgb, currentColor 22%, transparent); }
+.pixel-status.status-online { color:#7fe0a8; }
+.pixel-status.status-starting, .pixel-status.status-stopping { color:#f3c969; }
+.pixel-status.status-error { color:#ff8c91; }
+.pixel-status.status-offline, .pixel-status.status-unknown { color:#8d8c98; }
