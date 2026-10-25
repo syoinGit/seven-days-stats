@@ -15,32 +15,62 @@ import org.springframework.transaction.annotation.Transactional;
 @lombok.extern.slf4j.Slf4j
 public class GuildService {
   public static final ZoneId TOKYO = ZoneId.of("Asia/Tokyo");
+  private static final int FAILURE_ALLOWANCE = 5;
   private final JdbcTemplate jdbc;
   private final GuildProperties properties;
   private final AiAnalysisProperties ai;
   private final GuildSourceService sources;
   private final GuildCharacterGenerator generator;
 
+  /** memoryLabel and memory are null for residents born before memories were recorded. */
   public record Character(long id, LocalDate bornOn, String game, String name, String introduction,
-                          String origin, String personality, String appearance, String status) { }
+                          String origin, String personality, String appearance, String status,
+                          Integer age, String gender, String occupation, String memoryLabel, String memory) {
+    public String gameName() {
+      return GuildSourceService.GAMES.getOrDefault(game, game);
+    }
+
+    /** "28歳・女性・鍛冶屋", skipping what is unknown. */
+    public String profile() {
+      List<String> parts = new java.util.ArrayList<>();
+      if (age != null) parts.add(age + "歳");
+      if (gender != null) parts.add(gender);
+      if (occupation != null) parts.add(occupation);
+      return String.join("・", parts);
+    }
+
+    public List<String> memoryLines() {
+      return memoryLabel == null || memory == null ? List.of() : memory.lines().toList();
+    }
+  }
   public record Visit(Character character, int seat, String line) { }
   public record Room(LocalDate date, String phase, List<Visit> visits) { }
   public record Job(LocalDate date, String status, int attempts, String message) { }
 
-  private static final String PUBLIC_COLUMNS = "id, born_on, game_id, name, introduction, origin, personality, appearance, status";
+  // The source key (it names the player and day) stays private; the memory label and lines are public.
+  private static final String PUBLIC_COLUMNS = "c.id, c.born_on, c.game_id, c.name, c.introduction, c.origin, "
+      + "c.personality, c.appearance, c.status, c.age, c.gender, c.occupation, s.memory_label, "
+      + "CASE WHEN s.memory_label IS NULL THEN NULL ELSE s.facts END AS memory";
+  private static final String FROM = " FROM M_GUILD_CHARACTER c LEFT JOIN T_GUILD_SOURCE s ON s.character_id = c.id";
   private static Character character(java.sql.ResultSet rs) throws java.sql.SQLException {
     return new Character(rs.getLong("id"), rs.getDate("born_on").toLocalDate(), rs.getString("game_id"),
         rs.getString("name"), rs.getString("introduction"), rs.getString("origin"),
-        rs.getString("personality"), rs.getString("appearance"), rs.getString("status"));
+        rs.getString("personality"), rs.getString("appearance"), rs.getString("status"),
+        (Integer) rs.getObject("age"), rs.getString("gender"), rs.getString("occupation"),
+        rs.getString("memory_label"), rs.getString("memory"));
   }
 
   public List<Character> characters(int page) {
-    return jdbc.query("SELECT " + PUBLIC_COLUMNS + " FROM M_GUILD_CHARACTER ORDER BY born_on DESC LIMIT 40 OFFSET ?",
+    return jdbc.query("SELECT " + PUBLIC_COLUMNS + FROM + " ORDER BY c.born_on DESC, c.id DESC LIMIT 40 OFFSET ?",
         (rs, row) -> character(rs), Math.max(0, Math.min(page, 10000)) * 40);
   }
 
+  public int bornToday() {
+    return jdbc.queryForObject("SELECT COUNT(*) FROM M_GUILD_CHARACTER WHERE born_on = ?", Integer.class, LocalDate.now(TOKYO));
+  }
+
   public Character character(long id) {
-    return jdbc.query("SELECT " + PUBLIC_COLUMNS + " FROM M_GUILD_CHARACTER WHERE id = ?",
+    return jdbc.query("SELECT " + PUBLIC_COLUMNS + FROM + " WHERE c.id = ?",
         (rs, row) -> character(rs), id).stream().findFirst().orElseThrow(() ->
             new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND));
   }
@@ -51,8 +81,8 @@ public class GuildService {
     // Keep the last established scene readable after downtime, clearly labelled with its date.
     LocalDate date = jdbc.queryForObject("SELECT MAX(visit_date) FROM T_GUILD_DAY WHERE visit_date <= ?", LocalDate.class, local.toLocalDate());
     if (date == null) return new Room(local.toLocalDate(), phase, List.of());
-    List<Visit> visits = jdbc.query("SELECT c.*, v.seat, v." + phase + " AS line FROM T_GUILD_VISIT v "
-        + "JOIN M_GUILD_CHARACTER c ON c.id = v.character_id WHERE v.visit_date = ? AND c.status = 'ALIVE' ORDER BY v.seat",
+    List<Visit> visits = jdbc.query("SELECT " + PUBLIC_COLUMNS + ", v.seat, v." + phase + " AS line" + FROM
+        + " JOIN T_GUILD_VISIT v ON c.id = v.character_id WHERE v.visit_date = ? AND c.status = 'ALIVE' ORDER BY v.seat",
         (rs, row) -> new Visit(character(rs), rs.getInt("seat"), rs.getString("line")), date);
     return new Room(date, phase, visits);
   }
@@ -67,21 +97,28 @@ public class GuildService {
     jdbc.queryForObject("SELECT id FROM T_GUILD_LOCK WHERE id = 1 FOR UPDATE", Integer.class);
   }
 
+  /** The 21:00 run: one resident, unless an administrator already welcomed someone today. */
+  @Transactional
+  public String generateScheduled() {
+    if (properties.enabled() && bornToday() > 0) return "今日はすでに住人を迎えています。";
+    return generateToday();
+  }
+
+  /** Up to daily-limit residents a day (scheduled and manual together); failures get a few extra tries. */
   @Transactional
   public String generateToday() {
     if (!properties.enabled()) return "生成は無効です。GUILD_ENABLED を有効にしてください。";
     lock();
     LocalDate today = LocalDate.now(TOKYO);
-    if (jdbc.queryForObject("SELECT COUNT(*) FROM M_GUILD_CHARACTER WHERE born_on = ?", Integer.class, today) > 0) {
-      return "今日はすでに一人を迎えています。";
-    }
+    int limit = properties.dailyLimit();
+    if (bornToday() >= limit) return "今日は上限の" + limit + "人を迎えました。明日また追加できます。";
     List<Integer> attempts = jdbc.queryForList("SELECT attempts FROM T_GUILD_JOB WHERE target_date = ?", Integer.class, today);
     int count = attempts.isEmpty() ? 0 : attempts.getFirst();
-    if (count >= 3) return "本日の試行上限（3回）に達しました。明日また実行できます。";
+    if (count >= limit + FAILURE_ALLOWANCE) return "本日の試行上限（" + (limit + FAILURE_ALLOWANCE) + "回）に達しました。明日また実行できます。";
     if (attempts.isEmpty()) jdbc.update("INSERT INTO T_GUILD_JOB (target_date,status,attempts,message,model_id,version) VALUES (?, 'RUNNING',0,'生成中',?,'guild-v1')", today, ai.modelId());
     jdbc.update("UPDATE T_GUILD_JOB SET status = 'RUNNING', attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP WHERE target_date = ?", today);
     var source = sources.choose(today);
-    if (source.isEmpty()) return finish(today, "SKIPPED", "未使用の確定済み記録がありません。人物の追加を見送りました。");
+    if (source.isEmpty()) return finish(today, "SKIPPED", "まだ使っていない過去の記録がありません。人物の追加を見送りました。");
     GuildCharacterGenerator.Draft draft;
     try {
       draft = generator.generate(source.get());
@@ -92,20 +129,43 @@ public class GuildService {
           ? "Bedrockの呼び出しに失敗しました（" + failure.getMessage() + "）。モデル設定・権限を確認して再試行してください。"
           : "AIの応答が形式に合いませんでした（" + failure.getMessage() + "）。もう一度試してください。");
     }
-    String origin = switch (source.get().game()) {
-      case "7dtd" -> "7 Days to Die のある一日の接続記録を題材に生まれた創作人物。人物の暮らしや気質はフィクションです。";
-      case "terraria" -> "Terraria の保存された世界を題材に生まれた創作人物。特定プレイヤーの功績を表すものではありません。";
-      default -> source.get().key().startsWith("world:")
-          ? "Core Keeper の保存された世界を題材に生まれた創作人物。特定プレイヤーの功績を表すものではありません。"
-          : "Core Keeper のある一日の接続記録を題材に生まれた創作人物。人物の暮らしや気質はフィクションです。";
-    };
-    jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance) VALUES (?,?,?,?,?,?,?)",
-        today, source.get().game(), draft.name(), draft.introduction(), origin, draft.personality(), draft.appearance());
-    Long id = jdbc.queryForObject("SELECT id FROM M_GUILD_CHARACTER WHERE born_on = ?", Long.class, today);
-    jdbc.update("INSERT INTO T_GUILD_SOURCE (character_id,source_key,facts) VALUES (?,?,?)", id, source.get().key(), source.get().facts());
-    // Build today's fixed roster after the birth if none exists. Never redraw a saved roster.
+    String origin = GuildSourceService.GAMES.get(source.get().game())
+        + " の記録を題材に生まれた創作人物。人物の暮らしや気質はフィクションで、特定のプレイヤーを表すものではありません。";
+    jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,age,gender,occupation) "
+        + "VALUES (?,?,?,?,?,?,?,?,?,?)", today, source.get().game(), draft.name(), draft.introduction(), origin,
+        draft.personality(), draft.appearance(), draft.age(), draft.gender(), draft.occupation());
+    // Writes are serialized by lock(), so the newest id is this resident.
+    Long id = jdbc.queryForObject("SELECT MAX(id) FROM M_GUILD_CHARACTER", Long.class);
+    jdbc.update("INSERT INTO T_GUILD_SOURCE (character_id,source_key,facts,memory_label) VALUES (?,?,?,?)",
+        id, source.get().key(), source.get().facts(), source.get().label());
+    // Build today's roster after the very first birth. A saved roster changes only by refreshVisits().
     ensureVisits(today);
-    return finish(today, "SUCCEEDED", "新しい住人を一人迎えました。来店名簿が確定済みの場合は、翌日以降に来店します。");
+    return finish(today, "SUCCEEDED", "「" + draft.name() + "」を迎えました（今日 " + bornToday() + " / " + limit
+        + " 人）。今日の来店名簿に加えるには「来店者を引き直す」を押してください。");
+  }
+
+  /** Redraws today's visitors, e.g. so residents born today can come in. */
+  @Transactional
+  public String refreshVisits() {
+    lock();
+    LocalDate today = LocalDate.now(TOKYO);
+    jdbc.update("DELETE FROM T_GUILD_VISIT WHERE visit_date = ?", today);
+    jdbc.update("DELETE FROM T_GUILD_DAY WHERE visit_date = ?", today);
+    ensureVisits(today);
+    int count = jdbc.queryForObject("SELECT COUNT(*) FROM T_GUILD_VISIT WHERE visit_date = ?", Integer.class, today);
+    return count == 0 ? "まだ住人がいないため、来店者はいません。" : "今日の来店者を引き直しました（" + count + "人）。";
+  }
+
+  /** Removes a resident with their visits and source; the source's memory may be used again. */
+  @Transactional
+  public String delete(long id) {
+    lock();
+    List<String> names = jdbc.queryForList("SELECT name FROM M_GUILD_CHARACTER WHERE id = ?", String.class, id);
+    if (names.isEmpty()) return "その住人は見つかりませんでした。";
+    jdbc.update("DELETE FROM T_GUILD_VISIT WHERE character_id = ?", id);
+    jdbc.update("DELETE FROM T_GUILD_SOURCE WHERE character_id = ?", id);
+    jdbc.update("DELETE FROM M_GUILD_CHARACTER WHERE id = ?", id);
+    return "「" + names.getFirst() + "」を削除しました。";
   }
 
   private String finish(LocalDate date, String status, String message) {

@@ -29,7 +29,7 @@ import org.springframework.test.web.servlet.MockMvc;
     "spring.datasource.url=jdbc:h2:mem:guild;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000",
     "spring.datasource.driver-class-name=org.h2.Driver", "spring.jpa.hibernate.ddl-auto=validate",
     "spring.flyway.enabled=true", "app.sevendays.import.startup-enabled=false",
-    "app.guild.enabled=true", "app.guild.visit-initial-delay=1h"
+    "app.guild.enabled=true", "app.guild.visit-initial-delay=1h", "app.guild.daily-limit=2"
 })
 @AutoConfigureMockMvc
 class GuildTests {
@@ -40,7 +40,7 @@ class GuildTests {
   @Autowired MockMvc mvc;
   @MockitoBean BedrockTextClient bedrock;
   static final String DRAFT = """
-      {"name":"リネ","introduction":"旅の道具を直す職人。小さな店を持ちたい。",
+      {"name":"リネ","age":28,"gender":"女性","occupation":"道具職人","introduction":"旅の道具を直す職人。小さな店を持ちたい。",
        "personality":"慎重な話し方。修理は得意だが道に迷う。節約家なのに本には目がない。","appearance":"moss"}
       """;
 
@@ -54,11 +54,17 @@ class GuildTests {
     when(bedrock.generate(anyString(), anyString(), anyInt(), anyFloat(), any())).thenReturn(DRAFT);
   }
 
+  /** One Core Keeper session 70 days ago, 10:00-10:30 JST: exactly one memory (the 9-12 window). */
   private void source() {
-    var at = OffsetDateTime.now().minusDays(70);
-    jdbc.update("INSERT INTO M_CK_PLAYER (steam_id,player_name,first_seen_at,last_seen_at) VALUES ('76561123456789012','PRIVATE_PLAYER_SECRET',?,?)", at, at);
-    long id = jdbc.queryForObject("SELECT id FROM M_CK_PLAYER", Long.class);
-    jdbc.update("INSERT INTO T_CK_SESSION (ck_player_id,player_name,connected_at,disconnected_at) VALUES (?,'PRIVATE_PLAYER_SECRET',?,?)", id, at, at.plusHours(1));
+    sourceAt(10);
+  }
+
+  private void sourceAt(int hour) {
+    var at = LocalDate.now(GuildService.TOKYO).minusDays(70).atTime(hour, 0).atZone(GuildService.TOKYO).toOffsetDateTime();
+    jdbc.update("INSERT INTO M_CK_PLAYER (steam_id,player_name,first_seen_at,last_seen_at) VALUES (?,'PRIVATE_PLAYER_SECRET',?,?)",
+        "76561123456789" + hour, at, at);
+    long id = jdbc.queryForObject("SELECT MAX(id) FROM M_CK_PLAYER", Long.class);
+    jdbc.update("INSERT INTO T_CK_SESSION (ck_player_id,player_name,connected_at,disconnected_at) VALUES (?,'PRIVATE_PLAYER_SECRET',?,?)", id, at, at.plusMinutes(30));
   }
 
   @Test void publicViewsAreReadOnlyAndAdminWritesNeedRoleAndCsrf() throws Exception {
@@ -83,12 +89,18 @@ class GuildTests {
       for (var result : results) assertThat(result.get()).isNotNull();
     }
     assertThat(guild.characters(0)).hasSize(1);
-    verify(bedrock, times(1)).generate(anyString(), argThat(prompt -> !prompt.contains("PRIVATE_PLAYER_SECRET") && !prompt.contains("765611")), eq(850), anyFloat(), any());
+    verify(bedrock, times(1)).generate(anyString(), argThat(prompt -> !prompt.contains("PRIVATE_PLAYER_SECRET") && !prompt.contains("765611")), eq(900), anyFloat(), any());
     assertThat(sources.choose(LocalDate.now(GuildService.TOKYO))).isEmpty();
     var character = guild.characters(0).getFirst();
     mvc.perform(get("/guild/characters/" + character.id())).andExpect(status().isOk())
         .andExpect(content().string(containsString("リネ")))
+        .andExpect(content().string(containsString("28歳・女性・道具職人")))
+        .andExpect(content().string(containsString("Core Keeper・")))
+        .andExpect(content().string(containsString("9時〜12時の記録から生まれました")))
+        .andExpect(content().string(containsString("10:00 誰かが洞窟へ降りてきた")))
+        .andExpect(content().string(containsString("10:30 誰かが地上へ戻った")))
         .andExpect(content().string(not(containsString("PRIVATE_PLAYER_SECRET"))))
+        .andExpect(content().string(not(containsString("765611"))))
         .andExpect(content().string(not(containsString("source_key"))));
     mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("seat-0 moss")));
   }
@@ -101,11 +113,12 @@ class GuildTests {
     assertThat(guild.characters(0)).isEmpty();
     assertThat(guild.jobs().getFirst().message()).contains("AIの応答が形式に合いませんでした");
     when(bedrock.generate(anyString(), anyString(), anyInt(), anyFloat(), any())).thenThrow(new IllegalStateException("PRIVATE_RESPONSE"));
-    guild.generateToday(); guild.generateToday(); guild.generateToday();
-    assertThat(guild.jobs().getFirst().attempts()).isEqualTo(3);
+    // daily-limit 2 in this test, plus 5 failures: 7 attempts in all, then no more calls.
+    for (int i = 0; i < 8; i++) guild.generateToday();
+    assertThat(guild.jobs().getFirst().attempts()).isEqualTo(7);
     assertThat(guild.jobs().getFirst().message()).doesNotContain("PRIVATE_RESPONSE");
     assertThat(guild.jobs().getFirst().message()).contains("Bedrockの呼び出しに失敗", "IllegalStateException");
-    verify(bedrock, times(3)).generate(anyString(), anyString(), anyInt(), anyFloat(), any());
+    verify(bedrock, times(7)).generate(anyString(), anyString(), anyInt(), anyFloat(), any());
   }
 
   @Test void failedGenerationCanRecoverWithoutLosingExistingPeople() {
@@ -143,23 +156,58 @@ class GuildTests {
     mvc.perform(get("/guild/characters/" + id)).andExpect(status().isOk()).andExpect(content().string(containsString("亡くなりました")));
   }
 
-  @Test void unlinkedLegacyPlayersAndWorldSnapshotsAreEligibleButTodayIsNot() {
-    var yesterday = LocalDate.now(GuildService.TOKYO).minusDays(1).atStartOfDay(GuildService.TOKYO).toOffsetDateTime();
+  @Test void memoriesComeFromPastDaysOnlyAndNeverNamePlayers() {
+    var yesterday = LocalDate.now(GuildService.TOKYO).minusDays(1).atTime(21, 5).atZone(GuildService.TOKYO).toOffsetDateTime();
     jdbc.update("INSERT INTO T_PLAYER_JOIN_TRANSACTION (occurred_at,player_name,player_entity_id,platform_id,cross_platform_id,source_file,source_log_hash,created_at) VALUES (?,'PRIVATE_NAME',1,'PRIVATE_PLATFORM','PRIVATE_CROSS','guild-test','guild-test-hash',?)", yesterday, yesterday);
     assertThat(sources.choose(LocalDate.now(GuildService.TOKYO))).hasValueSatisfying(source -> {
       assertThat(source.game()).isEqualTo("7dtd");
-      assertThat(source.facts()).doesNotContain("PRIVATE");
+      assertThat(source.label()).startsWith("7 Days to Die・").endsWith("21時〜24時の記録");
+      assertThat(source.facts()).isEqualTo("21:05 誰かがこの地にやって来た");
+      assertThat(source.key() + source.facts() + source.label()).doesNotContain("PRIVATE");
     });
     jdbc.update("UPDATE T_PLAYER_JOIN_TRANSACTION SET occurred_at = ? WHERE source_file='guild-test'", OffsetDateTime.now());
     assertThat(sources.choose(LocalDate.now(GuildService.TOKYO))).isEmpty();
-    Long world = jdbc.queryForObject("SELECT game_world_id FROM M_GAME_WORLD WHERE game_id='terraria'", Long.class);
-    jdbc.update("INSERT INTO T_WORLD_SNAPSHOT (game_world_id,source_sha256,parser_version,captured_at,parsed_at,validation_status,extracted_json) VALUES (?,'guild-world-hash','guild-test',?,?,'VALID','PRIVATE_RAW_WORLD')", world, yesterday, yesterday);
-    assertThat(sources.choose(LocalDate.now(GuildService.TOKYO))).hasValueSatisfying(source -> {
-      assertThat(source.game()).isEqualTo("terraria");
-      assertThat(source.facts()).contains("世界由来").doesNotContain("PRIVATE");
-    });
-    jdbc.update("UPDATE T_WORLD_SNAPSHOT SET validation_status='INVALID' WHERE parser_version='guild-test'");
-    assertThat(sources.choose(LocalDate.now(GuildService.TOKYO))).isEmpty();
+  }
+
+  @Test void tenRecordsAtMostAndInTimeOrder() {
+    var day = LocalDate.now(GuildService.TOKYO).minusDays(3);
+    for (int minute = 0; minute < 30; minute++) {
+      var at = day.atTime(13, minute).atZone(GuildService.TOKYO).toOffsetDateTime();
+      jdbc.update("INSERT INTO T_PLAYER_JOIN_TRANSACTION (occurred_at,player_name,player_entity_id,source_file,source_log_hash,created_at) VALUES (?,'PRIVATE_NAME',1,'guild-test',?,?)", at, "guild-test-" + minute, at);
+    }
+    var source = sources.choose(LocalDate.now(GuildService.TOKYO)).orElseThrow();
+    List<String> lines = source.facts().lines().toList();
+    assertThat(lines).hasSize(10);
+    assertThat(lines).isSortedAccordingTo(java.util.Comparator.comparing(line -> java.time.LocalTime.parse(line.split(" ")[0], java.time.format.DateTimeFormatter.ofPattern("H:mm"))));
+    assertThat(source.label()).endsWith("12時〜15時の記録");
+  }
+
+  @Test void administratorsAddUpToTheDailyLimitRedrawVisitorsAndDelete() throws Exception {
+    sourceAt(1); sourceAt(10); sourceAt(19);
+    var admin = user("admin").roles("ADMIN");
+    mvc.perform(post("/guild/maintenance/generate").with(admin).with(csrf())).andExpect(status().is3xxRedirection());
+    assertThat(guild.room(ZonedDateTime.now()).visits()).hasSize(1);
+    mvc.perform(post("/guild/maintenance/generate").with(admin).with(csrf()));
+    mvc.perform(post("/guild/maintenance/generate").with(admin).with(csrf()));
+    assertThat(guild.characters(0)).hasSize(2);
+    assertThat(guild.generateToday()).contains("上限の2人");
+    assertThat(guild.generateScheduled()).contains("すでに住人を迎えています");
+    // The second resident joins today's tavern only when the visitors are redrawn.
+    assertThat(guild.room(ZonedDateTime.now()).visits()).hasSize(1);
+    mvc.perform(post("/guild/maintenance/visits").with(admin).with(csrf())).andExpect(status().is3xxRedirection());
+    assertThat(guild.room(ZonedDateTime.now()).visits()).hasSize(2);
+    mvc.perform(get("/guild/maintenance").with(admin)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("今日迎えた住人: 2 / 2 人")))
+        .andExpect(content().string(containsString("Core Keeper・")));
+
+    long id = guild.characters(0).getFirst().id();
+    mvc.perform(post("/guild/maintenance/characters/" + id + "/delete").with(user("member").roles("PLAYER")).with(csrf()))
+        .andExpect(status().isForbidden());
+    mvc.perform(post("/guild/maintenance/characters/" + id + "/delete").with(admin).with(csrf()))
+        .andExpect(status().is3xxRedirection());
+    assertThat(guild.characters(0)).hasSize(1);
+    assertThat(guild.room(ZonedDateTime.now()).visits()).hasSize(1);
+    mvc.perform(get("/guild/characters/" + id)).andExpect(status().isNotFound());
   }
 
   @Test void savedRosterDoesNotChangeAfterBirthAndRenderPreviewFixtures() throws Exception {
@@ -197,7 +245,8 @@ class GuildTests {
   }
 
   @Test void schemaRejectsUnsafeOrUnknownContent() {
-    for (String bad : List.of(DRAFT.replace("moss", "unknown"), DRAFT.replace("リネ", "<script>"), DRAFT.replace("リネ", "https://secret"), DRAFT.replace("リネ", "76561123456"), DRAFT.replace("\"moss\"", "null"))) {
+    for (String bad : List.of(DRAFT.replace("moss", "unknown"), DRAFT.replace("女性", "王女"), DRAFT.replace("28", "200"),
+        DRAFT.replace("\"age\":28,", ""), DRAFT.replace("リネ", "<script>"), DRAFT.replace("リネ", "https://secret"), DRAFT.replace("リネ", "76561123456"), DRAFT.replace("\"moss\"", "null"))) {
       assertThatThrownBy(() -> generator.validate(bad)).isInstanceOf(RuntimeException.class);
     }
   }

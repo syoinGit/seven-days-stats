@@ -14,7 +14,7 @@ public class GuildRunner {
 
   @Scheduled(cron = "0 0 21 * * *", zone = "Asia/Tokyo")
   public void birth() {
-    try { guild.generateToday(); }
+    try { guild.generateScheduled(); }
     catch (RuntimeException exception) { log.error("Guild birth transaction failed ({})", exception.getClass().getSimpleName()); }
   }
 

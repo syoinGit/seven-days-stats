@@ -3,7 +3,38 @@
 <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
 </head><body class="portal-body guild-body">
-<header th:replace="~{fragments/header :: appHeader('guild', 'portal-topbar')}"></header><main class="guild-shell"><a href="/guild">← 酒場</a><h1>ギルドメンテナンス</h1>
-<section class="guild-panel"><h2>新しい住人を迎える</h2><p>日本時間の毎日21時に自動生成します。管理者はここからも追加できます。自動・手動を合わせて1日1人、生成の試行は1日3回までです。</p><p>確定済みの来店名簿は変わりません。後から生まれた住人は名簿に載り、翌日以降に来店します。</p><p th:unless="${enabled}">現在、生成は無効です。サーバーの GUILD_ENABLED=true で有効にしてください。</p><p class="guild-notice" th:if="${notice}" th:text="${notice}" role="status"></p>
-<form method="post" th:action="@{/guild/maintenance/generate}"><button type="submit" th:disabled="${!enabled}">今日の住人を追加 / 再試行</button></form></section>
-<section class="guild-panel"><h2>直近30日の実行履歴</h2><p th:if="${#lists.isEmpty(jobs)}">まだ生成の実行記録はありません。</p><ul class="guild-jobs"><li th:each="job : ${jobs}"><strong th:text="${job.date + ' / ' + job.status + ' / ' + job.attempts + '回'}"></strong><p th:text="${job.message}"></p></li></ul></section></main></body></html>
+<header th:replace="~{fragments/header :: appHeader('guild', 'portal-topbar')}"></header>
+<main class="guild-shell"><a href="/guild">← 酒場</a><h1>ギルドメンテナンス</h1>
+<p class="guild-notice" th:if="${notice}" th:text="${notice}" role="status"></p>
+
+<section class="guild-panel"><h2>新しい住人を迎える</h2>
+  <p th:text="${'今日迎えた住人: ' + bornToday + ' / ' + dailyLimit + ' 人'}">今日迎えた住人: 0 / 10 人</p>
+  <p>ここから1日に<span th:text="${dailyLimit}">10</span>人まで追加できます（日本時間の21時の自動追加も含む）。21時の自動追加は、その日にまだ誰も迎えていないときだけ1人追加します。</p>
+  <p>住人は、ゲームの過去の1日からランダムに選んだ3時間の記録（最大10件）を「記憶」として生まれます。同じ記憶は2回使いません。</p>
+  <p th:unless="${enabled}">現在、生成は無効です。サーバーの GUILD_ENABLED=true で有効にしてください。</p>
+  <form method="post" th:action="@{/guild/maintenance/generate}"><button type="submit" th:disabled="${!enabled}">住人を1人追加 / 再試行</button></form>
+</section>
+
+<section class="guild-panel"><h2>今日の来店者</h2>
+  <p>酒場に来る人（最大5人）は日ごとに決まります。新しく迎えた住人を今日の酒場に呼びたいときや、顔ぶれを変えたいときに引き直してください。</p>
+  <form method="post" th:action="@{/guild/maintenance/visits}"><button type="submit">来店者を引き直す</button></form>
+</section>
+
+<section class="guild-panel" id="residents"><h2>住人（新しい順）</h2>
+  <p th:if="${#lists.isEmpty(characters)}">まだ住人はいません。</p>
+  <ul class="guild-jobs guild-admin-residents">
+    <li th:each="character : ${characters}">
+      <div><a th:href="@{/guild/characters/{id}(id=${character.id})}" th:text="${character.name}">リネ</a>
+        <small th:text="${#temporals.format(character.bornOn, 'yyyy年M月d日') + ' 誕生' + (character.profile().isEmpty() ? '' : ' / ' + character.profile())}"></small>
+        <p th:text="${character.memoryLabel ?: character.gameName() + '（記憶の記録なし）'}"></p></div>
+      <form method="post" th:action="@{/guild/maintenance/characters/{id}/delete(id=${character.id})}">
+        <label><input type="checkbox" name="confirm" required> 削除する</label>
+        <button type="submit">削除</button>
+      </form>
+    </li>
+  </ul>
+  <p>削除すると、その住人の来店記録も消えます。使っていた記憶は、また別の住人に使われることがあります。</p>
+</section>
+
+<section class="guild-panel"><h2>直近30日の実行履歴</h2><p th:if="${#lists.isEmpty(jobs)}">まだ生成の実行記録はありません。</p><ul class="guild-jobs"><li th:each="job : ${jobs}"><strong th:text="${#temporals.format(job.date, 'yyyy年M月d日') + ' / ' + job.status + ' / 試行' + job.attempts + '回'}"></strong><p th:text="${job.message}"></p></li></ul></section>
+</main></body></html>

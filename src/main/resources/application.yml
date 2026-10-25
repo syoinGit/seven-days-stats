@@ -35,6 +35,7 @@ app:
     recent-days: ${GUILD_RECENT_DAYS:30}
     recent-ratio: ${GUILD_RECENT_RATIO:0.5}
     public-url: ${GUILD_PUBLIC_URL:}
+    daily-limit: ${GUILD_DAILY_LIMIT:10}
   platform:
     domain: ${DOMAIN:rubinco.link}
     portal-url: ${PORTAL_SITE_URL:https://portal.${app.platform.domain}}
