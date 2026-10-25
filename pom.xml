@@ -119,6 +119,16 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- Tests run on H2, whose CAST(timestamptz AT TIME ZONE 'Asia/Tokyo' AS DATE) uses the JVM
+               time zone; PostgreSQL in production gives the Tokyo date on any server. Pin the JVM so
+               H2 matches PostgreSQL on every machine (CI runs in UTC). -->
+          <argLine>-Duser.timezone=Asia/Tokyo</argLine>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 </project>
