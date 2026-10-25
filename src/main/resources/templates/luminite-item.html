@@ -7,18 +7,17 @@
   <title th:text="${detail.item.name + ' | ' + game.displayName}">Luminite | Terraria</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-2')}">
   <link rel="stylesheet" th:href="@{/css/luminite.css(v='1')}">
 </head>
 <body class="luminite-body">
-<header th:replace="~{fragments/navigation :: siteHeader(@{/luminite}, ${game.displayName}, '✦', 'TERRARIA EXPLORATION HUB', 'luminite-topbar')}"></header>
+<header th:replace="~{fragments/header :: appHeader('terraria', 'luminite-topbar')}"></header>
 <main class="luminite-shell">
   <nav th:replace="~{fragments/luminite :: tabs}"></nav>
   <section class="luminite-panel" aria-labelledby="item-title" th:with="item=${detail.item}">
     <a class="luminite-back" th:href="@{/luminite/items}">← アイテム一覧</a>
     <div class="section-heading">
       <div>
-        <p class="eyebrow" th:text="${'ITEM #' + item.itemId}">ITEM #29</p>
         <h1 id="item-title" th:text="${item.name}">ライフクリスタル</h1>
         <p class="luminite-sub" th:if="${item.englishName}" th:text="${item.englishName}">Life Crystal</p>
       </div>

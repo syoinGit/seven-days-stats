@@ -6,17 +6,17 @@
   <title th:text="${'プレイヤー | ' + game.displayName}">プレイヤー | Octarine</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='5')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-2')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='6')}">
 </head>
 <body class="octarine-body">
-<header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
+<header th:replace="~{fragments/header :: appHeader('corekeeper', 'octarine-topbar')}"></header>
 <main class="octarine-shell ck-console">
   <nav th:replace="~{fragments/octarine :: menu}"></nav>
   <div class="ck-screen">
   <section class="octarine-panel" aria-labelledby="online-title">
     <div class="section-heading">
-      <div><p class="eyebrow">ログイン管理 / ONLINE</p><h1 id="online-title">いま接続中</h1></div>
+      <div><h1 id="online-title">いま接続中</h1></div>
     </div>
     <p th:if="${!tracking}" class="octarine-empty">接続の記録はまだ準備中です。</p>
     <th:block th:if="${tracking}">
@@ -32,7 +32,7 @@
 
   <section class="octarine-panel" aria-labelledby="playtime-title">
     <div class="section-heading">
-      <div><p class="eyebrow">PLAY TIME</p><h2 id="playtime-title">プレイ時間</h2></div>
+      <div><h2 id="playtime-title">プレイ時間</h2></div>
     </div>
     <p th:if="${#lists.isEmpty(players)}" class="octarine-empty">まだ記録がありません。</p>
     <div class="octarine-table-wrap" th:unless="${#lists.isEmpty(players)}">
@@ -53,7 +53,7 @@
 
   <section class="octarine-panel" aria-labelledby="sessions-title">
     <div class="section-heading">
-      <div><p class="eyebrow">LOGINS</p><h2 id="sessions-title">ログイン履歴</h2></div>
+      <div><h2 id="sessions-title">ログイン履歴</h2></div>
     </div>
     <p th:if="${#lists.isEmpty(logins)}" class="octarine-empty">まだ記録がありません。</p>
     <ol class="octarine-sessions" th:unless="${#lists.isEmpty(logins)}">

@@ -155,7 +155,7 @@ select:focus-visible, summary:focus-visible {
 
 .rail {
   position: sticky;
-  top: 70px;
+  top: 64px;
   z-index: 20;
   display: flex;
   grid-column: 1 / -1;
@@ -693,19 +693,34 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visib
 
 .ranking-avatar { float:left; margin:0 12px 8px 0; }
 
-/* Shared header: links to every game site (fragments/site-links.html). */
-.site-links { display:flex; flex:1 1 auto; gap:6px; justify-content:center; min-width:0; }
-.site-links a { --site:#8ee4dc; display:inline-flex; gap:8px; align-items:center; padding:6px 12px 6px 8px; border:1px solid transparent; border-radius:10px; color:#d8d6de; text-decoration:none; white-space:nowrap; transition:background .15s ease, border-color .15s ease; }
-.site-links a.site-amber { --site:#f3c969; }
-.site-links a.site-violet { --site:#cfb6ff; }
-.site-links a.site-magenta { --site:#f29bd8; }
-.site-links a:hover, .site-links a:focus-visible { border-color:color-mix(in srgb, var(--site) 45%, transparent); background:color-mix(in srgb, var(--site) 8%, transparent); }
-.site-links a.active { border-color:color-mix(in srgb, var(--site) 70%, transparent); background:color-mix(in srgb, var(--site) 14%, transparent); }
-.site-links .site-mark { display:grid; place-items:center; width:28px; height:28px; border-radius:8px; background:color-mix(in srgb, var(--site) 16%, transparent); color:var(--site); font-size:15px; }
-.site-links b { display:block; color:#f1eee9; font-size:13px; font-weight:650; letter-spacing:0; }
-.site-links small { display:block; color:#9a99a6; font-size:10px; letter-spacing:0; }
-@media (max-width:980px) {
-  .site-links { order:3; flex-basis:100%; justify-content:flex-start; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
-  .site-links::-webkit-scrollbar { display:none; }
+/* Shared header (fragments/header.html): the portal and game icons, and the account menu. */
+body .topbar.app-header { flex-wrap:nowrap; gap:12px; min-height:64px; padding:10px clamp(16px, 3vw, 32px); }
+.app-header .site-links { display:flex; gap:10px; align-items:center; min-width:0; overflow-x:auto; padding:2px; scrollbar-width:none; }
+.app-header .site-links::-webkit-scrollbar { display:none; }
+.app-header .site-links a { --site:#8ee4dc; display:block; flex:none; padding:2px; border:2px solid transparent; border-radius:13px; opacity:.7; transition:opacity .15s ease, transform .15s ease, border-color .15s ease; }
+.app-header .site-links a.site-portal { --site:#f1eee9; }
+.app-header .site-links a.site-amber { --site:#f3c969; }
+.app-header .site-links a.site-violet { --site:#cfb6ff; }
+.app-header .site-links a.site-magenta { --site:#f29bd8; }
+.app-header .site-links a:hover, .app-header .site-links a:focus-visible { opacity:1; transform:translateY(-1px); }
+.app-header .site-links a.active { opacity:1; border-color:var(--site); box-shadow:0 0 14px color-mix(in srgb, var(--site) 35%, transparent); }
+.site-icon { display:block; width:36px; height:36px; }
+.app-header .account-area { flex:none; display:flex; align-items:center; gap:8px; margin-left:auto; }
+.account-menu { position:relative; }
+.account-menu summary { display:block; list-style:none; border-radius:12px; cursor:pointer; }
+.account-menu summary::-webkit-details-marker { display:none; }
+.account-menu summary:focus-visible { outline:2px solid #8ee4dc; outline-offset:2px; }
+.account-menu summary .user-avatar { display:block; width:40px; height:40px; }
+.account-menu[open] summary .user-avatar { box-shadow:0 0 0 2px #f1eee9; }
+.account-menu-panel { position:absolute; top:calc(100% + 8px); right:0; z-index:50; display:grid; min-width:190px; padding:6px; border:1px solid #ffffff1f; border-radius:12px; background:#17181f; box-shadow:0 14px 32px #000a; }
+.account-menu-name { margin:0 0 4px; padding:8px 10px; overflow:hidden; border-bottom:1px solid #ffffff14; color:#a6a5b1; font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+.account-menu-panel a, .account-menu-panel button { display:block; width:100%; padding:9px 10px; border:0; border-radius:8px; background:none; color:#f1eee9; font:inherit; font-size:13px; text-align:left; text-decoration:none; cursor:pointer; }
+.account-menu-panel a:hover, .account-menu-panel button:hover, .account-menu-panel a:focus-visible, .account-menu-panel button:focus-visible { background:#ffffff12; }
+.account-menu-panel form { margin:0; }
+.visually-hidden { position:absolute !important; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+@media (max-width:600px) {
+  body .topbar.app-header { gap:8px; padding:8px 12px; }
+  .app-header .site-links { gap:6px; }
+  .site-icon { width:32px; height:32px; }
+  .account-menu summary .user-avatar { width:36px; height:36px; }
 }
-@media (max-width:600px) { .site-links small { display:none; } .site-links a { padding:5px 10px 5px 6px; } }

@@ -6,11 +6,11 @@
   <title>Octarine 管理 | Rubinco</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='5')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-2')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='6')}">
 </head>
 <body class="octarine-body">
-<header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, 'Octarine', '◆', 'ADMINISTRATION', 'octarine-topbar')}"></header>
+<header th:replace="~{fragments/header :: appHeader('corekeeper', 'octarine-topbar')}"></header>
 <main class="octarine-shell octarine-maintenance">
   <a th:href="@{/octarine}">← Octarineへ戻る</a>
   <div class="form-notice success" th:if="${notice}" th:text="${notice}"></div>
@@ -18,7 +18,7 @@
 
   <section class="octarine-panel" aria-labelledby="runs-title">
     <div class="section-heading">
-      <div><p class="eyebrow">IMPORT</p><h2 id="runs-title">取り込み履歴</h2></div>
+      <div><h2 id="runs-title">取り込み履歴</h2></div>
       <form method="post" th:action="@{/octarine/maintenance/import}">
         <button type="submit">今すぐ再取得</button>
       </form>
@@ -53,7 +53,7 @@
   </section>
 
   <section class="octarine-panel" aria-labelledby="worlds-title">
-    <div class="section-heading"><div><p class="eyebrow">WORLD</p><h2 id="worlds-title">ワールド世代</h2></div></div>
+    <div class="section-heading"><div><h2 id="worlds-title">ワールド世代</h2></div></div>
     <p class="octarine-note">「設定メモ」は管理者が入力した情報で、保存データからは確認していません。</p>
     <form class="octarine-form" th:each="world : ${worlds}" method="post" th:action="@{/octarine/maintenance/worlds/{id}(id=${world.id})}">
       <strong th:text="${world.worldKey + ' / 第' + world.generation + '世代' + (world.active ? '（有効）' : '')}"></strong>
@@ -76,7 +76,7 @@
   </section>
 
   <section class="octarine-panel" aria-labelledby="definitions-title">
-    <div class="section-heading"><div><p class="eyebrow">ITEMS</p><h2 id="definitions-title">進捗項目</h2></div></div>
+    <div class="section-heading"><div><h2 id="definitions-title">進捗項目</h2></div></div>
     <p class="octarine-note">内部キーと判定元は変更できません。公開ページには達成した項目だけを表示し、未達の項目や残りの数は出しません。</p>
     <form class="octarine-form octarine-definition" th:each="definition : ${definitions}" method="post"
           th:action="@{/octarine/maintenance/definitions/{id}(id=${definition.id})}">
@@ -90,7 +90,7 @@
   </section>
 
   <section class="octarine-panel" aria-labelledby="articles-title">
-    <div class="section-heading"><div><p class="eyebrow">GUIDE</p><h2 id="articles-title">攻略記事</h2></div></div>
+    <div class="section-heading"><div><h2 id="articles-title">攻略記事</h2></div></div>
     <p class="octarine-note">条件はすべての「表示」条件を満たし、どの「非表示」条件にも当たらないときに表示します。判定が不明な項目は条件を満たしません。外部Wikiの全文は転載しないでください。</p>
     <th:block th:each="view : ${articles}">
       <form class="octarine-form" method="post" th:action="@{/octarine/maintenance/articles/{id}(id=${view.article.id})}"

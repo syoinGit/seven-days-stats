@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <!-- Original icons for the header and server list; not the games' official artwork. -->
+  <symbol id="game-portal" viewBox="0 0 32 32">
+    <rect width="32" height="32" rx="8" fill="#1b1e2b"/>
+    <rect x="6" y="6" width="9" height="9" rx="2.5" fill="#f3c969"/>
+    <rect x="17" y="6" width="9" height="9" rx="2.5" fill="#cfb6ff"/>
+    <rect x="6" y="17" width="9" height="9" rx="2.5" fill="#f29bd8"/>
+    <rect x="17" y="17" width="9" height="9" rx="2.5" fill="#8ee4dc"/>
+  </symbol>
+  <!-- 7 Days to Die: a stencilled 7 on rusted metal, clawed through. -->
+  <symbol id="game-7dtd" viewBox="0 0 32 32">
+    <rect width="32" height="32" rx="8" fill="#3a1f17"/>
+    <rect x="2" y="2" width="28" height="28" rx="6" fill="none" stroke="#6b3a24" stroke-width="1.5"/>
+    <path d="M8 7h16v4.2L15.6 26h-5.2l8.2-14.6H8z" fill="#e9dcc4"/>
+    <path d="M14.6 26c.3 1.4.4 2.3.1 3.1-.3-.9-.6-1.9-.1-3.1zM11 26c.2 1 .2 1.6 0 2.2-.3-.7-.4-1.3 0-2.2z" fill="#c2412d"/>
+    <path d="M19 15l7-4M20.5 18.5l6.5-3.6M22 22l5-2.8" stroke="#c2412d" stroke-width="1.6" stroke-linecap="round"/>
+  </symbol>
+  <!-- Terraria: a pixel tree on a grass and dirt block under a day sky. -->
+  <symbol id="game-terraria" viewBox="0 0 32 32">
+    <rect width="32" height="32" rx="8" fill="#4f8fd6"/>
+    <path d="M0 22h32v2H0z" fill="#5fbf3c"/>
+    <path d="M0 24h32v8H0z" fill="#8a5a33"/>
+    <path d="M4 26h3v2H4zM13 27h3v2h-3zM23 26h4v2h-4z" fill="#6e4426"/>
+    <path d="M14 13h4v9h-4z" fill="#7a4b28"/>
+    <path d="M10 7h12v3h2v4h-2v2h-4v-2h-4v2h-4v-2H8v-4h2z" fill="#2f8f2a"/>
+    <path d="M12 8h4v2h-4zM18 10h3v2h-3z" fill="#4dbb3c"/>
+    <path d="M24 4h2v2h-2zM6 5h1v1H6z" fill="#fff7c2"/>
+  </symbol>
+  <!-- Core Keeper: the glowing core in a ring of cave stone. -->
+  <symbol id="game-corekeeper" viewBox="0 0 32 32">
+    <rect width="32" height="32" rx="8" fill="#3b2752"/>
+    <circle cx="16" cy="16" r="11" fill="#22182c"/>
+    <path d="M7 12h3v3H7zM22 9h3v3h-3zM23 19h3v3h-3zM9 21h3v3H9zM14 5h4v2h-4zM14 25h4v2h-4z" fill="#6d5680"/>
+    <circle cx="16" cy="16" r="6.5" fill="#45c8ff" opacity=".28"/>
+    <path d="M16 10.5l4.5 5.5-4.5 5.5-4.5-5.5z" fill="#7fe3ff"/>
+    <path d="M16 10.5l4.5 5.5H11.5z" fill="#c9f6ff"/>
+  </symbol>
+  <symbol id="game-generic" viewBox="0 0 32 32">
+    <rect width="32" height="32" rx="8" fill="#26302f"/>
+    <path d="M9 13a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-8a3 3 0 0 1-3-3z" fill="#8ea39d"/>
+    <path d="M12 15h1.2v-1.2h1.3V15h1.2v1.3h-1.2v1.2h-1.3v-1.2H12zM19 14.2a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8zM20 17a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8z" fill="#26302f"/>
+  </symbol>
+</svg>

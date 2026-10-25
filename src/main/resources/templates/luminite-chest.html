@@ -7,11 +7,11 @@
   <title th:text="${container.label + ' | ' + game.displayName}">Luminite | Terraria</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-2')}">
   <link rel="stylesheet" th:href="@{/css/luminite.css(v='1')}">
 </head>
 <body class="luminite-body">
-<header th:replace="~{fragments/navigation :: siteHeader(@{/luminite}, ${game.displayName}, '✦', 'TERRARIA EXPLORATION HUB', 'luminite-topbar')}"></header>
+<header th:replace="~{fragments/header :: appHeader('terraria', 'luminite-topbar')}"></header>
 <main class="luminite-shell">
   <nav th:replace="~{fragments/luminite :: tabs}"></nav>
   <section class="luminite-panel" aria-labelledby="chest-title">

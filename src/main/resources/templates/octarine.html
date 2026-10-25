@@ -7,33 +7,24 @@
   <title th:text="${game.displayName + ' | Core Keeper'}">Octarine | Core Keeper</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='5')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-2')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='6')}">
 </head>
 <body class="octarine-body">
-<header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
+<header th:replace="~{fragments/header :: appHeader('corekeeper', 'octarine-topbar')}"></header>
 
 <main class="octarine-shell ck-console">
   <nav th:replace="~{fragments/octarine :: menu}"></nav>
   <div class="ck-screen">
-  <section class="ck-banner" aria-labelledby="octarine-title">
-    <p class="eyebrow">CORE KEEPER / 地下拠点 管理端末</p>
-    <h1 id="octarine-title" th:text="${game.displayName}">Octarine</h1>
-    <p class="ck-banner-text">みんなの倉庫と、地下に潜った時間の記録。</p>
-    <p class="octarine-world" th:if="${overview.worldConfigured}">
-      <b th:text="${overview.worldName}">Core Keeper ワールド</b>
-      <span th:text="${'第' + overview.generation + '世代'}">第1世代</span>
-    </p>
-  </section>
-
+  <h1 class="visually-hidden">拠点</h1>
   <section class="ck-hud" aria-label="拠点の状態">
     <article class="ck-hud-server">
-      <span class="ck-hud-label">SERVER</span>
+      <span class="ck-hud-label">サーバー</span>
       <strong class="status-chip" th:classappend="${'status-' + serverStatus.code}" th:text="${serverStatus.label}">停止中</strong>
       <small th:text="${game.connection}">接続先は管理者に確認してください</small>
     </article>
     <article class="ck-hud-online">
-      <span class="ck-hud-label">ONLINE</span>
+      <span class="ck-hud-label">接続中</span>
       <strong th:text="${tracking ? online.size() + '人' : '—'}">0人</strong>
       <small th:if="${!tracking}">接続の記録は準備中です</small>
       <small th:if="${tracking and #lists.isEmpty(online)}">いまは誰もいません</small>
@@ -47,7 +38,7 @@
       <small th:text="${stat.note}"></small>
     </article>
     <article th:if="${overview.visible}">
-      <span class="ck-hud-label">LAST CHECK</span>
+      <span class="ck-hud-label">最終確認</span>
       <strong class="ck-hud-small" th:text="${overview.freshnessLabel}">未取得</strong>
       <small th:if="${overview.lastCheckedLabel}" th:text="${'最終確認 ' + overview.lastCheckedLabel}"></small>
       <small th:if="${overview.stale}" class="octarine-warning">取得が遅れています。表示は最後に読めた内容です。</small>
@@ -63,7 +54,7 @@
 
       <section class="octarine-panel" th:if="${activity != null}" aria-labelledby="octarine-activity-title">
         <div class="section-heading">
-          <div><p class="eyebrow">STORAGE LOG</p><h2 id="octarine-activity-title">倉庫の動き</h2></div>
+          <div><h2 id="octarine-activity-title">倉庫の動き</h2></div>
           <a th:href="@{/octarine/chests}">チェストを見る →</a>
         </div>
         <p th:if="${#lists.isEmpty(activity)}" class="octarine-empty">初回取り込み以降の変化はまだありません。</p>
@@ -79,7 +70,7 @@
 
       <section class="octarine-panel" th:if="${overview.visible}" aria-labelledby="octarine-progress-title">
         <div class="section-heading">
-          <div><p class="eyebrow">WORLD PROGRESS</p><h2 id="octarine-progress-title">達成した進捗</h2></div>
+          <div><h2 id="octarine-progress-title">達成した進捗</h2></div>
           <a th:href="@{/octarine/history}">履歴 →</a>
         </div>
         <p th:if="${!overview.hasSnapshot}" class="octarine-empty">まだ保存データを取り込めていません。</p>
@@ -101,7 +92,7 @@
 
       <section class="octarine-panel" th:if="${overview.visible}" aria-labelledby="octarine-guide-title">
         <div class="section-heading">
-          <div><p class="eyebrow">NEXT GOALS</p><h2 id="octarine-guide-title">おすすめの次の目標</h2></div>
+          <div><h2 id="octarine-guide-title">おすすめの次の目標</h2></div>
         </div>
         <p th:if="${#lists.isEmpty(overview.guides)}" class="octarine-empty">今の進行状況に合う記事はまだありません。</p>
         <article class="octarine-guide" th:each="guide : ${overview.guides}">
@@ -120,11 +111,11 @@
 
     <section class="octarine-panel ck-comms" aria-labelledby="octarine-timeline-title">
       <div class="section-heading">
-        <div><p class="eyebrow">TRANSMISSIONS</p><h2 id="octarine-timeline-title">観測AIの通信</h2></div>
+        <div><h2 id="octarine-timeline-title">AIのつぶやき</h2></div>
       </div>
       <ol class="ck-feed" id="timeline">
         <li th:if="${#lists.isEmpty(timeline)}" class="octarine-empty"
-            th:text="${timelinePage.number == 0 ? 'まだ通信はありません。' : 'このページの記録はありません。'}"></li>
+            th:text="${timelinePage.number == 0 ? 'まだつぶやきはありません。' : 'このページの記録はありません。'}"></li>
         <li class="ck-post" th:each="item : ${timeline}">
           <img class="user-avatar" th:src="${@portalProfileService.avatar(item.actorPlayerId, item.creatorSub, profileDirectory, currentViewer)}" alt="" loading="lazy">
           <div class="ck-post-body">
@@ -139,9 +130,9 @@
           </div>
         </li>
       </ol>
-      <nav class="portal-feed-pages" aria-label="通信のページ">
-        <a th:if="${timelinePage.hasPrevious()}" th:href="@{/octarine(page=${timelinePage.number - 1})} + '#timeline'">← 新しい通信</a>
-        <a th:if="${timelinePage.hasNext()}" th:href="@{/octarine(page=${timelinePage.number + 1})} + '#timeline'">過去の通信 →</a>
+      <nav class="portal-feed-pages" aria-label="つぶやきのページ">
+        <a th:if="${timelinePage.hasPrevious()}" th:href="@{/octarine(page=${timelinePage.number - 1})} + '#timeline'">← 新しい投稿</a>
+        <a th:if="${timelinePage.hasNext()}" th:href="@{/octarine(page=${timelinePage.number + 1})} + '#timeline'">過去の投稿 →</a>
       </nav>
     </section>
   </div>

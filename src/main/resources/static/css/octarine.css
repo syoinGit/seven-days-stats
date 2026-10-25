@@ -188,11 +188,11 @@
     #0b0910;
   color:var(--ck-ink);
 }
-.ck-console { display:grid; grid-template-columns:230px minmax(0, 1fr); gap:22px; align-items:start; width:min(1280px, calc(100% - 32px)); }
+.ck-console { display:grid; grid-template-columns:minmax(0, 1fr) 220px; gap:22px; align-items:start; width:min(1280px, calc(100% - 32px)); }
 .ck-screen { min-width:0; }
 
 /* Framed panels: double border with a lit top edge, like an in-game window. */
-.ck-console .octarine-panel, .ck-banner, .ck-hud article, .ck-menu {
+.ck-console .octarine-panel, .ck-hud article, .ck-menu {
   border:2px solid var(--ck-frame);
   background:linear-gradient(180deg, var(--ck-panel-2), var(--ck-panel));
   box-shadow:inset 0 0 0 1px #07050a, inset 0 2px 0 #ffffff0f, 0 3px 0 #050307;
@@ -210,9 +210,7 @@
 .ck-console .octarine-panel > :not(.section-heading):first-child { margin-top:20px; }
 
 /* Menu: game-style buttons with a cursor on the selected one. */
-.ck-menu { position:sticky; top:86px; display:grid; gap:4px; margin-top:16px; padding:12px; }
-.ck-menu-title { margin:0 0 6px; padding:0 4px 10px; border-bottom:2px solid var(--ck-frame); color:var(--ck-accent-soft); font:12px monospace; letter-spacing:.24em; }
-.ck-menu-title span { color:var(--ck-core); }
+.ck-menu { order:2; position:sticky; top:86px; display:grid; gap:4px; margin-top:16px; padding:12px; }
 .ck-menu-group { margin:10px 4px 2px; color:var(--ck-dim); font-size:10px; letter-spacing:.12em; }
 .ck-menu a { position:relative; display:flex; gap:10px; align-items:center; padding:9px 10px 9px 12px; border:1px solid transparent; border-radius:3px; color:var(--ck-ink); text-decoration:none; }
 .ck-menu a:hover { border-color:var(--ck-frame-hi); background:#ffffff06; }
@@ -220,16 +218,10 @@
 .ck-menu a.active::before { content:"▶"; position:absolute; left:-9px; color:var(--ck-accent); font-size:10px; text-shadow:0 0 6px var(--ck-accent); }
 .ck-menu-icon { flex:none; width:20px; height:20px; color:var(--ck-core); }
 .ck-menu a.active .ck-menu-icon { color:var(--ck-accent-soft); }
-.ck-menu a b { display:block; font-size:13px; font-weight:600; }
-.ck-menu a small { display:block; color:var(--ck-dim); font:9px monospace; letter-spacing:.14em; }
+.ck-menu a span { font-size:13px; font-weight:600; }
 .ck-menu .ck-menu-admin { margin-top:10px; border-top:1px dashed var(--ck-frame); border-radius:0; }
 
-/* Home: banner, HUD tiles, two columns (base log | AI transmissions). */
-.ck-banner { position:relative; margin-top:16px; padding:26px 28px; overflow:hidden;
-  background:radial-gradient(circle at 88% 30%, #6fd3c433, transparent 26%), radial-gradient(circle at 88% 30%, #f29bd822, transparent 46%), linear-gradient(180deg, var(--ck-panel-2), var(--ck-panel)); }
-.ck-banner::after { content:"◆"; position:absolute; right:7%; top:50%; transform:translateY(-50%); color:var(--ck-core); font-size:86px; opacity:.55; text-shadow:0 0 30px var(--ck-core), 0 0 60px #f29bd8; }
-.ck-banner h1 { margin:6px 0; color:var(--ck-accent-soft); font-size:clamp(30px, 5vw, 52px); letter-spacing:.1em; text-shadow:0 0 18px #f29bd855; }
-.ck-banner-text { margin:0; color:#cdbfcb; }
+/* Home: HUD tiles, two columns (base log | AI posts). */
 .ck-hud { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-top:12px; }
 .ck-hud article { display:grid; align-content:start; gap:6px; min-width:0; padding:12px 14px; }
 .ck-hud-label { color:var(--ck-dim); font:10px monospace; letter-spacing:.12em; }
@@ -274,15 +266,13 @@
 }
 @media (max-width:820px) {
   .ck-console { grid-template-columns:minmax(0, 1fr); gap:0; }
-  .ck-menu { position:static; display:flex; gap:6px; overflow-x:auto; padding:8px; scrollbar-width:none; }
+  .ck-menu { order:0; position:static; display:flex; gap:6px; overflow-x:auto; padding:8px; scrollbar-width:none; }
   .ck-menu::-webkit-scrollbar { display:none; }
-  .ck-menu-title, .ck-menu-group { display:none; }
+  .ck-menu-group { display:none; }
   .ck-menu a { flex:none; padding:7px 10px; }
   .ck-menu a.active::before { display:none; }
-  .ck-menu a small { display:none; }
   .ck-menu .ck-menu-admin { margin:0; border-top:0; }
-  .ck-banner::after { font-size:54px; right:18px; }
-}
+  }
 .ck-hud strong.status-chip { padding:3px 9px; font-family:inherit; font-size:12px; }
 .ck-console.octarine-shell { padding-top:8px; }
-@media (max-width:600px) { .ck-banner::after { display:none; } }
+@media (max-width:600px) { 

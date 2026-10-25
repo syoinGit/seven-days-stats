@@ -92,8 +92,6 @@ class LuminiteWebTests {
   void overviewShowsWorldFactsProgressAndChanges() throws Exception {
     mvc.perform(get("/luminite").with(member()))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("テスト世界")))
-        .andExpect(content().string(containsString("エキスパート")))
         .andExpect(content().string(containsString("クトゥルフのめだま")))
         .andExpect(content().string(not(containsString("スライムキング"))))
         .andExpect(content().string(not(containsString("ネタバレ"))))

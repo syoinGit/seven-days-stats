@@ -9,48 +9,34 @@
   <title>Rubinco</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
-  <link rel="stylesheet" th:href="@{/css/portal.css(v='7')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-2')}">
+  <link rel="stylesheet" th:href="@{/css/portal.css(v='8')}">
   <script defer th:src="@{/js/portal.js(v='9')}"></script>
 </head>
 <body class="portal-body">
-<header th:replace="~{fragments/portal-header :: header}"></header>
+<header th:replace="~{fragments/header :: appHeader('portal', 'portal-topbar')}"></header>
 
 <div class="portal-layout">
 <main class="portal-shell">
-  <section th:if="${!loggedIn}" class="portal-intro" aria-labelledby="portal-title">
-    <p class="eyebrow">YOUR PEOPLE. YOUR WORLDS.</p>
-    <h1 id="portal-title">いつもの仲間と、<br><em>次の冒険へ。</em></h1>
-    <p>遊んだ時間も、見つけた景色も。みんなの冒険が集まる場所。</p>
-    
-  </section>
-
   <div class="form-notice success" th:if="${param.logout}">ログアウトしました。</div>
-  <section th:if="${!loggedIn}" class="portal-welcome" aria-label="ポータルについて">
-    <h2>仲間と遊ぶ、世界をつなぐ。</h2>
-    <p>Watchpointで7 Days to Dieの冒険記録を、LuminiteでTerrariaの、OctarineでCore Keeperの進行状況を。ヘッダーから各サイトへ移動できます。</p>
-    <div class="game-grid">
-      <article class="game-card public-game-card" th:each="site : ${sites}">
-        <p class="eyebrow" th:text="${site.siteName}"></p>
-        <h2 th:text="${site.displayName}"></h2>
-        <p th:text="${site.id == 'terraria' ? '探索と建築、ボスとの戦い。仲間と広げる世界の記録。' : site.id == 'corekeeper' ? '地下の拠点と倉庫を、みんなで管理する記録。' : '荒廃した世界で生き抜く日々を、タイムラインと冒険日記で。'}"></p>
-      </article>
-    </div>
-    <p>ヘッダーからログインすると、全体タイムラインを閲覧できます。</p>
+  <section th:if="${!loggedIn}" class="portal-welcome" aria-labelledby="portal-title">
+    <h1 id="portal-title" class="visually-hidden">ポータル</h1>
+    <p>ログインすると、みんなのタイムラインを見られます。</p>
+    <a class="portal-login-button" href="/portal?login" data-open-login>ログイン</a>
   </section>
   <section th:if="${loggedIn}" class="portal-feed" id="timeline" aria-labelledby="shared-timeline-title">
-    <p class="eyebrow">COMMUNITY / ACTIVITY</p>
-    <h1 id="shared-timeline-title">全体タイムライン<span class="feed-heading-note">みんなの冒険記録</span></h1>
-    <p>すべてのゲームの活動記録を、新しい順に表示しています。</p>
+    <h1 id="shared-timeline-title">タイムライン</h1>
     <p th:if="${timeline.empty}" th:text="${timelinePage == 0 ? '活動記録はまだありません。' : 'このページの記録はありません。'}"></p>
     <article class="portal-event" th:each="event : ${timeline.content}">
       <img class="user-avatar event-avatar" th:src="${@portalProfileService.avatar(event.actorPlayerId, event.creatorSub, profileDirectory, currentViewer)}" alt="" loading="lazy">
       <header>
         <th:block th:each="game : ${sites}" th:if="${game.id == event.gameId}">
-          <a class="status-chip" th:href="${siteEntries[game.id]}" th:text="${game.displayName + ' / ' + game.siteName}">ゲーム</a>
+          <a class="event-game" th:href="${siteEntries[game.id]}" th:attr="aria-label=${game.displayName},title=${game.displayName}">
+            <svg class="site-icon" viewBox="0 0 32 32" aria-hidden="true"><use th:href="@{/img/game-icons.svg(v='1')} + '#game-' + ${#lists.contains({'7dtd', 'terraria', 'corekeeper'}, game.id) ? game.id : 'generic'}"></use></svg></a>
         </th:block>
         <span th:each="game : ${servers}" th:if="${game.id == event.gameId and !siteEntries.containsKey(game.id)}"
-              class="status-chip" th:text="${game.name}">ゲーム</span>
+              class="event-game" th:attr="aria-label=${game.name},title=${game.name}">
+          <svg class="site-icon" viewBox="0 0 32 32" aria-hidden="true"><use th:href="@{/img/game-icons.svg(v='1')} + '#game-' + ${#lists.contains({'7dtd', 'terraria', 'corekeeper'}, game.id) ? game.id : 'generic'}"></use></svg></span>
         <time th:datetime="${event.occurredAt}" th:text="${#temporals.format(event.occurredAt, 'yyyy/MM/dd HH:mm', 'Asia/Tokyo')}"></time>
       </header>
       <p class="event-author" th:text="${@portalProfileService.authorName(event.actorPlayerId, event.creatorSub, event.actorName, profileDirectory, currentViewer)}"></p>
@@ -65,40 +51,41 @@
 </main>
 <aside class="portal-server-rail server-controls" id="servers" aria-labelledby="server-rail-title"
        th:attr="data-live-server-status=${liveServerStatus},data-memory-budget-mib=${memoryBudget.budgetMiB}">
-  <h2 id="server-rail-title">ゲームサーバー</h2>
-  <p class="server-status-note" th:text="${liveServerStatus ? 'コンテナの稼働状況を表示しています。' : '保存されている稼働状況を表示しています。'}"></p>
-  <p th:if="${canStartServers}" class="server-memory-budget" role="status" aria-live="polite">
-    メモリ枠 <span data-memory-reserved th:text="${memoryBudget.reservedLabel()}">未確認</span>
+  <h2 id="server-rail-title">サーバー</h2>
+  <p th:if="${canStartServers}" class="server-memory-budget" role="status" aria-live="polite"
+     th:attr="title=${liveServerStatus ? 'コンテナの稼働状況' : '保存されている稼働状況'}">
+    メモリ <span data-memory-reserved th:text="${memoryBudget.reservedLabel()}">未確認</span>
     / <span th:text="${memoryBudget.budgetLabel()}"></span>
   </p>
   <article th:each="server : ${servers}" class="server-control"
            th:classappend="${'game-' + (siteAccents[server.id] ?: 'none')}"
            th:attr="data-server=${server.id},data-status=${server.status.code},data-memory-mib=${server.status.memory.requiredMiB}">
-    <header>
-      <h3><a th:if="${siteLinks.containsKey(server.id)}" th:href="${siteLinks[server.id]}" th:text="${server.name}"></a><span th:unless="${siteLinks.containsKey(server.id)}" th:text="${server.name}"></span></h3>
+    <a class="server-game" th:href="${siteLinks.containsKey(server.id) ? siteLinks[server.id] : null}" th:attr="aria-label=${server.name},title=${server.name}">
+      <svg class="site-icon" viewBox="0 0 32 32" aria-hidden="true"><use th:href="@{/img/game-icons.svg(v='1')} + '#game-' + ${#lists.contains({'7dtd', 'terraria', 'corekeeper'}, server.id) ? server.id : 'generic'}"></use></svg>
+    </a>
+    <div class="server-state">
       <span class="status-chip" th:attr="data-server-status=${server.id}"
             th:classappend="${'status-' + server.status.code}" th:text="${server.status.label}"></span>
-    </header>
-    <p class="server-online" th:if="${onlineCounts[server.id] != null and onlineCounts[server.id] > 0}"
-       th:text="${onlineCounts[server.id] + '人が接続中'}">1人が接続中</p>
+      <small class="server-online" th:if="${onlineCounts[server.id] != null and onlineCounts[server.id] > 0}"
+             th:text="${onlineCounts[server.id] + '人が接続中'}">1人が接続中</small>
+    </div>
+    <div class="server-buttons" th:if="${canStartServers and server.manualStart}">
+      <form method="post"
+            th:action="@{/portal/actions/games/{id}/start(id=${server.id})}"
+            th:attr="data-start-server=${server.id},data-status=${server.status.code},data-memory-allowed=${server.status.memory.startAllowed}">
+        <button type="submit" class="server-start-button" th:disabled="${!server.status.memory.startAllowed}"
+                th:attr="aria-label=${server.name + 'を起動'},title=${'起動（必要メモリ ' + server.status.memory.requiredLabel() + '）'}">起動</button>
+      </form>
+      <form method="post" class="server-stop-form"
+            th:action="@{/portal/actions/games/{id}/stop(id=${server.id})}"
+            th:attr="data-stop-server=${server.id},data-status=${server.status.code},data-server-name=${server.name}">
+        <button type="submit" class="server-stop-button"
+                th:disabled="${server.status.code != 'online' and server.status.code != 'starting'}"
+                th:attr="aria-label=${server.name + 'を停止'},title='停止'">停止</button>
+      </form>
+    </div>
+    <small th:if="${canStartServers and !server.manualStart}" class="server-auto-start">自動</small>
     <th:block th:if="${canStartServers}">
-      <p class="server-memory-required" th:text="${'必要メモリ枠 ' + server.status.memory.requiredLabel()}"></p>
-      <div class="server-buttons">
-        <form th:if="${server.manualStart}" method="post"
-              th:action="@{/portal/actions/games/{id}/start(id=${server.id})}"
-              th:attr="data-start-server=${server.id},data-status=${server.status.code},data-memory-allowed=${server.status.memory.startAllowed}">
-          <button type="submit" class="server-start-button" th:disabled="${!server.status.memory.startAllowed}"
-                  th:attr="aria-label=${server.name + 'を起動'}">起動</button>
-        </form>
-        <form th:if="${server.manualStart}" method="post" class="server-stop-form"
-              th:action="@{/portal/actions/games/{id}/stop(id=${server.id})}"
-              th:attr="data-stop-server=${server.id},data-status=${server.status.code},data-server-name=${server.name}">
-          <button type="submit" class="server-stop-button"
-                  th:disabled="${server.status.code != 'online' and server.status.code != 'starting'}"
-                  th:attr="aria-label=${server.name + 'を停止'}">停止</button>
-        </form>
-      </div>
-      <small th:unless="${server.manualStart}" class="server-auto-start">自動起動</small>
       <p class="server-memory-reason" data-memory-reason
          th:text="${server.manualStart and server.status.code == 'offline' ? server.status.memory.reason : ''}"></p>
       <p class="server-control-notice" role="alert" th:attr="data-control-notice=${server.id}"
@@ -106,7 +93,7 @@
       <p class="server-action-message" role="status" aria-live="polite"></p>
     </th:block>
   </article>
-  <p th:if="${canStartServers}" class="server-memory-note">起動後、接続できるまで数分かかる場合があります。停止は保存のため最大2分ほどかかります。メモリ枠は、起動中・稼働中のゲームに割り当てた枠の合計です。</p>
+  <p th:if="${canStartServers}" class="server-memory-note">起動後、接続できるまで数分かかることがあります。停止は保存のため最大2分ほどかかります。</p>
 </aside>
 </div>
 <th:block th:if="${!loggedIn}"><dialog th:replace="~{fragments/portal-login :: modal}"></dialog></th:block>

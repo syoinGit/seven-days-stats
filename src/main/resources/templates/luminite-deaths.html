@@ -7,16 +7,16 @@
   <title th:text="${'墓標と看板 | ' + game.displayName}">Luminite | Terraria</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-2')}">
   <link rel="stylesheet" th:href="@{/css/luminite.css(v='1')}">
 </head>
 <body class="luminite-body">
-<header th:replace="~{fragments/navigation :: siteHeader(@{/luminite}, ${game.displayName}, '✦', 'TERRARIA EXPLORATION HUB', 'luminite-topbar')}"></header>
+<header th:replace="~{fragments/header :: appHeader('terraria', 'luminite-topbar')}"></header>
 <main class="luminite-shell">
   <nav th:replace="~{fragments/luminite :: tabs}"></nav>
   <section class="luminite-panel" aria-labelledby="deaths-title">
     <div class="section-heading">
-      <div><p class="eyebrow">GRAVEYARD</p><h1 id="deaths-title">墓標</h1></div>
+      <div><h1 id="deaths-title">墓標</h1></div>
       <span class="luminite-count" th:text="${#lists.size(tombstones) + '基'}">0基</span>
     </div>
     <div th:replace="~{fragments/luminite :: snapshot}"></div>
@@ -34,7 +34,7 @@
   </section>
   <section class="luminite-panel" aria-labelledby="signs-title">
     <div class="section-heading">
-      <div><p class="eyebrow">SIGNS</p><h2 id="signs-title">看板</h2></div>
+      <div><h2 id="signs-title">看板</h2></div>
       <span class="luminite-count" th:text="${#lists.size(signs) + '枚'}">0枚</span>
     </div>
     <p th:if="${#lists.isEmpty(signs)}" class="luminite-empty">文字が書かれた看板はありません。</p>
