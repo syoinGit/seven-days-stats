@@ -44,3 +44,7 @@ build/
 ### VS Code ###
 .vscode/
 /corekeeper/
+
+### Local design notes and source art (not published) ###
+/guild/
+/icon/

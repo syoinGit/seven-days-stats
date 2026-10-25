@@ -6,7 +6,7 @@
   <p th:if="${#lists.isEmpty(room.visits)}">席はまだ空いています。</p>
   <ul class="guild-list">
     <li th:each="visit : ${room.visits}"><a class="guild-row" th:href="@{/guild/characters/{id}(id=${visit.character.id})}">
-      <svg class="guild-sprite" th:classappend="${visit.character.appearance}" viewBox="0 0 16 24" aria-hidden="true"><use href="/img/guild-people.svg#resident"></use></svg>
+      <svg th:replace="~{fragments/guild :: sprite(${visit.character})}"></svg>
       <span><strong th:text="${visit.character.name}">リネ</strong><small th:if="${!visit.character.profile().isEmpty()}" th:text="${visit.character.profile()}">28歳・女性・道具職人</small><span class="guild-line" th:text="${visit.line}">「今日は静かだね」</span></span>
     </a></li>
   </ul>
@@ -18,7 +18,7 @@
   <p th:if="${#lists.isEmpty(characters)}">このページには、まだ住人の記録がありません。</p>
   <ul class="guild-list">
     <li th:each="character : ${characters}"><a class="guild-row" th:href="@{/guild/characters/{id}(id=${character.id})}">
-      <svg class="guild-sprite" th:classappend="${character.appearance}" viewBox="0 0 16 24" aria-hidden="true"><use href="/img/guild-people.svg#resident"></use></svg>
+      <svg th:replace="~{fragments/guild :: sprite(${character})}"></svg>
       <span><strong th:text="${character.name}">リネ</strong><small th:text="${(character.profile().isEmpty() ? '' : character.profile() + ' / ') + character.gameName() + ' / ' + #temporals.format(character.bornOn, 'yyyy年M月d日')}"></small><span class="guild-line" th:text="${character.introduction}"></span><em th:if="${character.status == 'DEAD'}">追悼の記録</em></span>
     </a></li>
   </ul>
@@ -26,7 +26,7 @@
 </th:block>
 
 <th:block th:fragment="character">
-  <div class="resident-heading"><svg class="guild-sprite" th:classappend="${character.appearance}" viewBox="0 0 16 24" aria-hidden="true"><use href="/img/guild-people.svg#resident"></use></svg><div><p class="guild-eyebrow" th:text="${character.gameName()}">Core Keeper</p><p class="resident-profile" th:if="${!character.profile().isEmpty()}" th:text="${character.profile()}">28歳・女性・道具職人</p><p th:text="${#temporals.format(character.bornOn, 'yyyy年M月d日') + ' に誕生'}"></p></div></div>
+  <div class="resident-heading"><svg th:replace="~{fragments/guild :: sprite(${character})}"></svg><div><p class="guild-eyebrow" th:text="${character.gameName()}">Core Keeper</p><p class="resident-profile" th:if="${!character.profile().isEmpty()}" th:text="${character.profile()}">28歳・女性・道具職人</p><p class="resident-lineage" th:if="${character.lineageName() != null}" th:text="${character.lineageName() + 'の名'}">北方系の名</p><p th:text="${#temporals.format(character.bornOn, 'yyyy年M月d日') + ' に誕生'}"></p></div></div>
   <p th:if="${character.status == 'DEAD'}">この人物は亡くなりました。その人の記録はここに残ります。</p>
   <p th:if="${character.status == 'INJURED'}">現在は療養しています。</p><p th:if="${character.status == 'MISSING'}">現在は所在が分かっていません。</p>
   <div class="guild-dialogue"><p th:text="${character.introduction}"></p></div>

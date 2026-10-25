@@ -21,11 +21,21 @@ public class GuildService {
   private final AiAnalysisProperties ai;
   private final GuildSourceService sources;
   private final GuildCharacterGenerator generator;
+  private final GuildPeople people;
 
-  /** memoryLabel and memory are null for residents born before memories were recorded. */
+  /**
+   * memoryLabel and memory are null for residents born before memories were recorded; lineage and look
+   * for those born before code chose them (they keep the plain sprite tinted by appearance).
+   */
   public record Character(long id, LocalDate bornOn, String game, String name, String introduction,
                           String origin, String personality, String appearance, String status,
-                          Integer age, String gender, String occupation, String memoryLabel, String memory) {
+                          Integer age, String gender, String occupation, String memoryLabel, String memory,
+                          String lineage, GuildPeople.Look look) {
+    public String lineageName() {
+      var known = GuildPeople.Lineage.of(lineage);
+      return known == null ? null : known.label();
+    }
+
     public String gameName() {
       return GuildSourceService.GAMES.getOrDefault(game, game);
     }
@@ -50,6 +60,7 @@ public class GuildService {
   // The source key (it names the player and day) stays private; the memory label and lines are public.
   private static final String PUBLIC_COLUMNS = "c.id, c.born_on, c.game_id, c.name, c.introduction, c.origin, "
       + "c.personality, c.appearance, c.status, c.age, c.gender, c.occupation, s.memory_label, "
+      + "c.name_lineage, c.outfit, c.hair_style, c.hair_color, c.skin_color, c.cloth_color, c.cloth2_color, "
       + "CASE WHEN s.memory_label IS NULL THEN NULL ELSE s.facts END AS memory";
   private static final String FROM = " FROM M_GUILD_CHARACTER c LEFT JOIN T_GUILD_SOURCE s ON s.character_id = c.id";
   private static Character character(java.sql.ResultSet rs) throws java.sql.SQLException {
@@ -57,7 +68,9 @@ public class GuildService {
         rs.getString("name"), rs.getString("introduction"), rs.getString("origin"),
         rs.getString("personality"), rs.getString("appearance"), rs.getString("status"),
         (Integer) rs.getObject("age"), rs.getString("gender"), rs.getString("occupation"),
-        rs.getString("memory_label"), rs.getString("memory"));
+        rs.getString("memory_label"), rs.getString("memory"), rs.getString("name_lineage"),
+        GuildPeople.Look.of(rs.getString("outfit"), rs.getString("hair_style"), rs.getString("hair_color"),
+            rs.getString("skin_color"), rs.getString("cloth_color"), rs.getString("cloth2_color"), rs.getString("gender")));
   }
 
   public List<Character> characters(int page) {
@@ -117,11 +130,13 @@ public class GuildService {
     if (count >= limit + FAILURE_ALLOWANCE) return "本日の試行上限（" + (limit + FAILURE_ALLOWANCE) + "回）に達しました。明日また実行できます。";
     if (attempts.isEmpty()) jdbc.update("INSERT INTO T_GUILD_JOB (target_date,status,attempts,message,model_id,version) VALUES (?, 'RUNNING',0,'生成中',?,'guild-v1')", today, ai.modelId());
     jdbc.update("UPDATE T_GUILD_JOB SET status = 'RUNNING', attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP WHERE target_date = ?", today);
-    var source = sources.choose(today);
-    if (source.isEmpty()) return finish(today, "SKIPPED", "まだ使っていない過去の記録がありません。人物の追加を見送りました。");
+    var choice = sources.choose(today);
+    if (choice.source().isEmpty()) return finish(today, "SKIPPED", choice.skipped());
+    var source = choice.source();
+    var plan = people.plan(source.get().category());
     GuildCharacterGenerator.Draft draft;
     try {
-      draft = generator.generate(source.get());
+      draft = generator.generate(source.get(), plan);
     } catch (GuildCharacterGenerator.GenerationException failure) {
       // Only fixed text and the exception class name; never provider responses, prompts or source data.
       log.warn("Guild generation failed ({}, {})", failure.call() ? "bedrock call" : "invalid output", failure.getMessage());
@@ -131,17 +146,36 @@ public class GuildService {
     }
     String origin = GuildSourceService.GAMES.get(source.get().game())
         + " の記録を題材に生まれた創作人物。人物の暮らしや気質はフィクションで、特定のプレイヤーを表すものではありません。";
-    jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,age,gender,occupation) "
-        + "VALUES (?,?,?,?,?,?,?,?,?,?)", today, source.get().game(), draft.name(), draft.introduction(), origin,
-        draft.personality(), draft.appearance(), draft.age(), draft.gender(), draft.occupation());
+    if (nameTaken(draft.name())) {
+      return finish(today, "FAILED", "AIが付けた名前が、既存の住人かプレイヤーの名前と重なりました。もう一度試してください。");
+    }
+    var look = plan.look();
+    jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,age,gender,occupation,"
+        + "name_lineage,outfit,hair_style,hair_color,skin_color,cloth_color,cloth2_color) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        today, source.get().game(), draft.name(), draft.introduction(), origin, draft.personality(),
+        List.of("ember", "moss", "violet").get(java.util.concurrent.ThreadLocalRandom.current().nextInt(3)),
+        draft.age(), plan.gender(), plan.occupation(), plan.lineage().name().toLowerCase(), look.outfit(), look.hair(),
+        look.hairColor(), look.skin(), look.cloth(), look.cloth2());
     // Writes are serialized by lock(), so the newest id is this resident.
     Long id = jdbc.queryForObject("SELECT MAX(id) FROM M_GUILD_CHARACTER", Long.class);
-    jdbc.update("INSERT INTO T_GUILD_SOURCE (character_id,source_key,facts,memory_label) VALUES (?,?,?,?)",
-        id, source.get().key(), source.get().facts(), source.get().label());
+    jdbc.update("INSERT INTO T_GUILD_SOURCE (character_id,source_key,facts,memory_label,category) VALUES (?,?,?,?,?)",
+        id, source.get().key(), source.get().facts(), source.get().label(), source.get().category());
     // Build today's roster after the very first birth. A saved roster changes only by refreshVisits().
     ensureVisits(today);
     return finish(today, "SUCCEEDED", "「" + draft.name() + "」を迎えました（今日 " + bornToday() + " / " + limit
         + " 人）。今日の来店名簿に加えるには「来店者を引き直す」を押してください。");
+  }
+
+  /**
+   * A resident's name must be new, and must not be (or contain, or sit inside) a player's name. The AI
+   * never sees player names, so this is a backstop.
+   */
+  private boolean nameTaken(String name) {
+    if (jdbc.queryForObject("SELECT COUNT(*) FROM M_GUILD_CHARACTER WHERE name = ?", Integer.class, name) > 0) return true;
+    String wanted = name.toLowerCase(java.util.Locale.ROOT);
+    List<String> players = jdbc.queryForList("SELECT player_name FROM M_PLAYER UNION SELECT player_name FROM M_CK_PLAYER", String.class);
+    return players.stream().filter(java.util.Objects::nonNull).map(player -> player.strip().toLowerCase(java.util.Locale.ROOT))
+        .filter(player -> player.length() >= 2).anyMatch(player -> player.contains(wanted) || wanted.contains(player));
   }
 
   /** Redraws today's visitors, e.g. so residents born today can come in. */
