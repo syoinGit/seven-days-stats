@@ -1,3 +1,3 @@
-id	key	ja	en
-22	IronBar	テスト鉄塊	Test Iron Bar
-29	LifeCrystal	テスト生命石	Test Life Crystal
+id	key	ja	en	category
+22	IronBar	テスト鉄塊	Test Iron Bar	ore
+29	LifeCrystal	テスト生命石	Test Life Crystal	other

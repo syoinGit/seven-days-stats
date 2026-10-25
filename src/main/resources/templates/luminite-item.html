@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='header-4')}">
-  <link rel="stylesheet" th:href="@{/css/luminite.css(v='2')}">
+  <link rel="stylesheet" th:href="@{/css/luminite.css(v='3')}">
 </head>
 <body class="luminite-body">
 <header th:replace="~{fragments/header :: appHeader('terraria', 'luminite-topbar')}"></header>
@@ -18,8 +18,8 @@
     <a class="luminite-back" th:href="@{/luminite/items}">← アイテム一覧</a>
     <div class="section-heading">
       <div>
-        <h1 id="item-title" th:text="${item.name}">ライフクリスタル</h1>
-        <p class="luminite-sub" th:if="${item.englishName}" th:text="${item.englishName}">Life Crystal</p>
+        <h1 id="item-title" class="lm-title" th:classappend="${'lm-' + item.category.icon()}"><svg th:replace="~{fragments/luminite :: icon(${item.category})}"></svg><span th:text="${item.name}">ライフクリスタル</span></h1>
+        <p class="luminite-sub" th:text="${item.category.label() + (item.englishName != null ? ' · ' + item.englishName : '')}">素材 · Life Crystal</p>
       </div>
     </div>
     <div th:replace="~{fragments/luminite :: snapshot}"></div>

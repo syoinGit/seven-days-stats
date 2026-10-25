@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='header-4')}">
-  <link rel="stylesheet" th:href="@{/css/luminite.css(v='2')}">
+  <link rel="stylesheet" th:href="@{/css/luminite.css(v='3')}">
 </head>
 <body class="luminite-body">
 <header th:replace="~{fragments/header :: appHeader('terraria', 'luminite-topbar')}"></header>
@@ -32,7 +32,7 @@
         <tbody>
           <tr th:each="slot : ${container.items}">
             <td class="num" th:text="${slot.slot + 1}">1</td>
-            <td><a th:href="@{/luminite/items/{id}(id=${slot.itemId})}" th:text="${slot.name}">木材</a></td>
+            <td><a th:href="@{/luminite/items/{id}(id=${slot.itemId})}" th:classappend="${'lm-' + slot.category.icon()}"><svg th:replace="~{fragments/luminite :: icon(${slot.category})}"></svg> <span th:text="${slot.name}">木材</span></a></td>
             <td class="num" th:text="${slot.stack}">99</td>
           </tr>
         </tbody>

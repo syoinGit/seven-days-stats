@@ -2,6 +2,7 @@ package com.yuki.rubinco.luminite.web;
 
 import com.yuki.rubinco.account.security.AdminAccess;
 import com.yuki.rubinco.luminite.ingest.TerrariaImportProperties;
+import com.yuki.rubinco.luminite.names.TerrariaItemCategory;
 import com.yuki.rubinco.luminite.service.LuminiteQueryService;
 import com.yuki.rubinco.luminite.service.LuminiteQueryService.Context;
 import com.yuki.rubinco.portal.service.GamePortalService;
@@ -68,13 +69,18 @@ public class LuminiteController {
 
   @GetMapping("/luminite/items")
   public String items(Model model, Authentication authentication,
-      @RequestParam(required = false) String q, @RequestParam(defaultValue = "count") String sort,
-      @RequestParam(defaultValue = "0") int page) {
+      @RequestParam(required = false) String q, @RequestParam(required = false) String c,
+      @RequestParam(defaultValue = "count") String sort, @RequestParam(defaultValue = "0") int page) {
     return withData(model, authentication, "items", ctx -> {
       String query = trim(q);
+      TerrariaItemCategory category = java.util.Arrays.stream(TerrariaItemCategory.values())
+          .filter(value -> value.icon().equals(c)).findFirst().orElse(null);
       model.addAttribute("q", query);
+      model.addAttribute("c", category == null ? null : category.icon());
       model.addAttribute("sort", sort);
-      model.addAttribute("items", luminite.items(ctx, query, sort, clamp(page), PAGE_SIZE));
+      model.addAttribute("categories", TerrariaItemCategory.values());
+      model.addAttribute("categoriesLoaded", luminite.categoriesLoaded());
+      model.addAttribute("items", luminite.items(ctx, query, category, sort, clamp(page), PAGE_SIZE));
       return "luminite-items";
     });
   }

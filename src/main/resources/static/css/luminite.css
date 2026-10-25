@@ -254,3 +254,19 @@
   .luminite-body .luminite-panel, .lm-card { padding:16px; }
 }
 .luminite-body .luminite-table th { color:var(--rb-muted); font-family:inherit; letter-spacing:0; }
+
+/* Item categories: icon colours, the filter row and the category edge on item cards. */
+.lm-weapon { --lc:#ff8a7a; } .lm-ammo { --lc:#ffb27a; } .lm-tool { --lc:#f2c46b; } .lm-armor { --lc:#8ab4ff; }
+.lm-accessory { --lc:#7ad8e8; } .lm-vanity { --lc:#f29bd8; } .lm-potion { --lc:#ff7aa8; } .lm-block { --lc:#b5a58f; }
+.lm-placeable { --lc:#d9a86c; } .lm-ore { --lc:#9fc6d6; } .lm-material { --lc:#9de28d; } .lm-other { --lc:#b8aab6; }
+.lm-icon { flex:none; width:16px; height:16px; color:var(--lc, #b8aab6); vertical-align:-3px; }
+.luminite-slots .lm-icon { width:13px; height:13px; vertical-align:-2px; }
+.lm-title { display:flex; gap:10px; align-items:center; }
+.luminite-body .luminite-panel .section-heading .lm-title::before { display:none; }
+.lm-title .lm-icon { width:28px; height:28px; }
+.lm-filter { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px; }
+.lm-filter a { display:inline-flex; gap:5px; align-items:center; padding:5px 10px; border:1px solid #29253c; border-radius:6px; background:var(--rb-bg, #121020); color:#c1bad5; font-size:12px; text-decoration:none; }
+.lm-filter a:hover, .lm-filter a.active { border-color:var(--lc, var(--lm)); color:#fff; }
+.lm-filter a.active { background:color-mix(in srgb, var(--lc, #b893ff) 18%, var(--rb-bg, #121020)); }
+.luminite-items b { display:inline-flex; gap:6px; align-items:flex-start; }
+.luminite-body .luminite-items a[class*="lm-"] { box-shadow:inset 3px 0 0 var(--lc); }

@@ -50,7 +50,7 @@ public class LuminiteAiFacts implements WorldAiFacts {
       lines.add("保存時のゲーム内時刻: " + events.clock() + (events.moon() == null ? "" : "、月: " + events.moon())
           + (events.active().isEmpty() ? "" : "、イベント: " + String.join("、", events.active())));
     }
-    var items = luminite.items(ctx, null, "count", 0, 8).getContent();
+    var items = luminite.items(ctx, null, null, "count", 0, 8).getContent();
     if (!items.isEmpty()) {
       lines.add("多く保管されているアイテム: " + String.join("、",
           items.stream().map(item -> item.name() + " " + item.total()).toList()));
