@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="${'プレイヤー | ' + game.displayName}">プレイヤー | Octarine</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='4')}">
+</head>
+<body class="octarine-body">
+<header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
+<main class="octarine-shell">
+  <nav th:replace="~{fragments/octarine :: tabs}"></nav>
+  <section class="octarine-panel" aria-labelledby="online-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">ONLINE</p><h1 id="online-title">いま接続中</h1></div>
+    </div>
+    <p th:if="${!tracking}" class="octarine-empty">接続の記録はまだ準備中です。</p>
+    <th:block th:if="${tracking}">
+      <p th:if="${#lists.isEmpty(online)}" class="octarine-empty">いまは誰も接続していません。</p>
+      <ul class="octarine-online-list" th:unless="${#lists.isEmpty(online)}">
+        <li th:each="player : ${online}">
+          <b th:text="${player.name}">Explorer</b>
+          <span th:text="${player.sinceLabel + ' から（' + player.duration + '）'}">20:15 から（2時間）</span>
+        </li>
+      </ul>
+    </th:block>
+  </section>
+
+  <section class="octarine-panel" aria-labelledby="playtime-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">PLAY TIME</p><h2 id="playtime-title">プレイ時間</h2></div>
+    </div>
+    <p th:if="${#lists.isEmpty(players)}" class="octarine-empty">まだ記録がありません。</p>
+    <div class="octarine-table-wrap" th:unless="${#lists.isEmpty(players)}">
+      <table class="octarine-table">
+        <thead><tr><th>プレイヤー</th><th>合計</th><th>直近7日</th><th>ログイン</th><th>最後のプレイ</th></tr></thead>
+        <tbody>
+          <tr th:each="player : ${players}">
+            <td><b th:text="${player.name}">Explorer</b></td>
+            <td class="num" th:text="${player.total}">3時間25分</td>
+            <td class="num" th:text="${player.week}">1時間</td>
+            <td class="num" th:text="${player.sessions + '回'}">4回</td>
+            <td th:text="${player.online ? '接続中' : player.lastPlayed}">---</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="octarine-panel" aria-labelledby="sessions-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">LOGINS</p><h2 id="sessions-title">ログイン履歴</h2></div>
+    </div>
+    <p th:if="${#lists.isEmpty(logins)}" class="octarine-empty">まだ記録がありません。</p>
+    <ol class="octarine-sessions" th:unless="${#lists.isEmpty(logins)}">
+      <li th:each="login : ${logins}" th:classappend="${login.ongoing} ? 'ongoing'">
+        <b th:text="${login.name}">Explorer</b>
+        <span th:text="${login.fromLabel + ' 〜 ' + login.toLabel}">---</span>
+        <small th:text="${login.duration}">2時間</small>
+      </li>
+    </ol>
+    <p class="octarine-note">サーバーのログに残る接続と切断の時刻から数えています。サーバーが止まったときに接続中だった人は、止まったのを確認した時刻で区切ります。名前はゲーム内の名前です。プレイ時間の表は最新の名前、履歴はそのときの名前で表示します。</p>
+  </section>
+</main>
+</body>
+</html>

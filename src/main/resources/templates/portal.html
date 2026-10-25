@@ -10,7 +10,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/portal.css(v='5')}">
+  <link rel="stylesheet" th:href="@{/css/portal.css(v='6')}">
   <script defer th:src="@{/js/portal.js(v='8')}"></script>
 </head>
 <body class="portal-body">
@@ -27,6 +27,8 @@
         <small th:text="${site.id == '7dtd' ? '7DTD' : site.siteName}">7DTD</small></span>
       <span class="server-site"><b th:text="${site.displayName}">Watchpoint</b>
         <span class="status-chip" th:attr="data-server-status=${site.id}" th:classappend="${'status-' + serverStatuses[site.id].code}" th:text="${serverStatuses[site.id].label}">未確認</span>
+        <small class="server-online" th:if="${onlineCounts[site.id] != null and onlineCounts[site.id] > 0}"
+               th:text="${onlineCounts[site.id] + '人が接続中'}">1人が接続中</small>
         <small>サイトへ →</small>
       </span>
     </a>

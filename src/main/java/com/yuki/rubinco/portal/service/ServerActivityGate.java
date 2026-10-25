@@ -44,6 +44,11 @@ public class ServerActivityGate {
     return true;
   }
 
+  /** True only when the live status says the server is stopped; unknown is not stopped. */
+  public boolean stopped(String gameId) {
+    return "offline".equals(status(gameId));
+  }
+
   public boolean aiAllowed(String gameId) {
     String status = status(gameId);
     return status == null || "online".equals(status);

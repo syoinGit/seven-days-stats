@@ -1,6 +1,7 @@
 package com.yuki.rubinco.octarine.service;
 
 import com.yuki.rubinco.octarine.ingest.CoreKeeperImportProperties;
+import com.yuki.rubinco.octarine.session.CoreKeeperSessionQueryService;
 import com.yuki.rubinco.portal.service.GamePortalService;
 import com.yuki.rubinco.worldprogress.ai.WorldAiFacts;
 import com.yuki.rubinco.worldprogress.service.WorldProgressQueryService;
@@ -18,6 +19,7 @@ public class OctarineAiFacts implements WorldAiFacts {
   private final WorldProgressQueryService progress;
   private final GamePortalService portal;
   private final CoreKeeperImportProperties importProperties;
+  private final CoreKeeperSessionQueryService sessions;
 
   @Override
   public String gameId() {
@@ -60,8 +62,10 @@ public class OctarineAiFacts implements WorldAiFacts {
       lines.add("最近のチェストの変化:");
       activity.forEach(item -> lines.add("- " + item.atLabel() + " " + String.join(" / ", item.details())));
     }
+    sessions.aiFacts().ifPresent(lines::add);
     lines.add("注意: 数えているのは、ゲーム内でラベルを付けたチェストの中身だけ。変化は10分ごとの差し引き。"
-        + "アイテムの数は素材なら個数、装備なら耐久値。保存データの記録で、誰が何をしたかは分からない。");
+        + "アイテムの数は素材なら個数、装備なら耐久値。保存データの記録で、誰が何をしたかは分からない。"
+        + "プレイ時間はサーバーのログの接続・切断から数えたもの。");
     return Optional.of(String.join("\n", lines));
   }
 }

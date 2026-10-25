@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/portal.css(v='1')}">
+  <link rel="stylesheet" th:href="@{/css/portal.css(v='6')}">
 </head>
 <body class="portal-body">
 <header th:replace="~{fragments/portal-header :: header}"></header>
@@ -30,6 +30,15 @@
     <p class="profile-description" th:if="${currentPlayerId == null}">ゲームプレイヤーは未連携です。ポータルはこのまま利用できます。</p>
     <button class="profile-save" type="submit">変更を保存</button>
   </form>
+  <section class="profile-playtime" th:each="play : ${coreKeeperPlayTimes}" aria-label="Core Keeperのプレイ時間">
+    <h2 th:text="${'Core Keeper（' + play.name + '）'}">Core Keeper（Explorer）</h2>
+    <dl>
+      <div><dt>合計プレイ時間</dt><dd th:text="${play.total}">3時間25分</dd></div>
+      <div><dt>直近7日</dt><dd th:text="${play.week}">1時間</dd></div>
+      <div><dt>ログイン回数</dt><dd th:text="${play.sessions + '回'}">4回</dd></div>
+      <div><dt>最後のプレイ</dt><dd th:text="${play.online ? '接続中' : play.lastPlayed}">---</dd></div>
+    </dl>
+  </section>
 </main>
 </body>
 </html>

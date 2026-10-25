@@ -108,6 +108,8 @@ app:
     max-decompressed-size: ${COREKEEPER_MAX_DECOMPRESSED_SIZE:256MB}
     parse-timeout: 60s
     run-retention: ${COREKEEPER_IMPORT_RUN_RETENTION:90d}
+    # Connections and play time from the server log (docs/OCTARINE.md). Needs the logs corekeeper helper.
+    log-stream-enabled: ${COREKEEPER_LOG_STREAM_ENABLED:false}
   terraria:
     # Read-only copy source. Not guessed: set TERRARIA_WORLD_FILE to the server's .wld.
     world-file: ${TERRARIA_WORLD_FILE:}

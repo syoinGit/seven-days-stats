@@ -16,7 +16,8 @@ root 所有の固定ヘルパーを、引数まで限定した sudo 設定で呼
 | 状態取得 | 7dtd / Terraria / Core Keeper / Minecraft |
 | 起動 | 7dtd / Core Keeper / Minecraft |
 | 停止（`docker stop --time 120` 固定） | 7dtd / Core Keeper / Minecraft |
-| ログ取得（直近5分から追尾） | 7dtd のみ。既存の Watchpoint ログ取り込み用 |
+| ログ取得（直近5分から追尾） | 7dtd。既存の Watchpoint ログ取り込み用 |
+| ログ取得（時刻付き・直近1時間から追尾） | Core Keeper。接続とプレイ時間用（`docs/OCTARINE.md`） |
 
 Terraria の停止・削除・コンテナ作成・`exec`・任意のオプション・PostgreSQL 操作は許可しない。
 停止の猶予秒数はヘルパー内で固定し、呼び出し側から変更できない。
@@ -301,6 +302,26 @@ sudo systemctl restart rubinco-watchpoint.service
 旧ユーザーで新 JAR を使う場合は、そのユーザーにもヘルパーの sudo 許可が必要になる。
 元の JAR と元のユーザーへ戻す場合は、保存した unit と JAR のバックアップを使う。
 旧 JAR に戻すためにゲームコンテナや PostgreSQL ボリュームを削除する必要はない。
+
+## Core Keeper のログ取得を追加するとき
+
+すでに上の手順で導入済みの環境に、`logs corekeeper` だけを足す手順。ヘルパーと sudoers の2ファイルを入れ替える。
+
+1. Mac で `python3 infra/docker/prepare-permissions-files.py` を実行し、
+   `target/rubinco-permissions-paste.sh` の全文を EC2 のターミナルへ貼り付ける（手順0と同じ）。
+2. EC2 で1行ずつ実行する。
+
+```bash
+sudo install -o root -g root -m 0755 /home/ec2-user/rubinco/apps/watchpoint/permissions/infra/docker/rubinco-game-control /usr/local/sbin/rubinco-game-control
+sudo install -o root -g root -m 0440 /home/ec2-user/rubinco/apps/watchpoint/permissions/infra/docker/rubinco-game-control.sudoers /etc/rubinco/game-control.sudoers.candidate
+sudo visudo -c -f /etc/rubinco/game-control.sudoers.candidate
+sudo install -o root -g root -m 0440 /etc/rubinco/game-control.sudoers.candidate /etc/sudoers.d/rubinco-game-control
+sudo visudo -c
+sudo -u rubinco-web sudo -n /usr/local/sbin/rubinco-game-control logs corekeeper | head -3
+```
+
+`visudo -c` が失敗したら、次の行へ進まない。最後の行は時刻付きのログが3行出れば成功（`Ctrl+C` で止まらなければ止める）。
+3. `/etc/rubinco/watchpoint.env` に `COREKEEPER_LOG_STREAM_ENABLED=true` を足し、新 JAR の配置後に再起動する。
 
 ## 境界と残る権限
 

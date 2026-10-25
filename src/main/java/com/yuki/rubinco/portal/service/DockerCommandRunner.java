@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 public class DockerCommandRunner {
   static final String TIMED_OUT = "Docker command timed out";
   private static final int MAX_OUTPUT_BYTES = 16 * 1024;
+  private static final Set<String> LOG_GAMES = Set.of("7dtd", "corekeeper");
   private final DockerGameServerProperties properties;
 
   public String run(String... arguments) {
@@ -68,11 +69,12 @@ public class DockerCommandRunner {
     }
   }
 
-  public ProcessBuilder logStream(String containerName) {
-    if (!"7dtd".equals(containerName)) {
-      throw new IllegalArgumentException("Only the 7dtd log stream is permitted");
+  /** {@code game} is a helper game id (7dtd, corekeeper), not a container name. */
+  public ProcessBuilder logStream(String game) {
+    if (!LOG_GAMES.contains(game)) {
+      throw new IllegalArgumentException("Only the 7dtd and corekeeper log streams are permitted");
     }
-    return command("logs", "7dtd");
+    return command("logs", game);
   }
 
   private ProcessBuilder command(String... arguments) {
@@ -81,7 +83,7 @@ public class DockerCommandRunner {
       permitted = switch (arguments[0]) {
         case "status" -> Set.of("7dtd", "terraria", "corekeeper", "minecraft").contains(arguments[1]);
         case "start", "stop" -> Set.of("7dtd", "corekeeper", "minecraft").contains(arguments[1]);
-        case "logs" -> "7dtd".equals(arguments[1]);
+        case "logs" -> LOG_GAMES.contains(arguments[1]);
         default -> false;
       };
     }

@@ -110,6 +110,7 @@ supported; add only values that differ for your deployment.
 | `COREKEEPER_IMPORT_ENABLED` | Production: `true`; local: `false`. Manual re-fetch from the maintenance screen works either way. |
 | `COREKEEPER_IMPORT_INTERVAL` | `10m` (minimum `1m`). |
 | `COREKEEPER_NAMES_DIR` | Production: `/etc/rubinco/corekeeper-names`. Generated object name table, kept out of the repository; without it names show as ids. |
+| `COREKEEPER_LOG_STREAM_ENABLED` | `false` by default. Set `true` after installing the helper with `logs corekeeper` (`docs/DOCKER_PERMISSIONS.md`); reads connections and play time from the server log. |
 | `TERRARIA_WORLD_FILE` | Unset by default; the server's `.wld`, read-only. Find the path before setting it ([LUMINITE.md](docs/LUMINITE.md)). |
 | `TERRARIA_IMPORT_ENABLED` | `false`; enable after `TERRARIA_WORLD_FILE` is set. Manual re-fetch from the maintenance screen works either way. |
 | `TERRARIA_NAMES_DIR` | Production: `/etc/rubinco/terraria-names`. Generated item/NPC name tables, kept out of the repository; without them names show as ids. |

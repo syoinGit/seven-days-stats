@@ -1,6 +1,8 @@
 package com.yuki.rubinco.account.web;
 
+import com.yuki.rubinco.account.service.CurrentWebAccountService;
 import com.yuki.rubinco.account.service.PortalProfileService;
+import com.yuki.rubinco.octarine.session.CoreKeeperSessionQueryService;
 import com.yuki.rubinco.portal.config.PortalPlatformProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -16,9 +18,12 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class PortalProfileController {
   private final PortalPlatformProperties platformProperties;
   private final PortalProfileService profiles;
+  private final CurrentWebAccountService currentAccounts;
+  private final CoreKeeperSessionQueryService coreKeeperSessions;
 
   @GetMapping("/portal/profile")
-  public String profile(HttpServletRequest request, Model model) {
+  public String profile(HttpServletRequest request, Model model,
+      org.springframework.security.core.Authentication authentication) {
     if (platformProperties.getCognito().isEnabled() && !platformProperties.isPortalHost(request.getServerName())) {
       return "redirect:" + platformProperties.portalPageUrl() + "/profile";
     }
@@ -26,6 +31,9 @@ public class PortalProfileController {
       throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN);
     }
     model.addAttribute("avatarOptions", PortalProfileService.AVATARS);
+    model.addAttribute("coreKeeperPlayTimes", currentAccounts.current(authentication)
+        .map(account -> coreKeeperSessions.forAccount(account.getId(), account.getPlayerId()))
+        .orElse(java.util.List.of()));
     return "portal-profile";
   }
 

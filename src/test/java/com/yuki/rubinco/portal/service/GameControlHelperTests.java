@@ -58,6 +58,7 @@ class GameControlHelperTests {
         new String[] {"start", "7dtd; touch injected"}, new String[] {"status", "--help"},
         new String[] {"status", "7dtd", "extra"}, new String[] {"statuses", "extra"},
         new String[] {"logs", "terraria"}, new String[] {"logs", "7dtd", "--since", "24h"},
+        new String[] {"logs", "rubinco-corekeeper"}, new String[] {"logs", "corekeeper", "--since", "24h"},
         new String[] {"run", "alpine"}, new String[] {"stop", "terraria"},
         new String[] {"stop", "seven-days-postgres"}, new String[] {"stop", "7dtd", "--time", "0"},
         new String[] {"exec", "7dtd", "sh"})) {
@@ -79,9 +80,12 @@ class GameControlHelperTests {
   }
 
   @Test
-  void logStreamIsLimitedTo7dtdWithFixedOptions() throws Exception {
+  void logStreamsAreLimitedToFixedGamesAndOptions() throws Exception {
     assertThat(execute(Map.of(), "logs", "7dtd")).isZero();
     assertThat(Files.readAllLines(record)).endsWith("logs", "--follow", "--since", "5m", "7dtd");
+    assertThat(execute(Map.of(), "logs", "corekeeper")).isZero();
+    assertThat(Files.readAllLines(record)).endsWith(
+        "logs", "--follow", "--timestamps", "--since", "1h", "rubinco-corekeeper");
   }
 
   @Test

@@ -158,3 +158,20 @@
   .octarine-changes li { grid-template-columns:1fr auto; }
   .octarine-changes time { grid-column:1 / -1; }
 }
+
+/* Connections and play time (/octarine/players). */
+.octarine-online a { color:#9de28d; font-size:12px; }
+.octarine-online-list { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:6px; margin:0; padding:0; list-style:none; }
+.octarine-online-list li { display:grid; gap:2px; padding:10px 12px; border:1px solid #2f5a3a; background:#132018; font-size:12px; }
+.octarine-online-list b { color:#9de28d; overflow-wrap:anywhere; }
+.octarine-online-list span { color:#a99ca7; font-size:11px; }
+.octarine-sessions { display:grid; gap:4px; margin:0; padding:0; list-style:none; }
+.octarine-sessions li { display:grid; grid-template-columns:minmax(90px, 160px) minmax(0, 1fr) auto; gap:12px; padding:8px 12px; border:1px solid #2b2029; background:#18121b; font-size:12px; }
+.octarine-sessions b { overflow-wrap:anywhere; }
+.octarine-sessions span { color:#a99ca7; font:11px monospace; }
+.octarine-sessions .ongoing { border-color:#2f5a3a; }
+.octarine-sessions .ongoing small { color:#9de28d; }
+@media (max-width: 640px) {
+  .octarine-sessions li { grid-template-columns:1fr auto; }
+  .octarine-sessions span { grid-column:1 / -1; }
+}

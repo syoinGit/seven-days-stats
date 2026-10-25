@@ -6,6 +6,7 @@ import com.yuki.rubinco.octarine.ingest.CoreKeeperImportService;
 import com.yuki.rubinco.octarine.names.ItemCategory;
 import com.yuki.rubinco.octarine.service.OctarineQueryService;
 import com.yuki.rubinco.octarine.service.OctarineQueryService.Context;
+import com.yuki.rubinco.octarine.session.CoreKeeperSessionQueryService;
 import com.yuki.rubinco.portal.service.GamePortalService;
 import com.yuki.rubinco.portal.service.GameTimelineService;
 import com.yuki.rubinco.shared.DisplayTimeFormatter;
@@ -36,6 +37,7 @@ public class OctarineController {
   private final OctarineQueryService octarine;
   private final CoreKeeperImportProperties importProperties;
   private final AdminAccess adminAccess;
+  private final CoreKeeperSessionQueryService sessions;
 
   @GetMapping("/octarine")
   public String index(Model model, Authentication authentication,
@@ -54,6 +56,8 @@ public class OctarineController {
     model.addAttribute("overview", overview);
     model.addAttribute("timeline", timeline.getContent());
     model.addAttribute("timelinePage", timeline);
+    model.addAttribute("onlineNames", !sessions.tracking() ? null : String.join("、",
+        sessions.online().stream().map(CoreKeeperSessionQueryService.Online::name).toList()));
     var context = overview.visible() ? octarine.context(admin).filter(Context::hasData) : java.util.Optional.<Context>empty();
     model.addAttribute("ctx", context.orElse(null));
     context.ifPresent(ctx -> {
@@ -74,6 +78,18 @@ public class OctarineController {
     model.addAttribute("ctx", context.orElse(null));
     model.addAttribute("activity", context.map(ctx -> octarine.activity(ctx, 60)).orElse(List.of()));
     return "octarine-history";
+  }
+
+  /** Connections come from the server log, so this page works before any save is imported. */
+  @GetMapping("/octarine/players")
+  public String players(Model model) {
+    model.addAttribute("game", portalService.card(GAME_ID));
+    model.addAttribute("section", "players");
+    model.addAttribute("tracking", sessions.tracking());
+    model.addAttribute("online", sessions.online());
+    model.addAttribute("players", sessions.players());
+    model.addAttribute("logins", sessions.recent(50));
+    return "octarine-players";
   }
 
   @GetMapping("/octarine/items")
