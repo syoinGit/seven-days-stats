@@ -66,6 +66,7 @@ public class WebAuthModelAdvice {
     model.addAttribute("currentAdmin", account.map(value -> "ADMIN".equals(value.getRole())).orElse(false));
     model.addAttribute("currentViewer", account.map(value -> "VIEWER".equals(value.getRole())).orElse(false));
     model.addAttribute("portalUrl", platformProperties.portalPageUrl());
+    model.addAttribute("guildUrl", platformProperties.guildPageUrl());
     model.addAttribute("watchpointUrl", platformProperties.getWatchpointUrl());
     model.addAttribute("luminiteUrl", platformProperties.getLuminiteUrl());
     model.addAttribute("octarineUrl", platformProperties.getOctarineUrl());

@@ -88,6 +88,11 @@ public class PortalPlatformProperties {
     return cognito.isEnabled() ? URI.create(portalUrl).resolve("/portal").toString() : "/portal";
   }
 
+  /** The guild lives on the portal host. */
+  public String guildPageUrl() {
+    return cognito.isEnabled() ? URI.create(portalUrl).resolve("/guild").toString() : "/guild";
+  }
+
   public String portalLoginUrl() {
     return portalPageUrl() + "?login=true";
   }

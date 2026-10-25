@@ -224,5 +224,3 @@
 .portal-body .portal-login-button:hover { background:#ff6b8b; }
 @media (max-width:900px) { .portal-body .portal-shell { padding-top:4px; } .portal-server-rail { padding-bottom:8px; } }
 
-.guild-entry { display:block; grid-column:1 / -1; padding:16px 20px; border:1px solid #765070; background:#231a30; color:#f2d2b4; text-decoration:none; border-radius:8px; }
-.guild-entry small { display:block; margin-top:6px; color:#c2acbf; }

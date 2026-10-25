@@ -763,3 +763,10 @@ body .topbar.app-header { border-bottom:1px solid var(--rb-line); background:col
 .pixel-status.status-offline, .pixel-status.status-unknown { color:#8d8c98; }
 /* The 7DTD watchtower is drawn art, not a 16px sprite: smooth scaling on a dark tile like the others. */
 img.site-icon { object-fit:contain; background:#2a1c20; image-rendering:auto; }
+/* The guild entrance on the right of the header: a tankard and sword, underlined like a site when current. */
+.app-header .guild-link { position:relative; display:block; flex:none; margin-right:6px; opacity:.75; transition:opacity .12s ease, transform .12s steps(2); }
+.app-header .guild-link:hover, .app-header .guild-link:focus-visible { opacity:1; transform:translateY(-2px); }
+.app-header .guild-link:focus-visible { outline:2px solid #e3b448; outline-offset:3px; }
+.app-header .guild-link::after { content:""; position:absolute; left:50%; bottom:-8px; width:16px; height:4px; background:#e3b448; transform:translateX(-50%) scaleX(0); transition:transform .12s steps(3); }
+.app-header .guild-link.active { opacity:1; }
+.app-header .guild-link.active::after { transform:translateX(-50%) scaleX(1); }

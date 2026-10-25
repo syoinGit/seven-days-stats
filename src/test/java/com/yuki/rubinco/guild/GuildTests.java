@@ -68,7 +68,7 @@ class GuildTests {
   }
 
   @Test void publicViewsAreReadOnlyAndAdminWritesNeedRoleAndCsrf() throws Exception {
-    for (String path : List.of("/guild", "/guild/characters")) {
+    for (String path : List.of("/guild", "/guild/visitors", "/guild/board", "/guild/characters")) {
       mvc.perform(get(path)).andExpect(status().isOk());
     }
     mvc.perform(get("/guild/maintenance")).andExpect(status().is3xxRedirection());
@@ -102,7 +102,30 @@ class GuildTests {
         .andExpect(content().string(not(containsString("PRIVATE_PLAYER_SECRET"))))
         .andExpect(content().string(not(containsString("765611"))))
         .andExpect(content().string(not(containsString("source_key"))));
-    mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("seat-0 moss")));
+    mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("seat-0 moss")))
+        .andExpect(content().string(containsString("class=\"guild-link active\"")))
+        .andExpect(content().string(not(containsString("<dialog id=\"guild-window\" class=\"guild-window\" open"))));
+  }
+
+  @Test void windowsOpenOverTheTavernWithTheirTab() throws Exception {
+    source();
+    guild.generateToday();
+    guild.refreshVisits();
+    var character = guild.characters(0).getFirst();
+    mvc.perform(get("/guild/visitors")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("guild-room")))
+        .andExpect(content().string(containsString("open=\"open\"")))
+        .andExpect(content().string(containsString("今日の来店者")))
+        .andExpect(content().string(containsString("/guild/characters/" + character.id())))
+        .andExpect(content().string(containsString("href=\"/guild/visitors\" aria-current=\"page\"")));
+    mvc.perform(get("/guild/board")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("いちばん新しい住人")))
+        .andExpect(content().string(containsString("リネ")));
+    mvc.perform(get("/guild/characters/" + character.id())).andExpect(status().isOk())
+        .andExpect(content().string(containsString("<title>リネ | Rubinco</title>")))
+        .andExpect(content().string(containsString("href=\"/guild/characters\" aria-current=\"page\"")));
+    mvc.perform(get("/guild")).andExpect(status().isOk())
+        .andExpect(content().string(not(containsString("/guild/maintenance\"><svg"))));
   }
 
   @Test void invalidOutputIsNotSavedAndRetryIsBounded() {
@@ -223,10 +246,10 @@ class GuildTests {
     assertThat(before.visits()).hasSize(5);
     var root = java.nio.file.Path.of("target/guild-preview");
     java.nio.file.Files.createDirectories(root.resolve("guild/characters"));
-    for (String path : List.of("/guild", "/guild/characters")) {
+    for (String path : List.of("/guild", "/guild/characters", "/guild/visitors", "/guild/board")) {
       var response = mvc.perform(get(path)).andExpect(status().isOk()).andReturn().getResponse();
       String html = response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8).replace("<main class=", "<p style=\"text-align:center;color:#f0d8c2\">表示確認用サンプル・実プレイ由来ではありません</p><main class=");
-      java.nio.file.Files.writeString(root.resolve(path.equals("/guild") ? "index.html" : "characters.html"), html);
+      java.nio.file.Files.writeString(root.resolve(path.equals("/guild") ? "index.html" : path.substring(7) + ".html"), html);
     }
     for (var person : guild.characters(0)) {
       var response = mvc.perform(get("/guild/characters/" + person.id())).andExpect(status().isOk()).andReturn().getResponse();
