@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Up to five interactions a day between residents in the tavern, at fixed JST hours. Code chooses who,
+ * Up to three interactions a day between residents in the tavern, at fixed JST hours. Code chooses who,
  * which event card, the outcome, the relationship changes, threads, labels and any change of village,
  * faction or faith; the AI only writes the scene afterwards. Everything for one slot is saved in one
  * transaction, and a slot is never filled twice.
@@ -33,7 +33,7 @@ public class GuildInteractionService {
   static final Map<String, String> SELECTIONS = ordered("random", "ランダム", "warm", "好感度の高い組", "cold", "好感度の低い組",
       "bond", "関係のある組", "thread", "火種のある組", "affiliation", "村・派閥・信仰の違う組");
   /** The most interactions a day, whatever the configuration says. */
-  static final int DAILY_CAP = 5;
+  static final int DAILY_CAP = 3;
   /** How long a change of village, faction or faith counts as recent for event cards. */
   private static final int RECENT_CHANGE_DAYS = 14;
   /** Labels code moves along by itself as the axes grow; the others need an event card. */
@@ -71,16 +71,28 @@ public class GuildInteractionService {
     }
   }
 
-  /** How one resident feels about another. Every axis is bounded (see V56). */
-  record Rel(int trust, int affinity, int wariness, int debt) {
+  /**
+   * How one resident feels about another. Every axis is bounded (see V56). smitten: this one finds the
+   * other their type (V59); it is decided once, when they first meet, and only one way.
+   */
+  record Rel(int trust, int affinity, int wariness, int debt, boolean smitten) {
     static final Rel NONE = new Rel(0, 0, 0, 0);
+
+    Rel(int trust, int affinity, int wariness, int debt) {
+      this(trust, affinity, wariness, debt, false);
+    }
 
     Rel plus(Map<String, Integer> delta) {
       return new Rel(clamp(trust + delta.getOrDefault("trust", 0), -100, 100),
           clamp(affinity + delta.getOrDefault("affinity", 0), -100, 100),
-          clamp(wariness + delta.getOrDefault("wariness", 0), 0, 100), clamp(debt + delta.getOrDefault("debt", 0), 0, 100));
+          clamp(wariness + delta.getOrDefault("wariness", 0), 0, 100), clamp(debt + delta.getOrDefault("debt", 0), 0, 100), smitten);
     }
   }
+
+  /** The chance that an adult finds an adult of the other gender their type when they first meet. */
+  static final double SMITTEN_CHANCE = 0.2;
+  /** Below this affinity, people of different genders warm to each other slowly (unless smitten). */
+  static final int RESERVED_BELOW = 20;
 
   record OpenThread(long id, String kind, long aId, long bId, String summary) { }
 
@@ -102,8 +114,14 @@ public class GuildInteractionService {
       return Math.max(ab.wariness(), ba.wariness());
     }
 
+    /** A crush belongs to the one who has it: {a} must be the one in love. */
     boolean hasThread(String kind) {
-      return threads.stream().anyMatch(thread -> thread.kind().equals(kind));
+      return threads.stream().anyMatch(thread -> thread.kind().equals(kind) && (!kind.equals("crush") || thread.aId() == a.id()));
+    }
+
+    /** null when either gender is unknown. */
+    Boolean sameGender() {
+      return a.gender() == null || b.gender() == null ? null : a.gender().equals(b.gender());
     }
   }
 
@@ -181,9 +199,9 @@ public class GuildInteractionService {
     GuildCards.Outcome outcome = pickOutcome(card.outcomes());
 
     // Everything below is decided before the AI sees anything.
-    Map<String, Integer> both = roll(outcome.both());
-    Map<String, Integer> abDelta = sum(both, roll(outcome.aToB()));
-    Map<String, Integer> baDelta = sum(both, roll(outcome.bToA()));
+    // "both" is rolled for each direction, so the two rarely warm by the same amount; gender and taste shape it further.
+    Map<String, Integer> abDelta = attraction(sum(roll(outcome.both()), roll(outcome.aToB())), pair, pair.ab());
+    Map<String, Integer> baDelta = attraction(sum(roll(outcome.both()), roll(outcome.bToA())), pair, pair.ba());
     Rel ab = pair.ab().plus(abDelta);
     Rel ba = pair.ba().plus(baDelta);
     int together = pair.together() + 1;
@@ -194,6 +212,9 @@ public class GuildInteractionService {
     OpenThread resolved = outcome.resolve() == null ? null : pair.threads().stream()
         .filter(thread -> thread.kind().equals(outcome.resolve())).findFirst().orElse(null);
     String opened = outcome.open() == null ? null : fill(outcome.open().summary(), pair);
+    // One who is smitten and warm while the other stays cool: a one-sided love begins, unless the card opens something itself.
+    Pair crush = outcome.open() != null ? null : unrequited(pair, ab, ba) ? pair : unrequited(pair.swap(), ba, ab) ? pair.swap() : null;
+    if (crush != null) opened = crush.a().name() + "は" + crush.b().name() + "に片思いしている";
     Change change = outcome.change() == null ? null : change(outcome.change(), pair);
     Set<String> keys = new HashSet<>();
     for (Person person : List.of(pair.a(), pair.b())) {
@@ -237,6 +258,10 @@ public class GuildInteractionService {
       jdbc.update("INSERT INTO T_GUILD_THREAD (kind,a_id,b_id,summary,origin_interaction_id,expires_on) VALUES (?,?,?,?,?,?)",
           outcome.open().kind(), pair.a().id(), pair.b().id(), opened, id, date.plusDays(outcome.open().days()));
     }
+    if (crush != null) {
+      jdbc.update("INSERT INTO T_GUILD_THREAD (kind,a_id,b_id,summary,origin_interaction_id,expires_on) VALUES ('crush',?,?,?,?,?)",
+          crush.a().id(), crush.b().id(), opened, id, date.plusDays(21));
+    }
     if (change != null) {
       jdbc.update("UPDATE M_GUILD_CHARACTER SET " + change.column() + " = ? WHERE id = ?", change.to(), pair.a().id());
       jdbc.update("INSERT INTO T_GUILD_AFFILIATION_HISTORY (character_id,kind,from_value,to_value,change_kind,reason,interaction_id,changed_at) "
@@ -252,8 +277,8 @@ public class GuildInteractionService {
   }
 
   private Pair pair(Person a, Person b) {
-    Rel ab = rel(a.id(), b.id());
-    Rel ba = rel(b.id(), a.id());
+    Rel ab = rel(a, b);
+    Rel ba = rel(b, a);
     long low = Math.min(a.id(), b.id());
     long high = Math.max(a.id(), b.id());
     var bond = jdbc.query("SELECT label, since FROM T_GUILD_BOND WHERE low_id = ? AND high_id = ?",
@@ -331,9 +356,33 @@ public class GuildInteractionService {
     };
   }
 
-  private Rel rel(long from, long to) {
-    return jdbc.query("SELECT trust, affinity, wariness, debt FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?",
-        (rs, row) -> new Rel(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4)), from, to).stream().findFirst().orElse(Rel.NONE);
+  /** For two who have never met, whether from finds to their type is drawn now and saved with the first interaction. */
+  private Rel rel(Person from, Person to) {
+    return jdbc.query("SELECT trust, affinity, wariness, debt, smitten FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?",
+        (rs, row) -> new Rel(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getBoolean(5)), from.id(), to.id()).stream().findFirst()
+        .orElseGet(() -> new Rel(0, 0, 0, 0, adult(from) && adult(to) && from.gender() != null && to.gender() != null
+            && !from.gender().equals(to.gender()) && ThreadLocalRandom.current().nextDouble() < SMITTEN_CHANCE));
+  }
+
+  /**
+   * How much warmer one direction really gets. Same gender (or unknown): as the card says. Different
+   * genders: reserved at first (below RESERVED_BELOW affinity the gain is halved and a third of the time
+   * nothing), unless this one finds the other their type, which makes every gain bigger.
+   */
+  static Map<String, Integer> attraction(Map<String, Integer> delta, Pair pair, Rel from) {
+    int gain = delta.getOrDefault("affinity", 0);
+    Boolean same = pair.sameGender();
+    if (gain <= 0 || same == null || same) return delta;
+    Map<String, Integer> shaped = new LinkedHashMap<>(delta);
+    if (from.smitten()) shaped.put("affinity", gain + (gain + 1) / 2 + 1);
+    else if (from.affinity() < RESERVED_BELOW) shaped.put("affinity", ThreadLocalRandom.current().nextInt(3) == 0 ? 0 : (gain + 1) / 2);
+    return shaped;
+  }
+
+  /** {a} is smitten with {b} and warm (affinity 40+) while {b} stays cool (below 20), and no crush is open yet. */
+  private static boolean unrequited(Pair pair, Rel ab, Rel ba) {
+    return ab.smitten() && ab.affinity() >= 40 && ba.affinity() < 20 && !pair.hasThread("crush")
+        && !PARTNERS.contains(pair.label() == null ? "" : pair.label());
   }
 
   private static boolean fits(String mode, Pair pair) {
@@ -475,8 +524,8 @@ public class GuildInteractionService {
     int updated = jdbc.update("UPDATE T_GUILD_RELATION SET trust = ?, affinity = ?, wariness = ?, debt = ?, updated_at = CURRENT_TIMESTAMP "
         + "WHERE from_id = ? AND to_id = ?", rel.trust(), rel.affinity(), rel.wariness(), rel.debt(), from, to);
     if (updated == 0) {
-      jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,?,?,?,?)",
-          from, to, rel.trust(), rel.affinity(), rel.wariness(), rel.debt());
+      jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten) VALUES (?,?,?,?,?,?,?)",
+          from, to, rel.trust(), rel.affinity(), rel.wariness(), rel.debt(), rel.smitten());
     }
     if (delta.values().stream().allMatch(value -> value == 0)) return;
     jdbc.update("INSERT INTO T_GUILD_RELATION_EVENT (interaction_id,from_id,to_id,change_kind,trust_delta,affinity_delta,"
@@ -505,7 +554,8 @@ public class GuildInteractionService {
   }
 
   private static String describe(Rel rel) {
-    return "信頼" + rel.trust() + "・親しみ" + rel.affinity() + "・警戒" + rel.wariness() + "・恩義" + rel.debt();
+    return "信頼" + rel.trust() + "・親しみ" + rel.affinity() + "・警戒" + rel.wariness() + "・恩義" + rel.debt()
+        + (rel.smitten() ? "・好みのタイプで気になっている（相手は知らない）" : "");
   }
 
   /** "リネのロアンへの親しみが増す。" — direction words only, no numbers. */

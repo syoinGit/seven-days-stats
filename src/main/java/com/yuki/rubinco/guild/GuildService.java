@@ -269,7 +269,7 @@ public class GuildService {
         SELECT c.id FROM M_GUILD_CHARACTER c LEFT JOIN T_GUILD_VISIT v ON c.id = v.character_id
         WHERE c.status = 'ALIVE' GROUP BY c.id, c.born_on
         ORDER BY CASE WHEN c.born_on >= ? THEN 0 ELSE 1 END,
-          COALESCE(MAX(v.visit_date), DATE '1970-01-01'), RANDOM() LIMIT 5
+          COALESCE(MAX(v.visit_date), DATE '1970-01-01'), RANDOM() LIMIT 10
         """, Long.class, today.minusDays(1));
     // An empty database should welcome its very first birth immediately.
     if (ids.isEmpty()) return;
@@ -280,7 +280,11 @@ public class GuildService {
     }
   }
 
-  private static final String[] MORNING = {"窓辺で朝のパンを食べている。", "暖炉のそばで旅装を整えている。", "卓の上で今日の予定を考えている。", "静かに手を合わせている。", "入り口で靴の泥を落としている。"};
-  private static final String[] AFTERNOON = {"卓で道具の手入れをしている。", "掲示板の依頼を眺めている。", "昼食のスープをゆっくり味わっている。", "記録棚で本をめくっている。", "カウンターで休憩している。"};
-  private static final String[] EVENING = {"暖炉を眺めながら温かい飲み物を飲んでいる。", "カウンターで夕食を待っている。", "卓で明日の支度をしている。", "本を閉じ、静かに休んでいる。", "窓の外に灯る明かりを眺めている。"};
+  // One line per seat (ten seats).
+  private static final String[] MORNING = {"窓辺で朝のパンを食べている。", "暖炉のそばで旅装を整えている。", "卓の上で今日の予定を考えている。", "静かに手を合わせている。", "入り口で靴の泥を落としている。",
+      "奥の卓で地図を広げている。", "湯気の立つ茶をすすっている。", "掲示板の前で背伸びをしている。", "眠そうに目をこすっている。", "暖炉に薪をくべている。"};
+  private static final String[] AFTERNOON = {"卓で道具の手入れをしている。", "掲示板の依頼を眺めている。", "昼食のスープをゆっくり味わっている。", "記録棚で本をめくっている。", "カウンターで休憩している。",
+      "奥の卓で手紙を書いている。", "窓辺でうたた寝をしている。", "隣の卓の話に耳を傾けている。", "パンを半分に割っている。", "荷物の中身を数えている。"};
+  private static final String[] EVENING = {"暖炉を眺めながら温かい飲み物を飲んでいる。", "カウンターで夕食を待っている。", "卓で明日の支度をしている。", "本を閉じ、静かに休んでいる。", "窓の外に灯る明かりを眺めている。",
+      "奥の卓で杯を傾けている。", "今日の出来事を思い返している。", "小さく鼻歌を歌っている。", "煮込みのおかわりを頼んでいる。", "ろうそくの火を見つめている。"};
 }

@@ -19,7 +19,7 @@
     <div class="room-counter" aria-hidden="true"><span>食事と、ひと息。</span><i></i></div>
     <a class="room-shelf" href="/guild/characters" aria-label="記録棚：住人名簿">記録棚</a>
     <div class="room-fireplace" aria-hidden="true"><div class="fire"></div></div>
-    <div class="room-table table-one" aria-hidden="true"></div><div class="room-table table-two" aria-hidden="true"></div>
+    <div class="room-table table-one" aria-hidden="true"></div><div class="room-table table-two" aria-hidden="true"></div><div class="room-table table-three" aria-hidden="true"></div><div class="room-table table-four" aria-hidden="true"></div>
     <div class="room-rug" aria-hidden="true"></div><span class="room-door" aria-hidden="true">入口</span>
     <a th:each="visit : ${room.visits}" class="room-person"
        th:with="said=${scene != null ? scene.lines.get(visit.character.id) : null}, talking=${scene != null and scene.lines.containsKey(visit.character.id)}"
