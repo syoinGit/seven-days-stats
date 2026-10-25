@@ -46,6 +46,7 @@ class GuildTests {
   @Autowired GuildDungeon dungeon;
   @Autowired GuildVoice voices;
   @Autowired JdbcTemplate jdbc;
+  @Autowired com.yuki.rubinco.account.repository.M_WebAccountRepository accounts;
   @Autowired MockMvc mvc;
   @MockitoBean BedrockTextClient bedrock;
   static final String DRAFT = """
@@ -387,6 +388,25 @@ class GuildTests {
     assertThat(scene.script()).extracting(GuildChronicle.Turn::text).containsExactly("「今日は冷えるね。」", "「火のそばに座ろう。」");
     long rine = jdbc.queryForObject("SELECT id FROM M_GUILD_CHARACTER WHERE name = 'リネ'", Long.class);
     assertThat(scene.turnsOf(rine)).singleElement().extracting(GuildChronicle.Turn::index).isEqualTo(0);
+  }
+
+  /** Signed-out visitors see only the guild and the login in the header; signed-in members keep the portal and the game sites. */
+  @Test void signedOutVisitorsSeeNoPortalInTheGuildHeader() throws Exception {
+    for (String path : List.of("/guild", "/guild/characters", "/guild/log")) {
+      mvc.perform(get(path)).andExpect(status().isOk())
+          .andExpect(content().string(not(containsString("site-links"))))
+          .andExpect(content().string(not(containsString("aria-label=\"ポータル\""))))
+          .andExpect(content().string(containsString("ログイン")));
+    }
+    if (accounts.findByLoginId("guild-header-member").isEmpty()) {
+      var account = new com.yuki.rubinco.account.entity.M_WebAccount();
+      account.setLoginId("guild-header-member");
+      account.setPasswordHash("unused-test-hash");
+      account.setRole("MEMBER");
+      accounts.save(account);
+    }
+    mvc.perform(get("/guild").with(user("guild-header-member").roles("MEMBER"))).andExpect(status().isOk())
+        .andExpect(content().string(containsString("aria-label=\"ポータル\"")));
   }
 
   @Test void writerAcceptsOnlyParticipantsAndChangesCodeMade() {
