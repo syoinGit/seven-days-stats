@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
 @ControllerAdvice(assignableTypes = {
+    com.yuki.rubinco.guild.GuildController.class,
+    com.yuki.rubinco.guild.GuildMaintenanceController.class,
     DashboardController.class,
     DiaryController.class,
     PortalController.class,

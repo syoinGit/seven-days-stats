@@ -210,3 +210,7 @@ GitHub Actions route instead updates the artifact-only path under
 - EOS ID is the first stable identity key, Steam ID is the fallback.
 - Entity ID may change after reconnects or server restarts and should not be used as the master identity.
 - Existing duplicate player/history rows should be handled safely in views or through explicit reviewed SQL, not by risky automatic deletes.
+
+### 無人の冒険者ギルド（軽量初期版）
+
+`/guild` でログ由来の創作住人が集う酒場を公開します。毎日21時（JST）または管理者の `/guild/maintenance` 操作で最大1人/日を生成。既定は生成無効です。設定・出典の扱い・検証・今回の実装範囲は [docs/GUILD.md](docs/GUILD.md) を参照してください。
