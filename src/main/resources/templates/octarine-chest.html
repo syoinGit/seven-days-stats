@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='2')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='3')}">
 </head>
 <body class="octarine-body">
 <header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
@@ -26,18 +26,17 @@
     </div>
     <div th:replace="~{fragments/octarine :: snapshot}"></div>
     <p th:if="${#lists.isEmpty(container.items)}" class="octarine-empty">空っぽです。</p>
-    <div class="octarine-table-wrap" th:unless="${#lists.isEmpty(container.items)}">
-      <table class="octarine-table">
-        <thead><tr><th>枠</th><th>アイテム</th><th>数</th></tr></thead>
-        <tbody>
-          <tr th:each="slot : ${container.items}">
-            <td class="num" th:text="${slot.slot + 1}">1</td>
-            <td><a th:href="@{/octarine/items/{id}(id=${slot.objectId})}" th:text="${slot.name}">Wood</a></td>
-            <td class="num" th:text="${slot.amount}">99</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <ol class="ck-grid" aria-label="チェストの枠">
+      <li th:each="cell : ${container.cells()}" th:classappend="${cell.item == null} ? 'empty' : ${'ck-' + cell.item.category.icon()}">
+        <a th:if="${cell.item != null}" th:href="@{/octarine/items/{id}(id=${cell.item.objectId})}"
+           th:title="${cell.item.name + '（' + cell.item.category.label() + '）' + (cell.item.amountLabel().isEmpty() ? '' : ' ' + cell.item.amountLabel())}">
+          <svg th:replace="~{fragments/octarine :: icon(${cell.item.category})}"></svg>
+          <span class="ck-name" th:text="${cell.item.name}">木材</span>
+          <b class="ck-amount" th:unless="${cell.item.amountLabel().isEmpty()}" th:text="${cell.item.amountLabel()}">×30</b>
+        </a>
+      </li>
+    </ol>
+    <ul th:replace="~{fragments/octarine :: legend}"></ul>
     <p th:replace="~{fragments/octarine :: amountNote}"></p>
 
     <h2 class="octarine-group-title">中身の変化</h2>

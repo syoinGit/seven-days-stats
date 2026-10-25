@@ -152,6 +152,15 @@ class OctarineWebTests {
         .andExpect(content().string(containsString("テストコイン")))
         .andExpect(content().string(containsString("30 → 12")))
         .andExpect(content().string(containsString("-18")));
+    mvc.perform(get("/octarine/chests/" + id).with(member()))
+        .andExpect(content().string(containsString("ck-grid")))
+        .andExpect(content().string(containsString("/img/octarine-icons.svg#material")))
+        .andExpect(content().string(containsString("×12")))
+        .andExpect(content().string(containsString("class=\"empty\"")));
+    mvc.perform(get("/octarine/items").param("c", "material").with(member()))
+        .andExpect(content().string(containsString("テストコイン")));
+    mvc.perform(get("/octarine/items").param("c", "food").with(member()))
+        .andExpect(content().string(not(containsString("テストコイン"))));
     mvc.perform(get("/octarine/chests/" + (id + 99999)).with(member())).andExpect(status().isNotFound());
     mvc.perform(get("/octarine").with(member()))
         .andExpect(content().string(containsString("プレイヤーのチェスト")))

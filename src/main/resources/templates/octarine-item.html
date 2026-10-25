@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='2')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='3')}">
 </head>
 <body class="octarine-body">
 <header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
@@ -18,8 +18,8 @@
     <a class="octarine-back" th:href="@{/octarine/items}">← アイテム一覧</a>
     <div class="section-heading">
       <div>
-        <p class="eyebrow" th:text="${'OBJECT #' + item.objectId}">OBJECT #1001</p>
-        <h1 id="item-title" th:text="${item.name}">Copper Bar</h1>
+        <p class="eyebrow" th:text="${item.category.label() + ' · OBJECT #' + item.objectId}">素材 · OBJECT #1001</p>
+        <h1 id="item-title" class="ck-title" th:classappend="${'ck-' + item.category.icon()}"><svg th:replace="~{fragments/octarine :: icon(${item.category})}"></svg><span th:text="${item.name}">Copper Bar</span></h1>
         <p class="octarine-sub" th:if="${item.key != null and item.key != item.name}" th:text="${item.key}">CopperBar</p>
       </div>
     </div>

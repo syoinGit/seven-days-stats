@@ -43,7 +43,7 @@ public class OctarineAiFacts implements WorldAiFacts {
       lines.add("達成済みの進捗: " + String.join("、",
           overview.items().stream().map(WorldProgressQueryService.ProgressItem::label).toList()));
     }
-    var items = octarine.items(ctx, null, "slots", 0, 8).getContent();
+    var items = octarine.items(ctx, null, null, "slots", 0, 8).getContent();
     if (!items.isEmpty()) {
       lines.add("よく保管されているアイテム（枠の数）: " + String.join("、",
           items.stream().map(item -> item.name() + " " + item.slots() + "枠").toList()));

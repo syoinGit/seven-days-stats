@@ -3,6 +3,7 @@ package com.yuki.rubinco.octarine.service;
 import com.yuki.rubinco.luminite.names.TerrariaNames;
 import com.yuki.rubinco.octarine.ingest.CoreKeeperImportService;
 import com.yuki.rubinco.octarine.names.CoreKeeperNames;
+import com.yuki.rubinco.octarine.names.ItemCategory;
 import com.yuki.rubinco.shared.DisplayTimeFormatter;
 import com.yuki.rubinco.worldprogress.entity.M_GameWorld;
 import com.yuki.rubinco.worldprogress.entity.T_WorldSnapshot;
@@ -76,7 +77,7 @@ public class OctarineQueryService {
   public record ActivityItem(OffsetDateTime at, String atLabel, String title, List<String> details) { }
 
   public record ItemRow(int objectId, String name, String key, long amount, int slots,
-      int containers, String lastChanged) { }
+      int containers, String lastChanged, ItemCategory category) { }
 
   public record Holder(Long containerId, String chest, String kind, Place place, int slot, int amount) { }
 
@@ -85,11 +86,29 @@ public class OctarineQueryService {
 
   public record ItemDetail(ItemRow item, List<Holder> holders, List<ItemChange> changes) { }
 
-  public record ContainerItem(int slot, int objectId, String name, int amount, boolean match) { }
+  public record ContainerItem(int slot, int objectId, String name, int amount, boolean match,
+      ItemCategory category) {
+    /** "×30" for stacks, "耐久 900" for equipment, nothing for a single item. */
+    public String amountLabel() {
+      if (category.durable()) return "耐久 " + amount;
+      return amount > 1 ? "×" + amount : "";
+    }
+  }
+
+  /** One slot of a chest as laid out in game; {@code item} is null when the slot is empty. */
+  public record Cell(int slot, ContainerItem item) { }
 
   /** {@code name} is the label written in game; {@code kind} the chest type. */
   public record ContainerRow(Long id, String name, String kind, Place place, int slots, int filled,
-      List<ContainerItem> items) { }
+      List<ContainerItem> items) {
+    public List<Cell> cells() {
+      Map<Integer, ContainerItem> bySlot = new java.util.HashMap<>();
+      items.forEach(item -> bySlot.put(item.slot(), item));
+      List<Cell> cells = new ArrayList<>();
+      for (int slot = 0; slot < slots; slot++) cells.add(new Cell(slot, bySlot.get(slot)));
+      return cells;
+    }
+  }
 
   public record ChestChange(String at, String item, int objectId, long previous, long current,
       long delta) { }
@@ -185,7 +204,8 @@ public class OctarineQueryService {
   }
 
   @Transactional(readOnly = true)
-  public Page<ItemRow> items(Context context, String query, String sort, int page, int size) {
+  public Page<ItemRow> items(Context context, String query, ItemCategory category, String sort, int page,
+      int size) {
     List<ItemRow> rows = jdbc.query("SELECT object_id, total_amount, slot_count, container_count, last_changed_at "
         + "FROM T_CK_ITEM_TOTAL WHERE game_world_id = ? AND slot_count > 0",
         (rs, i) -> itemRow(rs.getInt(1), rs.getLong(2), rs.getInt(3), rs.getInt(4), rs.getTimestamp(5)),
@@ -200,6 +220,7 @@ public class OctarineQueryService {
     return page(rows.stream()
         .filter(row -> matching == null || matching.contains(row.objectId())
             || String.valueOf(row.objectId()).equals(query.strip()))
+        .filter(row -> category == null || row.category() == category)
         .sorted(order).toList(), page, size);
   }
 
@@ -234,8 +255,8 @@ public class OctarineQueryService {
     jdbc.query("SELECT ck_container_id, slot, object_id, amount FROM T_CK_CONTAINER_ITEM "
         + "WHERE game_world_id = ? ORDER BY ck_container_id, slot", rs -> {
           int objectId = rs.getInt(3);
-          items.computeIfAbsent(rs.getLong(1), id -> new ArrayList<>()).add(new ContainerItem(rs.getInt(2),
-              objectId, names.object(objectId).label(), rs.getInt(4), matching.contains(objectId)));
+          items.computeIfAbsent(rs.getLong(1), id -> new ArrayList<>())
+              .add(containerItem(rs.getInt(2), objectId, rs.getInt(4), matching.contains(objectId)));
         }, context.worldId());
     String needle = TerrariaNames.normalize(query);
     List<ContainerRow> rows = jdbc.query("SELECT ck_container_id, object_id, pos_x, pos_z, slot_count, "
@@ -254,8 +275,8 @@ public class OctarineQueryService {
   public Optional<ContainerRow> container(Context context, long containerId) {
     List<ContainerItem> items = jdbc.query("SELECT slot, object_id, amount FROM T_CK_CONTAINER_ITEM "
         + "WHERE game_world_id = ? AND ck_container_id = ? ORDER BY slot",
-        (rs, i) -> new ContainerItem(rs.getInt(1), rs.getInt(2), names.object(rs.getInt(2)).label(),
-            rs.getInt(3), false), context.worldId(), containerId);
+        (rs, i) -> containerItem(rs.getInt(1), rs.getInt(2), rs.getInt(3), false),
+        context.worldId(), containerId);
     return jdbc.query("SELECT ck_container_id, object_id, pos_x, pos_z, slot_count, filled_slots, label "
         + "FROM T_CK_CONTAINER WHERE game_world_id = ? AND ck_container_id = ?",
         (rs, i) -> containerRow(rs.getLong(1), rs.getInt(2), rs.getInt(3), rs.getInt(4),
@@ -276,7 +297,12 @@ public class OctarineQueryService {
   private ItemRow itemRow(int objectId, long amount, int slots, int containers, Timestamp lastChanged) {
     var name = names.object(objectId);
     return new ItemRow(objectId, name.label(), name.key(), amount, slots, containers,
-        TIME.format(time(lastChanged)));
+        TIME.format(time(lastChanged)), name.category());
+  }
+
+  private ContainerItem containerItem(int slot, int objectId, int amount, boolean match) {
+    var name = names.object(objectId);
+    return new ContainerItem(slot, objectId, name.label(), amount, match, name.category());
   }
 
   private static String joinLimited(List<String> values) {

@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='2')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='3')}">
 </head>
 <body class="octarine-body">
 <header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
@@ -23,6 +23,7 @@
     <p th:replace="~{fragments/octarine :: namesMissing}"></p>
     <form class="octarine-search" method="get" th:action="@{/octarine/items}" role="search">
       <label><span>名前で探す</span><input type="search" name="q" maxlength="60" th:value="${q}" placeholder="例: Copper"></label>
+      <input type="hidden" name="c" th:value="${c}" th:if="${c != null}">
       <label><span>並び順</span>
         <select name="sort">
           <option value="amount" th:selected="${sort == 'amount'}">数が多い順</option>
@@ -33,21 +34,26 @@
       </label>
       <button type="submit">検索</button>
     </form>
+    <nav class="ck-filter" aria-label="分類で絞り込む">
+      <a th:href="@{/octarine/items(q=${q},sort=${sort})}" th:classappend="${c == null} ? 'active'">すべて</a>
+      <a th:each="category : ${categories}" th:href="@{/octarine/items(q=${q},sort=${sort},c=${category.icon()})}"
+         th:classappend="${'ck-' + category.icon() + (c == category.icon() ? ' active' : '')}"><svg th:replace="~{fragments/octarine :: icon(${category})}"></svg><span th:text="${category.label()}">武器</span></a>
+    </nav>
     <p th:replace="~{fragments/octarine :: amountNote}"></p>
     <p th:if="${items.isEmpty()}" class="octarine-empty">当てはまるアイテムはありません。</p>
     <ul class="octarine-items" th:unless="${items.isEmpty()}">
       <li th:each="item : ${items.content}">
-        <a th:href="@{/octarine/items/{id}(id=${item.objectId})}">
-          <b th:text="${item.name}">Copper Bar</b>
+        <a th:href="@{/octarine/items/{id}(id=${item.objectId})}" th:classappend="${'ck-' + item.category.icon()}">
+          <b><svg th:replace="~{fragments/octarine :: icon(${item.category})}"></svg><span th:text="${item.name}">Copper Bar</span></b>
           <strong th:text="${#numbers.formatInteger(item.amount, 1, 'COMMA')}">120</strong>
           <small th:text="${item.slots + '枠・' + item.containers + 'か所'}">3枠・2か所</small>
         </a>
       </li>
     </ul>
     <nav class="portal-feed-pages" aria-label="アイテム一覧のページ">
-      <a th:if="${items.hasPrevious()}" th:href="@{/octarine/items(q=${q},sort=${sort},page=${items.number - 1})}">← 前へ</a>
+      <a th:if="${items.hasPrevious()}" th:href="@{/octarine/items(q=${q},c=${c},sort=${sort},page=${items.number - 1})}">← 前へ</a>
       <span th:if="${items.totalPages > 1}" th:text="${(items.number + 1) + ' / ' + items.totalPages}"></span>
-      <a th:if="${items.hasNext()}" th:href="@{/octarine/items(q=${q},sort=${sort},page=${items.number + 1})}">次へ →</a>
+      <a th:if="${items.hasNext()}" th:href="@{/octarine/items(q=${q},c=${c},sort=${sort},page=${items.number + 1})}">次へ →</a>
     </nav>
   </section>
 </main>
