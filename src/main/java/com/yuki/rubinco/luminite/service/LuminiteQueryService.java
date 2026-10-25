@@ -189,7 +189,7 @@ public class LuminiteQueryService {
     return List.of(
         new Stat("倒したボス", String.valueOf(bossesDone), "保存データで討伐を確認できたボス"),
         new Stat("保管アイテム", totals.distinctItems() + "種",
-            String.format("合計 %,d 個（チェスト・飾り台）", totals.storedItems())),
+            String.format("合計 %,d 個（管理チェスト）", totals.storedItems())),
         new Stat("討伐数", String.format("%,d", totals.bestiaryKills()),
             totals.bestiaryKilledSpecies() + "種類の敵（図鑑の記録）"),
         new Stat("墓石", String.valueOf(totals.tombstones()), "ワールドに残っている墓石"),
@@ -281,7 +281,7 @@ public class LuminiteQueryService {
     List<Holder> holders = jdbc.query("SELECT c.terraria_container_id, c.container_kind, c.tile_type, c.tile_style, "
         + "c.name, c.tile_x, c.tile_y, i.slot, i.stack, i.prefix_id FROM T_TERRARIA_CONTAINER_ITEM i "
         + "JOIN T_TERRARIA_CONTAINER c ON c.terraria_container_id = i.terraria_container_id "
-        + "WHERE i.game_world_id = ? AND i.item_id = ? ORDER BY i.stack DESC, c.terraria_container_id, i.slot",
+        + "WHERE i.game_world_id = ? AND i.item_id = ? AND c.managed ORDER BY i.stack DESC, c.terraria_container_id, i.slot",
         (rs, i) -> new Holder(rs.getLong(1),
             containerLabel(rs.getString(2), (Integer) rs.getObject(3), (Integer) rs.getObject(4), rs.getString(5)),
             kindLabel(rs.getString(2)), place(context.summary(), rs.getInt(6), rs.getInt(7)), rs.getInt(8),
@@ -299,15 +299,16 @@ public class LuminiteQueryService {
   public Page<ContainerRow> containers(Context context, String query, String kind, int page, int size) {
     Map<Long, List<ContainerItem>> items = new LinkedHashMap<>();
     Set<Integer> matching = blank(query) ? Set.of() : names.itemsMatching(query);
-    jdbc.query("SELECT terraria_container_id, slot, item_id, stack FROM T_TERRARIA_CONTAINER_ITEM "
-        + "WHERE game_world_id = ? ORDER BY terraria_container_id, slot", rs -> {
+    jdbc.query("SELECT i.terraria_container_id, i.slot, i.item_id, i.stack FROM T_TERRARIA_CONTAINER_ITEM i "
+        + "JOIN T_TERRARIA_CONTAINER c ON c.terraria_container_id = i.terraria_container_id "
+        + "WHERE i.game_world_id = ? AND c.managed ORDER BY i.terraria_container_id, i.slot", rs -> {
           int itemId = rs.getInt(3);
           items.computeIfAbsent(rs.getLong(1), id -> new ArrayList<>()).add(new ContainerItem(rs.getInt(2),
               itemId, names.item(itemId).label(), rs.getInt(4), matching.contains(itemId)));
         }, context.worldId());
     String needle = TerrariaNames.normalize(query);
     List<ContainerRow> rows = jdbc.query("SELECT terraria_container_id, container_kind, tile_type, tile_style, name, "
-        + "tile_x, tile_y, slot_count, filled_slots FROM T_TERRARIA_CONTAINER WHERE game_world_id = ? "
+        + "tile_x, tile_y, slot_count, filled_slots FROM T_TERRARIA_CONTAINER WHERE game_world_id = ? AND managed "
         + "ORDER BY tile_x, tile_y", (rs, i) -> containerRow(context, rs.getLong(1), rs.getString(2),
             (Integer) rs.getObject(3), (Integer) rs.getObject(4), rs.getString(5), rs.getInt(6), rs.getInt(7),
             rs.getInt(8), rs.getInt(9), items.getOrDefault(rs.getLong(1), List.of())), context.worldId());
@@ -327,7 +328,8 @@ public class LuminiteQueryService {
         (rs, i) -> new ContainerItem(rs.getInt(1), rs.getInt(2), names.itemWithPrefix(rs.getInt(2), rs.getInt(4)),
             rs.getInt(3), false), context.worldId(), containerId);
     return jdbc.query("SELECT terraria_container_id, container_kind, tile_type, tile_style, name, tile_x, tile_y, "
-        + "slot_count, filled_slots FROM T_TERRARIA_CONTAINER WHERE game_world_id = ? AND terraria_container_id = ?",
+        + "slot_count, filled_slots FROM T_TERRARIA_CONTAINER WHERE game_world_id = ? AND terraria_container_id = ? "
+        + "AND managed",
         (rs, i) -> containerRow(context, rs.getLong(1), rs.getString(2), (Integer) rs.getObject(3),
             (Integer) rs.getObject(4), rs.getString(5), rs.getInt(6), rs.getInt(7), rs.getInt(8), rs.getInt(9), items),
         context.worldId(), containerId).stream().findFirst();

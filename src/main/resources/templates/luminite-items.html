@@ -33,7 +33,7 @@
       </label>
       <button type="submit">検索</button>
     </form>
-    <p class="luminite-note">チェスト・タンス・額縁・武器ラック・マネキンなどに入っているアイテムの合計です。プレイヤーの持ち物やピギーバンクはワールドファイルに含まれないため数えていません。</p>
+    <p class="luminite-note">管理チェスト（住人の家かパイロンから50タイル以内のチェスト・タンス・額縁・武器ラック・マネキンなど）に入っているアイテムの合計です。プレイヤーの持ち物やピギーバンクはワールドファイルに含まれないため数えていません。</p>
     <p th:if="${items.isEmpty()}" class="luminite-empty" th:text="${q == null ? 'まだ保管されているアイテムはありません。' : '「' + q + '」に当てはまる保管中のアイテムはありません。'}"></p>
     <ul class="luminite-items" th:unless="${items.isEmpty()}">
       <li th:each="item : ${items.content}">

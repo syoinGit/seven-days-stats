@@ -4,7 +4,7 @@
 <nav th:fragment="tabs" class="luminite-tabs" aria-label="Luminiteのページ">
   <a th:href="@{/luminite}" th:classappend="${section == 'overview'} ? 'active'" th:attr="aria-current=${section == 'overview'} ? 'page'">概要</a>
   <a th:href="@{/luminite/items}" th:classappend="${section == 'items'} ? 'active'" th:attr="aria-current=${section == 'items'} ? 'page'">アイテム</a>
-  <a th:href="@{/luminite/chests}" th:classappend="${section == 'chests'} ? 'active'" th:attr="aria-current=${section == 'chests'} ? 'page'">チェスト検索</a>
+  <a th:href="@{/luminite/chests}" th:classappend="${section == 'chests'} ? 'active'" th:attr="aria-current=${section == 'chests'} ? 'page'">管理チェスト</a>
   <a th:href="@{/luminite/bestiary}" th:classappend="${section == 'bestiary'} ? 'active'" th:attr="aria-current=${section == 'bestiary'} ? 'page'">討伐図鑑</a>
   <a th:href="@{/luminite/world}" th:classappend="${section == 'world'} ? 'active'" th:attr="aria-current=${section == 'world'} ? 'page'">ワールド</a>
   <a th:href="@{/luminite/deaths}" th:classappend="${section == 'deaths'} ? 'active'" th:attr="aria-current=${section == 'deaths'} ? 'page'">墓標と看板</a>

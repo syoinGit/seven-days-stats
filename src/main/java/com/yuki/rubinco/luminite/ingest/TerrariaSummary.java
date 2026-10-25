@@ -49,7 +49,8 @@ public record TerrariaSummary(
   public record Totals(Map<String, Integer> containersByKind, int filledSlots, int distinctItems,
       long storedItems, long bestiaryKills, int bestiaryKilledSpecies, int bestiarySighted,
       int bestiaryChatted, int signs, int tombstones, int rooms, int savedMobs,
-      int trainingDummies, int logicSensors, int pressurePlates, int shimmeredTownNpcs) { }
+      int trainingDummies, int logicSensors, int pressurePlates, int shimmeredTownNpcs,
+      Map<String, Integer> managedByKind, int storageRule) { }
 
   public static TerrariaSummary from(TerrariaWorld world, String contentHash) {
     var h = world.header();
@@ -60,6 +61,12 @@ public record TerrariaSummary(
     for (ContainerKind kind : ContainerKind.values()) {
       int count = (int) world.containers().stream().filter(c -> c.kind() == kind).count();
       if (count > 0) byKind.put(kind.name(), count);
+    }
+    var managed = TerrariaStorage.managed(world);
+    Map<String, Integer> managedByKind = new LinkedHashMap<>();
+    for (ContainerKind kind : ContainerKind.values()) {
+      int count = (int) world.containers().stream().filter(c -> c.kind() == kind && managed.test(c)).count();
+      if (count > 0) managedByKind.put(kind.name(), count);
     }
     Map<Integer, Long> items = itemTotals(world);
     return new TerrariaSummary(contentHash,
@@ -81,20 +88,21 @@ public record TerrariaSummary(
             npc.homeX(), npc.homeY())).toList(),
         world.pylons().stream().map(pylon -> new PylonEntry(pylon.style(), pylon.x(), pylon.y())).toList(),
         new Totals(byKind,
-            world.containers().stream().mapToInt(c -> c.items().size()).sum(), items.size(),
+            world.containers().stream().filter(managed).mapToInt(c -> c.items().size()).sum(), items.size(),
             items.values().stream().mapToLong(Long::longValue).sum(),
             world.bestiaryKills().values().stream().mapToLong(Integer::longValue).sum(),
             (int) world.bestiaryKills().values().stream().filter(kills -> kills > 0).count(),
             world.bestiarySighted().size(), world.bestiaryChatted().size(), world.signs().size(),
             (int) world.signs().stream().filter(sign -> Integer.valueOf(85).equals(sign.tileType())).count(),
             world.rooms().size(), world.savedMobs(), world.trainingDummies(), world.logicSensors(),
-            world.pressurePlates(), world.shimmeredTownNpcs().size()));
+            world.pressurePlates(), world.shimmeredTownNpcs().size(), managedByKind,
+            TerrariaStorage.RULE_VERSION));
   }
 
-  /** Total stack per item id across every container and display. */
+  /** Total stack per item id across managed storage (TerrariaStorage). */
   public static Map<Integer, Long> itemTotals(TerrariaWorld world) {
     Map<Integer, Long> totals = new TreeMap<>();
-    world.containers().forEach(container -> container.items().forEach(item ->
+    world.containers().stream().filter(TerrariaStorage.managed(world)).forEach(container -> container.items().forEach(item ->
         totals.merge(item.itemId(), (long) item.stack(), Long::sum)));
     return totals;
   }
