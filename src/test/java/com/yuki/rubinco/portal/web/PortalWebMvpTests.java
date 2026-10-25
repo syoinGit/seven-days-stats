@@ -91,7 +91,7 @@ class PortalWebMvpTests {
     mockMvc.perform(get("/luminite").with(user("mvp-admin").roles("ADMIN")))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("接続情報は準備中です")))
-        .andExpect(content().string(containsString("Terrariaの記録はまだありません")));
+        .andExpect(content().string(containsString("Terrariaの投稿はまだありません")));
   }
 
   @Test
@@ -231,7 +231,7 @@ class PortalWebMvpTests {
     }
     mockMvc.perform(get("/luminite").with(user("mvp-admin").roles("ADMIN")))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("過去の記録")))
+        .andExpect(content().string(containsString("過去の投稿")))
         .andExpect(content().string(containsString("Archive record 20")))
         .andExpect(content().string(not(containsString("Archive record 21"))));
     mockMvc.perform(get("/luminite?page=1").with(user("mvp-admin").roles("ADMIN")))
@@ -240,7 +240,7 @@ class PortalWebMvpTests {
         .andExpect(content().string(not(containsString("Archive record 20"))));
     mockMvc.perform(get("/luminite?page=99").with(user("mvp-admin").roles("ADMIN")))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("このページの記録はありません。")));
+        .andExpect(content().string(containsString("このページの投稿はありません。")));
   }
 
   @Test

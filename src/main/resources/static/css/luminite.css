@@ -173,3 +173,84 @@
   .luminite-ranking .bar { grid-column:2 / -1; grid-row:2; }
   .luminite-events .octarine-event { grid-template-columns:1fr; gap:4px; }
 }
+
+/* ===== Design layer: the portal's cards and pixel details, in luminite violet. ===== */
+.luminite-body { --lm:#b893ff; --lm-soft:#cfb6ff; background:radial-gradient(#ffffff0a 1px, transparent 1.2px) 0 0 / 18px 18px, radial-gradient(ellipse at 85% -10%, #b893ff1c, transparent 45%), var(--rb-bg); }
+.luminite-body .luminite-shell { width:min(1240px, calc(100% - 32px)); padding:20px 0 56px; }
+.lm-columns { display:grid; grid-template-columns:minmax(0, 1fr) minmax(280px, 340px); gap:24px; align-items:start; }
+.lm-main { min-width:0; }
+.lm-side { position:sticky; top:84px; display:grid; gap:12px; max-height:calc(100vh - 100px); overflow-y:auto; scrollbar-width:thin; }
+
+/* Tabs: rounded, like the Watchpoint rail. */
+.luminite-body .luminite-tabs { gap:4px; margin:0 0 18px; }
+.luminite-body .luminite-tabs a { padding:8px 14px; border:0; border-radius:999px; background:none; color:var(--rb-muted); font-size:13px; font-weight:600; }
+.luminite-body .luminite-tabs a:hover { background:var(--rb-surface); color:var(--rb-text); }
+.luminite-body .luminite-tabs a.active { background:#b893ff24; color:var(--lm-soft); }
+
+/* Panels and cards. */
+.luminite-body .luminite-panel, .lm-card { margin-top:0; padding:20px; border:1px solid var(--rb-line); border-radius:var(--rb-radius); background:var(--rb-surface); }
+.luminite-body .luminite-panel + .luminite-panel { margin-top:14px; }
+.luminite-body .luminite-panel .section-heading { align-items:center; margin-bottom:14px; }
+.luminite-body .luminite-panel .section-heading h1, .luminite-body .luminite-panel .section-heading h2, .lm-card-head h2 { display:flex; align-items:center; gap:10px; margin:0; font-size:16px; letter-spacing:0; }
+.luminite-body .luminite-panel .section-heading h1::before, .luminite-body .luminite-panel .section-heading h2::before, .lm-card-head h2::before { content:""; width:8px; height:8px; flex:none; background:var(--lm); box-shadow:4px 4px 0 #b893ff55; }
+.lm-card-head h2 { font-size:14px; }
+.luminite-body .luminite-panel .section-heading a, .lm-card-link { color:var(--lm-soft); font-size:12px; text-decoration:none; }
+.lm-card-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; }
+.lm-facts { display:grid; gap:10px; margin:0; }
+.lm-facts div { display:flex; justify-content:space-between; gap:12px; font-size:12px; }
+.lm-facts dt { color:var(--rb-muted); }
+.lm-facts dd { margin:0; text-align:right; overflow-wrap:anywhere; }
+.lm-card .luminite-warning { margin:12px 0 0; }
+.lm-card-link { display:inline-block; margin-top:12px; font-weight:700; }
+
+/* Sidebar timeline: compact posts like the portal. */
+.lm-feed { display:grid; gap:14px; margin:0; padding:0; list-style:none; }
+.lm-feed li + li { padding-top:14px; border-top:1px solid var(--rb-line); }
+.lm-feed header { display:flex; gap:10px; align-items:center; }
+.lm-feed .user-avatar { width:34px; height:34px; border-radius:9px; }
+.lm-feed header span { display:grid; gap:1px; min-width:0; }
+.lm-feed header b { overflow:hidden; font-size:13px; text-overflow:ellipsis; white-space:nowrap; }
+.lm-feed time { color:var(--rb-muted); font-size:11px; }
+.lm-feed h3 { margin:10px 0 4px; font-size:13px; }
+.lm-feed p { margin:0; color:#c9c7cf; font-size:12px; line-height:1.75; white-space:pre-line; overflow-wrap:anywhere; }
+.lm-pages { display:flex; justify-content:space-between; gap:8px; margin-top:12px; }
+.lm-pages a { color:var(--lm-soft); font-size:12px; text-decoration:none; }
+
+/* Inner tiles: one surface step up, rounded, no heavy borders. */
+.luminite-body .luminite-stats li, .luminite-body .luminite-progress li, .luminite-body .luminite-guide, .luminite-body .luminite-activity li,
+.luminite-body .luminite-events .octarine-event, .luminite-body .luminite-event, .luminite-body .luminite-items a, .luminite-body .luminite-containers > li,
+.luminite-body .luminite-changes li, .luminite-body .luminite-ranking li, .luminite-body .luminite-resources li, .luminite-body .luminite-signs li,
+.luminite-body .luminite-form {
+  border:1px solid transparent; border-radius:10px; background:var(--rb-surface-2);
+}
+.luminite-body .luminite-items a:hover { border-color:var(--lm); }
+.luminite-body .luminite-activity li { border-left:0; box-shadow:inset 3px 0 0 var(--lm); }
+.luminite-body .luminite-activity li.kind-kills { box-shadow:inset 3px 0 0 #f0bb72; }
+.luminite-body .luminite-activity li.kind-death { box-shadow:inset 3px 0 0 #8a85a0; }
+.luminite-body .luminite-signs li.tombstone { border-top:0; box-shadow:inset 0 3px 0 #625b7a; }
+.luminite-body .luminite-stats strong, .luminite-body .luminite-count, .luminite-body .luminite-items strong, .luminite-body .luminite-ranking strong,
+.luminite-body .luminite-resources b, .luminite-body .luminite-slots b { font-family:inherit; font-variant-numeric:tabular-nums; }
+.luminite-body .luminite-activity time, .luminite-body .luminite-changes time, .luminite-body .luminite-events .octarine-event time,
+.luminite-body .luminite-container-head small, .luminite-body .luminite-ranking .rank { font-family:inherit; font-size:11px; }
+.luminite-body .luminite-state { border:0; border-radius:0; background:#7fe0a81f; color:#7fe0a8; font-family:inherit; font-weight:700; clip-path:var(--rb-notch); }
+.luminite-body .luminite-world-line span, .luminite-body .luminite-place b { border:0; border-radius:999px; background:var(--rb-surface-2); }
+.luminite-body .luminite-ranking .bar { border-radius:999px; background:var(--rb-bg); overflow:hidden; }
+.luminite-body .luminite-alignment { border:0; border-radius:999px; overflow:hidden; }
+.luminite-body .luminite-slots a { border:0; border-radius:6px; background:var(--rb-bg); }
+.luminite-body .luminite-search input, .luminite-body .luminite-search select, .luminite-body .luminite-form input:not([type=checkbox]),
+.luminite-body .luminite-form textarea, .luminite-body .luminite-form select { border-color:var(--rb-line); border-radius:10px; background:var(--rb-bg); }
+.luminite-body .luminite-search button, .luminite-body .luminite-maintenance button { border:0; border-radius:0; background:var(--lm); color:#16151b; font-weight:700; clip-path:var(--rb-notch); }
+.luminite-body .luminite-table th, .luminite-body .luminite-table td { border-bottom-color:var(--rb-line); }
+.luminite-body .luminite-back { color:var(--lm-soft); }
+.luminite-body .luminite-group-title { letter-spacing:0; }
+
+@media (max-width:980px) {
+  .lm-columns { grid-template-columns:minmax(0, 1fr); }
+  .lm-side { position:static; max-height:none; overflow:visible; }
+}
+@media (max-width:720px) {
+  .luminite-body .luminite-tabs { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; }
+  .luminite-body .luminite-tabs a { flex:none; }
+  .luminite-body .luminite-panel, .lm-card { padding:16px; }
+}
+.luminite-body .luminite-table th { color:var(--rb-muted); font-family:inherit; letter-spacing:0; }

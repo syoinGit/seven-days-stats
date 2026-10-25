@@ -44,7 +44,8 @@ public class LuminiteController {
     int safePage = Math.max(0, Math.min(page, 1000000));
     var timeline = timelineService.sharedTimeline(List.of(GAME_ID), safePage)
         .map(event -> new TimelineItem(event.eventType(), event.title(), event.body(),
-            event.occurredAt(), TIME_FORMATTER.format(event.occurredAt()), event.actorPlayerId(), event.creatorSub()));
+            event.occurredAt(), TIME_FORMATTER.format(event.occurredAt()), event.actorPlayerId(), event.creatorSub(),
+            event.actorName()));
     var overview = progress.overview(GAME_ID, admin, importProperties.staleAfter());
     model.addAttribute("game", game);
     model.addAttribute("section", "overview");
@@ -198,5 +199,5 @@ public class LuminiteController {
       String title,
       String body,
       OffsetDateTime occurredAt,
-      String occurredAtLabel, Long actorPlayerId, String creatorSub) { }
+      String occurredAtLabel, Long actorPlayerId, String creatorSub, String actorName) { }
 }
