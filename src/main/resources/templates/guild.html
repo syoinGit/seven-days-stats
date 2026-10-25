@@ -37,6 +37,9 @@
   </section>
   <p class="guild-caption" th:if="${scene == null}">人物を選ぶと、その人の物語が開きます。</p>
   <p class="guild-caption guild-now" th:if="${scene != null}">いまの酒場：<a th:href="@{/guild/log/{id}(id=${scene.interactionId})}" th:text="${scene.summary}">リネとロアンは天気の話をした</a></p>
+  <p class="guild-caption guild-now" th:if="${todayRun != null}">ダンジョン：<a href="/guild/dungeon"
+     th:text="${todayRun.back() ? todayRun.party() + 'が' + todayRun.dungeon + 'から戻った（' + todayRun.resultName() + '）'
+       : todayRun.party() + 'が' + todayRun.dungeon + 'を探索中' + (todayRun.reached() == null ? '（出発したところ）' : '（' + todayRun.reached() + 'まで）')}">リネとロアンが古い坑道を探索中（承まで）</a></p>
 </main>
 <div class="guild-scrim" data-guild-scrim th:hidden="${window == null}"></div>
 <dialog id="guild-window" class="guild-window" th:open="${window != null}" aria-labelledby="guild-window-title">
@@ -46,5 +49,5 @@
   </th:block>
 </dialog>
 <nav th:replace="~{fragments/guild :: tabbar(${tab})}"></nav>
-<script defer src="/js/guild.js?v=2"></script>
+<script defer src="/js/guild.js?v=3"></script>
 </body></html>

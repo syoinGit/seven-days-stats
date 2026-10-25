@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
  * Up to six interactions a day between residents in the tavern, twice in each of a few JST hours. Code chooses who,
  * which event card, the outcome, the relationship changes, threads, labels and any change of village,
  * faction or faith; the AI only writes the scene afterwards. Everything for one slot is saved in one
- * transaction, and a slot is never filled twice.
+ * transaction, and a slot is never filled twice. Residents who left for today's dungeon run take no part.
  */
 @Service
 @RequiredArgsConstructor
@@ -170,11 +170,14 @@ public class GuildInteractionService {
         JOIN M_GUILD_CHARACTER c ON c.id = v.character_id JOIN M_GUILD_VILLAGE v2 ON v2.village_key = c.current_village
         JOIN M_GUILD_VILLAGE hv ON hv.village_key = c.home_village
         JOIN M_GUILD_FACTION f ON f.faction_key = c.faction JOIN M_GUILD_FAITH fi ON fi.faith_key = c.faith
-        WHERE v.visit_date = ? AND c.status = 'ALIVE' ORDER BY v.seat
+        WHERE v.visit_date = ? AND c.status = 'ALIVE' AND NOT EXISTS (SELECT 1 FROM T_GUILD_EXPEDITION_MEMBER m
+          JOIN T_GUILD_EXPEDITION e ON e.id = m.expedition_id WHERE m.character_id = c.id AND e.expedition_date = ? AND e.departed_at <= ?)
+        ORDER BY v.seat
         """, (rs, row) -> new Person(rs.getLong(1), rs.getString(2), (Integer) rs.getObject(3), rs.getString(4),
         rs.getString(5), rs.getString(6), affiliation(rs.getLong(1), rs.getString(7), rs.getString(8), rs.getString(9),
         rs.getString(10), rs.getString(11), rs.getString(12), GuildWorld.faithName(rs.getString(13), rs.getString(10), rs.getString(8)),
-        rs.getString(14), rs.getString(15), date)), date);
+        rs.getString(14), rs.getString(15), date)), date, date, local.toOffsetDateTime());
+    // Those who left for the dungeon today are gone for the night (GuildDungeon).
     if (present.size() < 2) return record(slot, "SKIPPED", "酒場にいる住人が2人未満でした。");
 
     List<Pair> pairs = new ArrayList<>();

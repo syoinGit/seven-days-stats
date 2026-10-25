@@ -5,7 +5,7 @@
 <meta property="og:title" th:content="${title}"><meta property="og:type" content="website">
 <link th:if="${canonical != null and !#strings.isEmpty(canonical)}" rel="canonical" th:href="${canonical}">
 <meta th:if="${canonical != null and !#strings.isEmpty(canonical)}" property="og:url" th:content="${canonical}">
-<link rel="stylesheet" href="/css/app.css?v=header-5"><link rel="stylesheet" href="/css/portal.css?v=guild-1"><link rel="stylesheet" href="/css/guild.css?v=9">
+<link rel="stylesheet" href="/css/app.css?v=header-5"><link rel="stylesheet" href="/css/portal.css?v=guild-1"><link rel="stylesheet" href="/css/guild.css?v=10">
 </th:block></head><body>
 <!-- A resident's pixel figure: layered parts when code chose them, else the plain sprite tinted by appearance. -->
 <svg th:fragment="sprite(c)" class="guild-sprite" th:classappend="${c.appearance}" viewBox="0 0 16 24" aria-hidden="true"
@@ -13,13 +13,14 @@
   <use th:if="${c.look == null}" href="/img/guild-people.svg?v=3#resident"></use>
   <th:block th:if="${c.look != null}"><use th:each="layer : ${c.look.layers()}" th:href="${'/img/guild-people.svg?v=3#' + layer}"></use></th:block>
 </svg>
-<!-- The guild's bottom tabs. Each one but maintenance opens a window over the tavern; active: tavern, visitors, roster, board or log. -->
+<!-- The guild's bottom tabs. Each one but maintenance opens a window over the tavern; active: tavern, visitors, roster, board, dungeon or log. -->
 <nav th:fragment="tabbar(active)" class="guild-tabbar" aria-label="ギルド" data-guild-tabbar>
-  <a href="/guild" th:attr="aria-current=${active == 'tavern'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=2#tab-tavern"></use></svg>酒場</a>
-  <a href="/guild/visitors" th:attr="aria-current=${active == 'visitors'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=2#tab-visitors"></use></svg>来店者</a>
-  <a href="/guild/characters" th:attr="aria-current=${active == 'roster'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=2#tab-roster"></use></svg>住人名簿</a>
-  <a href="/guild/board" th:attr="aria-current=${active == 'board'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=2#tab-board"></use></svg>掲示板</a>
-  <a href="/guild/log" th:attr="aria-current=${active == 'log'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=2#tab-log"></use></svg>記録</a>
-  <a th:if="${currentAdmin}" href="/guild/maintenance"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=2#tab-maintenance"></use></svg>メンテ</a>
+  <a href="/guild" th:attr="aria-current=${active == 'tavern'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=3#tab-tavern"></use></svg>酒場</a>
+  <a href="/guild/visitors" th:attr="aria-current=${active == 'visitors'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=3#tab-visitors"></use></svg>来店者</a>
+  <a href="/guild/characters" th:attr="aria-current=${active == 'roster'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=3#tab-roster"></use></svg>住人名簿</a>
+  <a href="/guild/board" th:attr="aria-current=${active == 'board'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=3#tab-board"></use></svg>掲示板</a>
+  <a href="/guild/dungeon" th:attr="aria-current=${active == 'dungeon'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=3#tab-dungeon"></use></svg>冒険</a>
+  <a href="/guild/log" th:attr="aria-current=${active == 'log'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=3#tab-log"></use></svg>記録</a>
+  <a th:if="${currentAdmin}" href="/guild/maintenance"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=3#tab-maintenance"></use></svg>メンテ</a>
 </nav>
 </body></html>

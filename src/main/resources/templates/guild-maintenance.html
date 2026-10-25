@@ -30,6 +30,14 @@
   <ul class="guild-jobs"><li th:each="job : ${hourlyJobs}"><strong th:text="${job.slot + ' / ' + job.status}">2026-10-25T14 / SUCCEEDED</strong><p th:text="${job.message}"></p></li></ul>
 </section>
 
+<section class="guild-panel" id="dungeon"><h2>ダンジョン探索（仮）</h2>
+  <p th:text="${'毎日 ' + dungeonDeparture + '（日本時間）に、今日の来店者から1〜4人がダンジョンへ出発します。起・承・転・結の4段階が' + dungeonStageMinutes + '分ごとに公開され、結果は最後の段階と一緒に分かります。'}">毎日 21:50 に出発します。</p>
+  <p>誰が行くか、どのダンジョンで何を目指すか、各段階の出来事と結果は、出発の時点でプログラムがすべて決めます（文章は定型文）。出発した人はその日の交流に加わらず、酒場からいなくなります。戻ると酒場の席に戻ります。1日1回だけです。</p>
+  <form method="post" th:action="@{/guild/maintenance/dungeon}"><button type="submit">今日の探索をいますぐ出発させる</button></form>
+  <p th:if="${#lists.isEmpty(runs)}">まだ探索の記録はありません。</p>
+  <ul class="guild-jobs"><li th:each="run : ${runs}"><a th:href="@{/guild/dungeon/{id}(id=${run.id})}" th:text="${#temporals.format(run.date, 'yyyy年M月d日') + ' / ' + run.resultName()}">2026年10月25日 / 踏破</a><p th:text="${run.party + 'が' + run.dungeon + 'へ'}"></p></li></ul>
+</section>
+
 <section class="guild-panel" id="affiliations"><h2>村・派閥・信仰の内訳</h2>
   <p>存命の住人が、いまどこに暮らし、どの派閥と信仰にいるか。村・派閥・信仰の変化はすべて履歴に残ります。</p>
   <table class="guild-origins"><thead><tr><th>区分</th><th>名前</th><th>人数</th></tr></thead>

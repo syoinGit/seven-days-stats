@@ -5,7 +5,7 @@
   const scrim = document.querySelector("[data-guild-scrim]");
   const tabbar = document.querySelector("[data-guild-tabbar]");
   if (!dialog || !scrim || !tabbar) return;
-  const WINDOW = /^\/guild\/(visitors|board|characters(\/\d+)?|log(\/\d+)?|pairs\/\d+-\d+)$/;
+  const WINDOW = /^\/guild\/(visitors|board|characters(\/\d+)?|log(\/\d+)?|pairs\/\d+-\d+|dungeon(\/\d+)?)$/;
   const TAVERN_TITLE = "無人の冒険者ギルド | Rubinco";
   let opener = null;
 

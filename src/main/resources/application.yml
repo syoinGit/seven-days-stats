@@ -48,6 +48,9 @@ app:
     interaction-daily-max: ${GUILD_INTERACTION_DAILY_MAX:6}
     interaction-fallback: ${GUILD_INTERACTION_FALLBACK:template}
     recent-pair-slots: ${GUILD_RECENT_PAIR_SLOTS:3}
+    # Provisional dungeon runs: 1-4 of the day's visitors leave at this JST time; the four stages come out this many minutes apart.
+    dungeon-departure: ${GUILD_DUNGEON_DEPARTURE:21:50}
+    dungeon-stage-minutes: ${GUILD_DUNGEON_STAGE_MINUTES:10}
     selection-weights:
       random: 3
       warm: 2

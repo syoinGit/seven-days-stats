@@ -18,6 +18,7 @@ public class GuildMaintenanceController {
   private final GuildSourceService sources;
   private final GuildInteractionService interactions;
   private final GuildWorld world;
+  private final GuildDungeon dungeon;
 
   @GetMapping("/guild/maintenance")
   public String index(Model model) {
@@ -37,6 +38,10 @@ public class GuildMaintenanceController {
     model.addAttribute("interactionDailyMax", properties.interactionDailyMax());
     model.addAttribute("affiliationCounts", world.counts());
     model.addAttribute("currentSlot", GuildInteractionService.slot(java.time.ZonedDateTime.now(GuildService.TOKYO)));
+    model.addAttribute("dungeonDeparture", properties.dungeonDeparture());
+    model.addAttribute("dungeonStageMinutes", properties.dungeonStageMinutes());
+    // Administrators see every run, including today's before it is back (the result itself stays hidden until then).
+    model.addAttribute("runs", dungeon.recent(java.time.ZonedDateTime.now(GuildService.TOKYO), null, 10));
     return "guild-maintenance";
   }
 
@@ -57,6 +62,13 @@ public class GuildMaintenanceController {
   public String interaction(RedirectAttributes redirect) {
     redirect.addFlashAttribute("notice", interactions.runHour(java.time.ZonedDateTime.now(GuildService.TOKYO)));
     return "redirect:/guild/maintenance#interactions";
+  }
+
+  /** Sends today's party now instead of at the departure time; still once a day. */
+  @PostMapping("/guild/maintenance/dungeon")
+  public String dungeon(RedirectAttributes redirect) {
+    redirect.addFlashAttribute("notice", dungeon.depart(java.time.ZonedDateTime.now(GuildService.TOKYO)));
+    return "redirect:/guild/maintenance#dungeon";
   }
 
   @PostMapping("/guild/maintenance/characters/{id}/delete")

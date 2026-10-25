@@ -24,6 +24,7 @@ public class GuildService {
   private final GuildPeople people;
   private final GuildDossier dossier;
   private final GuildWorld affiliations;
+  private final GuildDungeon dungeon;
 
   /**
    * memoryLabel and memory are null for residents born before memories were recorded; lineage and look
@@ -118,6 +119,11 @@ public class GuildService {
     List<Visit> visits = jdbc.query("SELECT " + PUBLIC_COLUMNS + ", v.seat, v." + phase + " AS line" + FROM
         + " JOIN T_GUILD_VISIT v ON c.id = v.character_id WHERE v.visit_date = ? AND c.status = 'ALIVE' ORDER BY v.seat",
         (rs, row) -> new Visit(character(rs), rs.getInt("seat"), rs.getString("line")), date);
+    // Out in the dungeon: not in the room. Back from it: in their seat, talking about it.
+    var presence = dungeon.presence(date, local);
+    visits = visits.stream().filter(visit -> !presence.containsKey(visit.character().id()) || presence.get(visit.character().id()) != null)
+        .map(visit -> presence.containsKey(visit.character().id())
+            ? new Visit(visit.character(), visit.seat(), presence.get(visit.character().id())) : visit).toList();
     return new Room(date, phase, visits);
   }
 
@@ -227,7 +233,7 @@ public class GuildService {
 
   /**
    * Removes a resident with their visits, source, interactions (and what those interactions changed or
-   * started) and relationships. The source's memory may be used again.
+   * started), dungeon runs and relationships. The source's memory may be used again.
    */
   @Transactional
   public String delete(long id) {
@@ -241,6 +247,12 @@ public class GuildService {
       jdbc.update("DELETE FROM T_GUILD_THREAD WHERE origin_interaction_id = ? OR resolved_interaction_id = ?", interaction, interaction);
       jdbc.update("DELETE FROM T_GUILD_INTERACTION_PARTICIPANT WHERE interaction_id = ?", interaction);
       jdbc.update("DELETE FROM T_GUILD_INTERACTION WHERE id = ?", interaction);
+    }
+    // Dungeon runs they took part in go with them; their text names everyone in the party.
+    for (long expedition : jdbc.queryForList("SELECT expedition_id FROM T_GUILD_EXPEDITION_MEMBER WHERE character_id = ?", Long.class, id)) {
+      jdbc.update("DELETE FROM T_GUILD_EXPEDITION_STAGE WHERE expedition_id = ?", expedition);
+      jdbc.update("DELETE FROM T_GUILD_EXPEDITION_MEMBER WHERE expedition_id = ?", expedition);
+      jdbc.update("DELETE FROM T_GUILD_EXPEDITION WHERE id = ?", expedition);
     }
     jdbc.update("DELETE FROM T_GUILD_AFFILIATION_HISTORY WHERE character_id = ?", id);
     jdbc.update("DELETE FROM T_GUILD_RELATION_EVENT WHERE from_id = ? OR to_id = ?", id, id);

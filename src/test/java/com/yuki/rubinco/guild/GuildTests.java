@@ -43,6 +43,7 @@ class GuildTests {
   @Autowired GuildDossier dossier;
   @Autowired GuildWorld world;
   @Autowired GuildProperties properties;
+  @Autowired GuildDungeon dungeon;
   @Autowired JdbcTemplate jdbc;
   @Autowired MockMvc mvc;
   @MockitoBean BedrockTextClient bedrock;
@@ -59,7 +60,7 @@ class GuildTests {
       List.of("dawnlight", "spirit", "none"), List.of());
 
   @BeforeEach void setup() {
-    for (String table : List.of("T_GUILD_AFFILIATION_HISTORY", "T_GUILD_RELATION_EVENT", "T_GUILD_THREAD", "T_GUILD_INTERACTION_PARTICIPANT", "T_GUILD_INTERACTION",
+    for (String table : List.of("T_GUILD_EXPEDITION_STAGE", "T_GUILD_EXPEDITION_MEMBER", "T_GUILD_EXPEDITION", "T_GUILD_AFFILIATION_HISTORY", "T_GUILD_RELATION_EVENT", "T_GUILD_THREAD", "T_GUILD_INTERACTION_PARTICIPANT", "T_GUILD_INTERACTION",
         "T_GUILD_RELATION", "T_GUILD_BOND", "T_GUILD_HOURLY_JOB", "T_GUILD_SOURCE", "T_GUILD_VISIT", "T_GUILD_DAY", "T_GUILD_JOB", "M_GUILD_CHARACTER", "T_CK_SESSION", "M_CK_PLAYER")) {
       jdbc.update("DELETE FROM " + table);
     }
@@ -499,6 +500,104 @@ class GuildTests {
         .andExpect(content().string(containsString("table-four")));
   }
 
+  /** 21:50: a party leaves; its stages come out at 22:00, 22:10, 22:20 and 22:30, the result with the last. */
+  @Test void aDungeonRunUnfoldsInFourStagesAndKeepsItsPartyOutOfTheTavern() {
+    List<Long> ids = new java.util.ArrayList<>();
+    for (int i = 0; i < 6; i++) ids.add(resident("冒険" + (char) ('ア' + i * 2), 20 + i, "ALIVE", i));
+    var departure = HOUR.withHour(21).withMinute(50);
+    assertThat(dungeon.departIfDue(departure.minusMinutes(1))).contains("出発の時間帯ではありません");
+    assertThat(dungeon.departIfDue(departure.plusMinutes(40))).contains("出発の時間帯ではありません");
+    assertThat(dungeon.departIfDue(departure)).contains("へ向かいました").contains("22:30");
+    assertThat(dungeon.depart(departure.plusMinutes(1))).contains("すでに出発しています");
+    long id = jdbc.queryForObject("SELECT id FROM T_GUILD_EXPEDITION", Long.class);
+    List<Long> party = jdbc.queryForList("SELECT character_id FROM T_GUILD_EXPEDITION_MEMBER ORDER BY position", Long.class);
+    assertThat(party).hasSizeBetween(1, 4).allMatch(ids::contains);
+
+    var start = dungeon.expedition(id, departure.plusMinutes(5));
+    assertThat(start.stages()).hasSize(4).noneMatch(GuildDungeon.Stage::revealed);
+    assertThat(start.result()).isNull();
+    assertThat(start.members()).extracting(GuildChronicle.Ref::id).containsExactlyElementsOf(party);
+    var middle = dungeon.expedition(id, departure.plusMinutes(25));
+    assertThat(middle.stages()).extracting(GuildDungeon.Stage::revealed).containsExactly(true, true, false, false);
+    assertThat(middle.reached()).isEqualTo("承");
+    assertThat(middle.back()).isFalse();
+    assertThat(middle.stages().get(0).body()).doesNotContain("{");
+    var end = dungeon.expedition(id, departure.plusMinutes(40));
+    assertThat(end.stages()).allMatch(GuildDungeon.Stage::revealed);
+    assertThat(end.result()).isIn("success", "partial", "retreat");
+    String last = jdbc.queryForObject("SELECT card_id FROM T_GUILD_EXPEDITION_STAGE WHERE stage = 4", String.class);
+    assertThat(dungeon.deck().stages().get("ketsu")).filteredOn(card -> card.id().equals(last)).singleElement()
+        .extracting(GuildDungeon.Card::result).isEqualTo(end.result());
+    // Not readable before it leaves; summaries hide the result until the party is back.
+    assertThatThrownBy(() -> dungeon.expedition(id, departure.minusMinutes(1))).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+    assertThat(dungeon.recent(departure.plusMinutes(15), null, 5)).singleElement().extracting(GuildDungeon.Summary::result).isNull();
+    assertThat(dungeon.recent(departure.plusMinutes(40), party.getFirst(), 5)).singleElement()
+        .extracting(GuildDungeon.Summary::result).isEqualTo(end.result());
+
+    // Out during the run, back in their seats afterwards with a line about it.
+    assertThat(dungeon.presence(HOUR.toLocalDate(), departure.plusMinutes(15))).containsOnlyKeys(party).containsValue(null);
+    assertThat(dungeon.presence(HOUR.toLocalDate(), departure.plusMinutes(40)).values()).allMatch(line -> line.startsWith("ダンジョンから戻り"));
+    assertThat(dungeon.presence(HOUR.toLocalDate(), departure.minusMinutes(5))).isEmpty();
+
+    // The 22:00 and 22:30 interactions are drawn only among those still in the tavern.
+    for (var slot : List.of(departure.plusMinutes(13), departure.plusMinutes(43))) interactions.runHour(slot);
+    assertThat(jdbc.queryForList("SELECT character_id FROM T_GUILD_INTERACTION_PARTICIPANT", Long.class)).noneMatch(party::contains);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isEqualTo(2);
+
+    assertThat(guild.delete(party.getFirst())).contains("削除しました");
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_EXPEDITION")).isZero();
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_EXPEDITION_STAGE")).isZero();
+  }
+
+  /** Any party, any cards: every placeholder filled, {other} only with company, the ending fits the result. */
+  @Test void dungeonRunsHoldTheirRulesForAnyParty() {
+    var random = new java.util.Random(7);
+    List<String> jobs = List.of("騎士", "薬師", "猟師", "大工", "商人", "農家");
+    java.util.Set<String> results = new java.util.HashSet<>();
+    java.util.Set<String> seen = new java.util.HashSet<>();
+    for (int i = 0; i < 3000; i++) {
+      int size = 1 + random.nextInt(4);
+      List<GuildDungeon.Member> party = new java.util.ArrayList<>();
+      for (int m = 0; m < size; m++) {
+        party.add(new GuildDungeon.Member(m + 1, "人" + "アイウエ".charAt(m), jobs.get(random.nextInt(jobs.size())),
+            List.of("grantford", "elmwood", "tsukikage").get(random.nextInt(3))));
+      }
+      var run = dungeon.simulate(party, random);
+      assertThat(run.stages()).hasSize(4);
+      assertThat(run.stages()).extracting(GuildDungeon.Drawn::body).noneMatch(body -> body.contains("{") || body.contains("}"));
+      assertThat(run.stages()).allMatch(drawn -> party.contains(drawn.hero()) && party.size() >= drawn.card().min());
+      assertThat(run.stages().getLast().card().result()).isEqualTo(run.result());
+      assertThat(run.goal()).contains(run.dungeon().name());
+      results.add(run.result());
+      run.stages().forEach(drawn -> seen.add(drawn.card().id()));
+    }
+    assertThat(results).containsExactlyInAnyOrder("success", "partial", "retreat");
+    // Every card can come up.
+    assertThat(seen).hasSize(dungeon.deck().stages().values().stream().mapToInt(List::size).sum());
+    assertThat(GuildDungeon.party(List.of("リネ", "ロアン", "カイ"))).isEqualTo("リネ、ロアン、カイの三人");
+  }
+
+  @Test void theDungeonWindowShowsOnlyWhatHasComeOut() throws Exception {
+    for (int i = 0; i < 3; i++) resident("探索" + (char) ('ア' + i * 2), 25 + i, "ALIVE", i);
+    mvc.perform(get("/guild/dungeon")).andExpect(status().isOk()).andExpect(content().string(containsString("まだ誰もダンジョンへ向かっていません")));
+    dungeon.depart(ZonedDateTime.now(GuildService.TOKYO));
+    long id = jdbc.queryForObject("SELECT id FROM T_GUILD_EXPEDITION", Long.class);
+    List<Long> party = jdbc.queryForList("SELECT character_id FROM T_GUILD_EXPEDITION_MEMBER", Long.class);
+    List<String> bodies = jdbc.queryForList("SELECT body FROM T_GUILD_EXPEDITION_STAGE ORDER BY stage", String.class);
+    var page = mvc.perform(get("/guild/dungeon")).andExpect(status().isOk())
+        .andExpect(content().string(containsString(jdbc.queryForObject("SELECT dungeon_name FROM T_GUILD_EXPEDITION", String.class))))
+        .andExpect(content().string(containsString("href=\"/guild/dungeon\" aria-current=\"page\"")))
+        .andExpect(content().string(containsString("探索中です"))).andReturn().getResponse().getContentAsString();
+    for (String body : bodies) assertThat(page).doesNotContain(body);
+    mvc.perform(get("/guild/dungeon/" + id)).andExpect(status().isOk());
+    mvc.perform(get("/guild/dungeon/" + (id + 1000))).andExpect(status().isNotFound());
+    String tavern = mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("ダンジョン：")))
+        .andReturn().getResponse().getContentAsString();
+    String room = tavern.substring(tavern.indexOf("guild-room"), tavern.indexOf("guild-caption"));
+    for (long member : party) assertThat(room).doesNotContain("/guild/characters/" + member + "\"");
+    mvc.perform(post("/guild/maintenance/dungeon")).andExpect(status().is4xxClientError());
+  }
+
   @Test void theWorldsRulesHoldForNewcomers() {
     assertThat(world.villages().keySet()).containsExactly("grantford", "elmwood", "tsukikage");
     assertThat(world.factions().get("tsukikage_samurai").village()).isEqualTo("tsukikage");
@@ -894,6 +993,17 @@ class GuildTests {
     for (var person : guild.characters(0)) {
       var response = mvc.perform(get("/guild/characters/" + person.id())).andExpect(status().isOk()).andReturn().getResponse();
       java.nio.file.Files.writeString(root.resolve("guild/characters/" + person.id()), response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+    }
+    // A run that left 25 minutes ago: two stages out, two to come, its party out of the tavern.
+    dungeon.depart(ZonedDateTime.now(GuildService.TOKYO));
+    var left = OffsetDateTime.now().minusMinutes(25);
+    jdbc.update("UPDATE T_GUILD_EXPEDITION SET departed_at = ?, returned_at = ?", left, left.plusMinutes(40));
+    for (int stage = 1; stage <= 4; stage++) {
+      jdbc.update("UPDATE T_GUILD_EXPEDITION_STAGE SET reveal_at = ? WHERE stage = ?", left.plusMinutes(10L * stage), stage);
+    }
+    for (String[] page : new String[][] {{"/guild/dungeon", "dungeon.html"}, {"/guild", "index-dungeon.html"}}) {
+      var response = mvc.perform(get(page[0])).andExpect(status().isOk()).andReturn().getResponse();
+      java.nio.file.Files.writeString(root.resolve(page[1]), response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
     }
   }
 

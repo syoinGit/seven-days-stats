@@ -61,6 +61,8 @@
     <li th:each="entry : ${interactions}" th:insert="~{fragments/guild-windows :: entryRow(${entry})}"></li>
   </ul>
   <p th:unless="${#lists.isEmpty(interactions)}"><a th:href="@{/guild/log(character=${character.id})}">この人の交流をすべて見る →</a></p>
+  <th:block th:unless="${#lists.isEmpty(expeditions)}"><h3>ダンジョンの記録</h3>
+    <ul class="guild-entries"><li th:each="run : ${expeditions}" th:insert="~{fragments/guild-windows :: runRow(${run})}"></li></ul></th:block>
   <p class="guild-footer">人物の性格・職業・信仰・暮らしは創作です。実プレイヤーの人格を推定したものではありません。</p>
 </th:block>
 
@@ -131,6 +133,42 @@
       <a th:href="@{/guild/log/{id}(id=${t.originId})}">（きっかけの記録）</a></li></ul></th:block>
   <p><a href="/guild/log">← 交流の記録へ</a></p>
   <p class="guild-footer">出来事と関係の変化はプログラムが決め、場面の文章はAIが書いています。登場人物は創作です。</p>
+</th:block>
+
+<!-- One dungeon run in a list. -->
+<th:block th:fragment="runRow(run)">
+  <a class="guild-entry" th:href="@{/guild/dungeon/{id}(id=${run.id})}">
+    <small th:text="${#temporals.format(run.date, 'M月d日') + '・' + run.resultName()}">10月25日・踏破</small>
+    <span th:text="${run.party + 'が' + run.dungeon + 'へ'}">リネとロアンが古い坑道へ</span>
+  </a>
+</th:block>
+
+<!-- A dungeon run: the stages that are out so far, the rest still dark. -->
+<th:block th:fragment="dungeon">
+  <p th:if="${expedition == null}">まだ誰もダンジョンへ向かっていません。毎晩、酒場から1〜4人が出発します。</p>
+  <th:block th:if="${expedition != null}">
+    <p class="guild-window-lead"><small th:text="${#temporals.format(expedition.date, 'yyyy年M月d日') + ' ' + #temporals.format(expedition.departedAt.atZoneSameInstant(T(com.yuki.rubinco.guild.GuildService).TOKYO), 'H:mm') + ' 出発'}">2026年10月25日 21:50 出発</small></p>
+    <h3 th:text="${expedition.dungeon}">古い坑道</h3>
+    <p th:text="${'目的：' + expedition.goal}">目的：古い坑道で失われた坑夫頭の真鍮のランタンを探しに行く</p>
+    <ul class="guild-list">
+      <li th:each="member : ${members}"><a class="guild-row" th:href="@{/guild/characters/{id}(id=${member.id})}">
+        <svg th:replace="~{fragments/guild :: sprite(${member})}"></svg>
+        <span><strong th:text="${member.name}">リネ</strong><small th:if="${!member.profile().isEmpty()}" th:text="${member.profile()}">28歳・女性・冒険者</small></span>
+      </a></li>
+    </ul>
+    <ol class="guild-dungeon">
+      <li th:each="stage : ${expedition.stages}" th:classappend="${stage.revealed() ? 'revealed' : 'dark'}">
+        <strong th:text="${stage.name}">起</strong>
+        <p th:if="${stage.revealed()}" th:text="${stage.body}">一行は坑道の入口に立った。</p>
+        <p th:unless="${stage.revealed()}" th:text="${'……' + #temporals.format(stage.revealAt.atZoneSameInstant(T(com.yuki.rubinco.guild.GuildService).TOKYO), 'H:mm') + 'ごろ'}">……22:20ごろ</p>
+      </li>
+    </ol>
+    <p class="guild-dungeon-result" th:if="${expedition.back()}" th:text="${'結果：' + expedition.resultName()}">結果：踏破</p>
+    <p th:unless="${expedition.back()}">探索中です。進み具合は10分ほどごとに届きます。</p>
+  </th:block>
+  <th:block th:unless="${#lists.isEmpty(runs)}"><h3>これまでの探索</h3>
+    <ul class="guild-entries"><li th:each="run : ${runs}" th:insert="~{fragments/guild-windows :: runRow(${run})}"></li></ul></th:block>
+  <p class="guild-footer">（仮の機能）誰が行くか・何が起きるか・結果はプログラムが決め、定型文で記録しています。ダンジョンに出かけた人は、その夜の酒場の交流には加わりません。</p>
 </th:block>
 
 <th:block th:fragment="pair">
