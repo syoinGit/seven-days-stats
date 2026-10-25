@@ -9,7 +9,7 @@
 <header th:replace="~{fragments/header :: appHeader('guild', 'portal-topbar')}"></header>
 <main class="guild-shell">
   <div class="guild-title"><div><p class="guild-eyebrow">THE UNATTENDED GUILD · 小さな街の片隅で</p><h1>無人の冒険者ギルド</h1><p>遠い世界の記録から生まれた、住人たちの暮らし。</p></div><a th:if="${currentAdmin}" href="/guild/maintenance">メンテナンス</a></div>
-  <nav class="guild-nav"><a href="/guild" aria-current="page">酒場</a><a href="/guild/characters">住人名簿</a><a href="#chronicle">記録棚</a><span th:text="${room.date + ' · 日本時間 / ' + (room.phase == 'morning' ? '朝' : (room.phase == 'afternoon' ? '昼' : '夜'))}"></span></nav>
+  <nav class="guild-nav"><a href="/guild" aria-current="page">酒場</a><a href="/guild/characters">住人名簿</a><a href="#chronicle">記録棚</a><span th:text="${#temporals.format(room.date, 'yyyy年M月d日') + ' · 日本時間 / ' + (room.phase == 'morning' ? '朝' : (room.phase == 'afternoon' ? '昼' : '夜'))}"></span></nav>
   <section class="guild-room" th:classappend="${room.phase}" aria-label="ギルド兼酒場の一室。人物を選ぶと紹介を読めます。">
     <div class="room-wall" aria-hidden="true"><div class="room-window"></div><div class="room-sign">THE GUILD</div><div class="room-window second"></div></div>
     <a class="room-board" href="#chronicle">依頼掲示板<span>今日は穏やかな一日</span></a>
@@ -29,7 +29,7 @@
   <p class="guild-caption">人物を選んで、その人の物語へ。来店名簿は日ごとに決まり、朝・昼・夜で過ごし方が変わります。</p>
   <div class="guild-columns">
     <section class="guild-panel"><h2>この日の来店者</h2><p th:if="${#lists.isEmpty(room.visits)}">席はまだ空いています。</p><ul class="guild-guests"><li th:each="visit : ${room.visits}"><a th:href="@{/guild/characters/{id}(id=${visit.character.id})}" th:text="${visit.character.name}"></a><span th:text="${visit.line}"></span></li></ul></section>
-    <section class="guild-panel"><p class="guild-eyebrow">NEW RESIDENT</p><h2>いちばん新しい住人</h2><p th:if="${#lists.isEmpty(newcomers)}">古い旅の記録が、いつか新しい出会いになります。</p><div th:each="character : ${newcomers}"><a th:href="@{/guild/characters/{id}(id=${character.id})}" th:text="${character.name}"></a><p th:text="${character.introduction}"></p><small th:text="${character.bornOn + ' に誕生'}"></small></div></section>
+    <section class="guild-panel"><p class="guild-eyebrow">NEW RESIDENT</p><h2>いちばん新しい住人</h2><p th:if="${#lists.isEmpty(newcomers)}">古い旅の記録が、いつか新しい出会いになります。</p><div th:each="character : ${newcomers}"><a th:href="@{/guild/characters/{id}(id=${character.id})}" th:text="${character.name}"></a><p th:text="${character.introduction}"></p><small th:text="${#temporals.format(character.bornOn, 'yyyy年M月d日') + ' に誕生'}"></small></div></section>
   </div>
   <section id="chronicle" class="guild-panel"><h2>記録棚と依頼掲示板</h2><p>今は、住人たちがこの街に集まりはじめたところ。自動冒険と関係の記録は、今後ここに加わります。</p><a href="/guild/characters">これまでに生まれた住人を見る →</a></section>
   <footer class="guild-footer">ここに暮らすのは創作の人物です。元のゲームのプレイヤー本人や、実際の出来事を表すものではありません。</footer>

@@ -5,9 +5,13 @@
 </head><body class="portal-body guild-body">
 <header th:replace="~{fragments/header :: appHeader('guild', 'portal-topbar')}"></header>
 <main class="guild-shell guild-detail"><nav class="guild-nav"><a href="/guild">← 酒場</a><a href="/guild/characters">住人名簿</a></nav>
-<article class="guild-panel"><div class="resident-heading"><svg class="guild-sprite" th:classappend="${character.appearance}" viewBox="0 0 16 24" aria-hidden="true"><use href="/img/guild-people.svg#resident"></use></svg><div><p class="guild-eyebrow" th:text="${character.game}"></p><h1 th:text="${character.name}"></h1><p th:text="${character.bornOn + ' に誕生'}"></p></div></div>
+<article class="guild-panel"><div class="resident-heading"><svg class="guild-sprite" th:classappend="${character.appearance}" viewBox="0 0 16 24" aria-hidden="true"><use href="/img/guild-people.svg#resident"></use></svg><div><p class="guild-eyebrow" th:text="${character.gameName()}"></p><h1 th:text="${character.name}"></h1><p class="resident-profile" th:if="${!character.profile().isEmpty()}" th:text="${character.profile()}">28歳・女性・鍛冶屋</p><p th:text="${#temporals.format(character.bornOn, 'yyyy年M月d日') + ' に誕生'}"></p></div></div>
 <p th:if="${character.status == 'DEAD'}">この人物は亡くなりました。その人の記録はここに残ります。</p>
 <p th:if="${character.status == 'INJURED'}">現在は療養しています。</p><p th:if="${character.status == 'MISSING'}">現在は所在が分かっていません。</p>
-<div class="guild-dialogue"><p th:text="${character.introduction}"></p></div><h2>人となり</h2><p th:text="${character.personality}"></p><h2>生まれた記録</h2><p th:text="${character.origin}"></p><h2>この街での物語</h2><p>冒険や関係の記録は、これから。</p></article>
+<div class="guild-dialogue"><p th:text="${character.introduction}"></p></div><h2>人となり</h2><p th:text="${character.personality}"></p><h2>生まれた記憶</h2>
+<th:block th:if="${!#lists.isEmpty(character.memoryLines())}"><p th:text="${character.memoryLabel + 'から生まれました。'}">7 Days to Die・10月3日 21時〜24時の記録から生まれました。</p>
+<ol class="guild-memory"><li th:each="line : ${character.memoryLines()}" th:text="${line}">21:14 ゾンビを倒した</li></ol>
+<p class="guild-footer">記録の「誰か」は、その時間にいたプレイヤーです。名前は残していません。</p></th:block>
+<p th:if="${#lists.isEmpty(character.memoryLines())}" th:text="${character.origin}"></p><h2>この街での物語</h2><p>冒険や関係の記録は、これから。</p></article>
 <p class="guild-footer">人物の性格・職業・信仰・暮らしは創作です。実プレイヤーの人格を推定したものではありません。</p>
 </main></body></html>

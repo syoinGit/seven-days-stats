@@ -7,6 +7,6 @@
 <main class="guild-shell"><a href="/guild">← 酒場に戻る</a><h1>住人名簿</h1><p>記録から生まれ、この街に暮らす人々。</p>
 <p class="guild-panel" th:if="${#lists.isEmpty(characters)}">このページには、まだ住人の記録がありません。</p>
 <div class="guild-directory"><a class="guild-panel resident-card" th:each="character : ${characters}" th:href="@{/guild/characters/{id}(id=${character.id})}">
-<svg class="guild-sprite" th:classappend="${character.appearance}" viewBox="0 0 16 24" aria-hidden="true"><use href="/img/guild-people.svg#resident"></use></svg><div><h2 th:text="${character.name}"></h2><small th:text="${character.game + ' / ' + character.bornOn}"></small><p th:text="${character.introduction}"></p><span th:if="${character.status == 'DEAD'}">追悼の記録</span></div></a></div>
+<svg class="guild-sprite" th:classappend="${character.appearance}" viewBox="0 0 16 24" aria-hidden="true"><use href="/img/guild-people.svg#resident"></use></svg><div><h2 th:text="${character.name}"></h2><small th:text="${(character.profile().isEmpty() ? '' : character.profile() + ' / ') + character.gameName() + ' / ' + #temporals.format(character.bornOn, 'yyyy年M月d日')}"></small><p th:text="${character.introduction}"></p><span th:if="${character.status == 'DEAD'}">追悼の記録</span></div></a></div>
 <nav class="guild-nav" aria-label="名簿のページ"><a th:if="${page > 0}" th:href="@{/guild/characters(page=${page - 1})}">← 前へ</a><a th:if="${#lists.size(characters) == 40}" th:href="@{/guild/characters(page=${page + 1})}">次へ →</a></nav>
 </main></body></html>
