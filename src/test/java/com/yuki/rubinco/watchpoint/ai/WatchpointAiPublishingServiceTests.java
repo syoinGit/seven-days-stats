@@ -142,7 +142,9 @@ class WatchpointAiPublishingServiceTests {
     SevenDaysTelnetCommandClient telnet = mock(SevenDaysTelnetCommandClient.class);
     var request = mock(WatchpointAiObservationService.AnalysisRequest.class);
     var observation = mock(WatchpointAiObservationService.Observation.class);
+    // From 23:00 JST the service asks for the daily summary through the other overload; stub both so the test holds at any hour.
     when(observations.buildRequest()).thenReturn(request);
+    when(observations.buildRequest(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(request);
     when(request.observation()).thenReturn(observation);
     when(observation.currentTotals()).thenReturn(new WatchpointAiObservationService.ActivityTotals(
         0, 0, 0, 0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO));
