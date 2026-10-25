@@ -187,6 +187,40 @@ class LuminiteWebTests {
   }
 
   @Test
+  void chestsFarFromHomesAndPylonsAreNotManagedStorage() throws Exception {
+    SyntheticTerrariaWorld world = secondSave();
+    world.wide = 120;
+    world.chest(100, 12, "遠くの宝箱", new Slot(0, 22, 500, 0));
+    save(world);
+    assertThat(importService.runScheduled().orElseThrow().getStatus()).isEqualTo("SUCCEEDED");
+
+    assertThat(jdbc.queryForList("SELECT name, managed FROM T_TERRARIA_CONTAINER ORDER BY tile_x"))
+        .extracting(row -> row.get("MANAGED")).containsExactly(true, false);
+    assertThat(jdbc.queryForObject("SELECT total FROM T_TERRARIA_ITEM_TOTAL WHERE item_id = 22", Long.class))
+        .isEqualTo(45L);
+    mvc.perform(get("/luminite/chests").with(member()))
+        .andExpect(content().string(containsString("1件")))
+        .andExpect(content().string(not(containsString("遠くの宝箱"))));
+    mvc.perform(get("/luminite/items/22").with(member()))
+        .andExpect(content().string(not(containsString("遠くの宝箱"))));
+  }
+
+  @Test
+  void aChangedStorageRuleReBaselinesItemTotalsWithoutLoggingChanges() throws Exception {
+    jdbc.update("UPDATE T_WORLD_SNAPSHOT SET extracted_json = REPLACE(extracted_json, '\"storageRule\":1', '\"storageRule\":0')");
+    Integer before = jdbc.queryForObject("SELECT COUNT(*) FROM T_TERRARIA_ITEM_CHANGE", Integer.class);
+    SyntheticTerrariaWorld world = secondSave();
+    world.chests.clear();
+    world.chest(4, 12, "<b>倉庫</b>", new Slot(0, 22, 60, 0), new Slot(1, 29, 2, 1));
+    save(world);
+    assertThat(importService.runScheduled().orElseThrow().getStatus()).isEqualTo("SUCCEEDED");
+
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM T_TERRARIA_ITEM_CHANGE", Integer.class)).isEqualTo(before);
+    assertThat(jdbc.queryForObject("SELECT total FROM T_TERRARIA_ITEM_TOTAL WHERE item_id = 22", Long.class))
+        .isEqualTo(60L);
+  }
+
+  @Test
   void unchangedSaveDoesNotCreateANewSnapshot() throws Exception {
     Integer before = jdbc.queryForObject("SELECT COUNT(*) FROM T_WORLD_SNAPSHOT", Integer.class);
     Files.setLastModifiedTime(WORLD_FILE, FileTime.from(Instant.now().minusSeconds(30)));
@@ -200,6 +234,18 @@ class LuminiteWebTests {
       request.setServerName("luminite.rubinco.link");
       return request;
     })).andExpect(redirectedUrl("/luminite"));
+  }
+
+  /** The world as the second save in {@link #importTwoSaves()} left it. */
+  private static SyntheticTerrariaWorld secondSave() {
+    SyntheticTerrariaWorld world = new SyntheticTerrariaWorld();
+    world.chest(4, 12, "<b>倉庫</b>", new Slot(0, 22, 45, 0), new Slot(1, 29, 2, 1));
+    world.tombstone(20, 9, "古い墓\nOctober 1, 2026");
+    world.tombstone(24, 9, "<script>alert(1)</script> was slain.");
+    world.npcs.add(new SyntheticTerrariaWorld.Npc(22, "アンドリュー", false, 10, 9));
+    world.kills.put("BlueSlime", 10);
+    world.flags.add("DownedBoss1EyeofCthulhu");
+    return world;
   }
 
   private static void save(SyntheticTerrariaWorld world) throws Exception {

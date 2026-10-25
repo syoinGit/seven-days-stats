@@ -32,28 +32,30 @@ public class TerrariaWorldStore {
   public record Stored(Long snapshotId, int progressEvents, int itemChanges, int killChanges) { }
 
   @Transactional
-  public Optional<Stored> store(Long worldId, boolean baseline, TerrariaWorld world,
+  /** {@code itemBaseline} also re-baselines item totals, e.g. after the storage rule changed. */
+  public Optional<Stored> store(Long worldId, boolean baseline, boolean itemBaseline, TerrariaWorld world,
       WorldSnapshotRecorder.SnapshotInput input) {
     var recorded = recorder.record(worldId, input);
     if (recorded.isEmpty()) return Optional.empty();
     Long snapshotId = recorded.get().snapshot().getId();
     OffsetDateTime now = OffsetDateTime.now();
-    replaceContainers(worldId, snapshotId, world.containers());
-    int itemChanges = updateItemTotals(worldId, snapshotId, world, baseline, now);
+    replaceContainers(worldId, snapshotId, world);
+    int itemChanges = updateItemTotals(worldId, snapshotId, world, baseline || itemBaseline, now);
     int killChanges = updateBestiary(worldId, snapshotId, world, baseline, now);
     replaceSigns(worldId, snapshotId, world, baseline, now);
     return Optional.of(new Stored(snapshotId, recorded.get().events().size(), itemChanges, killChanges));
   }
 
-  private void replaceContainers(Long worldId, Long snapshotId, List<Container> containers) {
+  private void replaceContainers(Long worldId, Long snapshotId, TerrariaWorld world) {
+    var managed = TerrariaStorage.managed(world);
     jdbc.update("DELETE FROM T_TERRARIA_CONTAINER_ITEM WHERE game_world_id = ?", worldId);
     jdbc.update("DELETE FROM T_TERRARIA_CONTAINER WHERE game_world_id = ?", worldId);
     SimpleJdbcInsert insert = new SimpleJdbcInsert(jdbc).withTableName("T_TERRARIA_CONTAINER")
         .usingGeneratedKeyColumns("terraria_container_id")
         .usingColumns("game_world_id", "world_snapshot_id", "container_kind", "tile_type",
-            "tile_style", "tile_x", "tile_y", "name", "slot_count", "filled_slots");
+            "tile_style", "tile_x", "tile_y", "name", "slot_count", "filled_slots", "managed");
     List<Object[]> items = new ArrayList<>();
-    for (Container container : containers) {
+    for (Container container : world.containers()) {
       Map<String, Object> row = new HashMap<>();
       row.put("game_world_id", worldId);
       row.put("world_snapshot_id", snapshotId);
@@ -66,6 +68,7 @@ public class TerrariaWorldStore {
           : truncate(container.name(), 100));
       row.put("slot_count", container.slots());
       row.put("filled_slots", container.items().size());
+      row.put("managed", managed.test(container));
       long containerId = insert.executeAndReturnKey(row).longValue();
       container.items().forEach(item -> items.add(new Object[] {
           containerId, worldId, item.slot(), item.itemId(), item.stack(), item.prefixId()}));
@@ -79,7 +82,7 @@ public class TerrariaWorldStore {
       OffsetDateTime now) {
     Map<Integer, Long> totals = TerrariaSummary.itemTotals(world);
     Map<Integer, Set<Container>> holders = new HashMap<>();
-    world.containers().forEach(container -> container.items().forEach(item ->
+    world.containers().stream().filter(TerrariaStorage.managed(world)).forEach(container -> container.items().forEach(item ->
         holders.computeIfAbsent(item.itemId(), id -> new HashSet<>()).add(container)));
     Map<Integer, long[]> existing = new HashMap<>();
     jdbc.query("SELECT item_id, total, container_count FROM T_TERRARIA_ITEM_TOTAL WHERE game_world_id = ?",

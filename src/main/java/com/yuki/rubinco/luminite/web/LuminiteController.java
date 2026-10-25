@@ -176,7 +176,9 @@ public class LuminiteController {
   }
 
   private List<KindOption> kinds(Context ctx) {
-    var counts = ctx.summary().totals().containersByKind();
+    // Snapshots from before managed storage only have counts for every container.
+    var totals = ctx.summary().totals();
+    var counts = totals.managedByKind() != null ? totals.managedByKind() : totals.containersByKind();
     return luminite.containerKinds().stream().filter(counts::containsKey)
         .map(value -> new KindOption(value, luminite.kindLabel(value), counts.get(value)))
         .toList();

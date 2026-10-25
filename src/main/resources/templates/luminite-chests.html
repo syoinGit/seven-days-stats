@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Terrariaのワールドデータから作る統計・アイテム検索サイト">
-  <title th:text="${'チェスト検索 | ' + game.displayName}">Luminite | Terraria</title>
+  <title th:text="${'管理チェスト | ' + game.displayName}">Luminite | Terraria</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='header-4')}">
@@ -16,7 +16,7 @@
   <nav th:replace="~{fragments/luminite :: tabs}"></nav>
   <section class="luminite-panel" aria-labelledby="chests-title">
     <div class="section-heading">
-      <div><h1 id="chests-title">チェスト検索</h1></div>
+      <div><h1 id="chests-title">管理チェスト</h1></div>
       <span class="luminite-count" th:text="${containers.totalElements + '件'}">0件</span>
     </div>
     <div th:replace="~{fragments/luminite :: snapshot}"></div>
@@ -32,7 +32,7 @@
       </label>
       <button type="submit">検索</button>
     </form>
-    <p class="luminite-note">条件を指定しないときは、中身が入っている入れ物だけを表示します。場所は方位磁石・深度計と同じ表し方（1タイル = 2ft）です。</p>
+    <p class="luminite-note">住人の家かパイロンから50タイル（100ft）以内にある入れ物を「管理チェスト」として表示します。洞窟やダンジョンに最初からある宝箱は含みません。条件を指定しないときは、中身が入っている入れ物だけを表示します。場所は方位磁石・深度計と同じ表し方（1タイル = 2ft）です。</p>
     <p th:if="${containers.isEmpty()}" class="luminite-empty">当てはまる入れ物はありません。</p>
     <ul class="luminite-containers" th:unless="${containers.isEmpty()}">
       <li th:each="container : ${containers.content}">
@@ -48,7 +48,7 @@
         </ul>
       </li>
     </ul>
-    <nav class="portal-feed-pages" aria-label="チェスト検索のページ">
+    <nav class="portal-feed-pages" aria-label="管理チェストのページ">
       <a th:if="${containers.hasPrevious()}" th:href="@{/luminite/chests(q=${q},kind=${kind},page=${containers.number - 1})}">← 前へ</a>
       <span th:if="${containers.totalPages > 1}" th:text="${(containers.number + 1) + ' / ' + containers.totalPages}"></span>
       <a th:if="${containers.hasNext()}" th:href="@{/luminite/chests(q=${q},kind=${kind},page=${containers.number + 1})}">次へ →</a>

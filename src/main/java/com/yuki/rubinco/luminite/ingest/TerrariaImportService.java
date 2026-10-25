@@ -171,7 +171,10 @@ public class TerrariaImportService {
     }
 
     TerrariaSummary summary = TerrariaSummary.from(parsed, contentHash);
-    var stored = store.store(world.getId(), latest == null, parsed,
+    // Totals counted under an older storage rule are not comparable: re-baseline without logging.
+    boolean itemBaseline = latest == null
+        || !Integer.valueOf(TerrariaStorage.RULE_VERSION).equals(nested(latestJson, "totals", "storageRule"));
+    var stored = store.store(world.getId(), latest == null, itemBaseline, parsed,
         new WorldSnapshotRecorder.SnapshotInput(parsed.sourceSha256(), parsed.version(),
             TerrariaWorldParser.PARSER_VERSION, capturedAt, source.modifiedAt(), null,
             objectMapper.writeValueAsString(summary), states(summary.flags())));
