@@ -134,7 +134,10 @@ public class GuildController {
     var scene = chronicle.scene(now, room.date());
     model.addAttribute("scene", scene);
     model.addAttribute("floors", Floors.of(room, scene));
-    model.addAttribute("todayRun", dungeon.day(room.date(), now));
+    var todayRun = dungeon.day(room.date(), now);
+    model.addAttribute("todayRun", todayRun);
+    model.addAttribute("runMembers", todayRun == null ? java.util.List.of()
+        : todayRun.members().stream().map(member -> guild.character(member.id())).toList());
     model.addAttribute("tab", tab);
     model.addAttribute("window", window);
     model.addAttribute("windowTitle", title);

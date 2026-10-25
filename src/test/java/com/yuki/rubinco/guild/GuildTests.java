@@ -602,8 +602,14 @@ class GuildTests {
     String tavern = mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("へ向かっている途中")))
         .andExpect(content().string(containsString("pop-live")))
         .andReturn().getResponse().getContentAsString();
-    String room = tavern.substring(tavern.indexOf("guild-room"), tavern.indexOf("guild-caption"));
-    for (long member : party) assertThat(room).doesNotContain("/guild/characters/" + member + "\"");
+    // Out of the room, walking in the dungeon scene instead.
+    String room = tavern.substring(tavern.indexOf("<section class=\"guild-room"), tavern.indexOf("<section class=\"guild-dungeon-scene"));
+    String scene = tavern.substring(tavern.indexOf("<section class=\"guild-dungeon-scene"), tavern.indexOf("guild-caption"));
+    for (long member : party) {
+      assertThat(room).doesNotContain("/guild/characters/" + member + "\"");
+      assertThat(scene).contains("/guild/characters/" + member + "\"");
+    }
+    for (String body : bodies) assertThat(tavern).doesNotContain(body);
     mvc.perform(post("/guild/maintenance/dungeon")).andExpect(status().is4xxClientError());
   }
 

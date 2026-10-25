@@ -42,27 +42,70 @@
 #guild-floor-2:checked~.guild-room :is(.upstairs,.table-three,.table-four){margin-top:60px}
 .guild-controls{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;position:relative;z-index:30}
 .guild-floors{display:flex;gap:6px}
-.guild-floors label,.guild-dungeon-pop summary{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#201927;border:2px solid #493348;color:#bfa5ad;font-size:12px;cursor:pointer;user-select:none;letter-spacing:.06em}
-.guild-floors label:hover,.guild-dungeon-pop summary:hover{color:#f0d8c2}
+.guild-floors label,.guild-dungeon-button{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#201927;border:2px solid #493348;color:#bfa5ad;font-size:12px;cursor:pointer;user-select:none;letter-spacing:.06em}
+.guild-floors label:hover,.guild-dungeon-button:hover{color:#f0d8c2}
 #guild-floor-1:checked~.guild-controls label[for=guild-floor-1],#guild-floor-2:checked~.guild-controls label[for=guild-floor-2]{color:#ffe0a8;background:#3a2738;border-color:#89634b}
 #guild-floor-1:focus-visible~.guild-controls label[for=guild-floor-1],#guild-floor-2:focus-visible~.guild-controls label[for=guild-floor-2]{outline:3px solid #ebbe92;outline-offset:2px}
 .guild-floors label.talk::after{content:"";width:6px;height:6px;background:#ffd27a;box-shadow:0 0 6px #ffd27a}
-.guild-dungeon-pop{position:relative}
-.guild-dungeon-pop summary{list-style:none}.guild-dungeon-pop summary::-webkit-details-marker{display:none}
-.guild-dungeon-pop summary svg{width:18px;height:18px;image-rendering:pixelated}
-.guild-dungeon-pop[open] summary{color:#ffe0a8;background:#3a2738;border-color:#89634b}
 .pop-live{padding:0 6px;background:#6b2f3a;color:#ffe0a8;font-size:10px;animation:pop-live 1.6s steps(2) infinite}
 @keyframes pop-live{50%{opacity:.55}}
-.pop-panel{position:absolute;right:0;top:calc(100% + 8px);width:min(300px,calc(100vw - 32px));padding:14px 16px;background:#241a2b;border:3px double #a27d8c;box-shadow:4px 6px #0d0a12,0 16px 40px #0009;color:#e4cba9;font-size:13px}
-.pop-panel strong{display:block;color:#ffe0a8;font-size:16px;line-height:1.5;margin-bottom:6px}
-.pop-panel p{margin:4px 0}
-.pop-progress{display:flex;gap:4px}.pop-progress span{display:grid;place-items:center;width:26px;height:26px;border:2px solid #4a3546;color:#7d6878;font-size:12px}
+.pop-progress{display:flex;gap:4px;margin:0}.pop-progress span{display:grid;place-items:center;width:26px;height:26px;border:2px solid #4a3546;color:#7d6878;font-size:12px}
 .pop-progress span.done{border-color:#89634b;background:#3a2738;color:#ffe0a8}
-.pop-panel a{display:inline-block;margin-top:8px;color:#ffe0a8}
 @media(prefers-reduced-motion:reduce){.room-inner{transition:none}.pop-live{animation:none}}
 @media(max-width:650px){.guild-room{height:370px}.room-inner{height:640px;transform:translateY(-270px)}
 #guild-floor-2:checked~.guild-room .room-upper{height:370px}
 #guild-floor-2:checked~.guild-room .room-rail{top:332px}
 #guild-floor-2:checked~.guild-room .room-stairs{top:300px}
 #guild-floor-2:checked~.guild-room :is(.upstairs,.table-three,.table-four){margin-top:50px}
-.guild-floors label,.guild-dungeon-pop summary{padding:5px 8px;font-size:11px}}
+.guild-floors label,.guild-dungeon-button{padding:5px 8px;font-size:11px}}
+.guild-dungeon-button svg{width:18px;height:18px;image-rendering:pixelated}
+#guild-view-dungeon:checked~.guild-controls .guild-dungeon-button{color:#ffe0a8;background:#3a2738;border-color:#89634b}
+#guild-view-dungeon:focus-visible~.guild-controls .guild-dungeon-button{outline:3px solid #ebbe92;outline-offset:2px}
+/* Tonight's dungeon, drawn in CSS: wall, floor, two torches, a decoration per dungeon, the party walking, 転's foe while it lasts. */
+#guild-view-dungeon:checked~.guild-room{display:none}
+.guild-dungeon-scene{display:none;position:relative;height:420px;overflow:hidden;border:8px solid #362538;outline:1px solid #745165;isolation:isolate;box-shadow:0 16px 60px #09070d70;
+  --wall:#2b2530;--wall2:#211c26;--floor:#3a3036;--floor2:#332a30;--glow:#ffb35c;--deco:#6b4a32}
+#guild-view-dungeon:checked~.guild-dungeon-scene{display:block}
+.dg-wall{position:absolute;inset:0 0 34%;background:repeating-linear-gradient(0deg,var(--wall2) 0 4px,transparent 4px 36px),repeating-linear-gradient(90deg,var(--wall2) 0 4px,transparent 4px 72px),var(--wall)}
+.dg-floor{position:absolute;left:0;right:0;bottom:0;height:34%;background:repeating-linear-gradient(90deg,var(--floor) 0 48px,var(--floor2) 48px 96px);border-top:8px solid var(--wall2);box-shadow:inset 0 30px 40px #0008}
+.dg-deco{position:absolute;inset:0 0 34%;pointer-events:none}
+.dg-torch{position:absolute;top:34%;width:10px;height:26px;background:#5a3c32;z-index:1}
+.dg-torch::before{content:"";position:absolute;left:-3px;top:-16px;width:16px;height:18px;background:var(--glow);clip-path:polygon(50% 0,100% 60%,80% 100%,20% 100%,0 60%);animation:firelight 1.2s steps(2) infinite}
+.dg-torch::after{content:"";position:absolute;left:-60px;top:-70px;width:130px;height:130px;background:radial-gradient(circle,color-mix(in srgb,var(--glow) 30%,transparent),transparent 70%);pointer-events:none}
+.dg-torch.one{left:12%}.dg-torch.two{right:12%}
+.dg-party{position:absolute;left:0;right:0;bottom:112px;display:flex;justify-content:center;gap:clamp(10px,4vw,40px);z-index:3;animation:dg-walk 7s ease-in-out infinite alternate}
+.dg-member{display:flex;flex-direction:column;align-items:center;gap:2px;text-decoration:none}
+.dg-member .guild-sprite{width:48px;height:72px;animation:dg-step .6s steps(2) infinite}
+.dg-member:nth-child(even) .guild-sprite{animation-delay:.3s}
+.dg-member:focus-visible{outline:3px solid #ebbe92;outline-offset:3px}
+@keyframes dg-walk{from{transform:translateX(-5%)}to{transform:translateX(5%)}}
+@keyframes dg-step{50%{transform:translateY(-3px)}}
+.dg-foe{display:none;position:absolute;right:10%;bottom:118px;width:96px;height:84px;background:#0b0810;clip-path:polygon(10% 100%,0 55%,12% 20%,30% 30%,40% 0,55% 25%,72% 5%,80% 35%,100% 50%,92% 100%);z-index:2;animation:dg-step 1.4s steps(2) infinite}
+.dg-foe i{position:absolute;left:30px;top:34px;width:8px;height:8px;background:#ff5a4a;box-shadow:24px 0 #ff5a4a}
+.danger .dg-foe{display:block}.danger .dg-party{justify-content:flex-start;padding-left:10%;animation:none}
+.dg-mist{display:none;position:absolute;inset:0;background:linear-gradient(0deg,#c8d6e04d,transparent 65%);z-index:3;pointer-events:none;animation:dg-mist 8s ease-in-out infinite alternate}
+@keyframes dg-mist{to{opacity:.5;transform:translateX(3%)}}
+.dg-status{position:absolute;left:12px;right:12px;top:12px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;padding:8px 12px;background:#1a1320e6;border:2px solid #89634b;z-index:4}
+.dg-status strong{color:#ffe0a8;font-size:16px;letter-spacing:.04em}
+.dg-status small{width:100%;color:#c8b0b8;font-size:12px}
+.dg-story{position:absolute;left:12px;right:12px;bottom:12px;padding:8px 12px;background:#1a1320ea;border:3px double #a27d8c;z-index:4;color:#f0d8c2;font-size:13px;line-height:1.7}
+.dg-story p{margin:0}
+.dg-story b{display:inline-grid;place-items:center;width:22px;height:22px;margin-right:8px;border:2px solid #89634b;background:#3a2738;color:#ffe0a8;font-size:12px}
+.dg-story small{display:block;margin-top:4px;color:#a991a3;font-size:11px}.dg-story a{color:#ffe0a8}
+.dg-old-mine{--wall:#3a2b22;--wall2:#2a1f19;--floor:#4a3a2c;--floor2:#43342a}
+.dg-old-mine .dg-deco{background:linear-gradient(90deg,transparent 30%,var(--deco) 30% 32%,transparent 32% 68%,var(--deco) 68% 70%,transparent 70%),linear-gradient(180deg,transparent 30%,var(--deco) 30% calc(30% + 14px),transparent calc(30% + 14px)),radial-gradient(ellipse 22% 60% at 50% 100%,#120c0a 98%,transparent)}
+.dg-sunken-chapel{--wall:#2f2a3a;--wall2:#231f2c;--floor:#3b3546;--floor2:#353042;--glow:#ffd9a0}
+.dg-sunken-chapel .dg-deco::before{content:"";position:absolute;left:calc(50% - 40px);top:76px;width:80px;height:100px;border-radius:40px 40px 0 0;background:conic-gradient(#7a3a5a 0 25%,#3a5a8a 0 50%,#8a7a3a 0 75%,#3a7a5a 0);border:6px solid #1c1824;opacity:.75}
+.dg-hollow-tree{--wall:#2a3326;--wall2:#1f271c;--floor:#3a3424;--floor2:#342f20;--glow:#c6ff8f}
+.dg-hollow-tree .dg-deco{background:radial-gradient(circle at 20% 40%,#b6ff8a66 0 4px,transparent 5px),radial-gradient(circle at 62% 28%,#b6ff8a55 0 3px,transparent 4px),radial-gradient(circle at 80% 60%,#b6ff8a66 0 4px,transparent 5px),radial-gradient(circle at 38% 70%,#b6ff8a44 0 3px,transparent 4px),radial-gradient(ellipse 18% 70% at 50% 100%,#14100a 98%,transparent)}
+.dg-mist-barrow{--wall:#2a3036;--wall2:#20252a;--floor:#353a3e;--floor2:#30353a;--glow:#9ad0ff}
+.dg-mist-barrow .dg-mist{display:block}
+.dg-mist-barrow .dg-deco{background:radial-gradient(ellipse 20% 55% at 50% 100%,#0e1114 98%,transparent),linear-gradient(90deg,transparent 38%,#4a5258 38% 41%,transparent 41% 59%,#4a5258 59% 62%,transparent 62%)}
+.dg-moon-cave{--wall:#1f2638;--wall2:#171c2b;--floor:#24304a;--floor2:#202a42;--glow:#ffe9a8}
+.dg-moon-cave .dg-deco::before{content:"";position:absolute;left:calc(50% - 56px);top:96px;width:112px;height:120px;background:linear-gradient(90deg,transparent 14%,#a8323a 14% 22%,transparent 22% 78%,#a8323a 78% 86%,transparent 86%) 0 22px/100% 100% no-repeat,linear-gradient(#a8323a,#a8323a) 0 0/100% 12px no-repeat,linear-gradient(#a8323a,#a8323a) 8% 26px/84% 8px no-repeat}
+.dg-under-road{--wall:#4a2e2a;--wall2:#3a221f;--floor:#3a3a40;--floor2:#34343a}
+.dg-under-road .dg-deco{background:radial-gradient(ellipse 26% 70% at 50% 100%,#140c0c 98%,transparent)}
+.dg-under-road .dg-floor{background:linear-gradient(180deg,transparent 18%,#2a4a5a 18% 34%,transparent 34%),repeating-linear-gradient(90deg,var(--floor) 0 48px,var(--floor2) 48px 96px)}
+@media(prefers-reduced-motion:reduce){.dg-party,.dg-member .guild-sprite,.dg-foe,.dg-mist,.dg-torch::before{animation:none}}
+@media(max-width:650px){.guild-dungeon-scene{height:370px;border-width:5px}.dg-party{bottom:128px}.dg-member .guild-sprite{width:36px;height:54px}.dg-foe{width:70px;height:62px;bottom:134px}.dg-foe i{left:22px;top:24px;box-shadow:16px 0 #ff5a4a}.dg-status strong{font-size:14px}.dg-story{font-size:12px}
+.guild-dungeon-button{padding:5px 8px;font-size:11px}}

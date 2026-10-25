@@ -64,7 +64,7 @@ public class GuildDungeon {
   }
 
   /** result is null until the party is back; doing is what they are doing after the last stage that is out (null before 起). */
-  public record Expedition(long id, LocalDate date, String dungeon, String goal, List<GuildChronicle.Ref> members,
+  public record Expedition(long id, LocalDate date, String dungeonKey, String dungeon, String goal, List<GuildChronicle.Ref> members,
                            List<Stage> stages, String result, OffsetDateTime departedAt, OffsetDateTime returnedAt, String doing) {
     public boolean back() {
       return result != null;
@@ -86,6 +86,16 @@ public class GuildDungeon {
     /** The next stage to be revealed, or null once everything is out. */
     public Stage next() {
       return stages.stream().filter(stage -> !stage.revealed()).findFirst().orElse(null);
+    }
+
+    /** The last revealed stage, or null before the first. */
+    public Stage latest() {
+      return stages.stream().filter(Stage::revealed).reduce((first, second) -> second).orElse(null);
+    }
+
+    /** The party is facing 転's trouble right now (it is out and the ending is not). */
+    public boolean inDanger() {
+      return !back() && latest() != null && latest().stage() == 3;
     }
 
     /** The last revealed stage's name ("承"), or null before the first. */
@@ -275,9 +285,9 @@ public class GuildDungeon {
   /** One run as far as it has come by now; 404 for a run that doesn't exist or hasn't left yet. */
   public Expedition expedition(long id, ZonedDateTime now) {
     OffsetDateTime at = now.toOffsetDateTime();
-    var head = jdbc.query("SELECT expedition_date, dungeon_name, goal, result, departed_at, returned_at FROM T_GUILD_EXPEDITION "
+    var head = jdbc.query("SELECT expedition_date, dungeon_name, goal, result, departed_at, returned_at, dungeon_key FROM T_GUILD_EXPEDITION "
         + "WHERE id = ? AND departed_at <= ?", (rs, row) -> new Object[] {rs.getDate(1).toLocalDate(), rs.getString(2), rs.getString(3),
-        rs.getString(4), rs.getObject(5, OffsetDateTime.class), rs.getObject(6, OffsetDateTime.class)}, id, at).stream().findFirst()
+        rs.getString(4), rs.getObject(5, OffsetDateTime.class), rs.getObject(6, OffsetDateTime.class), rs.getString(7)}, id, at).stream().findFirst()
         .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND));
     List<GuildChronicle.Ref> members = jdbc.query("""
         SELECT c.id, c.name, c.status, c.age, c.gender, c.occupation FROM T_GUILD_EXPEDITION_MEMBER m
@@ -293,7 +303,7 @@ public class GuildDungeon {
           return new Stage(rs.getInt(1), STAGE_NAMES.get(stage), rs.getString(2), rs.getObject(3, OffsetDateTime.class));
         }, at, at, id);
     OffsetDateTime returned = (OffsetDateTime) head[5];
-    return new Expedition(id, (LocalDate) head[0], (String) head[1], (String) head[2], members, stages,
+    return new Expedition(id, (LocalDate) head[0], (String) head[6], (String) head[1], (String) head[2], members, stages,
         returned.isAfter(at) ? null : (String) head[3], (OffsetDateTime) head[4], returned, doing.isEmpty() ? null : doing.getLast());
   }
 
