@@ -178,6 +178,17 @@ class DashboardControllerTests {
   }
 
   @Test
+  void watchpointUsesTheLuminitePageStructure() throws Exception {
+    String css = Files.readString(Path.of("src/main/resources/static/css/watchpoint.css"));
+
+    assertThat(css).contains(
+        "width:min(1240px, calc(100% - 32px))",
+        "grid-template-columns:minmax(0, 1fr) minmax(280px, 340px)",
+        ".watchpoint-body .rail { position:static;",
+        ".watchpoint-body .status-sidebar { position:sticky; top:84px;");
+  }
+
+  @Test
   void everyPageDeclaresTheSiteIcons() throws Exception {
     try (var templates = Files.list(Path.of("src/main/resources/templates"))) {
       // Watchpoint pages use the watchtower; every other page uses the Rubinco ruby.

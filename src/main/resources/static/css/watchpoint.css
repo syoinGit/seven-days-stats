@@ -158,3 +158,29 @@
 .watchpoint-body .page-title .profile-avatar ~ p { margin:6px 0 0; color:var(--rb-muted); font-size:13px; }
 .watchpoint-body .page-title .status-actions { grid-column:1 / -1; }
 .watchpoint-body .timeline .tag { display:inline-block; }
+
+/* Luminite page structure: a 1240px shell with pill tabs on top, the page in a 1fr column and cards in a sticky side column. */
+.watchpoint-body .app-shell, .watchpoint-body .detail-shell { display:grid; width:min(1240px, calc(100% - 32px)); min-height:0; margin:0 auto; padding:20px 0 56px; }
+.watchpoint-body .app-shell { grid-template-columns:minmax(0, 1fr) minmax(280px, 340px); gap:0 24px; align-items:start; }
+.watchpoint-body .detail-shell { grid-template-columns:minmax(0, 1fr); }
+.watchpoint-body .detail-shell > .layout { width:100%; margin:0; padding:0; }
+.watchpoint-body .rail { position:static; margin:0 0 18px; padding:0; border:0; background:none; backdrop-filter:none; }
+.watchpoint-body .rail a { flex:none; padding:8px 14px; }
+.watchpoint-body .rail a.active { background:#f3c96924; }
+.watchpoint-body .feed-header { padding:0 0 14px; }
+.watchpoint-body .status-sidebar { position:sticky; top:84px; max-height:calc(100vh - 100px); padding:0; }
+.watchpoint-body .side-module { padding:20px; }
+.watchpoint-body .module-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.watchpoint-body .side-module h2 { font-size:14px; }
+.watchpoint-body .pilot-list { margin:10px -20px -20px; }
+.watchpoint-body .pilot { padding:10px 20px; }
+.watchpoint-body .page-title h1 { font-size:20px; }
+
+@media (max-width:820px) {
+  .watchpoint-body .app-shell, .watchpoint-body .detail-shell { display:block; padding-top:14px; }
+  .watchpoint-body .rail { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; }
+  .watchpoint-body .status-sidebar { position:static; max-height:none; display:grid; grid-template-columns:minmax(0, 1fr); padding:0; }
+  .watchpoint-body .side-module { padding:16px; }
+  .watchpoint-body .pilot-list { margin:10px -16px -16px; }
+  .watchpoint-body .pilot { padding:10px 16px; }
+}
