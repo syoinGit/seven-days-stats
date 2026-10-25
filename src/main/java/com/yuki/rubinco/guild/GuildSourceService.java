@@ -52,6 +52,18 @@ public class GuildSourceService {
   /** Kinds of memory, then the categories residents born before them kept (shown, never drawn). */
   static final Map<String, String> CATEGORIES = categories();
   private static final Map<String, String> PROGRESS = Map.of("BOSS", "ボス討伐", "EVENT", "イベント", "WORLD", "世界の変化");
+  /**
+   * Spoilers are never named. These hazy epithets stand in for them in facts and in what the AI reads;
+   * one marked a spoiler later from the maintenance page gets the plain fallback.
+   */
+  static final Map<String, String> EPITHETS = Map.ofEntries(
+      Map.entry("corekeeper:boss_bird", "嵐を呼ぶ空の巨鳥"), Map.entry("corekeeper:boss_octopus", "深い海に潜む巨大な触手の主"),
+      Map.entry("corekeeper:boss_scarab", "砂の下を這う巨大な甲虫"), Map.entry("corekeeper:boss_hydra_nature", "森に巣くう多頭の竜"),
+      Map.entry("corekeeper:boss_hydra_sea", "波間にうごめく多頭の竜"), Map.entry("corekeeper:boss_hydra_desert", "砂漠に棲む多頭の竜"),
+      Map.entry("corekeeper:boss_core", "大地の芯で目を覚ました何か"), Map.entry("corekeeper:boss_wall", "大壁を守る古い番人"),
+      Map.entry("corekeeper:boss_giant_cicada", "地の底で鳴く巨大な虫"), Map.entry("corekeeper:boss_robot", "動き続ける古代の機械仕掛け"),
+      Map.entry("corekeeper:boss_slime", "洞窟を這う巨大な粘体"), Map.entry("corekeeper:boss_larva", "地中をむさぼる大きな幼虫"),
+      Map.entry("corekeeper:boss_hive", "巣の奥に棲む母なる虫"), Map.entry("corekeeper:boss_shaman", "呪いを操る部族の長"));
   private static final Set<ItemCategory> EQUIPMENT = Set.of(ItemCategory.WEAPON, ItemCategory.ARMOR, ItemCategory.TOOL);
   // A kill by a player, not by a zombie or an animal.
   private static final String PLAYER_KILL = " LOWER(k.player_name) NOT LIKE 'zombie%' AND LOWER(k.player_name) NOT LIKE 'animal%' ";
@@ -312,14 +324,19 @@ public class GuildSourceService {
         label = game + "・" + day + "にひとつの宝箱へ増えたもの";
       }
       case "terraria:milestone", "corekeeper:milestone" -> {
+        String key = (String) seed.detail().get(0);
         var definition = jdbc.queryForMap("SELECT display_name, category, spoiler FROM M_PROGRESS_DEFINITION WHERE game_id = ? AND progress_key = ?",
-            seed.game(), seed.detail().get(0));
-        // Spoilers are counted but never named, here as on every public page.
-        String name = Boolean.TRUE.equals(definition.get("spoiler")) ? "名を伏せた大物" : (String) definition.get("display_name");
-        String kind = PROGRESS.getOrDefault((String) definition.get("category"), "達成");
+            seed.game(), key);
+        String category = (String) definition.get("category");
+        String name = milestoneName(seed.game(), key, (String) definition.get("display_name"), Boolean.TRUE.equals(definition.get("spoiler")));
+        String kind = PROGRESS.getOrDefault(category, "達成");
         boolean dated = seed.detail().size() > 1;
-        facts = new ArrayList<>(List.of(dated ? time(seed.at()) + " 「" + name + "」を果たした（" + kind + "）"
-            : "「" + name + "」は記録が始まる前に果たされていた（" + kind + "）"));
+        String[] verb = switch (category) {
+          case "BOSS" -> new String[] {"を討ち果たした", "は記録が始まる前に討ち果たされていた"};
+          case "EVENT" -> new String[] {"を退けた", "は記録が始まる前に退けられていた"};
+          default -> new String[] {"を成し遂げた", "は記録が始まる前に成し遂げられていた"};
+        };
+        facts = new ArrayList<>(List.of(dated ? time(seed.at()) + " " + name + verb[0] : name + verb[1]));
         if (dated) {
           LocalDate date = jst(seed.at());
           List<String> gains = seed.game().equals("terraria")
@@ -410,6 +427,11 @@ public class GuildSourceService {
   private Map.Entry<Long, OffsetDateTime> latestSnapshot(long world) {
     return jdbc.query("SELECT world_snapshot_id, captured_at FROM T_WORLD_SNAPSHOT WHERE game_world_id = ? ORDER BY captured_at DESC LIMIT 1",
         (rs, row) -> Map.entry(rs.getLong(1), rs.getObject(2, OffsetDateTime.class)), world).stream().findFirst().orElse(null);
+  }
+
+  /** A milestone as facts and the AI may say it: its name in brackets, or for a spoiler a hazy epithet. */
+  static String milestoneName(String game, String key, String displayName, boolean spoiler) {
+    return spoiler ? EPITHETS.getOrDefault(game + ":" + key, "正体の知れない大物") : "「" + displayName + "」";
   }
 
   /** Items missing from the names tables ("#7", "アイテム #7") tell the AI nothing, so they are left out. */

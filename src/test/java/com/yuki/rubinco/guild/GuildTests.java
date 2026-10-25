@@ -161,10 +161,10 @@ class GuildTests {
       assertThat(source.label() + source.facts()).doesNotContain("PRIVATE").doesNotContain("Azeos").doesNotContain("#").doesNotContain("456");
       facts.add(source.facts());
     });
-    assertThat(facts).containsExactlyInAnyOrder("15:30 「大壁の解放」を果たした（世界の変化）", "「名を伏せた大物」は記録が始まる前に果たされていた（ボス討伐）");
+    assertThat(facts).containsExactlyInAnyOrder("15:30 「大壁の解放」を成し遂げた", "嵐を呼ぶ空の巨鳥は記録が始まる前に討ち果たされていた");
     // The dated milestone is read against the snapshot before it: the bird was down, the wall not yet.
     var wall = new GuildSourceService.Source("corekeeper:milestone:great_wall_lowered", "corekeeper", "milestone", "x", "x", lowered);
-    assertThat(dossier.build(wall)).contains("ボス討伐 1/").contains("世界の変化 0/1").doesNotContain("Azeos");
+    assertThat(dossier.build(wall)).contains("ボス討伐 1/").contains("世界の変化 0/1").contains("嵐を呼ぶ空の巨鳥").doesNotContain("Azeos");
   }
 
   @Test void sevenDaysMemoriesArePlacesReachedOnFootAndEnemiesDefeated() {
@@ -222,8 +222,8 @@ class GuildTests {
           new GuildSourceService.Inventory("terraria", "chest", 2));
       java.util.Set<String> facts = new java.util.HashSet<>();
       for (int i = 0; i < 40; i++) sources.choose(LocalDate.now(GuildService.TOKYO)).source().ifPresent(source -> facts.add(source.facts()));
-      assertThat(facts).containsExactlyInAnyOrder("「クトゥルフのめだま」は記録が始まる前に果たされていた（ボス討伐）",
-          "「ゴブリンしんりゃく」は記録が始まる前に果たされていた（イベント）");
+      assertThat(facts).containsExactlyInAnyOrder("「クトゥルフのめだま」は記録が始まる前に討ち果たされていた",
+          "「ゴブリンしんりゃく」は記録が始まる前に退けられていた");
     } finally {
       jdbc.update("DELETE FROM T_TERRARIA_ITEM_CHANGE WHERE world_snapshot_id = ?", now);
       jdbc.update("DELETE FROM T_TERRARIA_CONTAINER WHERE world_snapshot_id = ?", now);

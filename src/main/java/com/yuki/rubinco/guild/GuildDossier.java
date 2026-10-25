@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 /**
  * How far the world had come when a memory happened, so the AI can tell a seasoned hand from a newcomer:
  * Terraria and Core Keeper achievement rates from the last snapshot by then, 7 Days to Die's in-game day
- * and how many places had been reached. Counts and milestone names only; spoilers are counted, not named.
+ * and how many places had been reached. Counts and milestone names only; achieved spoilers go by a hazy epithet.
  */
 @Service
 @RequiredArgsConstructor
@@ -67,13 +67,19 @@ public class GuildDossier {
         WHERE d.game_id = ? AND d.support_status = 'SUPPORTED' GROUP BY d.category ORDER BY d.category
         """, (rs, row) -> PROGRESS.getOrDefault(rs.getString(1), rs.getString(1)) + " " + rs.getInt(2) + "/" + rs.getInt(3), id, game);
     if (!rates.isEmpty()) lines.add("達成率: " + String.join("、", rates));
-    String named = """
+    // Achieved spoilers appear by their hazy epithet; ones not yet achieved stay unmentioned.
+    List<String> done = jdbc.query("""
+        SELECT d.progress_key, d.display_name, d.spoiler FROM M_PROGRESS_DEFINITION d
+        JOIN T_PROGRESS_STATE s ON s.progress_definition_id = d.progress_definition_id
+        WHERE s.world_snapshot_id = ? AND d.game_id = ? AND d.support_status = 'SUPPORTED' AND s.state = 'ACHIEVED'
+        ORDER BY d.sort_order DESC LIMIT 5
+        """, (rs, row) -> GuildSourceService.milestoneName(game, rs.getString(1), rs.getString(2), rs.getBoolean(3)), id, game);
+    if (!done.isEmpty()) lines.add("達成していたこと（新しい段階から）: " + String.join("、", done));
+    List<String> next = jdbc.queryForList("""
         SELECT d.display_name FROM M_PROGRESS_DEFINITION d JOIN T_PROGRESS_STATE s ON s.progress_definition_id = d.progress_definition_id
         WHERE s.world_snapshot_id = ? AND d.game_id = ? AND d.support_status = 'SUPPORTED' AND d.spoiler = FALSE AND s.state = ?
-        """;
-    List<String> done = jdbc.queryForList(named + " ORDER BY d.sort_order DESC LIMIT 5", String.class, id, game, "ACHIEVED");
-    if (!done.isEmpty()) lines.add("達成していたこと（新しい段階から）: " + String.join("、", done));
-    List<String> next = jdbc.queryForList(named + " AND d.category = 'BOSS' ORDER BY d.sort_order LIMIT 2", String.class, id, game, "NOT_ACHIEVED");
+          AND d.category = 'BOSS' ORDER BY d.sort_order LIMIT 2
+        """, String.class, id, game, "NOT_ACHIEVED");
     if (!next.isEmpty()) lines.add("まだ果たしていないこと: " + String.join("、", next));
     return lines;
   }
