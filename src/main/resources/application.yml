@@ -168,17 +168,3 @@ app:
     enabled: false
     interval: ${WORLD_AI_INTERVAL:3h}
     max-output-tokens: 300
-  survivor-karen:
-    image-enabled: false
-    image-interval-days: 3
-    post-hour: 20
-    schedule-cron: "0 */5 20-23 * * *"
-    aws-region: us-east-1
-    image-model-id: amazon.nova-canvas-v1:0
-    image-prefix: watchpoint/posts/survivor-karen
-  survivor-mark:
-    post-hour: 20
-    source-min-age-days: 2
-    source-max-age-days: 5
-    location-cooldown-days: 30
-    schedule-cron: "0 */5 20-23 * * *"

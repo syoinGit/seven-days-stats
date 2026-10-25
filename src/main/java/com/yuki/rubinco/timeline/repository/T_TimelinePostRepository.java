@@ -41,10 +41,6 @@ public interface T_TimelinePostRepository extends JpaRepository<T_TimelinePost, 
       String gameId, Long actorPlayerId, String postType, OffsetDateTime after);
   boolean existsByGameIdAndPostTypeAndPublishedAtAfter(
       String gameId, String postType, OffsetDateTime after);
-  Optional<T_TimelinePost> findTopByGameIdAndPostTypeAndImageUrlIsNotNullOrderByPublishedAtDesc(
-      String gameId, String postType);
   Optional<T_TimelinePost> findTopByGameIdAndPostTypeOrderByPublishedAtDesc(
       String gameId, String postType);
-  boolean existsByGameIdAndPostTypeAndCoordinateAndPublishedAtAfter(
-      String gameId, String postType, String coordinate, OffsetDateTime after);
 }

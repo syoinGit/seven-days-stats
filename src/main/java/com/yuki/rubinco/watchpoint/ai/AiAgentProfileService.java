@@ -9,8 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AiAgentProfileService {
   public static final String WATCHPOINT = "WATCHPOINT";
-  public static final String KAREN = "SURVIVOR_KAREN";
-  public static final String MARK = "SURVIVOR_MARK";
 
   private final M_AiAgentRepository repository;
 

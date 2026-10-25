@@ -1,5 +1,6 @@
 package com.yuki.rubinco.watchpoint.ai;
 
+import com.yuki.rubinco.portal.service.ServerActivityGate;
 import com.yuki.rubinco.watchpoint.ai.config.AiAnalysisProperties;
 import com.yuki.rubinco.watchpoint.ai.entity.AiPostType;
 import com.yuki.rubinco.watchpoint.ingest.SevenDaysTelnetCommandClient;
@@ -20,6 +21,7 @@ public class WatchpointAiPublishingService {
 
   public static final String SOURCE_TYPE = "AWS_BEDROCK";
   private static final String TITLE = "WATCHPOINT観測記録";
+  private static final String GAME_ID = "7dtd";
 
   private final AiAnalysisProperties properties;
   private final WatchpointAiObservationService observationService;
@@ -27,10 +29,15 @@ public class WatchpointAiPublishingService {
   private final AiCommentService aiCommentService;
   private final SevenDaysTelnetCommandClient telnetCommandClient;
   private final WatchpointAiStateService stateService;
+  private final ServerActivityGate gate;
 
   public PublishResult publishIfDue() {
     if (!properties.enabled()) {
       return new PublishResult(PublishStatus.DISABLED, null);
+    }
+    // Base rule: no AI posts while the server is not running, manual tests included.
+    if (!gate.aiAllowed(GAME_ID)) {
+      return new PublishResult(PublishStatus.SERVER_STOPPED, null);
     }
     OffsetDateTime threshold = OffsetDateTime.now(ZoneOffset.UTC)
         .minus(properties.scheduleInterval());
@@ -63,12 +70,20 @@ public class WatchpointAiPublishingService {
     if (!properties.enabled()) {
       return new PublishResult(PublishStatus.DISABLED, null);
     }
+    // Base rule: no AI posts while the server is not running, manual tests included.
+    if (!gate.aiAllowed(GAME_ID)) {
+      return new PublishResult(PublishStatus.SERVER_STOPPED, null);
+    }
     return publishSafely(observationService.buildRequest(), AiPostType.NORMAL);
   }
 
   public PublishResult publishNow(AiPostType postType) {
     if (!properties.enabled()) {
       return new PublishResult(PublishStatus.DISABLED, null);
+    }
+    // Base rule: no AI posts while the server is not running, manual tests included.
+    if (!gate.aiAllowed(GAME_ID)) {
+      return new PublishResult(PublishStatus.SERVER_STOPPED, null);
     }
     return publishSafely(observationService.buildRequest(postType, 0), postType);
   }
@@ -148,7 +163,8 @@ public class WatchpointAiPublishingService {
     NO_ACTIVITY,
     DAILY_LIMIT,
     FAILED,
-    DISABLED
+    DISABLED,
+    SERVER_STOPPED
   }
 
   public record PublishResult(PublishStatus status, AiCommentService.AiCommentEntry comment) {

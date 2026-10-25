@@ -16,7 +16,6 @@ import com.yuki.rubinco.portal.web.PortalController;
 import com.yuki.rubinco.watchpoint.web.AiAnalysisMaintenanceController;
 import com.yuki.rubinco.watchpoint.web.DashboardController;
 import com.yuki.rubinco.watchpoint.web.DiaryController;
-import com.yuki.rubinco.watchpoint.web.SurvivorMarkMaintenanceController;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -35,8 +34,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
     AuthenticationController.class,
     PortalProfileController.class,
     AccountMaintenanceController.class,
-    AiAnalysisMaintenanceController.class,
-    SurvivorMarkMaintenanceController.class
+    AiAnalysisMaintenanceController.class
 })
 @RequiredArgsConstructor
 public class WebAuthModelAdvice {

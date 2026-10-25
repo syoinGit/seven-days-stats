@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.yuki.rubinco.portal.repository.M_GamePortalStateRepository;
 import com.yuki.rubinco.timeline.repository.T_TimelinePostReactionRepository;
 import com.yuki.rubinco.timeline.repository.T_TimelinePostRepository;
-import com.yuki.rubinco.timeline.service.TimelinePostService;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,7 +35,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 class GamePortalMvpTests {
   @Autowired private GamePortalService portalService;
   @Autowired private GameTimelineService timelineService;
-  @Autowired private TimelinePostService watchpointTimelineService;
   @Autowired private GameStartService startService;
   @Autowired private GameMemoryBudget memoryBudget;
   @Autowired private T_TimelinePostRepository timelineRepository;
@@ -250,15 +248,6 @@ class GamePortalMvpTests {
   @Test
   void timelineHandlesOffsetsBeyondTheJpaIntegerLimit() {
     assertThat(timelineService.timeline("terraria", Integer.MAX_VALUE, 50)).isEmpty();
-  }
-
-  @Test
-  void terrariaPostTypesCannotAffectWatchpointPublishingState() {
-    timelineService.create("terraria", new GameTimelineService.EventInput(
-        "SURVIVOR_MARK", "Terraria mark", "Not a Watchpoint NPC post", null,
-        null, null, Map.of()), admin);
-
-    assertThat(watchpointTimelineService.latestMarkPostDate()).isEmpty();
   }
 
   @Test

@@ -124,13 +124,11 @@ supported; add only values that differ for your deployment.
 | `WATCHPOINT_AI_ENABLED` | `false`; enables Bedrock observations and manual diary generation. |
 | `WORLD_AI_ENABLED` | `false`; enables AI comments on the Octarine / Luminite statistics (same Bedrock model and IAM as Watchpoint AI). |
 | `WORLD_AI_INTERVAL` | `3h` (minimum `30m`); one post per world per interval while its server is online. |
-| `SURVIVOR_KAREN_IMAGE_ENABLED` | `false`; enables Karen image generation. |
-| `WATCHPOINT_IMAGE_BUCKET` | S3 bucket required when image generation is enabled. |
-| `WATCHPOINT_IMAGE_PUBLIC_BASE_URL` | Optional public delivery or CloudFront URL; otherwise the regional S3 object URL is stored. |
 
 Scheduled imports for every site (7DTD data/log/telnet, Luminite, Octarine) pause while the
 portal reports the game server as stopped, after one catch-up import right after it stops.
-AI posts run only while the server is online. Manual re-fetches are not paused.
+AI posts run only while the server is online, including the manual test button on
+`/maintenance/ai-analysis/test`. Manual re-fetches are not paused.
 
 Changing `DOMAIN` or individual URLs also requires matching DNS, certificates, Nginx, and Cognito
 allowed callback/logout URLs. The SSM deployment health check uses port `8082`; changing
@@ -141,18 +139,13 @@ For legacy form authentication, set `SPRING_PROFILES_ACTIVE=production` when usi
 account. A systemd unit that sets profiles directly must be changed separately; the run-script
 override does not alter that unit.
 
-### Bedrock and images
+### Bedrock
 
 On EC2, enable `WATCHPOINT_AI_ENABLED=true` only with an IAM role that can call
 `bedrock:InvokeModel`. Region and model IDs live in `application.yml`.
 The AWS SDK obtains credentials through `DefaultCredentialsProvider`, including the attached
 EC2 IAM role; no static AWS or Bedrock keys are needed in `.env`.
 An administrator can test one generation with `POST /maintenance/ai-analysis/publish`.
-
-Karen image generation additionally requires `s3:PutObject` for the configured bucket/prefix,
-Nova Canvas model access, and a working public delivery policy. Once these are ready, set
-`WATCHPOINT_IMAGE_BUCKET` and `SURVIVOR_KAREN_IMAGE_ENABLED=true`; optionally set
-`WATCHPOINT_IMAGE_PUBLIC_BASE_URL`. A failed image generation still saves the day's text post.
 
 ## EC2 layout
 

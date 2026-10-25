@@ -1,10 +1,8 @@
 package com.yuki.rubinco.watchpoint.web;
 
 import com.yuki.rubinco.watchpoint.ai.AiCommentService;
-import com.yuki.rubinco.watchpoint.ai.SurvivorKarenPublishingService;
 import com.yuki.rubinco.watchpoint.ai.WatchpointAiPublishingService;
 import com.yuki.rubinco.watchpoint.ai.config.AiAnalysisProperties;
-import com.yuki.rubinco.watchpoint.ai.config.SurvivorKarenProperties;
 import com.yuki.rubinco.watchpoint.readmodel.WatchpointAiObservationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,8 +22,6 @@ public class AiAnalysisMaintenanceController {
   private final WatchpointAiObservationService observationService;
   private final WatchpointAiPublishingService publishingService;
   private final AiCommentService aiCommentService;
-  private final SurvivorKarenProperties karenProperties;
-  private final SurvivorKarenPublishingService karenPublishingService;
   private final ObjectMapper objectMapper;
 
   @GetMapping("/maintenance/ai-analysis/test")
@@ -35,11 +31,6 @@ public class AiAnalysisMaintenanceController {
     model.addAttribute("modelId", properties.modelId());
     model.addAttribute("windowMinutes", properties.windowMinutes());
     model.addAttribute("scheduleMinutes", properties.scheduleInterval().toMinutes());
-    model.addAttribute(
-        "karenEnabled", properties.enabled());
-    model.addAttribute("karenImageEnabled", karenProperties.imageConfigured());
-    model.addAttribute("karenAwsRegion", karenProperties.awsRegion());
-    model.addAttribute("karenModelId", karenProperties.imageModelId());
     model.addAttribute("latestComment",
         aiCommentService.latestBySourceType(WatchpointAiPublishingService.SOURCE_TYPE).orElse(null));
     try {
@@ -59,6 +50,9 @@ public class AiAnalysisMaintenanceController {
       if (result.status() == WatchpointAiPublishingService.PublishStatus.DISABLED) {
         redirectAttributes.addFlashAttribute(
             "error", "AI生成が無効です。WATCHPOINT_AI_ENABLEDを確認してください。");
+      } else if (result.status() == WatchpointAiPublishingService.PublishStatus.SERVER_STOPPED) {
+        redirectAttributes.addFlashAttribute(
+            "error", "7DTDサーバーが起動していないため、AIは投稿しません。");
       } else if (result.status() != WatchpointAiPublishingService.PublishStatus.PUBLISHED) {
         redirectAttributes.addFlashAttribute(
             "error", "WATCHPOINTの生成に失敗しました。サーバーログを確認してください。");
@@ -69,31 +63,6 @@ public class AiAnalysisMaintenanceController {
       log.error("Manual WATCHPOINT Bedrock test failed.", exception);
       redirectAttributes.addFlashAttribute(
           "error", "Bedrockでの生成に失敗しました。IAM・モデル利用許可・サーバーログを確認してください。");
-    }
-    return "redirect:/maintenance/ai-analysis/test";
-  }
-
-  @PostMapping("/maintenance/ai-analysis/test/karen")
-  public String generateKaren(RedirectAttributes redirectAttributes) {
-    try {
-      SurvivorKarenPublishingService.PublishResult result =
-          karenPublishingService.publishTodayIfMissing();
-      switch (result.status()) {
-        case PUBLISHED -> redirectAttributes.addFlashAttribute(
-            "notice", result.imageAttached()
-                ? "Karenが画像付きの新しい投稿を公開しました。"
-                : "Karenが新しい投稿を公開しました。");
-        case ALREADY_PUBLISHED -> redirectAttributes.addFlashAttribute(
-            "notice", "Karenは今日の投稿を既に公開済みです。");
-        case DISABLED -> redirectAttributes.addFlashAttribute(
-            "error", "AI投稿が無効です。WATCHPOINT_AI_ENABLEDを確認してください。");
-        case TOO_EARLY -> redirectAttributes.addFlashAttribute(
-            "error", "Karenの投稿時刻前です。");
-      }
-    } catch (RuntimeException exception) {
-      log.error("Manual Survivor Karen publishing failed.", exception);
-      redirectAttributes.addFlashAttribute(
-          "error", "Karenの投稿に失敗しました。設定・権限・サーバーログを確認してください。");
     }
     return "redirect:/maintenance/ai-analysis/test";
   }

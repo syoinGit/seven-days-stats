@@ -47,9 +47,8 @@ WATCHPOINT turns collected server logs into a mechanical, wasteland-themed activ
 - Infers exploration when an online player remains within 20 metres for at least three minutes; otherwise the automatic status remains moving/online, while manual statuses take precedence.
 - Sends status changes back to the game through the optional Telnet command client; offline players remain read-only and show their last known location.
 - Mixes player posts and Bedrock-generated WATCHPOINT observations into the adventure timeline; daily journals live in the right sidebar so the central feed stays focused.
-- Publishes one fictional `SURVIVOR_KAREN` lifestyle post per JST day from local weighted templates, independently of real players and game logs; occasional Nova Canvas images are uploaded to S3 and safely fall back to text-only posts.
 - Publishes typed WATCHPOINT posts (`NORMAL`, survivor/server analysis, and a short daily summary); only `NORMAL` is broadcast to the in-game chat.
-- Stores WATCHPOINT, Survivor Karen, and Survivor Mark personalities in the AI agent master. WATCHPOINT alone maintains a bounded rolling observation memory (up to 8 items / 1,000 characters) and deterministic alertness, curiosity, empathy, tension, and hope gauges; every successful state change is auditable in memory history.
+- Uses one AI voice on every site: WATCHPOINT, someone who can look at many game statistics and posts light, throwaway comments. Its personality lives in the AI agent master (the retired Survivor Karen / Mark NPCs are disabled and their posts hidden). AI posts are generated only while that game's server is online. WATCHPOINT maintains a bounded rolling observation memory (up to 8 items / 1,000 characters) and deterministic alertness, curiosity, empathy, tension, and hope gauges; every successful state change is auditable in memory history.
 - Uses compact aggregate-only payloads for analysis posts, caps scheduled paid timeline generation at 3 posts per JST day by default, and skips empty observation windows.
 - Keeps all game, player, and AI history in the database, renders only the latest 12 timeline items initially, and progressively reveals older items while scrolling.
 - Replaces the single like action with lightweight game-oriented emoji reactions.
@@ -121,14 +120,6 @@ is enabled, the application invokes Claude Haiku 4.5 through the Converse API,
 validates `body` and `evidenceKeys`, and saves the short observation only after
 validation succeeds. AWS credentials come exclusively from the SDK default
 credential chain, so EC2 uses its attached IAM role.
-
-Karen's text posts do not invoke Bedrock. When Karen image generation is enabled,
-the EC2 role needs `bedrock:InvokeModel` for the configured Nova Canvas model and
-`s3:PutObject` for the configured prefix. `WATCHPOINT_IMAGE_PUBLIC_BASE_URL` should
-point to the bucket's public delivery URL or a CloudFront distribution; if it is
-empty, the application stores the standard regional S3 object URL. Keep
-`SURVIVOR_KAREN_IMAGE_ENABLED=false` until the bucket delivery policy and model
-access are ready. An image failure is logged and the day's text post is still saved.
 
 The administrator-only `/maintenance/ai-analysis/test` page previews the exact
 observation JSON and provides a CSRF-protected button for a real one-off Bedrock

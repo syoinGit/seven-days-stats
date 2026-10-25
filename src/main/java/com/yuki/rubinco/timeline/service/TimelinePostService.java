@@ -14,7 +14,6 @@ import com.yuki.rubinco.watchpoint.persistence.entity.M_Player;
 import com.yuki.rubinco.watchpoint.persistence.repository.M_PlayerRepository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
@@ -197,45 +196,6 @@ public class TimelinePostService {
   @Transactional(readOnly = true)
   public boolean existsBySourceHash(String sourceHash) {
     return sourceHash != null && postRepository.existsBySourceHash(sourceHash);
-  }
-
-  @Transactional(readOnly = true)
-  public Optional<LocalDate> latestKarenImageDate() {
-    return postRepository.findTopByGameIdAndPostTypeAndImageUrlIsNotNullOrderByPublishedAtDesc(
-            WATCHPOINT_GAME_ID, TimelinePostType.SURVIVOR_KAREN.name())
-        .map(post -> post.getPublishedAt().atZoneSameInstant(ZoneId.of("Asia/Tokyo")).toLocalDate());
-  }
-
-  @Transactional(readOnly = true)
-  public Optional<LocalDate> latestMarkPostDate() {
-    return postRepository.findTopByGameIdAndPostTypeOrderByPublishedAtDesc(
-            WATCHPOINT_GAME_ID, TimelinePostType.SURVIVOR_MARK.name())
-        .map(post -> post.getPublishedAt().atZoneSameInstant(ZoneId.of("Asia/Tokyo")).toLocalDate());
-  }
-
-  @Transactional
-  public boolean publishKaren(
-      LocalDate date, OffsetDateTime publishedAt, String body, String subtype,
-      String imageUrl, int baseLikeCount) {
-    String sourceHash = "SURVIVOR_KAREN:" + date;
-    if (postRepository.existsBySourceHash(sourceHash)) return false;
-    TimelinePostType type = TimelinePostType.SURVIVOR_KAREN;
-    postRepository.save(newPost(type, "NPC", null, type.systemActorName().orElse("サバイバーカレン"), body,
-        "", "", "", "SURVIVOR_KAREN", null, sourceHash, 100, publishedAt,
-        imageUrl, Math.max(0, baseLikeCount), subtype));
-    return true;
-  }
-
-  @Transactional
-  public boolean publishMark(LocalDate date, OffsetDateTime publishedAt, String body,
-      String coordinate, String subtype, String candidateKey, String imageUrl, int baseLikeCount) {
-    String sourceHash = "SURVIVOR_MARK:" + date + ":" + candidateKey;
-    if (postRepository.existsBySourceHash(sourceHash)) return false;
-    TimelinePostType type = TimelinePostType.SURVIVOR_MARK;
-    postRepository.save(newPost(type, "NPC", null, type.systemActorName().orElse("サバイバーマーク"), body,
-        coordinate, "", "", "SURVIVOR_MARK", null, sourceHash, 100, publishedAt,
-        imageUrl, Math.max(0, baseLikeCount), subtype));
-    return true;
   }
 
   private boolean selected(TimelinePostType type, String sourceHash) {

@@ -125,7 +125,6 @@ class DashboardControllerTests {
     assertThat(Path.of("src/main/resources/static/img/watchpoint-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/blood-moon-alert-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/world-intel-avatar.png")).exists();
-    assertThat(Path.of("src/main/resources/static/img/observation-analysis-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/connection-monitor-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/horde-watch-avatar.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/air-drop-avatar.png")).exists();
@@ -186,17 +185,16 @@ class DashboardControllerTests {
   }
 
   @Test
-  void adminNavigationIncludesDiaryMaintenanceAndSurvivorTestActions() throws Exception {
+  void adminNavigationIncludesDiaryMaintenanceAndNoRemovedNpcTests() throws Exception {
     String navigation = Files.readString(
         Path.of("src/main/resources/templates/fragments/navigation.html"));
     String bedrockTest = Files.readString(
         Path.of("src/main/resources/templates/ai-analysis-test.html"));
 
     assertThat(navigation)
-        .contains("@{/maintenance/diaries}", "日誌メンテ", "diary-maintenance",
-            "@{/maintenance/survivor-mark/test}", "Markテスト");
-    assertThat(bedrockTest)
-        .contains("@{/maintenance/ai-analysis/test/karen}", "Karenの新規投稿");
+        .contains("@{/maintenance/diaries}", "日誌メンテ", "diary-maintenance")
+        .doesNotContain("survivor-mark", "Markテスト");
+    assertThat(bedrockTest).doesNotContain("karen", "Karen");
   }
 
   @Test
