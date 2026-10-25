@@ -36,7 +36,22 @@
     <ol class="guild-memory"><li th:each="line : ${character.memoryLines()}" th:text="${line}">21:14 ゾンビを倒した</li></ol>
     <p class="guild-footer">記録の「誰か」は、その時間にいたプレイヤーです。名前は残していません。</p></th:block>
   <p th:if="${#lists.isEmpty(character.memoryLines())}" th:text="${character.origin}"></p>
-  <h3>この街での物語</h3><p>冒険や関係の記録は、これから。</p>
+  <h3>この街での関係</h3>
+  <p th:if="${#lists.isEmpty(relations)}">まだ誰とも言葉を交わしていません。</p>
+  <ul class="guild-relations" th:unless="${#lists.isEmpty(relations)}">
+    <li th:each="rel : ${relations}">
+      <a th:href="${rel.pairPath}"><strong th:text="${rel.other.name}">ロアン</strong></a>
+      <span class="guild-label" th:text="${rel.labelName()}">友達</span><em th:if="${rel.other.status == 'DEAD'}">故人</em>
+      <small th:text="${'信頼' + rel.trust + '・親しみ' + rel.affinity + '・警戒' + rel.wariness + '・恩義' + rel.debt}">信頼10・親しみ20・警戒0・恩義3</small>
+      <small th:unless="${#lists.isEmpty(rel.history)}" th:text="${'関係の移り変わり: ' + #strings.listJoin(rel.history.![text()], ' → ')}">知人になった → 知人 → 友達</small>
+    </li>
+  </ul>
+  <h3>最近の交流</h3>
+  <p th:if="${#lists.isEmpty(interactions)}">交流の記録は、まだありません。</p>
+  <ul class="guild-entries" th:unless="${#lists.isEmpty(interactions)}">
+    <li th:each="entry : ${interactions}" th:insert="~{fragments/guild-windows :: entryRow(${entry})}"></li>
+  </ul>
+  <p th:unless="${#lists.isEmpty(interactions)}"><a th:href="@{/guild/log(character=${character.id})}">この人の交流をすべて見る →</a></p>
   <p class="guild-footer">人物の性格・職業・信仰・暮らしは創作です。実プレイヤーの人格を推定したものではありません。</p>
 </th:block>
 
@@ -45,7 +60,76 @@
     <p th:if="${#lists.isEmpty(newcomers)}">古い旅の記録が、いつか新しい出会いになります。</p>
     <div th:each="character : ${newcomers}"><a th:href="@{/guild/characters/{id}(id=${character.id})}" th:text="${character.name}">リネ</a><p th:text="${character.introduction}"></p><small th:text="${#temporals.format(character.bornOn, 'yyyy年M月d日') + ' に誕生'}"></small></div>
   </section>
-  <section class="board-note"><p class="guild-eyebrow">CHRONICLE</p><h3>記録棚より</h3><p>今は、住人たちがこの街に集まりはじめたところ。自動冒険と関係の記録は、今後ここに加わります。</p><a href="/guild/characters">これまでに生まれた住人を見る →</a></section>
+  <section class="board-note"><p class="guild-eyebrow">CHRONICLE</p><h3>最近の出来事</h3>
+    <p th:if="${#lists.isEmpty(recent)}">酒場はまだ静かです。住人が顔をそろえると、出来事がここに貼り出されます。</p>
+    <ul class="board-entries" th:unless="${#lists.isEmpty(recent)}"><li th:each="entry : ${recent}">
+      <a th:href="@{/guild/log/{id}(id=${entry.id})}" th:text="${entry.summary}">リネとロアンは天気の話をした</a>
+      <small th:text="${#temporals.format(entry.at, 'M月d日 H時') + '・' + entry.kind}">10月25日 14時・雑談</small></li></ul>
+    <a href="/guild/log">交流の記録をすべて見る →</a> <a href="/guild/characters">住人名簿へ →</a></section>
   <p class="guild-footer">ここに暮らすのは創作の人物です。元のゲームのプレイヤー本人や、実際の出来事を表すものではありません。</p>
+</th:block>
+<!-- One line of the interaction log. -->
+<th:block th:fragment="entryRow(entry)">
+  <a class="guild-entry" th:href="@{/guild/log/{id}(id=${entry.id})}">
+    <small th:text="${#temporals.format(entry.at, 'M月d日 H時') + '・' + entry.kind}">10月25日 14時・雑談</small>
+    <span th:text="${entry.summary}">リネとロアンは天気の話をした</span>
+  </a>
+</th:block>
+
+<th:block th:fragment="log">
+  <p class="guild-window-lead" th:unless="${filter.any()}">住人たちが酒場で過ごした時間の記録。新しい順。</p>
+  <p class="guild-window-lead" th:if="${filter.any()}">
+    <th:block th:if="${filterCharacter != null}" th:text="${filterCharacter.name + ' の交流'}">リネの交流</th:block>
+    <th:block th:if="${filter.kind != null}" th:text="${'種類: ' + filter.kind}"></th:block>
+    <th:block th:if="${filter.label != null}" th:text="${'今の関係: ' + labels[filter.label]}"></th:block>
+    <a href="/guild/log">（絞り込みを外す）</a></p>
+  <form class="guild-filter" method="get" action="/guild/log">
+    <input type="hidden" name="character" th:if="${filter.character != null}" th:value="${filter.character}">
+    <label>種類 <select name="kind"><option value="">すべて</option><option th:each="k : ${kinds}" th:value="${k}" th:text="${k}" th:selected="${k == filter.kind}">雑談</option></select></label>
+    <label>今の関係 <select name="label"><option value="">すべて</option><option th:each="l : ${labels}" th:value="${l.key}" th:text="${l.value}" th:selected="${l.key == filter.label}">友達</option></select></label>
+    <button type="submit">絞り込む</button>
+  </form>
+  <p th:if="${#lists.isEmpty(entries)}">該当する交流の記録はありません。</p>
+  <ul class="guild-entries"><li th:each="entry : ${entries}">
+    <th:block th:replace="~{fragments/guild-windows :: entryRow(${entry})}"></th:block>
+    <span class="guild-entry-people"><a th:each="person : ${entry.people}" th:href="@{/guild/log(character=${person.id})}" th:text="${person.name}">リネ</a><a th:if="${entry.pairPath() != null}" th:href="${entry.pairPath()}">二人の物語</a></span>
+  </li></ul>
+  <nav class="guild-pager" aria-label="記録のページ">
+    <a th:if="${page > 0}" th:href="@{/guild/log(character=${filter.character},kind=${filter.kind},label=${filter.label},page=${page - 1})}">← 新しい記録</a>
+    <a th:if="${#lists.size(entries) == pageSize}" th:href="@{/guild/log(character=${filter.character},kind=${filter.kind},label=${filter.label},page=${page + 1})}">古い記録 →</a>
+  </nav>
+</th:block>
+
+<th:block th:fragment="entry">
+  <p class="guild-window-lead"><small th:text="${#temporals.format(detail.entry.at, 'yyyy年M月d日 H時') + '・' + detail.entry.kind + '・選ばれ方: ' + detail.entry.selectionName()}">2026年10月25日 14時・雑談</small></p>
+  <h3 th:text="${detail.entry.summary}">リネとロアンは天気の話をした</h3>
+  <div class="guild-dialogue"><p th:each="line : ${detail.entry.lines()}" th:text="${line}">窓の外は雨だった。</p></div>
+  <p class="guild-footer" th:if="${detail.entry.writtenBy == 'template'}">この場面は定型文で記録されました。</p>
+  <h3>登場した住人</h3>
+  <p><th:block th:each="person, it : ${detail.entry.people}"><a th:href="@{/guild/characters/{id}(id=${person.id})}" th:text="${person.name}">リネ</a><th:block th:unless="${it.last}">・</th:block></th:block>
+    <a th:if="${detail.entry.pairPath() != null}" th:href="${detail.entry.pairPath()}">（二人の物語）</a></p>
+  <h3>関係の変化</h3>
+  <p th:if="${#lists.isEmpty(detail.changes)}">関係に変化はありませんでした。</p>
+  <ul class="guild-changes"><li th:each="change : ${detail.changes}" th:text="${(change.kind == 'label' ? '関係: ' : change.from.name + ' → ' + change.to.name + ': ') + change.text()}">リネ → ロアン: 親しみ+2</li></ul>
+  <th:block th:unless="${#lists.isEmpty(detail.opened)}"><h3>生まれた火種</h3>
+    <ul class="guild-changes"><li th:each="t : ${detail.opened}" th:text="${t.kindName() + '：' + t.summary + '（' + t.statusName() + '）'}">約束：…</li></ul></th:block>
+  <th:block th:unless="${#lists.isEmpty(detail.resolved)}"><h3>片づいた火種</h3>
+    <ul class="guild-changes"><li th:each="t : ${detail.resolved}"><th:block th:text="${t.kindName() + '：' + t.summary}">借り：…</th:block>
+      <a th:href="@{/guild/log/{id}(id=${t.originId})}">（きっかけの記録）</a></li></ul></th:block>
+  <p><a href="/guild/log">← 交流の記録へ</a></p>
+  <p class="guild-footer">出来事と関係の変化はプログラムが決め、場面の文章はAIが書いています。登場人物は創作です。</p>
+</th:block>
+
+<th:block th:fragment="pair">
+  <p class="guild-window-lead"><a th:href="@{/guild/characters/{id}(id=${first.id})}" th:text="${first.name}">リネ</a> と
+    <a th:href="@{/guild/characters/{id}(id=${second.id})}" th:text="${second.name}">ロアン</a> の、出会いから今まで。</p>
+  <p th:if="${#lists.isEmpty(story)}">二人はまだ言葉を交わしていません。</p>
+  <th:block th:unless="${#lists.isEmpty(labels)}"><h3>関係の移り変わり</h3>
+    <ol class="guild-changes"><li th:each="change : ${labels}"><small th:text="${#temporals.format(change.at, 'M月d日 H時')}"></small>
+      <a th:href="@{/guild/log/{id}(id=${change.interactionId})}" th:text="${change.text()}">友達になった</a></li></ol></th:block>
+  <th:block th:unless="${#lists.isEmpty(threads)}"><h3>二人の間の火種</h3>
+    <ul class="guild-changes"><li th:each="t : ${threads}" th:text="${t.kindName() + '：' + t.summary + '（' + t.statusName() + '）'}">約束：…</li></ul></th:block>
+  <th:block th:unless="${#lists.isEmpty(story)}"><h3>出来事</h3>
+    <ol class="guild-entries"><li th:each="entry : ${story}" th:insert="~{fragments/guild-windows :: entryRow(${entry})}"></li></ol></th:block>
 </th:block>
 </body></html>

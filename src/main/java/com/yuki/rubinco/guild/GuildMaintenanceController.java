@@ -16,6 +16,7 @@ public class GuildMaintenanceController {
   private final GuildService guild;
   private final GuildProperties properties;
   private final GuildSourceService sources;
+  private final GuildInteractionService interactions;
 
   @GetMapping("/guild/maintenance")
   public String index(Model model) {
@@ -29,6 +30,8 @@ public class GuildMaintenanceController {
         .map(category -> category == null ? "（分類なし）" : GuildSourceService.CATEGORIES.getOrDefault(category, category)).toList());
     model.addAttribute("categoryWindow", properties.categoryWindow());
     model.addAttribute("categoryCap", properties.categoryCap());
+    model.addAttribute("hourlyJobs", interactions.jobs());
+    model.addAttribute("currentSlot", GuildInteractionService.slot(java.time.ZonedDateTime.now(GuildService.TOKYO)));
     return "guild-maintenance";
   }
 
@@ -42,6 +45,13 @@ public class GuildMaintenanceController {
   public String visits(RedirectAttributes redirect) {
     redirect.addFlashAttribute("notice", guild.refreshVisits());
     return "redirect:/guild/maintenance";
+  }
+
+  /** Runs this hour's interaction now instead of at a few minutes past; an hour is still filled only once. */
+  @PostMapping("/guild/maintenance/interaction")
+  public String interaction(RedirectAttributes redirect) {
+    redirect.addFlashAttribute("notice", interactions.runHour(java.time.ZonedDateTime.now(GuildService.TOKYO)));
+    return "redirect:/guild/maintenance#interactions";
   }
 
   @PostMapping("/guild/maintenance/characters/{id}/delete")

@@ -5,7 +5,7 @@
   const scrim = document.querySelector("[data-guild-scrim]");
   const tabbar = document.querySelector("[data-guild-tabbar]");
   if (!dialog || !scrim || !tabbar) return;
-  const WINDOW = /^\/guild\/(visitors|board|characters(\/\d+)?)$/;
+  const WINDOW = /^\/guild\/(visitors|board|characters(\/\d+)?|log(\/\d+)?|pairs\/\d+-\d+)$/;
   const TAVERN_TITLE = "無人の冒険者ギルド | Rubinco";
   let opener = null;
 
@@ -73,6 +73,7 @@
     if (!link || link.target) return;
     const url = new URL(link.href, location.href);
     if (url.origin !== location.origin) return;
+    if (link.closest("form")) return;
     if (url.pathname === "/guild" && !url.search) {
       event.preventDefault();
       if (dialog.open) close();
@@ -80,6 +81,16 @@
       event.preventDefault();
       load(url.href, true);
     }
+  });
+  // The log's filter form is a GET: load its result as a window too.
+  document.addEventListener("submit", (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || form.method.toLowerCase() !== "get" || !dialog.contains(form)) return;
+    const url = new URL(form.action, location.href);
+    if (!WINDOW.test(url.pathname)) return;
+    event.preventDefault();
+    url.search = new URLSearchParams([...new FormData(form)].filter(([, value]) => value !== "")).toString();
+    load(url.href, true);
   });
   scrim.addEventListener("click", close);
   document.addEventListener("keydown", (event) => {
