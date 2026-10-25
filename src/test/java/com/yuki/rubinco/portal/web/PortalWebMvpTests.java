@@ -63,7 +63,7 @@ class PortalWebMvpTests {
   void anonymousPortalShowsPublicHomeAndClosedLoginModal() throws Exception {
     mockMvc.perform(get("/portal").header("Host", "portal.rubinco.link"))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("portal-site-rail")))
+        .andExpect(content().string(containsString("portal-server-rail")))
         .andExpect(content().string(not(containsString("open=\"open\""))))
         .andExpect(content().string(containsString("Watchpoint")))
         .andExpect(content().string(containsString("公開ユーザー登録は受け付けていません")));
@@ -158,11 +158,13 @@ class PortalWebMvpTests {
   void guestLoginOpensTheTimelineAndLoginEntryRemainsOnlyInTheHeader() throws Exception {
     String publicHtml = mockMvc.perform(get("/portal")).andExpect(status().isOk())
         .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
-    assertThat(publicHtml).contains("portal-site-rail", "Watchpoint", "Luminite", "全体タイムライン")
+    assertThat(publicHtml).contains("portal-server-rail", "Watchpoint", "Luminite", "全体タイムライン")
         .doesNotContain("open=\"open\"", "class=\"start-button\"");
     assertThat(publicHtml.split("data-open-login", -1)).hasSize(2);
     assertThat(publicHtml.substring(0, publicHtml.indexOf("</header>"))).contains("data-open-login");
-    assertThat(publicHtml).contains("<small>7DTD</small>", "<small>Terraria</small>");
+    // Site links sit in the header; the right sidebar holds the game servers.
+    assertThat(publicHtml.substring(0, publicHtml.indexOf("</header>")))
+        .contains("class=\"site-links\"", "<small>7 Days to Die</small>", "<small>Terraria</small>");
     var guest = new M_WebAccount();
     guest.setLoginId("guest");
     guest.setPasswordHash("unused");
@@ -195,7 +197,7 @@ class PortalWebMvpTests {
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("稼働中")))
         .andExpect(content().string(containsString("停止中")))
-        .andExpect(content().string(containsString("サイトへ →")))
+        .andExpect(content().string(containsString("server-start-button")))
         .andExpect(content().string(not(containsString("class=\"start-button\""))));
     String[] menus = new String[2];
     String[] paths = {"/dashboard", "/luminite"};

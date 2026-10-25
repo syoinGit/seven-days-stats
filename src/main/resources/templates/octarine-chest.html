@@ -7,13 +7,14 @@
   <title th:text="${'入れ物 | ' + game.displayName}">Octarine | Core Keeper</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='4')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='5')}">
 </head>
 <body class="octarine-body">
 <header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
-<main class="octarine-shell">
-  <nav th:replace="~{fragments/octarine :: tabs}"></nav>
+<main class="octarine-shell ck-console">
+  <nav th:replace="~{fragments/octarine :: menu}"></nav>
+  <div class="ck-screen">
   <section class="octarine-panel" aria-labelledby="chest-title">
     <a class="octarine-back" th:href="@{/octarine/chests}">← チェスト検索</a>
     <div class="section-heading">
@@ -51,6 +52,7 @@
     </ol>
     <p class="octarine-note">取り込みの間隔（10分）ごとの差し引きです。</p>
   </section>
+  </div>
 </main>
 </body>
 </html>

@@ -7,16 +7,17 @@
   <title th:text="${'アイテム | ' + game.displayName}">Octarine | Core Keeper</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='4')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='5')}">
 </head>
 <body class="octarine-body">
 <header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
-<main class="octarine-shell">
-  <nav th:replace="~{fragments/octarine :: tabs}"></nav>
+<main class="octarine-shell ck-console">
+  <nav th:replace="~{fragments/octarine :: menu}"></nav>
+  <div class="ck-screen">
   <section class="octarine-panel" aria-labelledby="items-title">
     <div class="section-heading">
-      <div><p class="eyebrow">STORED ITEMS</p><h1 id="items-title">保管アイテム</h1></div>
+      <div><p class="eyebrow">倉庫管理 / INVENTORY</p><h1 id="items-title">アイテム在庫</h1></div>
       <span class="octarine-count" th:text="${items.totalElements + '種'}">0種</span>
     </div>
     <div th:replace="~{fragments/octarine :: snapshot}"></div>
@@ -46,7 +47,7 @@
         <a th:href="@{/octarine/items/{id}(id=${item.objectId})}" th:classappend="${'ck-' + item.category.icon()}">
           <b><svg th:replace="~{fragments/octarine :: icon(${item.category})}"></svg><span th:text="${item.name}">Copper Bar</span></b>
           <strong th:text="${#numbers.formatInteger(item.count(), 1, 'COMMA') + (item.category.durable() ? '個' : '')}">120</strong>
-          <small th:text="${item.category.durable() ? '耐久の合計 ' + #numbers.formatInteger(item.amount, 1, 'COMMA') + '・' + item.containers + 'か所' : item.slots + '枠・' + item.containers + 'か所'}">3枠・2か所</small>
+          <small th:text="${item.category.durable() ? item.containers + 'か所' : item.slots + '枠・' + item.containers + 'か所'}">3枠・2か所</small>
         </a>
       </li>
     </ul>
@@ -56,6 +57,7 @@
       <a th:if="${items.hasNext()}" th:href="@{/octarine/items(q=${q},c=${c},sort=${sort},page=${items.number + 1})}">次へ →</a>
     </nav>
   </section>
+  </div>
 </main>
 </body>
 </html>

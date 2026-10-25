@@ -6,16 +6,17 @@
   <title th:text="${'プレイヤー | ' + game.displayName}">プレイヤー | Octarine</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='4')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='5')}">
 </head>
 <body class="octarine-body">
 <header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
-<main class="octarine-shell">
-  <nav th:replace="~{fragments/octarine :: tabs}"></nav>
+<main class="octarine-shell ck-console">
+  <nav th:replace="~{fragments/octarine :: menu}"></nav>
+  <div class="ck-screen">
   <section class="octarine-panel" aria-labelledby="online-title">
     <div class="section-heading">
-      <div><p class="eyebrow">ONLINE</p><h1 id="online-title">いま接続中</h1></div>
+      <div><p class="eyebrow">ログイン管理 / ONLINE</p><h1 id="online-title">いま接続中</h1></div>
     </div>
     <p th:if="${!tracking}" class="octarine-empty">接続の記録はまだ準備中です。</p>
     <th:block th:if="${tracking}">
@@ -64,6 +65,7 @@
     </ol>
     <p class="octarine-note">サーバーのログに残る接続と切断の時刻から数えています。サーバーが止まったときに接続中だった人は、止まったのを確認した時刻で区切ります。名前はゲーム内の名前です。プレイ時間の表は最新の名前、履歴はそのときの名前で表示します。</p>
   </section>
+  </div>
 </main>
 </body>
 </html>

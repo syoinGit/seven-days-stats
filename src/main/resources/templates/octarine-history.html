@@ -6,17 +6,18 @@
   <title th:text="${'進捗の履歴 | ' + game.displayName}">進捗の履歴 | Octarine</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='4')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='5')}">
 </head>
 <body class="octarine-body">
 <header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
-<main class="octarine-shell">
-  <nav th:replace="~{fragments/octarine :: tabs}"></nav>
+<main class="octarine-shell ck-console">
+  <nav th:replace="~{fragments/octarine :: menu}"></nav>
+  <div class="ck-screen">
   <section class="octarine-panel" aria-labelledby="octarine-history-title">
     <div class="section-heading">
       <div>
-        <p class="eyebrow">HISTORY</p>
+        <p class="eyebrow">記録 / HISTORY</p>
         <h1 id="octarine-history-title">進捗の履歴</h1>
       </div>
     </div>
@@ -34,7 +35,7 @@
   </section>
   <section class="octarine-panel" th:if="${ctx != null}" aria-labelledby="activity-title">
     <div class="section-heading">
-      <div><p class="eyebrow">ACTIVITY</p><h2 id="activity-title">保管アイテムの動き</h2></div>
+      <div><p class="eyebrow">ACTIVITY</p><h2 id="activity-title">倉庫の動き</h2></div>
     </div>
     <p th:if="${#lists.isEmpty(activity)}" class="octarine-empty">初回取り込み以降の変化はまだありません。</p>
     <ol class="octarine-activity" th:unless="${#lists.isEmpty(activity)}">
@@ -45,6 +46,7 @@
       </li>
     </ol>
   </section>
+  </div>
 </main>
 </body>
 </html>
