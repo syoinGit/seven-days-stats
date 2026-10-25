@@ -22,8 +22,47 @@
 .room-stairs{position:absolute;right:0;top:300px;width:12%;height:300px;background:repeating-linear-gradient(180deg,#8a5f45 0 8px,#5a3c32 8px 30px);clip-path:polygon(0 0,100% 0,100% 100%,60% 100%);border-left:4px solid #3a2830;z-index:1}
 .guild-room .room-counter{left:30%;top:418px;width:40%;height:40px}.guild-room .room-fireplace{left:4%;right:auto;top:380px;width:70px;height:88px}.guild-room .room-table{width:120px;height:52px}.guild-room .table-one{left:22%;right:auto;top:540px}.guild-room .table-two{left:52%;right:auto;top:540px}.guild-room .table-three{left:25%;top:222px}.guild-room .table-four{left:57%;top:222px}.guild-room .room-rug{left:34%;width:30%;height:64px}
 .seat-0{left:20%;top:450px}.seat-1{left:44%;top:448px}.seat-2{left:70%;top:460px}.seat-3{left:15%;top:585px}.seat-4{left:46%;top:592px}.seat-5{left:74%;top:585px}.seat-6{left:16%;top:150px}.seat-7{left:38%;top:138px}.seat-8{left:60%;top:150px}.seat-9{left:80%;top:140px}
-.room-floor-label{position:absolute;left:10px;font:10px monospace;letter-spacing:.2em;color:#c4a9ad;background:#1c1420cc;padding:2px 6px;z-index:3}.room-floor-label.up{top:104px}.room-floor-label.down{top:404px}
+
 .guild-cast{display:block;color:#a991a3;font-size:11px;margin-top:2px}.guild-cast-list{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-wrap:wrap;gap:6px 18px}.guild-cast-list strong{color:#f0d8c2;font-size:14px;margin-right:6px}.guild-cast-list small{color:#a991a3;font-size:12px}
-@media(max-width:650px){.guild-room{height:640px}.room-upper{height:270px}.room-beam{top:270px}.room-rail{top:236px;height:34px}.room-lower{top:292px}.room-stairs{top:270px;height:260px;width:14%}.guild-room .room-counter{left:24%;top:378px;width:46%}.guild-room .room-fireplace{left:3%;top:350px;width:44px;height:64px}.guild-room .room-table{width:72px;height:40px}.guild-room .table-one{left:16%;top:480px}.guild-room .table-two{left:54%;top:480px}.guild-room .table-three{left:20%;top:186px}.guild-room .table-four{left:56%;top:186px}.room-floor-label.down{top:370px}.room-floor-label.up{top:100px}
+@media(max-width:650px){.guild-room{height:640px}.room-upper{height:270px}.room-beam{top:270px}.room-rail{top:236px;height:34px}.room-lower{top:292px}.room-stairs{top:270px;height:260px;width:14%}.guild-room .room-counter{left:24%;top:378px;width:46%}.guild-room .room-fireplace{left:3%;top:350px;width:44px;height:64px}.guild-room .room-table{width:72px;height:40px}.guild-room .table-one{left:16%;top:480px}.guild-room .table-two{left:54%;top:480px}.guild-room .table-three{left:20%;top:186px}.guild-room .table-four{left:56%;top:186px}
 .seat-0{left:16%;top:410px}.seat-1{left:44%;top:405px}.seat-2{left:72%;top:415px}.seat-3{left:14%;top:525px}.seat-4{left:46%;top:532px}.seat-5{left:76%;top:525px}.seat-6{left:14%;top:140px}.seat-7{left:37%;top:128px}.seat-8{left:60%;top:140px}.seat-9{left:82%;top:130px}}
 .guild-dungeon{list-style:none;margin:14px 0;padding:0;display:grid;gap:8px}.guild-dungeon li{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:8px 12px;border:2px solid #4a3546;background:#241a2b}.guild-dungeon strong{display:grid;place-items:center;width:30px;height:30px;border:2px solid #89634b;background:#3a2738;color:#ffe0a8;font-size:15px}.guild-dungeon p{margin:4px 0;color:#f0d8c2;font-size:14px;line-height:1.7}.guild-dungeon li.dark{opacity:.55}.guild-dungeon li.dark p{color:#a991a3}.guild-dungeon-result{display:inline-block;padding:2px 12px;border:2px solid #ebbe92;color:#ffe0a8;font-weight:bold}
+
+/* One floor at a time. The room is a window onto a two-floor building (.room-inner); 1F shows its lower part, 2F its upper part
+   with the floor carried down to the balcony rail. Seats on the other floor are hidden from view and from keyboard focus. */
+.floor-radio{position:absolute;opacity:0;pointer-events:none}
+.guild-room{height:420px}.room-inner{position:absolute;left:0;right:0;top:0;height:720px;transform:translateY(-300px);transition:transform .35s ease}
+.guild-room .upstairs{visibility:hidden}
+#guild-floor-2:checked~.guild-room .room-inner{transform:none}
+#guild-floor-2:checked~.guild-room .upstairs{visibility:visible}
+#guild-floor-2:checked~.guild-room :is(.downstairs,.room-beam,.room-lower,.room-counter,.room-fireplace,.table-one,.table-two,.room-rug){visibility:hidden}
+#guild-floor-2:checked~.guild-room .room-upper{height:420px}
+#guild-floor-2:checked~.guild-room .room-rail{top:382px}
+#guild-floor-2:checked~.guild-room .room-stairs{top:340px}
+#guild-floor-2:checked~.guild-room :is(.upstairs,.table-three,.table-four){margin-top:60px}
+.guild-controls{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;position:relative;z-index:30}
+.guild-floors{display:flex;gap:6px}
+.guild-floors label,.guild-dungeon-pop summary{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#201927;border:2px solid #493348;color:#bfa5ad;font-size:12px;cursor:pointer;user-select:none;letter-spacing:.06em}
+.guild-floors label:hover,.guild-dungeon-pop summary:hover{color:#f0d8c2}
+#guild-floor-1:checked~.guild-controls label[for=guild-floor-1],#guild-floor-2:checked~.guild-controls label[for=guild-floor-2]{color:#ffe0a8;background:#3a2738;border-color:#89634b}
+#guild-floor-1:focus-visible~.guild-controls label[for=guild-floor-1],#guild-floor-2:focus-visible~.guild-controls label[for=guild-floor-2]{outline:3px solid #ebbe92;outline-offset:2px}
+.guild-floors label.talk::after{content:"";width:6px;height:6px;background:#ffd27a;box-shadow:0 0 6px #ffd27a}
+.guild-dungeon-pop{position:relative}
+.guild-dungeon-pop summary{list-style:none}.guild-dungeon-pop summary::-webkit-details-marker{display:none}
+.guild-dungeon-pop summary svg{width:18px;height:18px;image-rendering:pixelated}
+.guild-dungeon-pop[open] summary{color:#ffe0a8;background:#3a2738;border-color:#89634b}
+.pop-live{padding:0 6px;background:#6b2f3a;color:#ffe0a8;font-size:10px;animation:pop-live 1.6s steps(2) infinite}
+@keyframes pop-live{50%{opacity:.55}}
+.pop-panel{position:absolute;right:0;top:calc(100% + 8px);width:min(300px,calc(100vw - 32px));padding:14px 16px;background:#241a2b;border:3px double #a27d8c;box-shadow:4px 6px #0d0a12,0 16px 40px #0009;color:#e4cba9;font-size:13px}
+.pop-panel strong{display:block;color:#ffe0a8;font-size:16px;line-height:1.5;margin-bottom:6px}
+.pop-panel p{margin:4px 0}
+.pop-progress{display:flex;gap:4px}.pop-progress span{display:grid;place-items:center;width:26px;height:26px;border:2px solid #4a3546;color:#7d6878;font-size:12px}
+.pop-progress span.done{border-color:#89634b;background:#3a2738;color:#ffe0a8}
+.pop-panel a{display:inline-block;margin-top:8px;color:#ffe0a8}
+@media(prefers-reduced-motion:reduce){.room-inner{transition:none}.pop-live{animation:none}}
+@media(max-width:650px){.guild-room{height:370px}.room-inner{height:640px;transform:translateY(-270px)}
+#guild-floor-2:checked~.guild-room .room-upper{height:370px}
+#guild-floor-2:checked~.guild-room .room-rail{top:332px}
+#guild-floor-2:checked~.guild-room .room-stairs{top:300px}
+#guild-floor-2:checked~.guild-room :is(.upstairs,.table-three,.table-four){margin-top:50px}
+.guild-floors label,.guild-dungeon-pop summary{padding:5px 8px;font-size:11px}}

@@ -40,6 +40,8 @@ public class GuildDungeon {
   static final Map<String, String> RESULTS = Map.of("success", "踏破", "partial", "一部達成", "retreat", "撤退");
   static final Set<String> ROLES = Set.of("fighter", "scout", "healer", "maker");
   static final int PARTY_MAX = 4;
+  /** What the party is doing after a stage whose card says nothing (転 cards always say). */
+  static final Map<String, String> DOING = Map.of("ki", "探索中", "sho", "奥へ進行中", "ten", "探索中", "ketsu", "帰還中");
 
   record Dungeon(String id, String name, String near, String look, String monster, String treasure) { }
 
@@ -47,7 +49,7 @@ public class GuildDungeon {
 
   /** min already counts {other}: a card that names another member needs two or more. */
   record Card(String id, String stage, String text, String countered, int weight, int min, int max, String role, List<String> goals,
-              boolean heroHome, int danger, String counter, String result) { }
+              boolean heroHome, int danger, String counter, String result, String doing) { }
 
   record Deck(String version, Map<String, Set<String>> roles, List<Dungeon> dungeons, List<Goal> goals, Map<String, String> returns,
               Map<String, List<Card>> stages) { }
@@ -61,11 +63,16 @@ public class GuildDungeon {
     }
   }
 
-  /** result is null until the party is back. */
+  /** result is null until the party is back; doing is what they are doing after the last stage that is out (null before 起). */
   public record Expedition(long id, LocalDate date, String dungeon, String goal, List<GuildChronicle.Ref> members,
-                           List<Stage> stages, String result, OffsetDateTime departedAt, OffsetDateTime returnedAt) {
+                           List<Stage> stages, String result, OffsetDateTime departedAt, OffsetDateTime returnedAt, String doing) {
     public boolean back() {
       return result != null;
+    }
+
+    /** "古い坑道で戦闘中", "古い坑道へ向かっている途中", "古い坑道から帰還（踏破）". */
+    public String status() {
+      return back() ? dungeon + "から帰還（" + resultName() + "）" : doing == null ? dungeon + "へ向かっている途中" : dungeon + "で" + doing;
     }
 
     public String resultName() {
@@ -145,8 +152,9 @@ public class GuildDungeon {
     }
     for (int i = 0; i < run.stages().size(); i++) {
       Drawn drawn = run.stages().get(i);
-      jdbc.update("INSERT INTO T_GUILD_EXPEDITION_STAGE (expedition_id,stage,card_id,hero_id,body,reveal_at) VALUES (?,?,?,?,?,?)",
-          id, i + 1, drawn.card().id(), drawn.hero().id(), drawn.body(), departed.plusMinutes((long) (i + 1) * minutes));
+      jdbc.update("INSERT INTO T_GUILD_EXPEDITION_STAGE (expedition_id,stage,card_id,hero_id,body,reveal_at,doing) VALUES (?,?,?,?,?,?,?)",
+          id, i + 1, drawn.card().id(), drawn.hero().id(), drawn.body(), departed.plusMinutes((long) (i + 1) * minutes),
+          drawn.card().doing() != null ? drawn.card().doing() : DOING.get(STAGES.get(i)));
     }
     return party(party.stream().map(Member::name).toList()) + "が" + run.dungeon().name() + "へ向かいました（"
         + departed.plusMinutes(4L * minutes).toLocalTime() + "ごろ戻ります）。";
@@ -277,12 +285,16 @@ public class GuildDungeon {
         """, (rs, row) -> new GuildChronicle.Ref(rs.getLong(1), rs.getString(2), rs.getString(3),
         GuildChronicle.profile((Integer) rs.getObject(4), rs.getString(5), rs.getString(6))), id);
     // Unrevealed text never leaves the database query.
-    List<Stage> stages = jdbc.query("SELECT stage, CASE WHEN reveal_at <= ? THEN body END, reveal_at FROM T_GUILD_EXPEDITION_STAGE "
-        + "WHERE expedition_id = ? ORDER BY stage", (rs, row) -> new Stage(rs.getInt(1), STAGE_NAMES.get(STAGES.get(rs.getInt(1) - 1)),
-        rs.getString(2), rs.getObject(3, OffsetDateTime.class)), at, id);
+    List<String> doing = new ArrayList<>();
+    List<Stage> stages = jdbc.query("SELECT stage, CASE WHEN reveal_at <= ? THEN body END, reveal_at, CASE WHEN reveal_at <= ? THEN doing END "
+        + "FROM T_GUILD_EXPEDITION_STAGE WHERE expedition_id = ? ORDER BY stage", (rs, row) -> {
+          String stage = STAGES.get(rs.getInt(1) - 1);
+          if (rs.getString(2) != null) doing.add(rs.getString(4) != null ? rs.getString(4) : DOING.get(stage));
+          return new Stage(rs.getInt(1), STAGE_NAMES.get(stage), rs.getString(2), rs.getObject(3, OffsetDateTime.class));
+        }, at, at, id);
     OffsetDateTime returned = (OffsetDateTime) head[5];
     return new Expedition(id, (LocalDate) head[0], (String) head[1], (String) head[2], members, stages,
-        returned.isAfter(at) ? null : (String) head[3], (OffsetDateTime) head[4], returned);
+        returned.isAfter(at) ? null : (String) head[3], (OffsetDateTime) head[4], returned, doing.isEmpty() ? null : doing.getLast());
   }
 
   /** Runs that have left by now, newest first; a resident's only when character is given. */
@@ -370,6 +382,10 @@ public class GuildDungeon {
     }
     List<String> cardGoals = m.containsKey("goals") ? strings(m.get("goals")) : List.of();
     if (!goals.containsAll(cardGoals)) throw new IllegalStateException("Dungeon card " + id + ": unknown goal");
+    String doing = (String) m.get("doing");
+    if (doing == null ? stage.equals("ten") : doing.length() > 20 || !doing.endsWith("中")) {
+      throw new IllegalStateException("Dungeon card " + id + ": doing must end in 中 (and 転 cards need one)");
+    }
     boolean other = body.contains("{other}") || (countered != null && countered.contains("{other}"));
     int min = Math.max(((Number) m.getOrDefault("min", 1)).intValue(), other ? 2 : 1);
     int max = ((Number) m.getOrDefault("max", PARTY_MAX)).intValue();
@@ -378,7 +394,7 @@ public class GuildDungeon {
       if (left.contains("{") || left.contains("}")) throw new IllegalStateException("Dungeon card " + id + ": unknown placeholder");
     }
     return new Card(id, stage, body, countered, ((Number) m.getOrDefault("weight", 1)).intValue(), min, max, role, cardGoals,
-        Boolean.TRUE.equals(m.get("hero_home")), danger, counter, result);
+        Boolean.TRUE.equals(m.get("hero_home")), danger, counter, result, doing);
   }
 
   private static String text(Map<String, Object> m, String key) {

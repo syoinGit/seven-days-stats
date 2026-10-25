@@ -13,33 +13,52 @@
     <h1 class="guild-plate"><small>THE UNATTENDED GUILD</small>無人の冒険者ギルド</h1>
     <p class="guild-clock" th:text="${#temporals.format(room.date, 'M月d日') + ' · ' + (room.phase == 'morning' ? '朝' : (room.phase == 'afternoon' ? '昼' : '夜'))}">10月25日 · 夜</p>
   </div>
+  <!-- One floor at a time (the radios drive the CSS): downstairs six seats (0-5), upstairs four (6-9). Talk is drawn among all ten. Works without JS. -->
+  <input class="floor-radio" type="radio" name="guild-floor" id="guild-floor-1" checked>
+  <input class="floor-radio" type="radio" name="guild-floor" id="guild-floor-2">
+  <div class="guild-controls">
+    <div class="guild-floors" role="group" aria-label="階の切り替え">
+      <label for="guild-floor-1" th:classappend="${floors.talkDown ? 'talk' : ''}" th:text="${'1F（' + floors.downstairs + '人）'}">1F（6人）</label>
+      <label for="guild-floor-2" th:classappend="${floors.talkUp ? 'talk' : ''}" th:text="${'2F（' + floors.upstairs + '人）'}">2F（4人）</label>
+    </div>
+    <details class="guild-dungeon-pop">
+      <summary><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=3#tab-dungeon"></use></svg>ダンジョン<span th:if="${todayRun != null and !todayRun.back()}" class="pop-live">探索中</span></summary>
+      <div class="pop-panel" role="status">
+        <th:block th:if="${todayRun == null}"><strong>今夜の探索はまだです</strong><p>毎晩21:50に、酒場から1〜4人がダンジョンへ出発します。</p></th:block>
+        <th:block th:if="${todayRun != null}">
+          <strong th:text="${todayRun.status()}">古い坑道で戦闘中</strong>
+          <p th:text="${todayRun.party()}">リネとロアン</p>
+          <p class="pop-progress"><span th:each="stage : ${todayRun.stages}" th:classappend="${stage.revealed() ? 'done' : ''}" th:text="${stage.name}">起</span></p>
+          <p th:if="${todayRun.next() != null}" th:text="${'次の知らせは ' + #temporals.format(todayRun.next().revealAt.atZoneSameInstant(T(com.yuki.rubinco.guild.GuildService).TOKYO), 'H:mm') + 'ごろ'}">次の知らせは 22:20ごろ</p>
+        </th:block>
+        <a href="/guild/dungeon">探索の様子を読む →</a>
+      </div>
+    </details>
+  </div>
   <section class="guild-room" th:classappend="${room.phase}" aria-label="ギルド兼酒場の一室。人物を選ぶと紹介を読めます。">
-    <!-- Upstairs: four seats (6-9). Downstairs: six seats (0-5). Talk is drawn among all ten. -->
+    <div class="room-inner">
     <div class="room-upper" aria-hidden="true"><div class="room-wall"><div class="room-window"></div><div class="room-sign">THE GUILD</div><div class="room-window second"></div></div></div>
     <div class="room-table table-three" aria-hidden="true"></div><div class="room-table table-four" aria-hidden="true"></div>
     <div class="room-rail" aria-hidden="true"></div><div class="room-beam" aria-hidden="true"></div>
     <div class="room-lower" aria-hidden="true"><div class="room-wall"><span class="room-lamp one"></span><span class="room-lamp two"></span></div></div>
     <div class="room-stairs" aria-hidden="true"></div>
-    <span class="room-floor-label up" aria-hidden="true">2F</span><span class="room-floor-label down" aria-hidden="true">1F</span>
     <div class="room-counter" aria-hidden="true"><i></i></div>
     <div class="room-fireplace" aria-hidden="true"><div class="fire"></div></div>
     <div class="room-table table-one" aria-hidden="true"></div><div class="room-table table-two" aria-hidden="true"></div>
     <div class="room-rug" aria-hidden="true"></div>
     <a th:each="visit : ${room.visits}" class="room-person"
        th:with="said=${scene != null ? scene.lines.get(visit.character.id) : null}, talking=${scene != null and scene.lines.containsKey(visit.character.id)}"
-       th:classappend="${'seat-' + visit.seat + ' ' + visit.character.appearance + (talking ? ' talking' : '')}"
+       th:classappend="${'seat-' + visit.seat + ' ' + (visit.seat >= 6 ? 'upstairs ' : 'downstairs ') + visit.character.appearance + (talking ? ' talking' : '')}"
        th:href="@{/guild/characters/{id}(id=${visit.character.id})}" th:attr="aria-label=${visit.character.name + '：' + (said != null ? said : visit.line)}">
       <span class="person-bubble" th:text="${said != null ? said : visit.line}"></span>
       <svg th:replace="~{fragments/guild :: sprite(${visit.character})}"></svg>
       <span class="person-name" th:text="${visit.character.name}"></span>
     </a>
+    </div>
     <div class="room-empty" th:if="${#lists.isEmpty(room.visits)}"><strong>暖炉に火が入りました。</strong><p>まだ静かな酒場です。<br>最初の住人が訪れる日を待っています。</p></div>
   </section>
   <p class="guild-caption" th:if="${scene == null}">人物を選ぶと、その人の物語が開きます。</p>
   <p class="guild-caption guild-now" th:if="${scene != null}">いまの酒場：<a th:href="@{/guild/log/{id}(id=${scene.interactionId})}" th:text="${scene.summary}">リネとロアンは天気の話をした</a></p>
-  <p class="guild-caption guild-now" th:if="${todayRun != null}">ダンジョン：<a href="/guild/dungeon"
-     th:text="${todayRun.back() ? todayRun.party() + 'が' + todayRun.dungeon + 'から戻った（' + todayRun.resultName() + '）'
-       : todayRun.party() + 'が' + todayRun.dungeon + 'を探索中' + (todayRun.reached() == null ? '（出発したところ）' : '（' + todayRun.reached() + 'まで）')}">リネとロアンが古い坑道を探索中（承まで）</a></p>
 </main>
 <div class="guild-scrim" data-guild-scrim th:hidden="${window == null}"></div>
 <dialog id="guild-window" class="guild-window" th:open="${window != null}" aria-labelledby="guild-window-title">

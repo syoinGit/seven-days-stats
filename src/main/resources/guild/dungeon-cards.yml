@@ -8,13 +8,15 @@
 #   stage cards (all optional except id and text):
 #     weight, min / max (party size), role (the hero has this role; drawn only if someone does),
 #     goals (drawn only for these goals), hero_home (the hero was born in the dungeon's village)
+#   doing: what the party is doing once the card is out ("古い坑道で戦闘中"); ends in 中. Optional (起: 探索中,
+#     承: 奥へ進行中) except on 転 cards
 #   ten cards: danger 1-3 and counter (a role); when someone has that role they are the hero and
 #     `countered` is used instead of `text`, and the danger drops by one
 #   ketsu cards: result success / partial / retreat
 #   placeholders: {party} (everyone), {hero} (who the stage is about), {other} (another member; needs 2+),
 #     {dungeon} {look} {monster} {treasure} {goal}
 #   returns: the line a member says in the tavern after coming back, by result
-version: "2026-10-25-dungeon-a"
+version: "2026-10-25-dungeon-b"
 roles:
   fighter: [騎士, 侍, 浪人, 護衛, 冒険者, 夜警]
   scout: [猟師, 漁師, 運び屋, 冒険者, 鉱夫]
@@ -42,33 +44,33 @@ stages:
     - {id: alone, max: 1, text: "{hero}はひとりで{dungeon}の前に立ち、深く息を吸った。誰かに頼まれたわけではない。自分で決めたことだ。"}
     - {id: hometale, hero_home: true, text: "{dungeon}は、{hero}が子どもの頃から近づくなと言われてきた場所だった。{party}は、その言いつけを破って中へ入った。"}
     - {id: rumor, text: "酒場で聞いた噂を確かめるように、{party}は{dungeon}へ足を踏み入れた。中は{look}だった。"}
-    - {id: supplies, role: maker, text: "出発の前、{hero}が皆の荷を見て回り、縄と替えの松明を足した。そうして{party}は{dungeon}へ入った。"}
-    - {id: prayer, role: healer, text: "{hero}が入口で短く祈りを捧げた。{look}の奥から、冷たい風が吹き返してきた。"}
-    - {id: tracks, role: scout, text: "{hero}が入口の泥にしゃがみ込み、新しい足跡を指でなぞった。何かが、最近ここを出入りしている。"}
+    - {id: supplies, doing: 探索中, role: maker, text: "出発の前、{hero}が皆の荷を見て回り、縄と替えの松明を足した。そうして{party}は{dungeon}へ入った。"}
+    - {id: prayer, doing: 探索中, role: healer, text: "{hero}が入口で短く祈りを捧げた。{look}の奥から、冷たい風が吹き返してきた。"}
+    - {id: tracks, doing: 足跡を追跡中, role: scout, text: "{hero}が入口の泥にしゃがみ込み、新しい足跡を指でなぞった。何かが、最近ここを出入りしている。"}
   sho:
-    - {id: fork, text: "道が二つに分かれていた。{hero}は風の流れてくるほうを選び、{party}はそれに続いた。"}
-    - {id: mapping, role: scout, text: "{hero}は曲がり角ごとに壁へ小さな印を刻んだ。帰り道を見失わないためだ。"}
-    - {id: old-camp, text: "奥へ進むと、誰かが野営した跡があった。冷えた灰と、割れた鍋。{hero}は鍋を拾い上げ、しばらく眺めた。"}
-    - {id: lock, role: maker, text: "錆びた鉄格子が道をふさいでいた。{hero}が蝶番を少しずつこじ開け、人ひとりが通れる隙間を作った。"}
-    - {id: small-fight, role: fighter, text: "物陰から小さな影が飛び出した。{hero}が素早く追い払い、{party}はまた歩き出した。"}
-    - {id: water, text: "足首まで水に浸かる通路が続いた。{hero}は荷を頭の上に掲げ、黙々と進んだ。"}
-    - {id: song, min: 2, text: "長い一本道で、{other}が小声で歌い始めた。{hero}も途中から加わり、暗がりが少しだけ明るく感じられた。"}
-    - {id: mural, text: "壁に古い絵が残っていた。{hero}は松明を近づけ、そこに描かれた{monster}らしき姿に眉をひそめた。"}
-    - {id: herbs, role: healer, text: "湿った岩の隙間に薬草が生えていた。{hero}は手早く摘み取り、袋にしまった。あとで役に立つかもしれない。"}
-    - {id: clue, goals: [treasure], text: "{hero}が床の隙間から古い札を見つけた。{treasure}の行方を記したものらしい。"}
-    - {id: nest-sign, goals: [monster], text: "かじられた骨と、引き裂かれた布切れ。{monster}の気配が濃くなってきた。{hero}は武器を握り直した。"}
-    - {id: deep-air, goals: [survey], text: "{hero}が奥へ向かって声を投げると、思ったよりずっと遠くで返ってきた。{dungeon}は、聞いていたより深い。"}
+    - {id: fork, doing: 分かれ道を進行中, text: "道が二つに分かれていた。{hero}は風の流れてくるほうを選び、{party}はそれに続いた。"}
+    - {id: mapping, doing: 道を記録中, role: scout, text: "{hero}は曲がり角ごとに壁へ小さな印を刻んだ。帰り道を見失わないためだ。"}
+    - {id: old-camp, doing: 野営の跡を調べ中, text: "奥へ進むと、誰かが野営した跡があった。冷えた灰と、割れた鍋。{hero}は鍋を拾い上げ、しばらく眺めた。"}
+    - {id: lock, doing: 鉄格子をこじ開け中, role: maker, text: "錆びた鉄格子が道をふさいでいた。{hero}が蝶番を少しずつこじ開け、人ひとりが通れる隙間を作った。"}
+    - {id: small-fight, doing: 戦闘中, role: fighter, text: "物陰から小さな影が飛び出した。{hero}が素早く追い払い、{party}はまた歩き出した。"}
+    - {id: water, doing: 水の中を進行中, text: "足首まで水に浸かる通路が続いた。{hero}は荷を頭の上に掲げ、黙々と進んだ。"}
+    - {id: song, doing: 一本道を進行中, min: 2, text: "長い一本道で、{other}が小声で歌い始めた。{hero}も途中から加わり、暗がりが少しだけ明るく感じられた。"}
+    - {id: mural, doing: 壁画を調べ中, text: "壁に古い絵が残っていた。{hero}は松明を近づけ、そこに描かれた{monster}らしき姿に眉をひそめた。"}
+    - {id: herbs, doing: 薬草を採取中, role: healer, text: "湿った岩の隙間に薬草が生えていた。{hero}は手早く摘み取り、袋にしまった。あとで役に立つかもしれない。"}
+    - {id: clue, doing: 手がかりを調べ中, goals: [treasure], text: "{hero}が床の隙間から古い札を見つけた。{treasure}の行方を記したものらしい。"}
+    - {id: nest-sign, doing: 魔物を追跡中, goals: [monster], text: "かじられた骨と、引き裂かれた布切れ。{monster}の気配が濃くなってきた。{hero}は武器を握り直した。"}
+    - {id: deep-air, doing: 最深部へ進行中, goals: [survey], text: "{hero}が奥へ向かって声を投げると、思ったよりずっと遠くで返ってきた。{dungeon}は、聞いていたより深い。"}
   ten:
-    - {id: ambush, danger: 2, counter: fighter, text: "{monster}が闇の中から一斉に襲いかかってきた。{party}は壁を背にして身を寄せ合った。", countered: "{monster}が闇から飛びかかった瞬間、{hero}が前に出て受け止めた。{party}はその背中に守られた。"}
-    - {id: cave-in, danger: 2, counter: maker, text: "足元がきしみ、天井から土くれが降ってきた。{party}は身をかがめ、揺れが収まるのを待つしかなかった。", countered: "天井がきしんだとき、{hero}が支えの傷みに気づき、皆を脇道へ下がらせた。直後、通路の先が崩れ落ちた。"}
-    - {id: lost, danger: 1, counter: scout, text: "気づくと、同じ場所を回っていた。印をつけたはずの壁が見当たらない。", countered: "道を見失いかけたとき、{hero}が風の匂いを嗅ぎ分け、正しい方向を指さした。"}
-    - {id: poison, danger: 2, counter: healer, text: "壁の隙間から甘い匂いの霧が漏れ出し、皆の足がふらついた。", countered: "甘い匂いの霧が漂った途端、{hero}が布を湿らせて皆の口に当てさせ、毒を吸わずに済んだ。"}
-    - {id: trap, danger: 1, counter: scout, text: "床石の一枚が沈み、壁から錆びた矢が飛び出した。かすめた矢が袖を裂いた。", countered: "{hero}が床石のわずかな段差に気づき、皆に飛び越えるよう合図した。仕掛けは空振りに終わった。"}
-    - {id: boss, danger: 3, counter: fighter, text: "最奥に、ひときわ大きな{monster}が待ち構えていた。松明の火が大きく揺れた。", countered: "最奥で、ひときわ大きな{monster}が立ちはだかった。{hero}は一歩も退かず、正面から向き合った。"}
-    - {id: flood, danger: 2, counter: maker, text: "どこからか水があふれ出し、通路がみるみる沈み始めた。", countered: "水があふれ出したとき、{hero}が木箱と縄で即席の足場を組み、皆を高い場所へ上げた。"}
-    - {id: quarrel, min: 2, danger: 1, counter: healer, text: "疲れのせいか、{hero}と{other}が進む道を巡って言い争いになった。暗がりに、気まずい沈黙が落ちた。", countered: "{other}が苛立ちを見せたとき、{hero}が温かい湯を沸かして皆に配った。張りつめた空気がほどけた。"}
-    - {id: dark, danger: 1, counter: maker, text: "最後の松明が湿気で消えかけた。闇が、すぐそこまで迫ってきた。", countered: "松明が消えかけたとき、{hero}が油を染ませた布を巻き直し、炎を取り戻した。"}
-    - {id: hurt, danger: 2, counter: healer, text: "足を滑らせた{hero}が、岩場で膝を強く打った。立ち上がるのもつらそうだ。", countered: "{other}が足を滑らせて膝を打ったが、{hero}がすぐに手当てをし、歩けるまでに回復させた。", min: 2}
+    - {id: ambush, doing: 戦闘中, danger: 2, counter: fighter, text: "{monster}が闇の中から一斉に襲いかかってきた。{party}は壁を背にして身を寄せ合った。", countered: "{monster}が闇から飛びかかった瞬間、{hero}が前に出て受け止めた。{party}はその背中に守られた。"}
+    - {id: cave-in, doing: 落盤から避難中, danger: 2, counter: maker, text: "足元がきしみ、天井から土くれが降ってきた。{party}は身をかがめ、揺れが収まるのを待つしかなかった。", countered: "天井がきしんだとき、{hero}が支えの傷みに気づき、皆を脇道へ下がらせた。直後、通路の先が崩れ落ちた。"}
+    - {id: lost, doing: 道に迷い中, danger: 1, counter: scout, text: "気づくと、同じ場所を回っていた。印をつけたはずの壁が見当たらない。", countered: "道を見失いかけたとき、{hero}が風の匂いを嗅ぎ分け、正しい方向を指さした。"}
+    - {id: poison, doing: 毒の霧から脱出中, danger: 2, counter: healer, text: "壁の隙間から甘い匂いの霧が漏れ出し、皆の足がふらついた。", countered: "甘い匂いの霧が漂った途端、{hero}が布を湿らせて皆の口に当てさせ、毒を吸わずに済んだ。"}
+    - {id: trap, doing: 罠を突破中, danger: 1, counter: scout, text: "床石の一枚が沈み、壁から錆びた矢が飛び出した。かすめた矢が袖を裂いた。", countered: "{hero}が床石のわずかな段差に気づき、皆に飛び越えるよう合図した。仕掛けは空振りに終わった。"}
+    - {id: boss, doing: ボスと対決中, danger: 3, counter: fighter, text: "最奥に、ひときわ大きな{monster}が待ち構えていた。松明の火が大きく揺れた。", countered: "最奥で、ひときわ大きな{monster}が立ちはだかった。{hero}は一歩も退かず、正面から向き合った。"}
+    - {id: flood, doing: 浸水から脱出中, danger: 2, counter: maker, text: "どこからか水があふれ出し、通路がみるみる沈み始めた。", countered: "水があふれ出したとき、{hero}が木箱と縄で即席の足場を組み、皆を高い場所へ上げた。"}
+    - {id: quarrel, doing: 言い争い中, min: 2, danger: 1, counter: healer, text: "疲れのせいか、{hero}と{other}が進む道を巡って言い争いになった。暗がりに、気まずい沈黙が落ちた。", countered: "{other}が苛立ちを見せたとき、{hero}が温かい湯を沸かして皆に配った。張りつめた空気がほどけた。"}
+    - {id: dark, doing: 暗闇で立ち往生中, danger: 1, counter: maker, text: "最後の松明が湿気で消えかけた。闇が、すぐそこまで迫ってきた。", countered: "松明が消えかけたとき、{hero}が油を染ませた布を巻き直し、炎を取り戻した。"}
+    - {id: hurt, doing: けが人の手当て中, danger: 2, counter: healer, text: "足を滑らせた{hero}が、岩場で膝を強く打った。立ち上がるのもつらそうだ。", countered: "{other}が足を滑らせて膝を打ったが、{hero}がすぐに手当てをし、歩けるまでに回復させた。", min: 2}
   ketsu:
     - {id: found, result: success, goals: [treasure], text: "{hero}が瓦礫の下から{treasure}を掘り出した。{party}は意気揚々と酒場への帰路についた。"}
     - {id: driven, result: success, goals: [monster], text: "{monster}は奥の闇へ逃げ去り、もう戻ってこなかった。{party}は胸を張って{dungeon}を後にした。"}

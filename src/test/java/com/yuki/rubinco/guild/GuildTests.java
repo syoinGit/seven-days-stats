@@ -496,7 +496,8 @@ class GuildTests {
     }
     guild.prepareToday();
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_VISIT")).isEqualTo(10);
-    mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("seat-9 ")))
+    mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("seat-9 upstairs")))
+        .andExpect(content().string(containsString("1F（6人）"))).andExpect(content().string(containsString("2F（4人）")))
         .andExpect(content().string(containsString("table-four")));
   }
 
@@ -516,15 +517,20 @@ class GuildTests {
     var start = dungeon.expedition(id, departure.plusMinutes(5));
     assertThat(start.stages()).hasSize(4).noneMatch(GuildDungeon.Stage::revealed);
     assertThat(start.result()).isNull();
+    assertThat(start.status()).isEqualTo(start.dungeon() + "へ向かっている途中");
     assertThat(start.members()).extracting(GuildChronicle.Ref::id).containsExactlyElementsOf(party);
     var middle = dungeon.expedition(id, departure.plusMinutes(25));
     assertThat(middle.stages()).extracting(GuildDungeon.Stage::revealed).containsExactly(true, true, false, false);
     assertThat(middle.reached()).isEqualTo("承");
     assertThat(middle.back()).isFalse();
+    assertThat(middle.status()).startsWith(middle.dungeon() + "で").endsWith("中");
+    assertThat(dungeon.expedition(id, departure.plusMinutes(35)).doing())
+        .isEqualTo(jdbc.queryForObject("SELECT doing FROM T_GUILD_EXPEDITION_STAGE WHERE stage = 3", String.class)).isNotEqualTo("探索中");
     assertThat(middle.stages().get(0).body()).doesNotContain("{");
     var end = dungeon.expedition(id, departure.plusMinutes(40));
     assertThat(end.stages()).allMatch(GuildDungeon.Stage::revealed);
     assertThat(end.result()).isIn("success", "partial", "retreat");
+    assertThat(end.status()).isEqualTo(end.dungeon() + "から帰還（" + end.resultName() + "）");
     String last = jdbc.queryForObject("SELECT card_id FROM T_GUILD_EXPEDITION_STAGE WHERE stage = 4", String.class);
     assertThat(dungeon.deck().stages().get("ketsu")).filteredOn(card -> card.id().equals(last)).singleElement()
         .extracting(GuildDungeon.Card::result).isEqualTo(end.result());
@@ -580,6 +586,8 @@ class GuildTests {
   @Test void theDungeonWindowShowsOnlyWhatHasComeOut() throws Exception {
     for (int i = 0; i < 3; i++) resident("探索" + (char) ('ア' + i * 2), 25 + i, "ALIVE", i);
     mvc.perform(get("/guild/dungeon")).andExpect(status().isOk()).andExpect(content().string(containsString("まだ誰もダンジョンへ向かっていません")));
+    mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("今夜の探索はまだです")))
+        .andExpect(content().string(containsString("1F（3人）"))).andExpect(content().string(containsString("2F（0人）")));
     dungeon.depart(ZonedDateTime.now(GuildService.TOKYO));
     long id = jdbc.queryForObject("SELECT id FROM T_GUILD_EXPEDITION", Long.class);
     List<Long> party = jdbc.queryForList("SELECT character_id FROM T_GUILD_EXPEDITION_MEMBER", Long.class);
@@ -591,7 +599,8 @@ class GuildTests {
     for (String body : bodies) assertThat(page).doesNotContain(body);
     mvc.perform(get("/guild/dungeon/" + id)).andExpect(status().isOk());
     mvc.perform(get("/guild/dungeon/" + (id + 1000))).andExpect(status().isNotFound());
-    String tavern = mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("ダンジョン：")))
+    String tavern = mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("へ向かっている途中")))
+        .andExpect(content().string(containsString("pop-live")))
         .andReturn().getResponse().getContentAsString();
     String room = tavern.substring(tavern.indexOf("guild-room"), tavern.indexOf("guild-caption"));
     for (long member : party) assertThat(room).doesNotContain("/guild/characters/" + member + "\"");
