@@ -99,10 +99,12 @@ class GuildTests {
     guild.generateToday();
     assertThat(guild.jobs().getFirst().status()).isEqualTo("FAILED");
     assertThat(guild.characters(0)).isEmpty();
+    assertThat(guild.jobs().getFirst().message()).contains("AIの応答が形式に合いませんでした");
     when(bedrock.generate(anyString(), anyString(), anyInt(), anyFloat(), any())).thenThrow(new IllegalStateException("PRIVATE_RESPONSE"));
     guild.generateToday(); guild.generateToday(); guild.generateToday();
     assertThat(guild.jobs().getFirst().attempts()).isEqualTo(3);
     assertThat(guild.jobs().getFirst().message()).doesNotContain("PRIVATE_RESPONSE");
+    assertThat(guild.jobs().getFirst().message()).contains("Bedrockの呼び出しに失敗", "IllegalStateException");
     verify(bedrock, times(3)).generate(anyString(), anyString(), anyInt(), anyFloat(), any());
   }
 
@@ -182,6 +184,16 @@ class GuildTests {
       var response = mvc.perform(get("/guild/characters/" + person.id())).andExpect(status().isOk()).andReturn().getResponse();
       java.nio.file.Files.writeString(root.resolve("guild/characters/" + person.id()), response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
     }
+  }
+
+  @Test void claudeStyleOutputIsAccepted() {
+    // A code fence, a lead-in sentence, short numbers, line breaks and an extra key are all fine.
+    String fenced = "人物を作りました。\n```json\n" + DRAFT.replace("小さな店", "3年後に小さな店").replace("節約家", "\\n節約家")
+        .replace("\"appearance\"", "\"note\":\"x\",\"appearance\"") + "\n```";
+    var draft = generator.validate(fenced);
+    assertThat(draft.introduction()).contains("3年後に小さな店");
+    assertThat(draft.personality()).contains("目がない").doesNotContain("\n");
+    assertThat(draft.appearance()).isEqualTo("moss");
   }
 
   @Test void schemaRejectsUnsafeOrUnknownContent() {

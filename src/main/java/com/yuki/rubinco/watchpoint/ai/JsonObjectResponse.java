@@ -1,7 +1,7 @@
 package com.yuki.rubinco.watchpoint.ai;
 
 /** Extracts a complete object from model text without treating quoted braces as delimiters. */
-final class JsonObjectResponse {
+public final class JsonObjectResponse {
 
   private JsonObjectResponse() {
   }
@@ -11,7 +11,7 @@ final class JsonObjectResponse {
    * introductory sentence. Extract only the first complete JSON object; normal validation still
    * rejects missing fields and fabricated evidence keys afterwards.
    */
-  static String extract(String responseText) {
+  public static String extract(String responseText) {
     int start = responseText.indexOf('{');
     if (start < 0) {
       throw new IllegalArgumentException("Bedrockの応答にJSONオブジェクトがありません。");

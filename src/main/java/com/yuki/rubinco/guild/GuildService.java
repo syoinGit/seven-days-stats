@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class GuildService {
   public static final ZoneId TOKYO = ZoneId.of("Asia/Tokyo");
   private final JdbcTemplate jdbc;
@@ -84,9 +85,12 @@ public class GuildService {
     GuildCharacterGenerator.Draft draft;
     try {
       draft = generator.generate(source.get());
-    } catch (RuntimeException failure) {
-      // Do not persist/log provider responses, prompts or exception text containing source data.
-      return finish(today, "FAILED", "人物生成に失敗しました。Bedrock設定・権限を確認して再試行してください。");
+    } catch (GuildCharacterGenerator.GenerationException failure) {
+      // Only fixed text and the exception class name; never provider responses, prompts or source data.
+      log.warn("Guild generation failed ({}, {})", failure.call() ? "bedrock call" : "invalid output", failure.getMessage());
+      return finish(today, "FAILED", failure.call()
+          ? "Bedrockの呼び出しに失敗しました（" + failure.getMessage() + "）。モデル設定・権限を確認して再試行してください。"
+          : "AIの応答が形式に合いませんでした（" + failure.getMessage() + "）。もう一度試してください。");
     }
     String origin = switch (source.get().game()) {
       case "7dtd" -> "7 Days to Die のある一日の接続記録を題材に生まれた創作人物。人物の暮らしや気質はフィクションです。";
