@@ -22,15 +22,17 @@ public class GuildService {
   private final GuildSourceService sources;
   private final GuildCharacterGenerator generator;
   private final GuildPeople people;
+  private final GuildDossier dossier;
 
   /**
    * memoryLabel and memory are null for residents born before memories were recorded; lineage and look
-   * for those born before code chose them (they keep the plain sprite tinted by appearance).
+   * for those born before code chose them (they keep the plain sprite tinted by appearance); reading for
+   * those born before the AI read the world around the memory.
    */
   public record Character(long id, LocalDate bornOn, String game, String name, String introduction,
                           String origin, String personality, String appearance, String status,
                           Integer age, String gender, String occupation, String memoryLabel, String memory,
-                          String lineage, GuildPeople.Look look) {
+                          String lineage, GuildPeople.Look look, String reading) {
     public String lineageName() {
       var known = GuildPeople.Lineage.of(lineage);
       return known == null ? null : known.label();
@@ -61,7 +63,7 @@ public class GuildService {
   private static final String PUBLIC_COLUMNS = "c.id, c.born_on, c.game_id, c.name, c.introduction, c.origin, "
       + "c.personality, c.appearance, c.status, c.age, c.gender, c.occupation, s.memory_label, "
       + "c.name_lineage, c.outfit, c.hair_style, c.hair_color, c.skin_color, c.cloth_color, c.cloth2_color, "
-      + "CASE WHEN s.memory_label IS NULL THEN NULL ELSE s.facts END AS memory";
+      + "CASE WHEN s.memory_label IS NULL THEN NULL ELSE s.facts END AS memory, s.reading";
   private static final String FROM = " FROM M_GUILD_CHARACTER c LEFT JOIN T_GUILD_SOURCE s ON s.character_id = c.id";
   private static Character character(java.sql.ResultSet rs) throws java.sql.SQLException {
     return new Character(rs.getLong("id"), rs.getDate("born_on").toLocalDate(), rs.getString("game_id"),
@@ -70,7 +72,8 @@ public class GuildService {
         (Integer) rs.getObject("age"), rs.getString("gender"), rs.getString("occupation"),
         rs.getString("memory_label"), rs.getString("memory"), rs.getString("name_lineage"),
         GuildPeople.Look.of(rs.getString("outfit"), rs.getString("hair_style"), rs.getString("hair_color"),
-            rs.getString("skin_color"), rs.getString("cloth_color"), rs.getString("cloth2_color"), rs.getString("gender")));
+            rs.getString("skin_color"), rs.getString("cloth_color"), rs.getString("cloth2_color"), rs.getString("gender")),
+        rs.getString("reading"));
   }
 
   public List<Character> characters(int page) {
@@ -98,6 +101,14 @@ public class GuildService {
         + " JOIN T_GUILD_VISIT v ON c.id = v.character_id WHERE v.visit_date = ? AND c.status = 'ALIVE' ORDER BY v.seat",
         (rs, row) -> new Visit(character(rs), rs.getInt("seat"), rs.getString("line")), date);
     return new Room(date, phase, visits);
+  }
+
+  /** What the AI read about the world for each resident, by resident id. Administrators only. */
+  public java.util.Map<Long, String> worlds() {
+    java.util.Map<Long, String> worlds = new java.util.HashMap<>();
+    jdbc.query("SELECT character_id, world_facts FROM T_GUILD_SOURCE WHERE world_facts IS NOT NULL",
+        rs -> { worlds.put(rs.getLong(1), rs.getString(2)); });
+    return worlds;
   }
 
   public List<Job> jobs() {
@@ -133,10 +144,10 @@ public class GuildService {
     var choice = sources.choose(today);
     if (choice.source().isEmpty()) return finish(today, "SKIPPED", choice.skipped());
     var source = choice.source();
-    var plan = people.plan(source.get().category());
+    String world = dossier.build(source.get());
     GuildCharacterGenerator.Draft draft;
     try {
-      draft = generator.generate(source.get(), plan);
+      draft = generator.generate(source.get(), world, people.options());
     } catch (GuildCharacterGenerator.GenerationException failure) {
       // Only fixed text and the exception class name; never provider responses, prompts or source data.
       log.warn("Guild generation failed ({}, {})", failure.call() ? "bedrock call" : "invalid output", failure.getMessage());
@@ -149,17 +160,18 @@ public class GuildService {
     if (nameTaken(draft.name())) {
       return finish(today, "FAILED", "AIが付けた名前が、既存の住人かプレイヤーの名前と重なりました。もう一度試してください。");
     }
-    var look = plan.look();
+    var look = people.look(draft.gender(), draft.occupation());
     jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,age,gender,occupation,"
         + "name_lineage,outfit,hair_style,hair_color,skin_color,cloth_color,cloth2_color) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         today, source.get().game(), draft.name(), draft.introduction(), origin, draft.personality(),
         List.of("ember", "moss", "violet").get(java.util.concurrent.ThreadLocalRandom.current().nextInt(3)),
-        draft.age(), plan.gender(), plan.occupation(), plan.lineage().name().toLowerCase(), look.outfit(), look.hair(),
+        draft.age(), draft.gender(), draft.occupation(), draft.lineage().name().toLowerCase(), look.outfit(), look.hair(),
         look.hairColor(), look.skin(), look.cloth(), look.cloth2());
     // Writes are serialized by lock(), so the newest id is this resident.
     Long id = jdbc.queryForObject("SELECT MAX(id) FROM M_GUILD_CHARACTER", Long.class);
-    jdbc.update("INSERT INTO T_GUILD_SOURCE (character_id,source_key,facts,memory_label,category) VALUES (?,?,?,?,?)",
-        id, source.get().key(), source.get().facts(), source.get().label(), source.get().category());
+    jdbc.update("INSERT INTO T_GUILD_SOURCE (character_id,source_key,facts,memory_label,category,reading,world_facts) VALUES (?,?,?,?,?,?,?)",
+        id, source.get().key(), source.get().facts(), source.get().label(), source.get().category(), draft.reading(),
+        world.isBlank() ? null : world);
     // Build today's roster after the very first birth. A saved roster changes only by refreshVisits().
     ensureVisits(today);
     return finish(today, "SUCCEEDED", "「" + draft.name() + "」を迎えました（今日 " + bornToday() + " / " + limit

@@ -1,49 +1,39 @@
 package com.yuki.rubinco.guild;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * What code decides about a newcomer before the AI writes them: gender, occupation, name lineage and
- * the pixel parts they wear. The AI only names and describes the person it is given.
+ * The choices a newcomer may be given and the pixel parts they wear. The AI reads the memory and picks
+ * gender, occupation and name lineage from what this offers; whatever the last residents already have
+ * too much of is left out, so the town does not fill with one kind of person.
  */
 @Component
 @RequiredArgsConstructor
 public class GuildPeople {
   private final GuildProperties properties;
+  private final JdbcTemplate jdbc;
 
   /** Occupation → outfit. Several occupations may share an outfit. */
   static final Map<String, String> OUTFITS = Map.ofEntries(
       Map.entry("農家", "farmer"), Map.entry("夜警", "watch"), Map.entry("騎士", "knight"),
       Map.entry("職人", "crafter"), Map.entry("鉱夫", "crafter"), Map.entry("商人", "merchant"),
       Map.entry("聖職者", "cleric"), Map.entry("冒険者", "adventurer"), Map.entry("猟師", "hunter"),
-      Map.entry("漁師", "hunter"), Map.entry("料理人", "cook"));
+      Map.entry("漁師", "hunter"), Map.entry("料理人", "cook"), Map.entry("鍛冶屋", "crafter"), Map.entry("大工", "crafter"),
+      Map.entry("薬師", "cleric"), Map.entry("運び屋", "merchant"), Map.entry("護衛", "watch"));
+  static final List<String> GENDERS = List.of("女性", "男性");
   /** Outfits that dress the legs themselves; the rest wear trousers or a skirt by gender. */
   private static final List<String> FULL_OUTFITS = List.of("farmer", "knight", "knight_f", "cleric");
   /** Outfits with headwear drawn over the hair. */
   private static final List<String> HATS = List.of("farmer", "watch", "knight", "knight_f", "crafter", "merchant", "hunter", "cook");
-
-  /** Which occupations a memory's category tends to bring, with weights. */
-  private static final Map<String, Map<String, Integer>> BY_CATEGORY = Map.ofEntries(
-      Map.entry("bloodmoon", weights("夜警", 4, "騎士", 4, "冒険者", 1, "聖職者", 1)),
-      Map.entry("combat", weights("騎士", 3, "冒険者", 3, "夜警", 2, "猟師", 2)),
-      Map.entry("survival", weights("聖職者", 3, "冒険者", 2, "夜警", 1, "料理人", 1)),
-      Map.entry("exploration", weights("冒険者", 4, "商人", 1, "猟師", 1)),
-      Map.entry("gathering", weights("職人", 2, "鉱夫", 2, "農家", 2, "冒険者", 1)),
-      Map.entry("travel", weights("商人", 4, "冒険者", 2)),
-      Map.entry("fishing", weights("漁師", 4, "料理人", 2, "農家", 1)),
-      Map.entry("building", weights("職人", 4, "鉱夫", 1, "農家", 1)),
-      Map.entry("mining", weights("鉱夫", 4, "職人", 2, "冒険者", 1)),
-      Map.entry("boss", weights("騎士", 3, "冒険者", 3, "聖職者", 1)),
-      Map.entry("hunting", weights("猟師", 4, "冒険者", 2, "騎士", 1)),
-      Map.entry("cooking", weights("料理人", 4, "農家", 2, "商人", 1)),
-      Map.entry("farming", weights("農家", 5, "料理人", 2)));
-  private static final Map<String, Integer> ANY = weights("冒険者", 2, "農家", 1, "職人", 1, "商人", 1, "夜警", 1, "騎士", 1);
 
   /** Name lineages: how the AI is asked to name the person, and how the name is checked. */
   public enum Lineage {
@@ -118,45 +108,37 @@ public class GuildPeople {
     }
   }
 
-  public record Plan(String gender, String occupation, Lineage lineage, Look look) { }
+  /** What the AI may choose from, and the last residents (newest first) so it can tell what the town already has. */
+  public record Options(List<String> genders, List<String> occupations, List<Lineage> lineages, List<String> recent) { }
 
-  public Plan plan(String category) {
-    var random = ThreadLocalRandom.current();
-    String gender = random.nextDouble() < properties.femaleRatio() ? "女性" : "男性";
-    String occupation = draw(BY_CATEGORY.getOrDefault(category, ANY));
+  public Options options() {
+    record Resident(String name, String gender, String occupation, Lineage lineage) { }
+    List<Resident> recent = jdbc.query("SELECT name, gender, occupation, name_lineage FROM M_GUILD_CHARACTER ORDER BY id DESC LIMIT ?",
+        (rs, row) -> new Resident(rs.getString(1), rs.getString(2), rs.getString(3), Lineage.of(rs.getString(4))), properties.categoryWindow());
+    return new Options(allowed(GENDERS, recent, Resident::gender, properties.genderCap()),
+        allowed(OUTFITS.keySet().stream().sorted().toList(), recent, Resident::occupation, properties.occupationCap()),
+        allowed(List.of(Lineage.values()), recent, Resident::lineage, properties.lineageCap()),
+        recent.stream().limit(5).map(r -> r.name() + "（" + (r.gender() == null ? "不明" : r.gender()) + "・"
+            + (r.occupation() == null ? "不明" : r.occupation()) + "・" + (r.lineage() == null ? "不明" : r.lineage().label()) + "）").toList());
+  }
+
+  /** Values already held by cap of the recent residents are left out, unless that would leave nothing. */
+  private static <T, R> List<T> allowed(Collection<T> values, List<R> recent, Function<R, T> of, int cap) {
+    Map<T, Long> counts = recent.stream().map(of).filter(java.util.Objects::nonNull)
+        .collect(Collectors.groupingBy(value -> value, Collectors.counting()));
+    List<T> left = values.stream().filter(value -> counts.getOrDefault(value, 0L) < cap).toList();
+    return left.isEmpty() ? List.copyOf(values) : left;
+  }
+
+  /** The pixel parts for a gender and occupation; hair and colours are drawn from the palettes. */
+  public Look look(String gender, String occupation) {
     String outfit = OUTFITS.get(occupation);
     if (outfit.equals("knight") && gender.equals("女性")) outfit = "knight_f";
-    Look look = Look.of(outfit, any(gender.equals("女性") ? FEMALE_HAIR : MALE_HAIR), any(HAIR_COLORS), any(SKINS),
+    return Look.of(outfit, any(gender.equals("女性") ? FEMALE_HAIR : MALE_HAIR), any(HAIR_COLORS), any(SKINS),
         any(CLOTHS), any(SECOND), gender);
-    return new Plan(gender, occupation, Lineage.valueOf(draw(lineageWeights())), look);
-  }
-
-  private Map<String, Integer> lineageWeights() {
-    Map<String, Integer> weights = new LinkedHashMap<>();
-    properties.lineageWeights().forEach((key, weight) -> {
-      Lineage lineage = Lineage.of(key);
-      if (lineage != null && weight > 0) weights.put(lineage.name(), weight);
-    });
-    return weights.isEmpty() ? Map.of(Lineage.EUROPEAN.name(), 1) : weights;
-  }
-
-  private static String draw(Map<String, Integer> weights) {
-    int total = weights.values().stream().mapToInt(Integer::intValue).sum();
-    int roll = ThreadLocalRandom.current().nextInt(total);
-    for (var entry : weights.entrySet()) {
-      roll -= entry.getValue();
-      if (roll < 0) return entry.getKey();
-    }
-    throw new IllegalStateException("empty weights");
   }
 
   private static String any(List<String> values) {
     return values.get(ThreadLocalRandom.current().nextInt(values.size()));
-  }
-
-  private static Map<String, Integer> weights(Object... pairs) {
-    Map<String, Integer> map = new LinkedHashMap<>();
-    for (int i = 0; i < pairs.length; i += 2) map.put((String) pairs[i], (Integer) pairs[i + 1]);
-    return map;
   }
 }
