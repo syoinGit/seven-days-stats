@@ -9,7 +9,7 @@
     <th:block th:if="${headerSites != null}">
       <a th:each="site : ${headerSites}" th:href="${site.url}" th:classappend="${'site-' + site.accent + (site.id == current ? ' active' : '')}"
          th:attr="aria-current=${site.id == current} ? 'page',aria-label=${site.game},title=${site.game}">
-        <svg class="site-icon" viewBox="0 0 16 16" aria-hidden="true"><use th:href="@{/img/game-icons.svg(v='2')} + '#game-' + ${#lists.contains({'7dtd', 'terraria', 'corekeeper'}, site.id) ? site.id : 'generic'}"></use></svg>
+        <th:block th:replace="~{fragments/header :: gameIcon(${site.id})}"></th:block>
       </a>
     </th:block>
   </nav>
@@ -28,4 +28,10 @@
   </div>
   <script defer th:src="@{/js/account-menu.js(v='1')}"></script>
 </header>
+
+<!-- A game's pixel icon. 7DTD uses the Watchpoint watchtower art; the others come from the sprite. -->
+<th:block th:fragment="gameIcon(id)">
+  <img th:if="${id == '7dtd'}" class="site-icon" th:src="@{/img/watchpoint-icon.png(v='1')}" alt="" width="192" height="192">
+  <svg th:unless="${id == '7dtd'}" class="site-icon" viewBox="0 0 16 16" aria-hidden="true"><use th:href="@{/img/game-icons.svg(v='2')} + '#game-' + ${#lists.contains({'terraria', 'corekeeper'}, id) ? id : 'generic'}"></use></svg>
+</th:block>
 </body></html>

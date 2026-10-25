@@ -106,6 +106,8 @@ public class DiaryMaintenanceService {
         select distinct poi_name from (
           select (select poi.poi_name from m_world_poi poi
                   where coalesce(poi.category, '') <> 'part' and poi.poi_name not like 'part_%'
+                    and ((poi.x - pos.position_x) * (poi.x - pos.position_x)
+                       + (poi.z - pos.position_z) * (poi.z - pos.position_z)) <= 6400
                   order by ((poi.x - pos.position_x) * (poi.x - pos.position_x)
                        + (poi.z - pos.position_z) * (poi.z - pos.position_z)) limit 1) as poi_name
           from t_player_position_transaction pos
@@ -175,6 +177,8 @@ public class DiaryMaintenanceService {
         select position_x, position_y, position_z,
                (select poi.poi_name from m_world_poi poi
                 where coalesce(poi.category, '') <> 'part' and poi.poi_name not like 'part_%%'
+                  and ((poi.x - pos.position_x) * (poi.x - pos.position_x)
+                     + (poi.z - pos.position_z) * (poi.z - pos.position_z)) <= 22500
                 order by ((poi.x - pos.position_x) * (poi.x - pos.position_x)
                      + (poi.z - pos.position_z) * (poi.z - pos.position_z)) limit 1) as poi_name
         from t_player_position_transaction pos

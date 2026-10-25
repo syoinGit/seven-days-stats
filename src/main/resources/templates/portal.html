@@ -9,7 +9,7 @@
   <title>Rubinco</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-3')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-4')}">
   <link rel="stylesheet" th:href="@{/css/portal.css(v='9')}">
   <script defer th:src="@{/js/portal.js(v='9')}"></script>
 </head>
@@ -36,11 +36,11 @@
         </div>
         <th:block th:each="game : ${sites}" th:if="${game.id == event.gameId}">
           <a class="event-game" th:href="${siteEntries[game.id]}" th:attr="aria-label=${game.displayName},title=${game.displayName}">
-            <svg class="site-icon" viewBox="0 0 16 16" aria-hidden="true"><use th:href="@{/img/game-icons.svg(v='2')} + '#game-' + ${#lists.contains({'7dtd', 'terraria', 'corekeeper'}, game.id) ? game.id : 'generic'}"></use></svg></a>
+            <th:block th:replace="~{fragments/header :: gameIcon(${game.id})}"></th:block></a>
         </th:block>
         <span th:each="game : ${servers}" th:if="${game.id == event.gameId and !siteEntries.containsKey(game.id)}"
               class="event-game" th:attr="aria-label=${game.name},title=${game.name}">
-          <svg class="site-icon" viewBox="0 0 16 16" aria-hidden="true"><use th:href="@{/img/game-icons.svg(v='2')} + '#game-' + ${#lists.contains({'7dtd', 'terraria', 'corekeeper'}, game.id) ? game.id : 'generic'}"></use></svg></span>
+          <th:block th:replace="~{fragments/header :: gameIcon(${game.id})}"></th:block></span>
       </header>
       <h3 th:text="${event.title}">活動記録</h3>
       <p class="portal-event-body" th:text="${event.body}"></p>
@@ -63,7 +63,7 @@
            th:classappend="${'game-' + (siteAccents[server.id] ?: 'none')}"
            th:attr="data-server=${server.id},data-status=${server.status.code},data-memory-mib=${server.status.memory.requiredMiB}">
     <a class="server-game" th:href="${siteLinks.containsKey(server.id) ? siteLinks[server.id] : null}" th:attr="aria-label=${server.name},title=${server.name}">
-      <svg class="site-icon" viewBox="0 0 16 16" aria-hidden="true"><use th:href="@{/img/game-icons.svg(v='2')} + '#game-' + ${#lists.contains({'7dtd', 'terraria', 'corekeeper'}, server.id) ? server.id : 'generic'}"></use></svg>
+      <th:block th:replace="~{fragments/header :: gameIcon(${server.id})}"></th:block>
     </a>
     <div class="server-state">
       <span class="pixel-status" th:attr="data-server-status=${server.id}"

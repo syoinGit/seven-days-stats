@@ -13,10 +13,8 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -34,6 +32,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class DashboardViewService {
 
+  private static final int SIDEBAR_PLAYERS = 12;
+  /** Rankings and play time cover every known player, not only the sidebar's recent ones. */
+  private static final int ALL_PLAYERS = 1000;
   private static final Pattern BLOOD_MOON_DAY = Pattern.compile("(?i)\\bDay\\s+(\\d+)\\b");
 
   private final JdbcTemplate jdbcTemplate;
@@ -66,6 +67,10 @@ public class DashboardViewService {
   }
 
   private List<PlayerStatus> playerStatuses() {
+    return playerStatuses(SIDEBAR_PLAYERS);
+  }
+
+  private List<PlayerStatus> playerStatuses(int limit) {
     OffsetDateTime currentStateFreshAfter = OffsetDateTime.now(ZoneOffset.UTC)
         .minus(properties.transaction().currentStateMaxAge());
     return jdbcTemplate.query("""
@@ -221,6 +226,8 @@ public class DashboardViewService {
                    from m_world_poi poi
                    where coalesce(poi.category, '') <> 'part'
                      and poi.poi_name not like 'part_%'
+                     and ((poi.x - coalesce(c.position_x, pp.position_x, s.x)) * (poi.x - coalesce(c.position_x, pp.position_x, s.x))
+                         + (poi.z - coalesce(c.position_z, pp.position_z, s.z)) * (poi.z - coalesce(c.position_z, pp.position_z, s.z))) <= 22500
                    order by ((poi.x - coalesce(c.position_x, pp.position_x, s.x)) * (poi.x - coalesce(c.position_x, pp.position_x, s.x))
                          + (poi.z - coalesce(c.position_z, pp.position_z, s.z)) * (poi.z - coalesce(c.position_z, pp.position_z, s.z)))
                    limit 1
@@ -230,6 +237,8 @@ public class DashboardViewService {
                    from m_world_poi poi
                    where coalesce(poi.category, '') <> 'part'
                      and poi.poi_name not like 'part_%'
+                     and ((poi.x - coalesce(c.position_x, pp.position_x, s.x)) * (poi.x - coalesce(c.position_x, pp.position_x, s.x))
+                         + (poi.z - coalesce(c.position_z, pp.position_z, s.z)) * (poi.z - coalesce(c.position_z, pp.position_z, s.z))) <= 22500
                    order by ((poi.x - coalesce(c.position_x, pp.position_x, s.x)) * (poi.x - coalesce(c.position_x, pp.position_x, s.x))
                          + (poi.z - coalesce(c.position_z, pp.position_z, s.z)) * (poi.z - coalesce(c.position_z, pp.position_z, s.z)))
                    limit 1
@@ -254,7 +263,7 @@ public class DashboardViewService {
         from status_rows sr
         where card_rank = 1
         order by last_login desc nulls last, player_name
-        limit 12
+        limit ?
         """, (rs, rowNum) -> new PlayerStatus(
         rs.getLong("player_id"),
         rs.getString("player_name"),
@@ -262,7 +271,7 @@ public class DashboardViewService {
         rs.getString("game_name"),
         toDisplayTime(rs.getObject("last_login")),
         coordinate(rs.getObject("x"), rs.getObject("y"), rs.getObject("z")),
-        displayPoi(rs.getString("poi_name")),
+        displayEventPoi(rs.getString("poi_name")),
         rs.getString("poi_category"),
         integer(rs, "health"),
         integer(rs, "deaths"),
@@ -273,7 +282,7 @@ public class DashboardViewService {
         rs.getString("current_vehicle"),
         booleanValue(rs, "online"),
         booleanValue(rs, "exploring"),
-        rs.getString("custom_status")), currentStateFreshAfter);
+        rs.getString("custom_status")), currentStateFreshAfter, limit);
   }
 
   public Optional<PlayerDetailView> playerDetail(Long playerId) {
@@ -406,6 +415,8 @@ public class DashboardViewService {
                  from m_world_poi poi
                  where coalesce(poi.category, '') <> 'part'
                    and poi.poi_name not like 'part_%'
+                   and ((poi.x - coalesce(c.position_x, pp.position_x, s.x)) * (poi.x - coalesce(c.position_x, pp.position_x, s.x))
+                       + (poi.z - coalesce(c.position_z, pp.position_z, s.z)) * (poi.z - coalesce(c.position_z, pp.position_z, s.z))) <= 22500
                  order by ((poi.x - coalesce(c.position_x, pp.position_x, s.x)) * (poi.x - coalesce(c.position_x, pp.position_x, s.x))
                        + (poi.z - coalesce(c.position_z, pp.position_z, s.z)) * (poi.z - coalesce(c.position_z, pp.position_z, s.z)))
                  limit 1
@@ -415,6 +426,8 @@ public class DashboardViewService {
                  from m_world_poi poi
                  where coalesce(poi.category, '') <> 'part'
                    and poi.poi_name not like 'part_%'
+                   and ((poi.x - coalesce(c.position_x, pp.position_x, s.x)) * (poi.x - coalesce(c.position_x, pp.position_x, s.x))
+                       + (poi.z - coalesce(c.position_z, pp.position_z, s.z)) * (poi.z - coalesce(c.position_z, pp.position_z, s.z))) <= 22500
                  order by ((poi.x - coalesce(c.position_x, pp.position_x, s.x)) * (poi.x - coalesce(c.position_x, pp.position_x, s.x))
                        + (poi.z - coalesce(c.position_z, pp.position_z, s.z)) * (poi.z - coalesce(c.position_z, pp.position_z, s.z)))
                  limit 1
@@ -433,7 +446,7 @@ public class DashboardViewService {
         rs.getString("game_name"),
         toDisplayTime(rs.getObject("last_login")),
         coordinate(rs.getObject("x"), rs.getObject("y"), rs.getObject("z")),
-        displayPoi(rs.getString("poi_name")),
+        displayEventPoi(rs.getString("poi_name")),
         rs.getString("poi_category"),
         integer(rs, "health"),
         integer(rs, "deaths"),
@@ -451,12 +464,12 @@ public class DashboardViewService {
     PlayerStatus status = statuses.getFirst();
     return Optional.of(new PlayerDetailView(
         status,
-        playerInsights(playerId, status.playerName()),
+        playerInsights(playerId),
         playerTimelineEntries(playerId),
         playerPositionEntries(playerId)));
   }
 
-  private PlayerInsights playerInsights(Long playerId, String playerName) {
+  private PlayerInsights playerInsights(Long playerId) {
     long kills = countForPlayer("t_entity_kill_transaction", playerId);
     Long encounterCount = jdbcTemplate.queryForObject("""
         select count(*) from t_sleeper_transaction
@@ -465,9 +478,9 @@ public class DashboardViewService {
     long encounters = encounterCount == null ? 0 : encounterCount;
     Long activeDays = jdbcTemplate.queryForObject("""
         select count(distinct activity_day) from (
-          select cast(occurred_at as date) as activity_day from t_player_join_transaction where player_id = ?
-          union select cast(occurred_at as date) from t_player_position_transaction where player_id = ?
-          union select cast(occurred_at as date) from t_entity_kill_transaction where player_id = ?
+          select cast(occurred_at at time zone 'Asia/Tokyo' as date) as activity_day from t_player_join_transaction where player_id = ?
+          union select cast(occurred_at at time zone 'Asia/Tokyo' as date) from t_player_position_transaction where player_id = ?
+          union select cast(occurred_at at time zone 'Asia/Tokyo' as date) from t_entity_kill_transaction where player_id = ?
         ) days
         """, Long.class, playerId, playerId, playerId);
     String favoriteVehicle = jdbcTemplate.query("""
@@ -479,17 +492,17 @@ public class DashboardViewService {
         """, rs -> rs.next() ? rs.getString("vehicle_name") : "未記録", playerId);
     List<PlayerDailyActivity> daily = jdbcTemplate.query("""
         select activity_day, sum(kills) as kills, sum(distance) as distance from (
-          select cast(occurred_at as date) as activity_day, count(*) as kills, cast(0 as numeric) as distance
-          from t_entity_kill_transaction where player_id = ? group by cast(occurred_at as date)
+          select cast(occurred_at at time zone 'Asia/Tokyo' as date) as activity_day, count(*) as kills, cast(0 as numeric) as distance
+          from t_entity_kill_transaction where player_id = ? group by cast(occurred_at at time zone 'Asia/Tokyo' as date)
           union all
-          select cast(occurred_at as date), 0, coalesce(sum(movement_distance), 0)
+          select cast(occurred_at at time zone 'Asia/Tokyo' as date), 0, coalesce(sum(movement_distance), 0)
           from t_player_position_transaction where player_id = ? and movement_mode = 'ON_FOOT'
-          group by cast(occurred_at as date)
+          group by cast(occurred_at at time zone 'Asia/Tokyo' as date)
           union all
-          select cast(v.occurred_at as date), 0, coalesce(sum(v.movement_distance), 0)
+          select cast(v.occurred_at at time zone 'Asia/Tokyo' as date), 0, coalesce(sum(v.movement_distance), 0)
           from t_vehicle_position_transaction v
           where v.attributed_player_id = ? and v.movement_valid = true
-          group by cast(v.occurred_at as date)
+          group by cast(v.occurred_at at time zone 'Asia/Tokyo' as date)
         ) activity group by activity_day order by activity_day desc limit 14
         """, (rs, rowNum) -> new PlayerDailyActivity(
         rs.getObject("activity_day").toString(), rs.getLong("kills"),
@@ -506,7 +519,8 @@ public class DashboardViewService {
     }).toList();
     return new PlayerInsights(
         kills, encounters, activeDays == null ? 0 : activeDays,
-        playMinutesByPlayer().getOrDefault(playerName, 0L), favoriteVehicle, chart);
+        playMinutes(playSessions(sessionEvents(), playerStatuses(ALL_PLAYERS)))
+            .getOrDefault(sessionPlayerKey(playerId, null), 0L), favoriteVehicle, chart);
   }
 
   private long countForPlayer(String table, Long playerId) {
@@ -681,6 +695,7 @@ public class DashboardViewService {
                 where e.x is not null
                   and coalesce(poi.category, '') <> 'part'
                   and poi.poi_name not like 'part_%'
+                  and ((poi.x - e.x) * (poi.x - e.x) + (poi.z - e.z) * (poi.z - e.z)) <= 22500
                 order by ((poi.x - e.x) * (poi.x - e.x) + (poi.z - e.z) * (poi.z - e.z))
                 limit 1) as poi_name,
                e.x, e.y, e.z
@@ -871,18 +886,20 @@ public class DashboardViewService {
         coordinate(rs.getObject("position_x"), rs.getObject("position_y"), rs.getObject("position_z"))), playerId);
   }
 
-  private List<KillLeader> killLeaders() {
-    return jdbcTemplate.query("""
-        select player_name, count(*) as kills
+  /** Kills per player: by player id, or by name for rows the import could not link to a player. */
+  private Map<String, Long> killCounts() {
+    Map<String, Long> kills = new HashMap<>();
+    jdbcTemplate.query("""
+        select player_id, player_name, count(*) as kills
         from t_entity_kill_transaction
         where lower(player_name) not like 'zombie%'
           and lower(player_name) not like 'animal%'
-        group by player_name
-        order by kills desc, player_name
-        limit 8
-        """, (rs, rowNum) -> new KillLeader(
-        rs.getString("player_name"),
-        rs.getLong("kills")));
+        group by player_id, player_name
+        """, rs -> {
+          kills.merge(sessionPlayerKey(rs.getObject("player_id", Long.class), rs.getString("player_name")),
+              rs.getLong("kills"), Long::sum);
+        });
+    return kills;
   }
 
   public KillDetailView killDetail() {
@@ -903,15 +920,16 @@ public class DashboardViewService {
         rs.getString("target_name"),
         coordinate(rs.getObject("player_position_x"), rs.getObject("player_position_y"),
             rs.getObject("player_position_z"))));
-    List<SessionEvent> sessionEvents = sessionEvents();
+    List<PlayerStatus> everyone = playerStatuses(ALL_PLAYERS);
+    List<PlaySession> sessions = playSessions(sessionEvents(), everyone);
     return new KillDetailView(
-        adventureRankings(sessionEvents),
+        adventureRankings(sessions, everyone),
         recent,
         dailyActivity(),
         dailyKillActivity(),
         defeatedEnemyRankings(),
         growthTrend(),
-        adventureScoreTrend(sessionEvents));
+        adventureScoreTrend(sessions));
   }
 
   private List<DefeatedEnemyRanking> defeatedEnemyRankings() {
@@ -1003,24 +1021,25 @@ public class DashboardViewService {
     }
   }
 
-  private List<AdventureRanking> adventureRankings(List<SessionEvent> sessionEvents) {
-    Map<String, Long> kills = new HashMap<>();
-    killLeaders().forEach(row -> kills.put(row.playerName(), row.kills()));
-    List<PlayerStatus> statuses = playerStatuses();
-    Map<String, Long> playMinutes = playMinutesByPlayer(sessionEvents, statuses);
-    return statuses.stream()
-        .map(player -> new AdventureRanking(
-            player.playerId(),
-            player.playerName(),
-            kills.getOrDefault(player.playerName(), 0L),
-            player.travelDistance() == null ? BigDecimal.ZERO : player.travelDistance(),
-            player.vehicleDistance() == null ? BigDecimal.ZERO : player.vehicleDistance(),
-            playMinutes.getOrDefault(player.playerName(), 0L),
-            adventureScore(
-                kills.getOrDefault(player.playerName(), 0L),
-                player.travelDistance(),
-                player.vehicleDistance(),
-                playMinutes.getOrDefault(player.playerName(), 0L))))
+  private List<AdventureRanking> adventureRankings(List<PlaySession> sessions, List<PlayerStatus> players) {
+    Map<String, Long> kills = killCounts();
+    Map<String, Long> playMinutes = playMinutes(sessions);
+    return players.stream()
+        .map(player -> {
+          String key = sessionPlayerKey(player.playerId(), player.playerName());
+          // Kill rows the import could not link to a player still count under the current name.
+          long playerKills = kills.getOrDefault(key, 0L)
+              + (player.playerId() == null ? 0L : kills.getOrDefault("NAME:" + player.playerName(), 0L));
+          long minutes = playMinutes.getOrDefault(key, 0L);
+          return new AdventureRanking(
+              player.playerId(),
+              player.playerName(),
+              playerKills,
+              player.travelDistance() == null ? BigDecimal.ZERO : player.travelDistance(),
+              player.vehicleDistance() == null ? BigDecimal.ZERO : player.vehicleDistance(),
+              minutes,
+              adventureScore(playerKills, player.travelDistance(), player.vehicleDistance(), minutes));
+        })
         .sorted(Comparator.comparingLong(AdventureRanking::score).reversed()
             .thenComparing(AdventureRanking::playerName))
         .toList();
@@ -1032,93 +1051,92 @@ public class DashboardViewService {
     return kills * 100L + playMinutes + totalDistance.divide(BigDecimal.valueOf(100), 0, RoundingMode.DOWN).longValue();
   }
 
-  private Map<String, Long> playMinutesByPlayer() {
-    return playMinutesByPlayer(sessionEvents(), playerStatuses());
-  }
-
-  private Map<String, Long> playMinutesByPlayer(
-      List<SessionEvent> events, List<PlayerStatus> statuses) {
+  /**
+   * Join/leave pairs per player, keyed by player id so a rename keeps its history. A second join
+   * without a leave means the earlier end is unknown: that session is dropped rather than
+   * stretched. A join still open counts up to now only while the player is online.
+   */
+  private List<PlaySession> playSessions(List<SessionEvent> events, List<PlayerStatus> statuses) {
     Map<String, Long> playerIdsByName = new HashMap<>();
     events.stream().filter(event -> event.playerId() != null).forEach(
         event -> playerIdsByName.put(event.playerName(), event.playerId()));
     statuses.forEach(status -> playerIdsByName.put(status.playerName(), status.playerId()));
+    // Sessions are labeled with the current name, not the name used at the time.
+    Map<String, String> currentNames = new HashMap<>();
+    statuses.forEach(status -> currentNames.put(
+        sessionPlayerKey(status.playerId(), status.playerName()), status.playerName()));
     Map<String, OffsetDateTime> openSessions = new HashMap<>();
-    Map<String, String> playerNames = new HashMap<>();
-    Map<String, Long> minutes = new HashMap<>();
+    List<PlaySession> sessions = new ArrayList<>();
     for (SessionEvent event : events) {
       Long playerId = event.playerId() == null
           ? playerIdsByName.get(event.playerName())
           : event.playerId();
       String key = sessionPlayerKey(playerId, event.playerName());
-      playerNames.put(key, event.playerName());
       if ("JOIN".equals(event.kind())) {
-        // A second JOIN without a LEAVE means the earlier session boundary is unknown.
-        // Replace it instead of pairing a future LEAVE with a stale JOIN and inflating play time.
         openSessions.put(key, event.occurredAt());
         continue;
       }
       OffsetDateTime joinedAt = openSessions.remove(key);
-      if (joinedAt == null) {
-        continue;
+      if (joinedAt != null && !event.occurredAt().isBefore(joinedAt)) {
+        sessions.add(new PlaySession(
+            key, currentNames.getOrDefault(key, event.playerName()), joinedAt, event.occurredAt()));
       }
-      long sessionMinutes = Math.max(0, Duration.between(joinedAt, event.occurredAt()).toMinutes());
-      minutes.merge(event.playerName(), sessionMinutes, Long::sum);
     }
     OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
     for (PlayerStatus status : statuses) {
-      if (!status.online()) {
+      if (!Boolean.TRUE.equals(status.online())) {
         continue;
       }
       String key = sessionPlayerKey(status.playerId(), status.playerName());
       OffsetDateTime joinedAt = openSessions.remove(key);
-      if (joinedAt == null) {
-        continue;
+      if (joinedAt != null && !now.isBefore(joinedAt)) {
+        sessions.add(new PlaySession(key, status.playerName(), joinedAt, now));
       }
-      String playerName = playerNames.getOrDefault(key, status.playerName());
-      minutes.merge(playerName, Math.max(0, Duration.between(joinedAt, now).toMinutes()), Long::sum);
     }
+    return sessions;
+  }
+
+  private Map<String, Long> playMinutes(List<PlaySession> sessions) {
+    Map<String, Long> minutes = new HashMap<>();
+    sessions.forEach(session -> minutes.merge(
+        session.key(), Duration.between(session.start(), session.end()).toMinutes(), Long::sum));
     return minutes;
   }
 
-  private String sessionPlayerKey(Long playerId, String playerName) {
+  private static String sessionPlayerKey(Long playerId, String playerName) {
     return playerId == null ? "NAME:" + playerName : "PLAYER:" + playerId;
   }
 
-  private ScoreChart adventureScoreTrend(List<SessionEvent> sessions) {
+  /** Same points as the ranking (kills, distance, play time), accumulated over time per player. */
+  private ScoreChart adventureScoreTrend(List<PlaySession> sessions) {
     List<ScoreEvent> scoreEvents = jdbcTemplate.query("""
-        select occurred_at, player_name, score_delta from (
-          select occurred_at, player_name, cast(100 as numeric) as score_delta
+        select e.occurred_at, e.player_id, coalesce(p.player_name, e.player_name) as player_name, e.score_delta
+        from (
+          select occurred_at, player_id, player_name, cast(100 as numeric) as score_delta
           from t_entity_kill_transaction
+          where lower(player_name) not like 'zombie%'
+            and lower(player_name) not like 'animal%'
           union all
-          select occurred_at, player_name, movement_distance / 100 as score_delta
+          select occurred_at, player_id, player_name, movement_distance / 100 as score_delta
           from t_player_position_transaction where movement_distance > 0 and movement_mode = 'ON_FOOT'
           union all
-          select v.occurred_at, p.player_name, v.movement_distance / 100 as score_delta
-          from t_vehicle_position_transaction v
-          join m_player p on p.id = v.attributed_player_id
-          where v.movement_valid = true and v.movement_distance > 0
-        ) score_events
-        where player_name is not null and player_name <> ''
-        order by occurred_at
+          select occurred_at, attributed_player_id, cast(null as varchar(255)), movement_distance / 100 as score_delta
+          from t_vehicle_position_transaction
+          where movement_valid = true and movement_distance > 0 and attributed_player_id is not null
+        ) e
+        left join m_player p on p.id = e.player_id
+        where coalesce(p.player_name, e.player_name) is not null
+          and coalesce(p.player_name, e.player_name) <> ''
+        order by e.occurred_at
         """, (rs, rowNum) -> new ScoreEvent(
-        rs.getObject("occurred_at", OffsetDateTime.class), rs.getString("player_name"),
+        rs.getObject("occurred_at", OffsetDateTime.class),
+        sessionPlayerKey(rs.getObject("player_id", Long.class), rs.getString("player_name")),
+        rs.getString("player_name"),
         rs.getBigDecimal("score_delta")));
     scoreEvents = new ArrayList<>(scoreEvents);
-    Map<String, Deque<OffsetDateTime>> openSessions = new HashMap<>();
-    for (SessionEvent event : sessions) {
-      if ("JOIN".equals(event.kind())) {
-        openSessions.computeIfAbsent(event.playerName(), ignored -> new ArrayDeque<>())
-            .addLast(event.occurredAt());
-        continue;
-      }
-      Deque<OffsetDateTime> joins = openSessions.get(event.playerName());
-      if (joins == null || joins.isEmpty()) {
-        continue;
-      }
-      long minutes = Math.min(720, Math.max(0,
-          Duration.between(joins.removeFirst(), event.occurredAt()).toMinutes()));
-      scoreEvents.add(new ScoreEvent(
-          event.occurredAt(), event.playerName(), BigDecimal.valueOf(minutes)));
+    for (PlaySession session : sessions) {
+      scoreEvents.add(new ScoreEvent(session.end(), session.key(), session.playerName(),
+          BigDecimal.valueOf(Duration.between(session.start(), session.end()).toMinutes())));
     }
     scoreEvents.sort(Comparator.comparing(ScoreEvent::occurredAt));
     if (scoreEvents.isEmpty()) {
@@ -1126,9 +1144,11 @@ public class DashboardViewService {
     }
     Map<String, List<ScorePoint>> pointsByPlayer = new HashMap<>();
     Map<String, BigDecimal> totals = new HashMap<>();
+    Map<String, String> names = new HashMap<>();
     for (ScoreEvent event : scoreEvents) {
-      BigDecimal total = totals.merge(event.playerName(), event.scoreDelta(), BigDecimal::add);
-      pointsByPlayer.computeIfAbsent(event.playerName(), ignored -> new ArrayList<>())
+      BigDecimal total = totals.merge(event.playerKey(), event.scoreDelta(), BigDecimal::add);
+      names.put(event.playerKey(), event.playerName());
+      pointsByPlayer.computeIfAbsent(event.playerKey(), ignored -> new ArrayList<>())
           .add(new ScorePoint(event.occurredAt(), total));
     }
     OffsetDateTime first = scoreEvents.getFirst().occurredAt();
@@ -1139,7 +1159,7 @@ public class DashboardViewService {
         .sorted(Map.Entry.<String, BigDecimal>comparingByValue().reversed())
         .limit(6)
         .map(entry -> new ScoreSeries(
-            entry.getKey(), entry.getValue().longValue(),
+            names.get(entry.getKey()), entry.getValue().longValue(),
             scoreSeriesPoints(pointsByPlayer.get(entry.getKey()), first, last, maxScore)))
         .toList();
     return new ScoreChart(
@@ -1176,23 +1196,29 @@ public class DashboardViewService {
 
   private List<DailyActivity> dailyActivity() {
     List<DailyActivityCount> counts = jdbcTemplate.query("""
-        select cast(occurred_at as date) as activity_day, count(*) as event_count
+        select cast(occurred_at at time zone 'Asia/Tokyo' as date) as activity_day, count(*) as event_count
         from (
           select occurred_at from t_player_join_transaction
           union all select occurred_at from t_entity_kill_transaction
           union all select occurred_at from t_world_event_transaction where event_type <> 'BLOOD_MOON'
-          union all select occurred_at from t_vehicle_position_transaction
+          union all select occurred_at from t_sleeper_transaction where transaction_type = 'SLEEPER_SPAWN'
         ) activity
         where occurred_at >= ?
-        group by cast(occurred_at as date)
+        group by cast(occurred_at at time zone 'Asia/Tokyo' as date)
         order by activity_day
         """, (rs, rowNum) -> new DailyActivityCount(
         rs.getObject("activity_day").toString(), rs.getLong("event_count")),
-        OffsetDateTime.now(ZoneOffset.UTC).minusDays(6).withHour(0).withMinute(0).withSecond(0).withNano(0));
+        weekStartJst());
     long max = counts.stream().mapToLong(DailyActivityCount::eventCount).max().orElse(1);
     return counts.stream()
         .map(row -> new DailyActivity(row.day(), row.eventCount(), Math.max(4, row.eventCount() * 100 / max)))
         .toList();
+  }
+
+  /** Midnight JST six days ago: the start of a seven-day chart. */
+  private static OffsetDateTime weekStartJst() {
+    return LocalDate.now(DisplayTimeFormatter.JST).minusDays(6)
+        .atStartOfDay(DisplayTimeFormatter.JST).toOffsetDateTime();
   }
 
   private List<DailyActivity> dailyCounts(String tableName) {
@@ -1200,16 +1226,16 @@ public class DashboardViewService {
       throw new IllegalArgumentException("Unsupported activity table");
     }
     List<DailyActivityCount> counts = jdbcTemplate.query("""
-        select cast(occurred_at as date) as activity_day, count(*) as event_count
+        select cast(occurred_at at time zone 'Asia/Tokyo' as date) as activity_day, count(*) as event_count
         from t_entity_kill_transaction
         where occurred_at >= ?
           and lower(player_name) not like 'zombie%'
           and lower(player_name) not like 'animal%'
-        group by cast(occurred_at as date)
+        group by cast(occurred_at at time zone 'Asia/Tokyo' as date)
         order by activity_day
         """, (rs, rowNum) -> new DailyActivityCount(
         rs.getObject("activity_day").toString(), rs.getLong("event_count")),
-        OffsetDateTime.now(ZoneOffset.UTC).minusDays(6).withHour(0).withMinute(0).withSecond(0).withNano(0));
+        weekStartJst());
     long max = counts.stream().mapToLong(DailyActivityCount::eventCount).max().orElse(1);
     return counts.stream()
         .map(row -> new DailyActivity(row.day(), row.eventCount(), Math.max(4, row.eventCount() * 100 / max)))
@@ -1231,11 +1257,11 @@ public class DashboardViewService {
         rs.getLong("vehicle_count"), rs.getLong("active_count"),
         rs.getLong("driver_count"), rs.getBigDecimal("total_distance")));
     List<VehicleDailyDistance> daily = jdbcTemplate.query("""
-        select cast(occurred_at as date) as travel_day,
+        select cast(occurred_at at time zone 'Asia/Tokyo' as date) as travel_day,
                coalesce(sum(movement_distance), 0) as distance
         from t_vehicle_position_transaction
         where attributed_player_id is not null and movement_valid = true and movement_distance > 0
-        group by cast(occurred_at as date)
+        group by cast(occurred_at at time zone 'Asia/Tokyo' as date)
         order by travel_day desc limit 14
         """, (rs, rowNum) -> new VehicleDailyDistance(
         rs.getObject("travel_day").toString(), rs.getBigDecimal("distance"), 0));
@@ -1261,6 +1287,7 @@ public class DashboardViewService {
     return new VehicleDetailView(vehicles, summary, chart, types);
   }
 
+  /** A POI counts as explored once someone was within 80m of it outside a vehicle; driving past does not count. */
   public ExplorationDetailView explorationDetail() {
     List<PoiExploration> pois = jdbcTemplate.query("""
         select poi.id, poi.poi_name, poi.category, poi.x, poi.y, poi.z,
@@ -1268,13 +1295,16 @@ public class DashboardViewService {
                  select 1 from t_player_position_transaction pos
                  where ((pos.position_x - poi.x) * (pos.position_x - poi.x)
                       + (pos.position_z - poi.z) * (pos.position_z - poi.z)) <= 6400
+                 and pos.movement_mode <> 'VEHICLE'
                ) then true else false end as explored,
                (select max(pos.occurred_at) from t_player_position_transaction pos
                 where ((pos.position_x - poi.x) * (pos.position_x - poi.x)
-                     + (pos.position_z - poi.z) * (pos.position_z - poi.z)) <= 6400) as visited_at,
+                     + (pos.position_z - poi.z) * (pos.position_z - poi.z)) <= 6400
+                 and pos.movement_mode <> 'VEHICLE') as visited_at,
                (select pos.player_name from t_player_position_transaction pos
                 where ((pos.position_x - poi.x) * (pos.position_x - poi.x)
                      + (pos.position_z - poi.z) * (pos.position_z - poi.z)) <= 6400
+                 and pos.movement_mode <> 'VEHICLE'
                 order by pos.occurred_at desc limit 1) as visitor_name
         from m_world_poi poi
         where coalesce(poi.category, '') <> 'part' and poi.poi_name not like 'part_%'
@@ -1431,15 +1461,20 @@ public class DashboardViewService {
 
     public String statusSummary() {
       if (!Boolean.TRUE.equals(online)) {
-        return "オフライン / 最終地点：" + displayPoiName();
+        return "オフライン / 最終地点：" + placeLabel();
       }
       String customLabel = PlayerStatusCatalog.displayLabel(customStatus);
       if (customLabel != null) {
         return customLabel;
       }
+      if (poiName == null || poiName.isBlank()) {
+        // Known position, but no POI within 150m.
+        return coordinate == null || coordinate.isBlank() ? "位置を確認中"
+            : Boolean.TRUE.equals(exploring) ? "荒野で探索中" : "荒野を移動中";
+      }
       return Boolean.TRUE.equals(exploring)
-          ? displayPoiName() + " を探索中"
-          : displayPoiName() + " 付近を移動中";
+          ? poiName + " を探索中"
+          : poiName + " 付近を移動中";
     }
 
     public String statusLabel() {
@@ -1453,8 +1488,12 @@ public class DashboardViewService {
       return Boolean.TRUE.equals(exploring) ? "探索中" : "オンライン";
     }
 
-    private String displayPoiName() {
-      return poiName == null || poiName.isBlank() ? "最終地点不明" : poiName;
+    /** The nearby POI, or the wilderness when no POI is within 150m. */
+    public String placeLabel() {
+      if (poiName != null && !poiName.isBlank()) {
+        return poiName;
+      }
+      return coordinate == null || coordinate.isBlank() ? "最終地点不明" : "荒野";
     }
   }
 
@@ -1494,6 +1533,25 @@ public class DashboardViewService {
       String poiName,
       String coordinate
   ) {
+
+    /** A short Japanese tag for the event kind. */
+    public String kindLabel() {
+      if (kind == null) {
+        return "できごと";
+      }
+      return switch (kind) {
+        case "JOIN" -> "ログイン";
+        case "LEAVE" -> "ログアウト";
+        case "KILL" -> "討伐";
+        case "PLAYER_DEATH" -> "死亡";
+        case "SLEEPER_SPAWN" -> "遭遇";
+        case "WANDERING_HORDE", "SCOUT_HORDE" -> "ホード";
+        case "SCREAMER_SPAWN" -> "スクリーマー";
+        case "XP" -> "成長";
+        case "DAY_START" -> "新しい日";
+        default -> kind.startsWith("VEHICLE") ? "乗り物" : "できごと";
+      };
+    }
   }
 
   public record VehicleStatus(
@@ -1505,9 +1563,6 @@ public class DashboardViewService {
       Boolean active,
       String lastUpdated
   ) {
-  }
-
-  public record KillLeader(String playerName, long kills) {
   }
 
   public record KillEvent(String occurredAt, String playerName, String targetName, String coordinate) {
@@ -1548,7 +1603,10 @@ public class DashboardViewService {
   }
 
   private record ScoreEvent(
-      OffsetDateTime occurredAt, String playerName, BigDecimal scoreDelta) {
+      OffsetDateTime occurredAt, String playerKey, String playerName, BigDecimal scoreDelta) {
+  }
+
+  private record PlaySession(String key, String playerName, OffsetDateTime start, OffsetDateTime end) {
   }
 
   private record ScorePoint(OffsetDateTime occurredAt, BigDecimal score) {
