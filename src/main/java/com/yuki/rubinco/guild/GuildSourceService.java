@@ -31,7 +31,7 @@ import org.springframework.stereotype.Service;
  * <ul>
  *   <li>7 Days to Die: a place first reached on foot (a POI within 80m), or one kind of enemy
  *       defeated on one day, with where it happened. The rest of the log is too noisy to use.</li>
- *   <li>Terraria: a day's gains in chests, a boss or event achieved, or a chest at least half full.</li>
+ *   <li>Terraria: a day's gains in chests, a boss or event already achieved, or a chest at least half full.</li>
  *   <li>Core Keeper: one chest's gains on a day, a boss or the Great Wall achieved, or a chest at least
  *       half full.</li>
  * </ul>
@@ -111,8 +111,8 @@ public class GuildSourceService {
   }
 
   /**
-   * A random unused memory. Recent ones are preferred by recent-ratio (chests count as recent: they are
-   * as of the latest import), and a kind that already makes up category-cap of the last category-window
+   * A random unused memory. Recent ones are preferred by recent-ratio (chests and milestones count as
+   * recent: they are as of the latest import), and a kind that already makes up category-cap of the last category-window
    * residents is left out.
    */
   public Choice choose(LocalDate today) {
@@ -184,7 +184,7 @@ public class GuildSourceService {
       if (world == null) continue;
       var snapshot = latestSnapshot(world);
       if (snapshot == null) continue;
-      milestones(game, game.equals("terraria") ? List.of("BOSS", "EVENT") : List.of("BOSS", "WORLD"), snapshot, before, seeds);
+      milestones(game, game.equals("terraria") ? List.of("BOSS", "EVENT") : List.of("BOSS", "WORLD"), snapshot, seeds);
       chests(game, world, snapshot.getValue(), seeds);
     }
     Set<String> used = new HashSet<>(jdbc.queryForList("SELECT source_key FROM T_GUILD_SOURCE", String.class));
@@ -238,20 +238,14 @@ public class GuildSourceService {
         }, before);
   }
 
-  /** Achieved in the latest snapshot. When it was first seen achieved is the memory's time; before records began, the snapshot's. */
-  private void milestones(String game, List<String> categories, Map.Entry<Long, OffsetDateTime> snapshot, OffsetDateTime before, List<Seed> seeds) {
+  /** Achieved as of the latest snapshot. A milestone is something done, not a moment: it carries no time of its own. */
+  private void milestones(String game, List<String> categories, Map.Entry<Long, OffsetDateTime> snapshot, List<Seed> seeds) {
     jdbc.query("""
-        SELECT d.progress_key, d.category, (SELECT MIN(e.first_observed_at) FROM T_PROGRESS_EVENT e
-          WHERE e.progress_definition_id = d.progress_definition_id AND e.new_state = 'ACHIEVED' AND e.change_kind = 'CHANGED')
-        FROM M_PROGRESS_DEFINITION d JOIN T_PROGRESS_STATE s ON s.progress_definition_id = d.progress_definition_id
-        WHERE s.world_snapshot_id = ? AND s.state = 'ACHIEVED' AND d.game_id = ? AND d.support_status = 'SUPPORTED'
-          AND d.category IN (?, ?)
+        SELECT d.progress_key, d.category FROM M_PROGRESS_DEFINITION d JOIN T_PROGRESS_STATE s ON s.progress_definition_id = d.progress_definition_id
+        WHERE s.world_snapshot_id = ? AND s.state = 'ACHIEVED' AND d.game_id = ? AND d.support_status = 'SUPPORTED' AND d.category IN (?, ?)
         """, rs -> {
-          OffsetDateTime achieved = rs.getObject(3, OffsetDateTime.class);
-          if (achieved != null && !achieved.isBefore(before)) return;
           String key = rs.getString(1);
-          seeds.add(new Seed(game, "milestone", game + ":milestone:" + key, rs.getString(2),
-              achieved != null ? achieved : snapshot.getValue(), achieved != null ? List.of(key, achieved) : List.of(key)));
+          seeds.add(new Seed(game, "milestone", game + ":milestone:" + key, rs.getString(2), snapshot.getValue(), List.of(key)));
         }, snapshot.getKey(), game, categories.get(0), categories.get(1));
   }
 
@@ -330,26 +324,12 @@ public class GuildSourceService {
         String category = (String) definition.get("category");
         String name = milestoneName(seed.game(), key, (String) definition.get("display_name"), Boolean.TRUE.equals(definition.get("spoiler")));
         String kind = PROGRESS.getOrDefault(category, "達成");
-        boolean dated = seed.detail().size() > 1;
-        String[] verb = switch (category) {
-          case "BOSS" -> new String[] {"を討ち果たした", "は記録が始まる前に討ち果たされていた"};
-          case "EVENT" -> new String[] {"を退けた", "は記録が始まる前に退けられていた"};
-          default -> new String[] {"を成し遂げた", "は記録が始まる前に成し遂げられていた"};
-        };
-        facts = new ArrayList<>(List.of(dated ? time(seed.at()) + " " + name + verb[0] : name + verb[1]));
-        if (dated) {
-          LocalDate date = jst(seed.at());
-          List<String> gains = seed.game().equals("terraria")
-              ? gains(jdbc.query("SELECT observed_at, item_id, new_total - previous_total FROM T_TERRARIA_ITEM_CHANGE WHERE observed_at >= ? "
-                  + "AND observed_at < ? AND new_total > previous_total ORDER BY new_total - previous_total DESC",
-                  (rs, row) -> terrariaGain(rs.getObject(1, OffsetDateTime.class), rs.getInt(2), rs.getLong(3)), start(date), start(date.plusDays(1))))
-              : gains(jdbc.query("SELECT observed_at, object_id, new_amount - previous_amount, previous_slots, new_slots FROM T_CK_CHEST_CHANGE "
-                  + "WHERE observed_at >= ? AND observed_at < ? AND new_amount > previous_amount ORDER BY new_amount - previous_amount DESC",
-                  (rs, row) -> coreKeeperGain(rs.getObject(1, OffsetDateTime.class), rs.getInt(2), rs.getLong(3),
-                      (Integer) rs.getObject(4), (Integer) rs.getObject(5)), start(date), start(date.plusDays(1))));
-          gains.stream().limit(LOG_FACTS - 1).forEach(facts::add);
-        }
-        label = game + "・" + (dated ? day + "の" : "") + kind + "の記録";
+        facts = List.of(name + switch (category) {
+          case "BOSS" -> "を討ち果たした";
+          case "EVENT" -> "を退けた";
+          default -> "を成し遂げた";
+        });
+        label = game + "・果たしたこと（" + kind + "）";
       }
       case "terraria:chest" -> {
         facts = jdbc.query("SELECT item_id, SUM(stack) FROM T_TERRARIA_CONTAINER_ITEM WHERE terraria_container_id = ? "

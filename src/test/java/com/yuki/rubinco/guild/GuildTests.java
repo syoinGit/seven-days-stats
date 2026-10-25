@@ -142,9 +142,6 @@ class GuildTests {
     long now = snapshot(world, LocalDate.now(GuildService.TOKYO).minusDays(1).atStartOfDay(GuildService.TOKYO).toOffsetDateTime(), "b");
     achieve(then, "boss_bird");
     for (String key : List.of("great_wall_lowered", "boss_bird")) achieve(now, key);
-    jdbc.update("INSERT INTO T_PROGRESS_EVENT (game_world_id,progress_definition_id,world_snapshot_id,previous_state,new_state,change_kind,first_observed_at) "
-        + "SELECT ?, progress_definition_id, ?, 'NOT_ACHIEVED', 'ACHIEVED', 'CHANGED', ? FROM M_PROGRESS_DEFINITION "
-        + "WHERE game_id = 'corekeeper' AND progress_key = 'great_wall_lowered'", world, now, lowered);
     // A half-full chest counts, a nearly empty one does not. Item names are absent in tests, so its memory reads back empty.
     for (int filled : new int[] {5, 1}) {
       jdbc.update("INSERT INTO T_CK_CONTAINER (game_world_id,world_snapshot_id,holder,object_id,variation,pos_x,pos_z,slot_count,filled_slots,label) "
@@ -161,8 +158,9 @@ class GuildTests {
       assertThat(source.label() + source.facts()).doesNotContain("PRIVATE").doesNotContain("Azeos").doesNotContain("#").doesNotContain("456");
       facts.add(source.facts());
     });
-    assertThat(facts).containsExactlyInAnyOrder("15:30 「大壁の解放」を成し遂げた", "嵐を呼ぶ空の巨鳥は記録が始まる前に討ち果たされていた");
-    // The dated milestone is read against the snapshot before it: the bird was down, the wall not yet.
+    // Done is done: no time, no "before records began".
+    assertThat(facts).containsExactlyInAnyOrder("「大壁の解放」を成し遂げた", "嵐を呼ぶ空の巨鳥を討ち果たした");
+    // The world is read as it was at a memory's time: at an earlier moment the bird was down, the wall not yet.
     var wall = new GuildSourceService.Source("corekeeper:milestone:great_wall_lowered", "corekeeper", "milestone", "x", "x", lowered);
     assertThat(dossier.build(wall)).contains("ボス討伐 1/").contains("世界の変化 0/1").contains("嵐を呼ぶ空の巨鳥").doesNotContain("Azeos");
   }
@@ -222,8 +220,7 @@ class GuildTests {
           new GuildSourceService.Inventory("terraria", "chest", 2));
       java.util.Set<String> facts = new java.util.HashSet<>();
       for (int i = 0; i < 40; i++) sources.choose(LocalDate.now(GuildService.TOKYO)).source().ifPresent(source -> facts.add(source.facts()));
-      assertThat(facts).containsExactlyInAnyOrder("「クトゥルフのめだま」は記録が始まる前に討ち果たされていた",
-          "「ゴブリンしんりゃく」は記録が始まる前に退けられていた");
+      assertThat(facts).containsExactlyInAnyOrder("「クトゥルフのめだま」を討ち果たした", "「ゴブリンしんりゃく」を退けた");
     } finally {
       jdbc.update("DELETE FROM T_TERRARIA_ITEM_CHANGE WHERE world_snapshot_id = ?", now);
       jdbc.update("DELETE FROM T_TERRARIA_CONTAINER WHERE world_snapshot_id = ?", now);
