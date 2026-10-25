@@ -23,7 +23,7 @@
 </p>
 
 <p th:fragment="amountNote" class="octarine-note">
-  「数」はゲームが保存している値で、素材などは個数、武器・防具・道具は残りの耐久値です（分類はゲームのデータによる。名前表に分類が無いアイテムは「その他」）。
+  素材などは個数で数えます。武器・防具・道具は重ならず1枠に1個なので、枠の数を個数として表示し、ゲームが保存している残りの耐久値は「耐久」として別に表示します（分類はゲームのデータによる。名前表に分類が無いアイテムは「その他」）。
 </p>
 
 <svg th:fragment="icon(category)" class="ck-icon" th:classappend="${'ck-' + category.icon()}" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{'/img/octarine-icons.svg#' + ${category.icon()}}"></use></svg>

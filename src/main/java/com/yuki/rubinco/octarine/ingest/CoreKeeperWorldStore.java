@@ -135,17 +135,17 @@ public class CoreKeeperWorldStore {
       Set<Integer> ids = new TreeSet<>(previous.keySet());
       ids.addAll(current.keySet());
       for (int id : ids) {
-        long from = previous.getOrDefault(id, none).amount();
-        long to = current.getOrDefault(id, none).amount();
-        if (from != to) {
+        Held from = previous.getOrDefault(id, none);
+        Held to = current.getOrDefault(id, none);
+        if (from.amount() != to.amount() || from.slots() != to.slots()) {
           rows.add(new Object[] {worldId, snapshotId, key.objectId(), key.x(), key.z(), chest.label(),
-              id, from, to, at});
+              id, from.amount(), to.amount(), from.slots(), to.slots(), at});
         }
       }
     }
     jdbc.batchUpdate("INSERT INTO T_CK_CHEST_CHANGE (game_world_id, world_snapshot_id, chest_object_id, "
-        + "pos_x, pos_z, label, object_id, previous_amount, new_amount, observed_at) "
-        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows);
+        + "pos_x, pos_z, label, object_id, previous_amount, new_amount, previous_slots, new_slots, observed_at) "
+        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows);
   }
 
   private void replaceContainers(Long worldId, Long snapshotId, List<Container> containers) {

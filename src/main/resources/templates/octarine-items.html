@@ -45,8 +45,8 @@
       <li th:each="item : ${items.content}">
         <a th:href="@{/octarine/items/{id}(id=${item.objectId})}" th:classappend="${'ck-' + item.category.icon()}">
           <b><svg th:replace="~{fragments/octarine :: icon(${item.category})}"></svg><span th:text="${item.name}">Copper Bar</span></b>
-          <strong th:text="${#numbers.formatInteger(item.amount, 1, 'COMMA')}">120</strong>
-          <small th:text="${item.slots + '枠・' + item.containers + 'か所'}">3枠・2か所</small>
+          <strong th:text="${#numbers.formatInteger(item.count(), 1, 'COMMA') + (item.category.durable() ? '個' : '')}">120</strong>
+          <small th:text="${item.category.durable() ? '耐久の合計 ' + #numbers.formatInteger(item.amount, 1, 'COMMA') + '・' + item.containers + 'か所' : item.slots + '枠・' + item.containers + 'か所'}">3枠・2か所</small>
         </a>
       </li>
     </ul>
