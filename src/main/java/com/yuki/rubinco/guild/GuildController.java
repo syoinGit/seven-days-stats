@@ -49,6 +49,7 @@ public class GuildController {
     var character = guild.character(id);
     model.addAttribute("character", character);
     model.addAttribute("relations", chronicle.relations(id));
+    model.addAttribute("history", guild.history(id));
     model.addAttribute("interactions", chronicle.list(new GuildChronicle.Filter(id, null, null, null, null), 0).stream().limit(8).toList());
     return stage(model, "roster", "character", character.name());
   }

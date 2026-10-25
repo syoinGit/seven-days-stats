@@ -30,7 +30,15 @@
   <p th:if="${character.status == 'DEAD'}">この人物は亡くなりました。その人の記録はここに残ります。</p>
   <p th:if="${character.status == 'INJURED'}">現在は療養しています。</p><p th:if="${character.status == 'MISSING'}">現在は所在が分かっていません。</p>
   <div class="guild-dialogue"><p th:text="${character.introduction}"></p></div>
+  <dl class="guild-affiliation">
+    <dt>出身地</dt><dd th:text="${character.homeVillage}">グランフォード</dd>
+    <dt>現在地</dt><dd th:text="${character.village}">グランフォード</dd>
+    <dt>所属派閥</dt><dd th:text="${character.faction}">無所属</dd>
+    <dt>信仰</dt><dd th:text="${character.faith}">無信仰</dd>
+  </dl>
   <h3>人となり</h3><p th:text="${character.personality}"></p>
+  <th:block th:unless="${#lists.isEmpty(history)}"><h3>所属の履歴</h3>
+    <ol class="guild-memory"><li th:each="change : ${history}" th:text="${#temporals.format(change.day(), 'yyyy年M月d日') + ' ' + change.text() + ' — ' + change.reason}">2026年10月1日 派閥：無所属 → 白銀の騎士団（加入）</li></ol></th:block>
   <h3>生まれた記憶</h3>
   <th:block th:if="${!#lists.isEmpty(character.memoryLines())}"><p th:text="${character.memoryLabel + 'から生まれました。'}">7 Days to Die・10月3日 21時〜24時の記録から生まれました。</p>
     <ol class="guild-memory"><li th:each="line : ${character.memoryLines()}" th:text="${line}">21:14 ゾンビを倒した</li></ol>
@@ -42,7 +50,7 @@
   <ul class="guild-relations" th:unless="${#lists.isEmpty(relations)}">
     <li th:each="rel : ${relations}">
       <a th:href="${rel.pairPath}"><strong th:text="${rel.other.name}">ロアン</strong></a>
-      <span class="guild-label" th:text="${rel.labelName()}">友達</span><em th:if="${rel.other.status == 'DEAD'}">故人</em>
+      <span class="guild-label" th:text="${rel.labelName()}">友達</span><em th:if="${rel.smitten}">気になっている</em><em th:if="${rel.other.status == 'DEAD'}">故人</em>
       <small th:text="${'信頼' + rel.trust + '・親しみ' + rel.affinity + '・警戒' + rel.wariness + '・恩義' + rel.debt}">信頼10・親しみ20・警戒0・恩義3</small>
       <small th:unless="${#lists.isEmpty(rel.history)}" th:text="${'関係の移り変わり: ' + #strings.listJoin(rel.history.![text()], ' → ')}">知人になった → 知人 → 友達</small>
     </li>
@@ -74,6 +82,7 @@
   <a class="guild-entry" th:href="@{/guild/log/{id}(id=${entry.id})}">
     <small th:text="${#temporals.format(entry.at, 'M月d日 H時') + '・' + entry.kind}">10月25日 14時・雑談</small>
     <span th:text="${entry.summary}">リネとロアンは天気の話をした</span>
+    <small class="guild-cast" th:text="${#strings.listJoin(entry.people.![described()], ' × ')}">リネ（28歳・女性・冒険者） × ロアン（30歳・男性・鍛冶屋）</small>
   </a>
 </th:block>
 
@@ -104,14 +113,17 @@
 <th:block th:fragment="entry">
   <p class="guild-window-lead"><small th:text="${#temporals.format(detail.entry.at, 'yyyy年M月d日 H時') + '・' + detail.entry.kind + '・選ばれ方: ' + detail.entry.selectionName()}">2026年10月25日 14時・雑談</small></p>
   <h3 th:text="${detail.entry.summary}">リネとロアンは天気の話をした</h3>
+  <ul class="guild-cast-list"><li th:each="person : ${detail.entry.people}"><strong th:text="${person.name}">リネ</strong><small th:text="${person.profile}">28歳・女性・冒険者・グランフォード</small></li></ul>
   <div class="guild-dialogue"><p th:each="line : ${detail.entry.lines()}" th:text="${line}">窓の外は雨だった。</p></div>
   <p class="guild-footer" th:if="${detail.entry.writtenBy == 'template'}">この場面は定型文で記録されました。</p>
   <h3>登場した住人</h3>
-  <p><th:block th:each="person, it : ${detail.entry.people}"><a th:href="@{/guild/characters/{id}(id=${person.id})}" th:text="${person.name}">リネ</a><th:block th:unless="${it.last}">・</th:block></th:block>
+  <p><th:block th:each="person, it : ${detail.entry.people}"><a th:href="@{/guild/characters/{id}(id=${person.id})}" th:text="${person.described()}">リネ</a><th:block th:unless="${it.last}">・</th:block></th:block>
     <a th:if="${detail.entry.pairPath() != null}" th:href="${detail.entry.pairPath()}">（二人の物語）</a></p>
   <h3>関係の変化</h3>
   <p th:if="${#lists.isEmpty(detail.changes)}">関係に変化はありませんでした。</p>
   <ul class="guild-changes"><li th:each="change : ${detail.changes}" th:text="${(change.kind == 'label' ? '関係: ' : change.from.name + ' → ' + change.to.name + ': ') + change.text()}">リネ → ロアン: 親しみ+2</li></ul>
+  <th:block th:unless="${#lists.isEmpty(detail.affiliations)}"><h3>所属の変化</h3>
+    <ul class="guild-changes"><li th:each="line : ${detail.affiliations}" th:text="${line}">リネ ／ 派閥：無所属 → 白銀の騎士団（加入）</li></ul></th:block>
   <th:block th:unless="${#lists.isEmpty(detail.opened)}"><h3>生まれた火種</h3>
     <ul class="guild-changes"><li th:each="t : ${detail.opened}" th:text="${t.kindName() + '：' + t.summary + '（' + t.statusName() + '）'}">約束：…</li></ul></th:block>
   <th:block th:unless="${#lists.isEmpty(detail.resolved)}"><h3>片づいた火種</h3>

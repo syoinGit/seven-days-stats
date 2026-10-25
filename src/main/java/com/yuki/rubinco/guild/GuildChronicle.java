@@ -19,8 +19,19 @@ import org.springframework.web.server.ResponseStatusException;
 public class GuildChronicle {
   static final int PAGE = 30;
   private final JdbcTemplate jdbc;
+  private final GuildWorld world;
 
-  public record Ref(long id, String name, String status) { }
+  /** profile: "28歳・女性・冒険者・グランフォード・白銀の騎士団", so readers can tell who is speaking; null where not needed. */
+  public record Ref(long id, String name, String status, String profile) {
+    Ref(long id, String name, String status) {
+      this(id, name, status, null);
+    }
+
+    /** "リネ（28歳・女性・冒険者）" */
+    public String described() {
+      return profile == null || profile.isEmpty() ? name : name + "（" + profile + "）";
+    }
+  }
 
   public record Entry(long id, OffsetDateTime at, String kind, String selection, String summary, String body,
                       String writtenBy, List<Ref> people) {
@@ -73,11 +84,14 @@ public class GuildChronicle {
     }
   }
 
-  public record Detail(Entry entry, String outcome, List<Change> changes, List<ThreadView> opened, List<ThreadView> resolved) { }
+  /** affiliations: "リネ ／ 派閥：無所属 → 白銀の騎士団（加入）" for each change of village, faction or faith this event made. */
+  public record Detail(Entry entry, String outcome, List<Change> changes, List<ThreadView> opened, List<ThreadView> resolved,
+                       List<String> affiliations) { }
 
   /** One relationship of a resident, with the label's history. */
+  /** smitten: this resident finds the other their type (the other may not feel the same). */
   public record Relation(Ref other, String label, int trust, int affinity, int wariness, int debt, List<Change> history,
-                         String pairPath) {
+                         String pairPath, boolean smitten) {
     public String labelName() {
       return label == null ? "—" : GuildInteractionService.LABELS.getOrDefault(label, label);
     }
@@ -138,15 +152,20 @@ public class GuildChronicle {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     String outcome = jdbc.queryForObject("SELECT outcome FROM T_GUILD_INTERACTION WHERE id = ?", String.class, id);
     List<Change> changes = changes(" WHERE e.interaction_id = ? ORDER BY e.id", id);
+    List<String> affiliations = new ArrayList<>();
+    for (Ref person : entry.people()) {
+      world.history(person.id()).stream().filter(change -> id == change.interactionId())
+          .forEach(change -> affiliations.add(person.name() + " ／ " + change.text()));
+    }
     return new Detail(entry, outcome, changes, threads(" WHERE t.origin_interaction_id = ?", id),
-        threads(" WHERE t.resolved_interaction_id = ?", id));
+        threads(" WHERE t.resolved_interaction_id = ?", id), affiliations);
   }
 
   /** Everyone this resident has a relationship with, closest first. */
   public List<Relation> relations(long id) {
     List<Relation> relations = new ArrayList<>();
     jdbc.query("""
-        SELECT r.to_id, c.name, c.status, r.trust, r.affinity, r.wariness, r.debt, b.label FROM T_GUILD_RELATION r
+        SELECT r.to_id, c.name, c.status, r.trust, r.affinity, r.wariness, r.debt, b.label, r.smitten FROM T_GUILD_RELATION r
         JOIN M_GUILD_CHARACTER c ON c.id = r.to_id
         LEFT JOIN T_GUILD_BOND b ON b.low_id = LEAST(r.from_id, r.to_id) AND b.high_id = GREATEST(r.from_id, r.to_id)
         WHERE r.from_id = ? ORDER BY r.affinity + r.trust DESC, r.to_id
@@ -154,7 +173,7 @@ public class GuildChronicle {
           long other = rs.getLong(1);
           relations.add(new Relation(new Ref(other, rs.getString(2), rs.getString(3)), rs.getString(8), rs.getInt(4), rs.getInt(5),
               rs.getInt(6), rs.getInt(7), changes(" WHERE e.change_kind = 'label' AND ((e.from_id = ? AND e.to_id = ?) OR (e.from_id = ? AND e.to_id = ?)) ORDER BY e.id",
-                  id, other, other, id), pairPath(id, other)));
+                  id, other, other, id), pairPath(id, other), rs.getBoolean(9)));
         }, id);
     return relations;
   }
@@ -211,11 +230,22 @@ public class GuildChronicle {
     List<Entry> entries = jdbc.query(sql, (rs, row) -> new Entry(rs.getLong(1), rs.getObject(2, OffsetDateTime.class), rs.getString(3),
         rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), new ArrayList<>()), args);
     for (Entry entry : entries) {
-      entry.people().addAll(jdbc.query("SELECT c.id, c.name, c.status FROM T_GUILD_INTERACTION_PARTICIPANT p "
-          + "JOIN M_GUILD_CHARACTER c ON c.id = p.character_id WHERE p.interaction_id = ? ORDER BY p.position",
-          (rs, row) -> new Ref(rs.getLong(1), rs.getString(2), rs.getString(3)), entry.id()));
+      entry.people().addAll(jdbc.query("SELECT c.id, c.name, c.status, c.age, c.gender, c.occupation, v.name, f.name, f.faction_key "
+          + "FROM T_GUILD_INTERACTION_PARTICIPANT p JOIN M_GUILD_CHARACTER c ON c.id = p.character_id "
+          + "JOIN M_GUILD_VILLAGE v ON v.village_key = c.current_village JOIN M_GUILD_FACTION f ON f.faction_key = c.faction "
+          + "WHERE p.interaction_id = ? ORDER BY p.position",
+          (rs, row) -> new Ref(rs.getLong(1), rs.getString(2), rs.getString(3), profile((Integer) rs.getObject(4), rs.getString(5),
+              rs.getString(6), rs.getString(7), GuildWorld.NONE.equals(rs.getString(9)) ? null : rs.getString(8))), entry.id()));
     }
     return entries;
+  }
+
+  /** Today's traits, skipping what is unknown (and "no faction"). */
+  static String profile(Integer age, String... parts) {
+    List<String> out = new ArrayList<>();
+    if (age != null) out.add(age + "歳");
+    for (String part : parts) if (part != null) out.add(part);
+    return String.join("・", out);
   }
 
   private List<Change> changes(String where, Object... args) {

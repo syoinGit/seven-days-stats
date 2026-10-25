@@ -35,7 +35,7 @@ app:
     recent-days: ${GUILD_RECENT_DAYS:30}
     recent-ratio: ${GUILD_RECENT_RATIO:0.5}
     public-url: ${GUILD_PUBLIC_URL:}
-    daily-limit: ${GUILD_DAILY_LIMIT:10}
+    daily-limit: ${GUILD_DAILY_LIMIT:20}
     # Among the last category-window residents, at most category-cap come from one kind of memory, and a
     # gender / occupation / name lineage that gender-cap / occupation-cap / lineage-cap of them have is not offered.
     category-window: ${GUILD_CATEGORY_WINDOW:10}
@@ -43,9 +43,9 @@ app:
     gender-cap: ${GUILD_GENDER_CAP:7}
     occupation-cap: ${GUILD_OCCUPATION_CAP:3}
     lineage-cap: ${GUILD_LINEAGE_CAP:5}
-    # Hourly interactions between today's visitors (JST). fallback: template or skip when the AI fails.
-    interaction-interval-hours: ${GUILD_INTERACTION_INTERVAL_HOURS:1}
-    interaction-daily-max: ${GUILD_INTERACTION_DAILY_MAX:24}
+    # Interactions between today's visitors at these JST hours, at most three a day. fallback: template or skip when the AI fails.
+    interaction-hours: ${GUILD_INTERACTION_HOURS:20,21,22}
+    interaction-daily-max: ${GUILD_INTERACTION_DAILY_MAX:3}
     interaction-fallback: ${GUILD_INTERACTION_FALLBACK:template}
     recent-pair-slots: ${GUILD_RECENT_PAIR_SLOTS:3}
     selection-weights:
@@ -54,6 +54,7 @@ app:
       cold: 1
       bond: 2
       thread: 2
+      affiliation: 2
   platform:
     domain: ${DOMAIN:rubinco.link}
     portal-url: ${PORTAL_SITE_URL:https://portal.${app.platform.domain}}

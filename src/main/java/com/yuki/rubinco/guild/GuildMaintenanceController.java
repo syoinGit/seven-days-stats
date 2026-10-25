@@ -17,6 +17,7 @@ public class GuildMaintenanceController {
   private final GuildProperties properties;
   private final GuildSourceService sources;
   private final GuildInteractionService interactions;
+  private final GuildWorld world;
 
   @GetMapping("/guild/maintenance")
   public String index(Model model) {
@@ -32,6 +33,9 @@ public class GuildMaintenanceController {
     model.addAttribute("categoryCap", properties.categoryCap());
     model.addAttribute("worlds", guild.worlds());
     model.addAttribute("hourlyJobs", interactions.jobs());
+    model.addAttribute("interactionHours", properties.interactionHours());
+    model.addAttribute("interactionDailyMax", properties.interactionDailyMax());
+    model.addAttribute("affiliationCounts", world.counts());
     model.addAttribute("currentSlot", GuildInteractionService.slot(java.time.ZonedDateTime.now(GuildService.TOKYO)));
     return "guild-maintenance";
   }

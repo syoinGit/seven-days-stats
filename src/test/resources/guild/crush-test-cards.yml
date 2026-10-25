@@ -1,0 +1,9 @@
+# One quiet card that always falls, for GuildTests.oneSidedFeelingsBecomeACrush.
+version: "test"
+cards:
+  - id: test-chat
+    kind: 雑談
+    tier: daily
+    weight: 1
+    outcomes:
+      - {id: chat, chance: 1, summary: "{a}と{b}は少し話した", template: "{a}と{b}は少し話した。", both: {affinity: [2, 2]}}

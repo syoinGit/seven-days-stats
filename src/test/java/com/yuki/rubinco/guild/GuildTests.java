@@ -41,21 +41,25 @@ class GuildTests {
   @Autowired GuildInteractionWriter writer;
   @Autowired GuildChronicle chronicle;
   @Autowired GuildDossier dossier;
+  @Autowired GuildWorld world;
+  @Autowired GuildProperties properties;
   @Autowired JdbcTemplate jdbc;
   @Autowired MockMvc mvc;
   @MockitoBean BedrockTextClient bedrock;
   static final String DRAFT = """
       {"reading":"出入りの多い短い一日から、身軽に動き回る暮らしが見えた。","gender":"女性","occupation":"冒険者",
-       "lineage":"ヨーロッパ系","name":"リネ","age":28,"introduction":"旅の道具を直す職人。小さな店を持ちたい。",
+       "lineage":"ヨーロッパ系","village":"グランフォード","faction":"無所属","faith":"無信仰","name":"リネ","age":28,"introduction":"旅の道具を直す職人。小さな店を持ちたい。",
        "personality":"慎重な話し方。修理は得意だが道に迷う。節約家なのに本には目がない。"}
       """;
 
   /** Every choice open, as for a town with no residents yet. */
   static final GuildPeople.Options OPEN = new GuildPeople.Options(GuildPeople.GENDERS,
-      GuildPeople.OUTFITS.keySet().stream().sorted().toList(), List.of(GuildPeople.Lineage.values()), List.of());
+      GuildPeople.OUTFITS.keySet().stream().sorted().toList(), List.of(GuildPeople.Lineage.values()),
+      List.of("grantford", "elmwood", "tsukikage"), List.of("lord_house", "silver_knights", "verdant_wardens", "tsukikage_samurai", "none"),
+      List.of("dawnlight", "spirit", "none"), List.of());
 
   @BeforeEach void setup() {
-    for (String table : List.of("T_GUILD_RELATION_EVENT", "T_GUILD_THREAD", "T_GUILD_INTERACTION_PARTICIPANT", "T_GUILD_INTERACTION",
+    for (String table : List.of("T_GUILD_AFFILIATION_HISTORY", "T_GUILD_RELATION_EVENT", "T_GUILD_THREAD", "T_GUILD_INTERACTION_PARTICIPANT", "T_GUILD_INTERACTION",
         "T_GUILD_RELATION", "T_GUILD_BOND", "T_GUILD_HOURLY_JOB", "T_GUILD_SOURCE", "T_GUILD_VISIT", "T_GUILD_DAY", "T_GUILD_JOB", "M_GUILD_CHARACTER", "T_CK_SESSION", "M_CK_PLAYER")) {
       jdbc.update("DELETE FROM " + table);
     }
@@ -78,8 +82,8 @@ class GuildTests {
       {"narration":"夕方の酒場。窓の外では雨が降っている。","lines":[{"speaker":"リネ","text":"今日は冷えるね。"},
        {"speaker":"ロアン","text":"火のそばに座ろう。"}]}
       """;
-  /** Today at 14:00 JST: the slot every interaction test runs in. */
-  static final ZonedDateTime HOUR = LocalDate.now(GuildService.TOKYO).atTime(14, 0).atZone(GuildService.TOKYO);
+  /** Today at 20:00 JST, one of the three daily slots: the slot every interaction test runs in. */
+  static final ZonedDateTime HOUR = LocalDate.now(GuildService.TOKYO).atTime(20, 0).atZone(GuildService.TOKYO);
 
   /** A resident sitting in today's tavern, inserted directly so interactions don't need births. */
   private long resident(String name, int age, String status, int seat) {
@@ -142,9 +146,6 @@ class GuildTests {
     long now = snapshot(world, LocalDate.now(GuildService.TOKYO).minusDays(1).atStartOfDay(GuildService.TOKYO).toOffsetDateTime(), "b");
     achieve(then, "boss_bird");
     for (String key : List.of("great_wall_lowered", "boss_bird")) achieve(now, key);
-    jdbc.update("INSERT INTO T_PROGRESS_EVENT (game_world_id,progress_definition_id,world_snapshot_id,previous_state,new_state,change_kind,first_observed_at) "
-        + "SELECT ?, progress_definition_id, ?, 'NOT_ACHIEVED', 'ACHIEVED', 'CHANGED', ? FROM M_PROGRESS_DEFINITION "
-        + "WHERE game_id = 'corekeeper' AND progress_key = 'great_wall_lowered'", world, now, lowered);
     // A half-full chest counts, a nearly empty one does not. Item names are absent in tests, so its memory reads back empty.
     for (int filled : new int[] {5, 1}) {
       jdbc.update("INSERT INTO T_CK_CONTAINER (game_world_id,world_snapshot_id,holder,object_id,variation,pos_x,pos_z,slot_count,filled_slots,label) "
@@ -161,10 +162,11 @@ class GuildTests {
       assertThat(source.label() + source.facts()).doesNotContain("PRIVATE").doesNotContain("Azeos").doesNotContain("#").doesNotContain("456");
       facts.add(source.facts());
     });
-    assertThat(facts).containsExactlyInAnyOrder("15:30 「大壁の解放」を果たした（世界の変化）", "「名を伏せた大物」は記録が始まる前に果たされていた（ボス討伐）");
-    // The dated milestone is read against the snapshot before it: the bird was down, the wall not yet.
+    // Done is done: no time, no "before records began".
+    assertThat(facts).containsExactlyInAnyOrder("「大壁の解放」を成し遂げた", "嵐を呼ぶ空の巨鳥を討ち果たした");
+    // The world is read as it was at a memory's time: at an earlier moment the bird was down, the wall not yet.
     var wall = new GuildSourceService.Source("corekeeper:milestone:great_wall_lowered", "corekeeper", "milestone", "x", "x", lowered);
-    assertThat(dossier.build(wall)).contains("ボス討伐 1/").contains("世界の変化 0/1").doesNotContain("Azeos");
+    assertThat(dossier.build(wall)).contains("ボス討伐 1/").contains("世界の変化 0/1").contains("嵐を呼ぶ空の巨鳥").doesNotContain("Azeos");
   }
 
   @Test void sevenDaysMemoriesArePlacesReachedOnFootAndEnemiesDefeated() {
@@ -222,8 +224,7 @@ class GuildTests {
           new GuildSourceService.Inventory("terraria", "chest", 2));
       java.util.Set<String> facts = new java.util.HashSet<>();
       for (int i = 0; i < 40; i++) sources.choose(LocalDate.now(GuildService.TOKYO)).source().ifPresent(source -> facts.add(source.facts()));
-      assertThat(facts).containsExactlyInAnyOrder("「クトゥルフのめだま」は記録が始まる前に果たされていた（ボス討伐）",
-          "「ゴブリンしんりゃく」は記録が始まる前に果たされていた（イベント）");
+      assertThat(facts).containsExactlyInAnyOrder("「クトゥルフのめだま」を討ち果たした", "「ゴブリンしんりゃく」を退けた");
     } finally {
       jdbc.update("DELETE FROM T_TERRARIA_ITEM_CHANGE WHERE world_snapshot_id = ?", now);
       jdbc.update("DELETE FROM T_TERRARIA_CONTAINER WHERE world_snapshot_id = ?", now);
@@ -251,6 +252,12 @@ class GuildTests {
   @Test void manyHoursKeepTheRules() {
     List<Long> ids = List.of(resident("リネ", 28, "ALIVE", 0), resident("ロアン", 30, "ALIVE", 1), resident("ミラ", 45, "ALIVE", 2),
         resident("ガルド", 19, "ALIVE", 3), resident("セナ", 16, "ALIVE", 4));
+    // Men and women, so gender shapes some pairs.
+    jdbc.update("UPDATE M_GUILD_CHARACTER SET gender = '男性' WHERE id IN (?, ?)", ids.get(1), ids.get(3));
+    // Different villages, factions and faiths, so affiliation cards can fall too.
+    jdbc.update("UPDATE M_GUILD_CHARACTER SET faction = 'silver_knights', faith = 'dawnlight' WHERE id = ?", ids.get(1));
+    jdbc.update("UPDATE M_GUILD_CHARACTER SET home_village = 'elmwood', current_village = 'elmwood', faction = 'verdant_wardens', faith = 'spirit' WHERE id = ?", ids.get(2));
+    jdbc.update("UPDATE M_GUILD_CHARACTER SET faith = 'spirit' WHERE id = ?", ids.get(3));
     for (int day = 1; day <= 60; day++) {
       var date = HOUR.toLocalDate().plusDays(day);
       jdbc.update("INSERT INTO T_GUILD_DAY (visit_date) VALUES (?)", date);
@@ -260,8 +267,27 @@ class GuildTests {
       if (day == 40) jdbc.update("UPDATE M_GUILD_CHARACTER SET status = 'DEAD' WHERE id = ?", ids.get(3));
       for (int hour = 0; hour < 24; hour++) interactions.runHour(date.atTime(hour, 0).atZone(GuildService.TOKYO));
     }
-    assertThat(count("SELECT COUNT(*) FROM T_GUILD_HOURLY_JOB")).isEqualTo(60 * 24);
-    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isGreaterThan(60 * 20);
+    // Only the three slots run; at most three interactions a day.
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_HOURLY_JOB")).isEqualTo(60 * 3);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isGreaterThan(60 * 2);
+    assertThat(jdbc.queryForList("SELECT DISTINCT SUBSTRING(slot_key, 12, 2) FROM T_GUILD_HOURLY_JOB ORDER BY 1", String.class))
+        .containsExactly("20", "21", "22");
+    assertThat(count("SELECT MAX(n) FROM (SELECT COUNT(*) n FROM T_GUILD_INTERACTION GROUP BY SUBSTRING(slot_key, 1, 10)) t")).isLessThanOrEqualTo(3);
+    // Every change an event made is in the history, and the last one is where the resident is now.
+    for (long id : ids) {
+      for (String[] kind : new String[][] {{"village", "current_village"}, {"faction", "faction"}, {"faith", "faith"}}) {
+        List<String> last = jdbc.queryForList("SELECT to_value FROM T_GUILD_AFFILIATION_HISTORY WHERE character_id = ? AND kind = ? "
+            + "ORDER BY changed_at DESC, id DESC LIMIT 1", String.class, id, kind[0]);
+        if (!last.isEmpty()) {
+          assertThat(jdbc.queryForObject("SELECT " + kind[1] + " FROM M_GUILD_CHARACTER WHERE id = ?", String.class, id)).isEqualTo(last.getFirst());
+        }
+      }
+    }
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_AFFILIATION_HISTORY h WHERE h.interaction_id IS NOT NULL "
+        + "AND NOT EXISTS (SELECT 1 FROM T_GUILD_INTERACTION_PARTICIPANT p WHERE p.interaction_id = h.interaction_id "
+        + "AND p.character_id = h.character_id AND p.position = 0)")).isZero();
+    assertThat(count("SELECT COUNT(*) FROM M_GUILD_CHARACTER c JOIN M_GUILD_FACTION f ON f.faction_key = c.faction "
+        + "WHERE f.village_key IS NOT NULL AND f.village_key <> c.current_village")).as("members live where their faction is").isZero();
     assertThat(count("SELECT COUNT(DISTINCT card_id) FROM T_GUILD_INTERACTION")).isGreaterThan(10);
     assertThat(count("SELECT MAX(n) FROM (SELECT COUNT(*) n FROM T_GUILD_INTERACTION GROUP BY slot_key) t")).isEqualTo(1);
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION i JOIN T_GUILD_INTERACTION_PARTICIPANT p ON p.interaction_id = i.id "
@@ -274,7 +300,9 @@ class GuildTests {
         + "OR wariness NOT BETWEEN 0 AND 100 OR debt NOT BETWEEN 0 AND 100")).isZero();
     String labels = String.join(",", jdbc.queryForList("SELECT label || ':' || COUNT(*) FROM T_GUILD_BOND GROUP BY label ORDER BY label", String.class));
     String kinds = String.join(",", jdbc.queryForList("SELECT kind || ':' || COUNT(*) FROM T_GUILD_INTERACTION GROUP BY kind ORDER BY kind", String.class));
-    System.out.println("guild simulation labels=" + labels + " kinds=" + kinds);
+    String changes = String.join(",", jdbc.queryForList("SELECT change_kind || ':' || COUNT(*) FROM T_GUILD_AFFILIATION_HISTORY "
+        + "GROUP BY change_kind ORDER BY change_kind", String.class));
+    System.out.println("guild simulation labels=" + labels + " kinds=" + kinds + " changes=" + changes);
   }
 
   @Test void theDeadAndAnEmptyTavernMakeNoInteraction() {
@@ -313,6 +341,125 @@ class GuildTests {
         "恋人", "夫婦", "", List.of(), null, null, null);
     assertThat(writer.validate(married, wedding)).contains("夫婦になった");
     assertThatThrownBy(() -> writer.validate(SCENE.replace("今日は冷えるね。", "彼は亡くなったよ。"), scene)).hasMessageContaining("Unconfirmed");
+    // Joining a faction or a conversion only when code made it here, or when one of them went through it before.
+    String joined = SCENE.replace("今日は冷えるね。", "騎士団への加入、おめでとう。");
+    assertThatThrownBy(() -> writer.validate(joined, scene)).hasMessageContaining("Unconfirmed");
+    var invite = new GuildInteractionWriter.Scene("evening", "勧誘", "リネは白銀の騎士団に加わった", a, b, "ふつう", "ふつう",
+        "知人", null, "", List.of(), null, null, null, "派閥 白銀の騎士団：正義と名誉を重んじる騎士団。",
+        "リネが白銀の騎士団に加わる（加入）", "join");
+    assertThat(writer.validate(joined, invite)).contains("加入");
+    assertThatThrownBy(() -> writer.validate(SCENE.replace("今日は冷えるね。", "改宗したんだ。"), invite)).hasMessageContaining("Unconfirmed");
+    var convert = new GuildInteractionService.Affiliation("grantford", "grantford", "none", "dawnlight", "グランフォード", "無所属", "暁光教",
+        null, null, java.util.Set.of("convert"), List.of("10月1日 信仰：無信仰 → 暁光教（改宗）：ロアンに導かれた"));
+    var changed = new GuildInteractionService.Person(1, "リネ", 28, "女性", "冒険者", "穏やか", convert);
+    var later = new GuildInteractionWriter.Scene("evening", "雑談", "二人は天気の話をした", changed, b, "ふつう", "ふつう",
+        "知人", null, "", List.of(), null, null, null);
+    assertThat(writer.validate(SCENE.replace("今日は冷えるね。", "改宗して半月になる。"), later)).contains("改宗");
+  }
+
+  /** Event cards that change a faction and a faith: code applies both, keeps the history and shows it. */
+  @Test void eventsChangeFactionsAndFaithsAndKeepTheHistory() throws Exception {
+    long rine = resident("リネ", 28, "ALIVE", 0);
+    long roan = resident("ロアン", 30, "ALIVE", 1);
+    jdbc.update("UPDATE M_GUILD_CHARACTER SET occupation = '騎士', faction = 'silver_knights', faith = 'dawnlight' WHERE id = ?", roan);
+    var only = new GuildCards(new org.springframework.core.io.ClassPathResource("guild/affiliation-test-cards.yml"));
+    var service = new GuildInteractionService(jdbc, properties, only, writer, world);
+    service.runHour(HOUR.withHour(20));
+    service.runHour(HOUR.withHour(21));
+    assertThat(jdbc.queryForMap("SELECT faction, faith, current_village FROM M_GUILD_CHARACTER WHERE id = ?", rine))
+        .containsEntry("FACTION", "silver_knights").containsEntry("FAITH", "dawnlight").containsEntry("CURRENT_VILLAGE", "grantford");
+    assertThat(jdbc.queryForList("SELECT change_kind FROM T_GUILD_AFFILIATION_HISTORY WHERE character_id = ? AND interaction_id IS NOT NULL "
+        + "ORDER BY change_kind", String.class, rine)).containsExactly("convert", "join");
+    // A third slot: neither change is possible any more, so nothing is drawn.
+    assertThat(service.runHour(HOUR.withHour(22))).contains("合う出来事がありません");
+    // The writer saw both people's affiliations, only their parts of the world, and the change being made.
+    verify(bedrock, atLeastOnce()).generate(anyString(), argThat(input -> input.contains("リネの所属=暮らす村 グランフォード")
+        && input.contains("派閥 白銀の騎士団：") && !input.contains("月影郷") && input.contains("この場面で起きる所属の変化=リネが")), eq(700), anyFloat(), any());
+    mvc.perform(get("/guild/characters/" + rine)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("所属の履歴")))
+        .andExpect(content().string(containsString("派閥：無所属 → 白銀の騎士団（加入）")))
+        .andExpect(content().string(containsString("信仰：無信仰 → 暁光教（改宗）")));
+    long joined = jdbc.queryForObject("SELECT interaction_id FROM T_GUILD_AFFILIATION_HISTORY WHERE change_kind = 'join'", Long.class);
+    mvc.perform(get("/guild/log/" + joined)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("所属の変化")))
+        .andExpect(content().string(containsString("リネ ／ 派閥：無所属 → 白銀の騎士団（加入）")));
+    mvc.perform(get("/guild/maintenance").with(user("admin").roles("ADMIN"))).andExpect(status().isOk())
+        .andExpect(content().string(containsString("村・派閥・信仰の内訳")))
+        .andExpect(content().string(containsString("毎日 20時・21時・22時")));
+    guild.delete(rine);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_AFFILIATION_HISTORY")).isZero();
+  }
+
+  /** Different genders warm slowly unless one finds the other their type; feelings can go one way only. */
+  @Test void genderShapesHowFastEachSideWarms() {
+    var woman = new GuildInteractionService.Person(1, "リネ", 28, "女性", "冒険者", "穏やか");
+    var man = new GuildInteractionService.Person(2, "ロアン", 30, "男性", "鍛冶屋", "無口");
+    var other = new GuildInteractionService.Person(3, "ミラ", 25, "女性", "薬師", "明るい");
+    var cool = new GuildInteractionService.Rel(0, 0, 0, 0);
+    var mixed = new GuildInteractionService.Pair(woman, man, cool, cool, null, null, 0, 0, List.of(), null);
+    var same = new GuildInteractionService.Pair(woman, other, cool, cool, null, null, 0, 0, List.of(), null);
+    var gain = java.util.Map.of("affinity", 4, "trust", 2);
+    assertThat(GuildInteractionService.attraction(gain, same, cool)).isEqualTo(gain);
+    for (int i = 0; i < 30; i++) {
+      assertThat(GuildInteractionService.attraction(gain, mixed, cool).get("affinity")).isIn(0, 2);
+    }
+    assertThat(GuildInteractionService.attraction(gain, mixed, new GuildInteractionService.Rel(0, 0, 0, 0, true))).containsEntry("affinity", 7).containsEntry("trust", 2);
+    assertThat(GuildInteractionService.attraction(gain, mixed, new GuildInteractionService.Rel(0, 30, 0, 0))).containsEntry("affinity", 4);
+    assertThat(GuildInteractionService.attraction(java.util.Map.of("affinity", -3), mixed, cool)).containsEntry("affinity", -3);
+  }
+
+  @Test void oneSidedFeelingsBecomeACrush() throws Exception {
+    long rine = resident("リネ", 28, "ALIVE", 0);
+    long roan = resident("ロアン", 30, "ALIVE", 1);
+    jdbc.update("UPDATE M_GUILD_CHARACTER SET gender = '男性' WHERE id = ?", roan);
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten) VALUES (?,?,10,45,0,0,TRUE)", rine, roan);
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten) VALUES (?,?,10,0,0,0,FALSE)", roan, rine);
+    var quiet = new GuildCards(new org.springframework.core.io.ClassPathResource("guild/crush-test-cards.yml"));
+    new GuildInteractionService(jdbc, properties, quiet, writer, world).runHour(HOUR);
+    assertThat(count("SELECT affinity FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", rine, roan)).isEqualTo(45 + 2 + 1 + 1);
+    assertThat(count("SELECT affinity FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", roan, rine)).isBetween(0, 1);
+    assertThat(jdbc.queryForMap("SELECT kind, a_id, summary FROM T_GUILD_THREAD")).containsEntry("KIND", "crush")
+        .containsEntry("A_ID", rine).containsEntry("SUMMARY", "リネはロアンに片思いしている");
+    verify(bedrock).generate(anyString(), argThat(input -> input.contains("二人は異性") && input.contains("好みのタイプで気になっている")
+        && input.contains("この場面で生まれること=リネはロアンに片思いしている")), eq(700), anyFloat(), any());
+    mvc.perform(get("/guild/characters/" + rine)).andExpect(status().isOk()).andExpect(content().string(containsString("気になっている")));
+    mvc.perform(get("/guild/characters/" + roan)).andExpect(status().isOk()).andExpect(content().string(not(containsString("気になっている"))));
+    // The log says who is who.
+    mvc.perform(get("/guild/log")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("リネ（28歳・女性・冒険者・グランフォード） × ロアン（30歳・男性・冒険者・グランフォード）")));
+  }
+
+  @Test void theTavernSeatsTen() throws Exception {
+    for (int i = 0; i < 12; i++) {
+      jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance) "
+          + "VALUES (?,'7dtd',?,'旅の者。','記録から。','穏やか。','moss')", LocalDate.now(GuildService.TOKYO).minusDays(300 + i), "客" + (char) ('ア' + i * 2));
+    }
+    guild.prepareToday();
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_VISIT")).isEqualTo(10);
+    mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("seat-9 ")))
+        .andExpect(content().string(containsString("table-four")));
+  }
+
+  @Test void theWorldsRulesHoldForNewcomers() {
+    assertThat(world.villages().keySet()).containsExactly("grantford", "elmwood", "tsukikage");
+    assertThat(world.factions().get("tsukikage_samurai").village()).isEqualTo("tsukikage");
+    assertThat(GuildWorld.faithName("精霊信仰", "spirit", "tsukikage")).isEqualTo("精霊信仰（八百万信仰）");
+    assertThat(GuildWorld.faithName("精霊信仰", "spirit", "elmwood")).isEqualTo("精霊信仰");
+    String samurai = DRAFT.replace("冒険者", "侍").replace("ヨーロッパ系", "日本系").replace("リネ", "灯子").replace("グランフォード", "月影郷")
+        .replace("無所属", "月影武家衆").replace("無信仰", "精霊信仰");
+    assertThat(generator.validate(samurai, OPEN)).satisfies(d -> {
+      assertThat(d.village()).isEqualTo("tsukikage");
+      assertThat(d.faction()).isEqualTo("tsukikage_samurai");
+      assertThat(d.faith()).isEqualTo("spirit");
+    });
+    for (String bad : List.of(DRAFT.replace("グランフォード", "月影郷"), DRAFT.replace("無所属", "月影武家衆"),
+        DRAFT.replace("冒険者", "侍"), samurai.replace("侍", "騎士"), DRAFT.replace("無信仰", "太陽教"),
+        DRAFT.replace("\"village\":\"グランフォード\",", ""))) {
+      assertThatThrownBy(() -> generator.validate(bad, OPEN)).isInstanceOf(IllegalArgumentException.class);
+    }
+    var noTsukikage = new GuildPeople.Options(OPEN.genders(), OPEN.occupations(), OPEN.lineages(), List.of("grantford"),
+        OPEN.factions(), OPEN.faiths(), List.of());
+    assertThatThrownBy(() -> generator.validate(samurai, noTsukikage)).hasMessage("Village not offered");
   }
 
   @Test void onlyCodeRulesMoveLabelsAndPartnersAreExclusive() {
@@ -404,7 +551,10 @@ class GuildTests {
       for (var result : results) assertThat(result.get()).isNotNull();
     }
     assertThat(guild.characters(0)).hasSize(1);
-    verify(bedrock, times(1)).generate(anyString(), argThat(prompt -> !prompt.contains("PRIVATE_PLAYER_SECRET") && !prompt.contains("765611")), eq(1200), anyFloat(), any());
+    verify(bedrock, times(1)).generate(anyString(), argThat(prompt -> !prompt.contains("PRIVATE_PLAYER_SECRET") && !prompt.contains("765611")
+        && prompt.contains("村 月影郷：") && prompt.contains("派閥の選択肢=") && prompt.contains("信仰の選択肢=暁光教、精霊信仰、無信仰")), eq(1200), anyFloat(), any());
+    assertThat(jdbc.queryForList("SELECT kind || ':' || to_value || ':' || change_kind FROM T_GUILD_AFFILIATION_HISTORY ORDER BY kind", String.class))
+        .containsExactly("faction:none:birth", "faith:none:birth", "village:grantford:birth");
     assertThat(sources.choose(LocalDate.now(GuildService.TOKYO)).source()).isEmpty();
     var character = guild.characters(0).getFirst();
     mvc.perform(get("/guild/characters/" + character.id())).andExpect(status().isOk())
@@ -412,6 +562,8 @@ class GuildTests {
         .andExpect(content().string(containsString("28歳・女性・冒険者")))
         .andExpect(content().string(containsString("記録から読み取られたこと：出入りの多い短い一日から")))
         .andExpect(content().string(containsString("ヨーロッパ系の名")))
+        .andExpect(content().string(containsString("<dt>出身地</dt><dd>グランフォード</dd>")))
+        .andExpect(content().string(containsString("<dt>信仰</dt><dd>無信仰</dd>")))
         .andExpect(content().string(containsString("guild-people.svg?v=2#outfit-")))
         .andExpect(content().string(containsString("7 Days to Die・")))
         .andExpect(content().string(containsString("zombieGuild10を1体倒した日から生まれました")))
@@ -577,7 +729,11 @@ class GuildTests {
     assertThat(crowded.genders()).containsExactly("男性");
     assertThat(crowded.occupations()).doesNotContain("鍛冶屋", "農家").contains("漁師", "騎士");
     assertThat(crowded.lineages()).doesNotContain(GuildPeople.Lineage.EUROPEAN).contains(GuildPeople.Lineage.JAPANESE);
-    assertThat(crowded.recent()).hasSize(5).allMatch(line -> line.matches(".+（(女性|男性)・(鍛冶屋|農家)・(日本系|北方系)）"));
+    assertThat(crowded.recent()).hasSize(5).allMatch(line -> line.matches(".+（(女性|男性)・(鍛冶屋|農家)・(日本系|北方系)・グランフォード・無所属）"));
+    // Ten from Grantford: it is not offered, and the Japanese lineage comes only with Tsukikage.
+    assertThat(crowded.villages()).containsExactly("elmwood", "tsukikage");
+    assertThat(crowded.occupations()).contains("侍", "巫女");
+    assertThat(crowded.factions()).endsWith("none");
     assertThatThrownBy(() -> generator.validate(DRAFT, crowded)).hasMessage("Gender not offered");
     var draft = generator.validate(DRAFT, OPEN);
     assertThat(draft).satisfies(d -> {

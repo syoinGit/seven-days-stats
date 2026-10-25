@@ -23,6 +23,7 @@ public class GuildService {
   private final GuildCharacterGenerator generator;
   private final GuildPeople people;
   private final GuildDossier dossier;
+  private final GuildWorld affiliations;
 
   /**
    * memoryLabel and memory are null for residents born before memories were recorded; lineage and look
@@ -32,7 +33,8 @@ public class GuildService {
   public record Character(long id, LocalDate bornOn, String game, String name, String introduction,
                           String origin, String personality, String appearance, String status,
                           Integer age, String gender, String occupation, String memoryLabel, String memory,
-                          String lineage, GuildPeople.Look look, String reading) {
+                          String lineage, GuildPeople.Look look, String reading,
+                          String homeVillage, String village, String faction, String faith) {
     public String lineageName() {
       var known = GuildPeople.Lineage.of(lineage);
       return known == null ? null : known.label();
@@ -51,6 +53,11 @@ public class GuildService {
       return String.join("・", parts);
     }
 
+    /** "グランフォード生まれ・エルムウッド在住", or just the birthplace when they never moved. */
+    public String place() {
+      return homeVillage.equals(village) ? homeVillage + "で暮らす" : homeVillage + "生まれ・" + village + "で暮らす";
+    }
+
     public List<String> memoryLines() {
       return memoryLabel == null || memory == null ? List.of() : memory.lines().toList();
     }
@@ -63,8 +70,12 @@ public class GuildService {
   private static final String PUBLIC_COLUMNS = "c.id, c.born_on, c.game_id, c.name, c.introduction, c.origin, "
       + "c.personality, c.appearance, c.status, c.age, c.gender, c.occupation, s.memory_label, "
       + "c.name_lineage, c.outfit, c.hair_style, c.hair_color, c.skin_color, c.cloth_color, c.cloth2_color, "
-      + "CASE WHEN s.memory_label IS NULL THEN NULL ELSE s.facts END AS memory, s.reading";
-  private static final String FROM = " FROM M_GUILD_CHARACTER c LEFT JOIN T_GUILD_SOURCE s ON s.character_id = c.id";
+      + "CASE WHEN s.memory_label IS NULL THEN NULL ELSE s.facts END AS memory, s.reading, "
+      + "hv.name AS home_village_name, cv.name AS village_name, cv.village_key, fa.name AS faction_name, "
+      + "fi.name AS faith_name, fi.faith_key";
+  private static final String FROM = " FROM M_GUILD_CHARACTER c LEFT JOIN T_GUILD_SOURCE s ON s.character_id = c.id"
+      + " JOIN M_GUILD_VILLAGE hv ON hv.village_key = c.home_village JOIN M_GUILD_VILLAGE cv ON cv.village_key = c.current_village"
+      + " JOIN M_GUILD_FACTION fa ON fa.faction_key = c.faction JOIN M_GUILD_FAITH fi ON fi.faith_key = c.faith";
   private static Character character(java.sql.ResultSet rs) throws java.sql.SQLException {
     return new Character(rs.getLong("id"), rs.getDate("born_on").toLocalDate(), rs.getString("game_id"),
         rs.getString("name"), rs.getString("introduction"), rs.getString("origin"),
@@ -73,7 +84,13 @@ public class GuildService {
         rs.getString("memory_label"), rs.getString("memory"), rs.getString("name_lineage"),
         GuildPeople.Look.of(rs.getString("outfit"), rs.getString("hair_style"), rs.getString("hair_color"),
             rs.getString("skin_color"), rs.getString("cloth_color"), rs.getString("cloth2_color"), rs.getString("gender")),
-        rs.getString("reading"));
+        rs.getString("reading"), rs.getString("home_village_name"), rs.getString("village_name"), rs.getString("faction_name"),
+        GuildWorld.faithName(rs.getString("faith_name"), rs.getString("faith_key"), rs.getString("village_key")));
+  }
+
+  /** A resident's affiliation history, oldest first. */
+  public List<GuildWorld.Change> history(long id) {
+    return affiliations.history(id);
   }
 
   public List<Character> characters(int page) {
@@ -162,16 +179,21 @@ public class GuildService {
     }
     var look = people.look(draft.gender(), draft.occupation());
     jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,age,gender,occupation,"
-        + "name_lineage,outfit,hair_style,hair_color,skin_color,cloth_color,cloth2_color) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        + "name_lineage,outfit,hair_style,hair_color,skin_color,cloth_color,cloth2_color,home_village,current_village,faction,faith) "
+        + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         today, source.get().game(), draft.name(), draft.introduction(), origin, draft.personality(),
         List.of("ember", "moss", "violet").get(java.util.concurrent.ThreadLocalRandom.current().nextInt(3)),
         draft.age(), draft.gender(), draft.occupation(), draft.lineage().name().toLowerCase(), look.outfit(), look.hair(),
-        look.hairColor(), look.skin(), look.cloth(), look.cloth2());
+        look.hairColor(), look.skin(), look.cloth(), look.cloth2(), draft.village(), draft.village(), draft.faction(), draft.faith());
     // Writes are serialized by lock(), so the newest id is this resident.
     Long id = jdbc.queryForObject("SELECT MAX(id) FROM M_GUILD_CHARACTER", Long.class);
     jdbc.update("INSERT INTO T_GUILD_SOURCE (character_id,source_key,facts,memory_label,category,reading,world_facts) VALUES (?,?,?,?,?,?,?)",
         id, source.get().key(), source.get().facts(), source.get().label(), source.get().category(), draft.reading(),
         world.isBlank() ? null : world);
+    for (String[] kind : new String[][] {{"village", draft.village()}, {"faction", draft.faction()}, {"faith", draft.faith()}}) {
+      jdbc.update("INSERT INTO T_GUILD_AFFILIATION_HISTORY (character_id,kind,to_value,change_kind,reason) VALUES (?,?,?,'birth',?)",
+          id, kind[0], kind[1], "記憶から生まれたときに選ばれた");
+    }
     // Build today's roster after the very first birth. A saved roster changes only by refreshVisits().
     ensureVisits(today);
     return finish(today, "SUCCEEDED", "「" + draft.name() + "」を迎えました（今日 " + bornToday() + " / " + limit
@@ -213,11 +235,13 @@ public class GuildService {
     if (names.isEmpty()) return "その住人は見つかりませんでした。";
     List<Long> interactions = jdbc.queryForList("SELECT interaction_id FROM T_GUILD_INTERACTION_PARTICIPANT WHERE character_id = ?", Long.class, id);
     for (long interaction : interactions) {
+      jdbc.update("DELETE FROM T_GUILD_AFFILIATION_HISTORY WHERE interaction_id = ?", interaction);
       jdbc.update("DELETE FROM T_GUILD_RELATION_EVENT WHERE interaction_id = ?", interaction);
       jdbc.update("DELETE FROM T_GUILD_THREAD WHERE origin_interaction_id = ? OR resolved_interaction_id = ?", interaction, interaction);
       jdbc.update("DELETE FROM T_GUILD_INTERACTION_PARTICIPANT WHERE interaction_id = ?", interaction);
       jdbc.update("DELETE FROM T_GUILD_INTERACTION WHERE id = ?", interaction);
     }
+    jdbc.update("DELETE FROM T_GUILD_AFFILIATION_HISTORY WHERE character_id = ?", id);
     jdbc.update("DELETE FROM T_GUILD_RELATION_EVENT WHERE from_id = ? OR to_id = ?", id, id);
     jdbc.update("DELETE FROM T_GUILD_THREAD WHERE a_id = ? OR b_id = ?", id, id);
     jdbc.update("DELETE FROM T_GUILD_RELATION WHERE from_id = ? OR to_id = ?", id, id);
@@ -245,7 +269,7 @@ public class GuildService {
         SELECT c.id FROM M_GUILD_CHARACTER c LEFT JOIN T_GUILD_VISIT v ON c.id = v.character_id
         WHERE c.status = 'ALIVE' GROUP BY c.id, c.born_on
         ORDER BY CASE WHEN c.born_on >= ? THEN 0 ELSE 1 END,
-          COALESCE(MAX(v.visit_date), DATE '1970-01-01'), RANDOM() LIMIT 5
+          COALESCE(MAX(v.visit_date), DATE '1970-01-01'), RANDOM() LIMIT 10
         """, Long.class, today.minusDays(1));
     // An empty database should welcome its very first birth immediately.
     if (ids.isEmpty()) return;
@@ -256,7 +280,11 @@ public class GuildService {
     }
   }
 
-  private static final String[] MORNING = {"窓辺で朝のパンを食べている。", "暖炉のそばで旅装を整えている。", "卓の上で今日の予定を考えている。", "静かに手を合わせている。", "入り口で靴の泥を落としている。"};
-  private static final String[] AFTERNOON = {"卓で道具の手入れをしている。", "掲示板の依頼を眺めている。", "昼食のスープをゆっくり味わっている。", "記録棚で本をめくっている。", "カウンターで休憩している。"};
-  private static final String[] EVENING = {"暖炉を眺めながら温かい飲み物を飲んでいる。", "カウンターで夕食を待っている。", "卓で明日の支度をしている。", "本を閉じ、静かに休んでいる。", "窓の外に灯る明かりを眺めている。"};
+  // One line per seat (ten seats).
+  private static final String[] MORNING = {"窓辺で朝のパンを食べている。", "暖炉のそばで旅装を整えている。", "卓の上で今日の予定を考えている。", "静かに手を合わせている。", "入り口で靴の泥を落としている。",
+      "奥の卓で地図を広げている。", "湯気の立つ茶をすすっている。", "掲示板の前で背伸びをしている。", "眠そうに目をこすっている。", "暖炉に薪をくべている。"};
+  private static final String[] AFTERNOON = {"卓で道具の手入れをしている。", "掲示板の依頼を眺めている。", "昼食のスープをゆっくり味わっている。", "記録棚で本をめくっている。", "カウンターで休憩している。",
+      "奥の卓で手紙を書いている。", "窓辺でうたた寝をしている。", "隣の卓の話に耳を傾けている。", "パンを半分に割っている。", "荷物の中身を数えている。"};
+  private static final String[] EVENING = {"暖炉を眺めながら温かい飲み物を飲んでいる。", "カウンターで夕食を待っている。", "卓で明日の支度をしている。", "本を閉じ、静かに休んでいる。", "窓の外に灯る明かりを眺めている。",
+      "奥の卓で杯を傾けている。", "今日の出来事を思い返している。", "小さく鼻歌を歌っている。", "煮込みのおかわりを頼んでいる。", "ろうそくの火を見つめている。"};
 }
