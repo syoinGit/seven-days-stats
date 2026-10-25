@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verify;
 import com.yuki.rubinco.portal.service.ServerActivityGate;
 import com.yuki.rubinco.timeline.entity.T_TimelinePost;
 import com.yuki.rubinco.timeline.repository.T_TimelinePostRepository;
+import com.yuki.rubinco.watchpoint.ai.AiAgentProfileService;
 import com.yuki.rubinco.watchpoint.ai.BedrockTextClient;
 import com.yuki.rubinco.worldprogress.entity.M_GameWorld;
 import com.yuki.rubinco.worldprogress.repository.M_GameWorldRepository;
@@ -29,15 +30,16 @@ class WorldAiPublishingServiceTests {
   private final BedrockTextClient bedrock = mock(BedrockTextClient.class);
   private final T_TimelinePostRepository timeline = mock(T_TimelinePostRepository.class);
   private final M_GameWorldRepository worlds = mock(M_GameWorldRepository.class);
+  private final AiAgentProfileService agents = mock(AiAgentProfileService.class);
   private final WorldAiFacts site = new WorldAiFacts() {
     @Override public String gameId() { return "corekeeper"; }
-    @Override public String actorName() { return "Octarine観測AI"; }
+    @Override public String gameTitle() { return "Core Keeper"; }
     @Override public Optional<String> facts() { return Optional.of("保管アイテム: 12種"); }
   };
 
   private WorldAiPublishingService service(boolean enabled) {
     return new WorldAiPublishingService(new WorldAiProperties(enabled, Duration.ofHours(3), 300),
-        List.of(site), gate, bedrock, timeline, worlds);
+        List.of(site), gate, bedrock, agents, timeline, worlds);
   }
 
   @Test
@@ -60,6 +62,7 @@ class WorldAiPublishingServiceTests {
     M_GameWorld world = new M_GameWorld();
     world.setPublished(true);
     doReturn(Optional.of(world)).when(worlds).findFirstByGameIdAndActiveTrue("corekeeper");
+    doReturn("統計を覗ける人").when(agents).personalityPrompt("WATCHPOINT");
     doReturn("「宝箱がにぎやかになってきたかも。」").when(bedrock)
         .generate(anyString(), anyString(), anyInt(), anyFloat());
     assertThat(service(true).publishIfDue(site).status()).isEqualTo(WorldAiPublishingService.Status.PUBLISHED);
@@ -68,6 +71,11 @@ class WorldAiPublishingServiceTests {
     assertThat(saved.getValue().getGameId()).isEqualTo("corekeeper");
     assertThat(saved.getValue().getMessage()).isEqualTo("宝箱がにぎやかになってきたかも。");
     assertThat(saved.getValue().isVisible()).isTrue();
+    // One voice on every site: the same character and personality as the 7DTD posts.
+    assertThat(saved.getValue().getActorName()).isEqualTo("WATCHPOINT");
+    ArgumentCaptor<String> system = ArgumentCaptor.forClass(String.class);
+    verify(bedrock).generate(system.capture(), anyString(), anyInt(), anyFloat());
+    assertThat(system.getValue()).startsWith("統計を覗ける人").contains("Core Keeper", "120文字以内");
   }
 
   @Test

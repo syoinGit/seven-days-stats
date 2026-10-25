@@ -35,7 +35,3 @@ app:
     enabled: ${WATCHPOINT_AI_ENABLED:false}
   world-ai:
     enabled: ${WORLD_AI_ENABLED:false}
-  survivor-karen:
-    image-enabled: ${SURVIVOR_KAREN_IMAGE_ENABLED:false}
-    image-bucket: ${WATCHPOINT_IMAGE_BUCKET:}
-    image-public-base-url: ${WATCHPOINT_IMAGE_PUBLIC_BASE_URL:}

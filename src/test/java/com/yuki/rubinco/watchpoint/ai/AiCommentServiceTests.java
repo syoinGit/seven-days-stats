@@ -125,7 +125,7 @@ class AiCommentServiceTests {
     });
     assertThat(timelinePostRepository.findAll()).singleElement()
         .satisfies(post -> {
-          assertThat(post.getActorName()).isEqualTo("観測分析局");
+          assertThat(post.getActorName()).isEqualTo("WATCHPOINT");
           assertThat(post.getPostType()).isEqualTo("PLAYER_ANALYSIS");
         });
   }

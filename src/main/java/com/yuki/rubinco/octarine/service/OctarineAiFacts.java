@@ -2,7 +2,6 @@ package com.yuki.rubinco.octarine.service;
 
 import com.yuki.rubinco.octarine.ingest.CoreKeeperImportProperties;
 import com.yuki.rubinco.octarine.session.CoreKeeperSessionQueryService;
-import com.yuki.rubinco.portal.service.GamePortalService;
 import com.yuki.rubinco.worldprogress.ai.WorldAiFacts;
 import com.yuki.rubinco.worldprogress.service.WorldProgressQueryService;
 import java.util.ArrayList;
@@ -17,7 +16,6 @@ import org.springframework.stereotype.Component;
 public class OctarineAiFacts implements WorldAiFacts {
   private final OctarineQueryService octarine;
   private final WorldProgressQueryService progress;
-  private final GamePortalService portal;
   private final CoreKeeperImportProperties importProperties;
   private final CoreKeeperSessionQueryService sessions;
 
@@ -27,8 +25,8 @@ public class OctarineAiFacts implements WorldAiFacts {
   }
 
   @Override
-  public String actorName() {
-    return portal.card(gameId()).displayName() + "観測AI";
+  public String gameTitle() {
+    return "Core Keeper";
   }
 
   @Override

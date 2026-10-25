@@ -1,7 +1,6 @@
 package com.yuki.rubinco.luminite.service;
 
 import com.yuki.rubinco.luminite.ingest.TerrariaImportProperties;
-import com.yuki.rubinco.portal.service.GamePortalService;
 import com.yuki.rubinco.worldprogress.ai.WorldAiFacts;
 import com.yuki.rubinco.worldprogress.service.WorldProgressQueryService;
 import java.util.ArrayList;
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Component;
 public class LuminiteAiFacts implements WorldAiFacts {
   private final LuminiteQueryService luminite;
   private final WorldProgressQueryService progress;
-  private final GamePortalService portal;
   private final TerrariaImportProperties importProperties;
 
   @Override
@@ -25,8 +23,8 @@ public class LuminiteAiFacts implements WorldAiFacts {
   }
 
   @Override
-  public String actorName() {
-    return portal.card(gameId()).displayName() + "観測AI";
+  public String gameTitle() {
+    return "Terraria";
   }
 
   @Override

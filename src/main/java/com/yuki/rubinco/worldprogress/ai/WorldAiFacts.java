@@ -6,8 +6,8 @@ import java.util.Optional;
 public interface WorldAiFacts {
   String gameId();
 
-  /** Shown as the post's author, e.g. "Octarine観測AI". */
-  String actorName();
+  /** The game's own name, so the AI knows what it is looking at, e.g. "Core Keeper". */
+  String gameTitle();
 
   /** Empty while the world is unpublished or not imported yet. */
   Optional<String> facts();

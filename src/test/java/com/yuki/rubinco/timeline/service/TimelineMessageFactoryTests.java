@@ -75,7 +75,7 @@ class TimelineMessageFactoryTests {
     assertThat(TimelinePostType.LOGIN.systemActorName()).isEmpty();
     assertThat(TimelinePostType.LOGIN.avatarPath()).isEmpty();
     assertThat(TimelinePostType.BLOOD_MOON.avatarPath()).contains("/img/blood-moon-alert-avatar.png");
-    assertThat(TimelinePostType.SERVER_ANALYSIS.avatarPath()).contains("/img/observation-analysis-avatar.png");
+    assertThat(TimelinePostType.SERVER_ANALYSIS.avatarPath()).contains("/img/watchpoint-avatar.png");
     assertThat(TimelinePostType.AIR_DROP.systemActorName()).contains("WORLD INTEL");
     assertThat(TimelinePostType.HORDE_ALERT.systemActorName()).contains("HORDE WATCH");
     assertThat(TimelinePostType.HORDE_ALERT.avatarPath()).contains("/img/horde-watch-avatar.png");

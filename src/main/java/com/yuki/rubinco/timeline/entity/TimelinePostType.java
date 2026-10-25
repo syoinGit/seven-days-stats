@@ -58,8 +58,8 @@ public enum TimelinePostType {
       case BLOOD_MOON -> Optional.of("BLOOD MOON ALERT");
       case AIR_DROP, WORLD_EVENT -> Optional.of("WORLD INTEL");
       case HORDE_ALERT -> Optional.of("HORDE WATCH");
-      case WATCHPOINT -> Optional.of("WATCHPOINT");
-      case PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY -> Optional.of("観測分析局");
+      // One AI voice: analysis posts are WATCHPOINT too.
+      case WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY -> Optional.of("WATCHPOINT");
       case DIARY -> Optional.of("冒険記録局");
       case SURVIVOR_KAREN -> Optional.of("サバイバーカレン");
       case SURVIVOR_MARK -> Optional.of("サバイバーマーク");
@@ -74,9 +74,8 @@ public enum TimelinePostType {
       case AIR_DROP -> Optional.of("/img/air-drop-avatar.png");
       case DIARY -> Optional.of("/img/field-journal-avatar.png");
       case WORLD_EVENT -> Optional.of("/img/world-intel-avatar.png");
-      case PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY ->
-          Optional.of("/img/observation-analysis-avatar.png");
-      case WATCHPOINT -> Optional.of("/img/watchpoint-avatar.png");
+      case WATCHPOINT, PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY ->
+          Optional.of("/img/watchpoint-avatar.png");
       case SURVIVOR_KAREN -> Optional.of("/img/survivor-karen-avatar.png");
       case SURVIVOR_MARK -> Optional.of("/img/survivor-mark-avatar.png");
       default -> Optional.empty();

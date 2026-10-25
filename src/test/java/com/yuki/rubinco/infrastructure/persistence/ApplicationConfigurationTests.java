@@ -62,8 +62,6 @@ class ApplicationConfigurationTests {
       assertThat(platform.getPortalUrl()).isEqualTo("https://portal.rubinco.link");
       assertThat(platform.getCognito().isEnabled()).isTrue();
       assertThat(environment.getProperty("app.ai.enabled", Boolean.class)).isFalse();
-      assertThat(environment.getProperty("app.survivor-karen.image-enabled", Boolean.class))
-          .isFalse();
       assertSiteReferences(environment, platform, context.getBean(GameCatalogProperties.class));
     });
   }
@@ -92,9 +90,6 @@ class ApplicationConfigurationTests {
         "SEVEN_DAYS_CONFIG_DIRECTORY=/etc/7dtd",
         "SEVEN_DAYS_TELNET_ENABLED=false",
         "WATCHPOINT_AI_ENABLED=true",
-        "SURVIVOR_KAREN_IMAGE_ENABLED=true",
-        "WATCHPOINT_IMAGE_BUCKET=test-images",
-        "WATCHPOINT_IMAGE_PUBLIC_BASE_URL=https://images.example.com",
         "WATCHPOINT_BOOTSTRAP_PASSWORD=bootstrap-test",
         "PORTAL_SITE_URL=https://portal.example.com",
         "WATCHPOINT_SITE_URL=https://watchpoint.example.com",
@@ -113,12 +108,6 @@ class ApplicationConfigurationTests {
           assertThat(game.serverConfigPath()).isEqualTo(Path.of("/etc/7dtd/serverconfig.xml"));
           assertThat(game.telnet().enabled()).isFalse();
           assertThat(environment.getProperty("app.ai.enabled", Boolean.class)).isTrue();
-          assertThat(environment.getProperty("app.survivor-karen.image-enabled", Boolean.class))
-              .isTrue();
-          assertThat(environment.getProperty("app.survivor-karen.image-bucket"))
-              .isEqualTo("test-images");
-          assertThat(environment.getProperty("app.survivor-karen.image-public-base-url"))
-              .isEqualTo("https://images.example.com");
           assertThat(environment.getProperty("app.auth.bootstrap.password"))
               .isEqualTo("bootstrap-test");
           assertThat(platform.getPortalUrl()).isEqualTo("https://portal.example.com");
