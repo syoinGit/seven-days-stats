@@ -52,6 +52,12 @@ public class CoreKeeperImportProperties {
   @NotNull
   private Duration runRetention = Duration.ofDays(90);
 
+  /** Read connections from the server log through rubinco-game-control (docs/OCTARINE.md). */
+  private boolean logStreamEnabled;
+
+  @NotNull
+  private Duration logReconnectDelay = Duration.ofSeconds(15);
+
   @AssertTrue(message = "Core Keeper import interval must be at least one minute")
   public boolean isImportIntervalValid() {
     return importInterval != null && importInterval.compareTo(Duration.ofMinutes(1)) >= 0;

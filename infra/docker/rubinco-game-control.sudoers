@@ -12,7 +12,8 @@ Cmnd_Alias RUBINCO_GAME_CONTROL = \
     /usr/local/sbin/rubinco-game-control stop 7dtd, \
     /usr/local/sbin/rubinco-game-control stop corekeeper, \
     /usr/local/sbin/rubinco-game-control stop minecraft, \
-    /usr/local/sbin/rubinco-game-control logs 7dtd
+    /usr/local/sbin/rubinco-game-control logs 7dtd, \
+    /usr/local/sbin/rubinco-game-control logs corekeeper
 
 Defaults:rubinco-web env_reset, !requiretty
 rubinco-web ALL=(root) NOPASSWD: NOSETENV: RUBINCO_GAME_CONTROL

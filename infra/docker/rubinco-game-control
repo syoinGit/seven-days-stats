@@ -60,10 +60,20 @@ case "${1-}" in
     docker_local stop --time 120 "$container"
     ;;
   logs)
-    [[ $# == 2 && "$2" == 7dtd ]] || deny
+    [[ $# == 2 ]] || deny
     # exec allows sudo to forward shutdown signals to the streaming Docker client.
-    exec /usr/bin/env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin HOME=/root \
-      /usr/bin/docker --host=unix:///var/run/docker.sock logs --follow --since 5m 7dtd
+    case "$2" in
+      7dtd)
+        exec /usr/bin/env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin HOME=/root \
+          /usr/bin/docker --host=unix:///var/run/docker.sock logs --follow --since 5m 7dtd
+        ;;
+      corekeeper)
+        # Core Keeper lines carry no time of their own; the app reads Docker's timestamps.
+        exec /usr/bin/env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin HOME=/root \
+          /usr/bin/docker --host=unix:///var/run/docker.sock logs --follow --timestamps --since 1h rubinco-corekeeper
+        ;;
+      *) deny ;;
+    esac
     ;;
   *) deny ;;
 esac

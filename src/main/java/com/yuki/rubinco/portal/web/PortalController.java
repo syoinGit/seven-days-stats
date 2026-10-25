@@ -7,7 +7,10 @@ import com.yuki.rubinco.portal.service.GamePortalService;
 import com.yuki.rubinco.portal.service.GameServerStartGateway;
 import com.yuki.rubinco.portal.service.GameStartService;
 import com.yuki.rubinco.portal.service.GameTimelineService;
+import com.yuki.rubinco.portal.service.OnlinePlayerSource;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +35,7 @@ public class PortalController {
   private final CurrentWebAccountService currentAccountService;
   private final PortalPlatformProperties platformProperties;
   private final GameServerAccess gameServerAccess;
+  private final List<OnlinePlayerSource> onlineSources;
 
   @GetMapping("/portal")
   public String portal(Model model, Authentication authentication,
@@ -59,6 +63,7 @@ public class PortalController {
     model.addAttribute("cognitoEnabled", platformProperties.getCognito().isEnabled());
     model.addAttribute("loginUrl", "/oauth2/authorization/portal");
     var account = currentAccountService.current(authentication);
+    model.addAttribute("onlineCounts", account.isPresent() ? onlineCounts() : Map.of());
     if (account.isPresent()) {
       int safePage = Math.max(0, Math.min(page, 1000000));
       model.addAttribute("timeline", timelineService.sharedTimeline(
@@ -66,6 +71,19 @@ public class PortalController {
       model.addAttribute("timelinePage", safePage);
     }
     return "portal";
+  }
+
+  /** Counts only, for members; a failing source shows nothing rather than breaking the portal. */
+  private Map<String, Integer> onlineCounts() {
+    Map<String, Integer> counts = new HashMap<>();
+    for (OnlinePlayerSource source : onlineSources) {
+      try {
+        counts.put(source.gameId(), source.onlineCount());
+      } catch (RuntimeException ignored) {
+        // Leave this game's count out.
+      }
+    }
+    return counts;
   }
 
   @GetMapping(value = "/portal/actions/games/status", produces = MediaType.APPLICATION_JSON_VALUE)

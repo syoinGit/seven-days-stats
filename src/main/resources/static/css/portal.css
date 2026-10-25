@@ -24,6 +24,7 @@
 .portal-body .server-icon > span { display:grid; place-items:center; width:44px; height:44px; border-radius:12px; background:#ffffff08; }
 .portal-body .server-site b { font-size:14px; }
 .portal-body .server-site > small { color:#aaa9b2; font-size:10px; font-weight:400; }
+.portal-body .server-site > small.server-online { color:#7fe0a8; font-size:11px; font-weight:600; }
 .portal-body .status-chip { border-radius:20px; padding:4px 9px; font-family:inherit; letter-spacing:0; text-transform:none; border-color:#ffffff20; background:#ffffff04; }
 .portal-body .portal-feed { background:none; border:0; padding:0; }
 .portal-body .eyebrow { color:var(--portal-accent); font-size:10px; letter-spacing:.18em; }
@@ -123,3 +124,14 @@
 @media(max-width:680px) { .account-link-row { grid-template-columns:minmax(0, 1fr) auto; }.account-link-row > div { grid-column:1/-1; }.portal-maintenance .panel { padding:18px; } }
 
 .portal-site-rail .game-magenta { color:#f29bd8; border-color:#7d4a6f; }
+
+/* Core Keeper play time on the profile and its admin panel. */
+.profile-playtime { display:grid; gap:10px; margin:24px 0; padding:18px; border:1px solid #ffffff14; border-radius:16px; background:#202127; }
+.profile-playtime h2 { margin:0; font-size:16px; }
+.profile-playtime dl { display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:10px; margin:0; }
+.profile-playtime dt { color:#aaa9b2; font-size:11px; }
+.profile-playtime dd { margin:2px 0 0; font-size:15px; font-weight:600; }
+.ck-player-row { display:grid; grid-template-columns:minmax(0, 1fr) auto auto; gap:10px; align-items:end; padding:12px 0; border-top:1px solid #ffffff10; }
+.ck-player-row small { display:block; color:#aaa9b2; }
+@media (max-width: 640px) { .ck-player-row { grid-template-columns:1fr; } }
+.profile-save.danger { background:#5a2028; border-color:#a8434f; color:#ffd9dd; }

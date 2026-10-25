@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png"><link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <title>ユーザー連携 | Rubinco</title>
   <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/portal.css(v='maintenance-1')}">
+  <link rel="stylesheet" th:href="@{/css/portal.css(v='maintenance-2')}">
+  <script defer th:src="@{/js/confirm-forms.js(v='1')}"></script>
 </head>
 <body class="portal-body">
 <header th:replace="~{fragments/portal-header :: header}"></header>
@@ -33,6 +34,32 @@
         <p class="empty" th:if="${#lists.isEmpty(accountAdmin.accounts)}">ユーザーがまだ登録されていません。</p>
       </div>
       <p class="profile-description">同じプレイヤーを複数のユーザーには連携できません。ゲーム内の記録は変更されません。</p>
+    </article>
+    <article class="panel" aria-labelledby="corekeeper-players-title">
+      <div class="panel-head"><h2 id="corekeeper-players-title">Core Keeperのプレイヤー</h2><small>ADMIN ONLY</small></div>
+      <p class="profile-description">サーバーのログで見つかったプレイヤーです。SteamIDは本人の確認用に末尾4桁だけ表示します。7DTDに同じSteamIDのプレイヤーがいれば自動でつながります。7DTDを遊ばない人は、ここでユーザーを選んでください。</p>
+      <div class="account-link-list">
+        <div class="ck-player-row" th:each="ck : ${coreKeeperPlayers}">
+          <form class="account-link-row" method="post" th:action="@{/portal/maintenance/accounts/corekeeper}">
+            <input type="hidden" name="ckPlayerId" th:value="${ck.id}">
+            <div><strong th:text="${ck.name}">Explorer</strong>
+              <small th:text="${'SteamID ' + ck.steamTail + ' / 合計 ' + ck.total + ' / 最終 ' + ck.lastSeen + (ck.playerId != null ? ' / 7DTD連携済み' : '')}"></small></div>
+            <label><span>ユーザー</span><select name="accountId">
+              <option value="" th:selected="${ck.webAccountId == null}">未連携（解除）</option>
+              <option th:each="account : ${accountAdmin.accounts}" th:value="${account.id}"
+                      th:selected="${ck.webAccountId == account.id}" th:text="${account.loginId}"></option>
+            </select></label>
+            <button class="profile-save" type="submit">保存</button>
+          </form>
+          <form method="post" th:action="@{/portal/maintenance/accounts/corekeeper/delete}"
+                data-confirm="このプレイヤーの接続記録とプレイ時間をすべて削除します。元に戻せません。">
+            <input type="hidden" name="ckPlayerId" th:value="${ck.id}">
+            <button class="profile-save danger" type="submit">記録を削除</button>
+          </form>
+        </div>
+        <p class="empty" th:if="${#lists.isEmpty(coreKeeperPlayers)}">まだ記録がありません。</p>
+      </div>
+      <p class="profile-description">削除は本人から頼まれたとき用です。もう一度接続すると、新しい記録として残ります。</p>
     </article>
     <article th:if="${!cognitoEnabled}" class="panel">
       <form class="ai-comment-form" method="post" th:action="@{/portal/maintenance/accounts}">

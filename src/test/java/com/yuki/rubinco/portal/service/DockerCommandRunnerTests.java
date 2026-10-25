@@ -81,6 +81,8 @@ class DockerCommandRunnerTests {
     }
     assertThatThrownBy(() -> runner.logStream("seven-days-postgres"))
         .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> runner.logStream("rubinco-corekeeper"))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -89,5 +91,7 @@ class DockerCommandRunnerTests {
     assertThat(command.command()).containsExactly("/usr/bin/sudo", "-n", "--",
         "/usr/local/sbin/rubinco-game-control", "logs", "7dtd");
     assertThat(command.environment()).containsOnlyKeys("PATH");
+    assertThat(new DockerCommandRunner(new DockerGameServerProperties()).logStream("corekeeper").command())
+        .endsWith("logs", "corekeeper");
   }
 }
