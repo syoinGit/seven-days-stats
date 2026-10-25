@@ -189,3 +189,37 @@
 @media (max-width:900px) {
   .portal-server-rail { grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); padding-top:16px; }
 }
+
+/* Design layer: HoYoLAB-like cards on a faint dot grid, with pixel details. */
+.portal-body { background:radial-gradient(#ffffff0a 1px, transparent 1.2px) 0 0 / 18px 18px, radial-gradient(ellipse at 85% -10%, #ff4f7418, transparent 45%), var(--rb-bg); }
+.portal-body .portal-layout { max-width:1240px; gap:28px; }
+.portal-body .portal-shell { padding:28px 0; }
+.portal-body .portal-feed > h1, .portal-server-rail > h2 { display:flex; align-items:center; gap:10px; }
+.portal-body .portal-feed > h1 { margin:0 0 16px; font-size:20px; letter-spacing:0; }
+.portal-body .portal-feed > h1::before, .portal-server-rail > h2::before { content:""; width:8px; height:8px; background:var(--rb-ruby); box-shadow:4px 4px 0 #ff4f7455; }
+.portal-body .portal-event { margin:0 0 12px; padding:18px 20px 20px; border:1px solid var(--rb-line); border-radius:var(--rb-radius); background:var(--rb-surface); transition:border-color .15s ease, transform .15s ease; }
+.portal-body .portal-event:hover { border-color:#ffffff26; transform:translateY(-1px); }
+.portal-body .portal-event > header { display:flex; flex-wrap:nowrap; align-items:center; gap:12px; justify-content:flex-start; }
+.portal-body .event-avatar { position:static; float:none; width:40px; height:40px; margin:0; border-radius:10px; }
+.portal-body .event-who { display:grid; gap:2px; min-width:0; margin-right:auto; }
+.portal-body .event-author { margin:0; overflow:hidden; color:var(--rb-text); font-size:14px; font-weight:650; text-overflow:ellipsis; white-space:nowrap; }
+.portal-body .portal-event time { color:var(--rb-muted); font-size:11px; }
+.portal-event .event-game .site-icon { width:28px; height:28px; }
+.portal-body .portal-event h3 { margin:14px 0 6px; font-size:15px; line-height:1.6; }
+.portal-body .portal-event-body { color:#c9c7cf; font-size:14px; line-height:1.85; }
+.portal-body .portal-feed-pages a { padding:8px 14px; border:1px solid var(--rb-line); border-radius:999px; background:var(--rb-surface); color:var(--rb-text); font-size:12px; text-decoration:none; }
+.portal-body .portal-feed-pages a:hover { border-color:#ffffff30; }
+.portal-server-rail { gap:8px; padding:28px 0; }
+.portal-server-rail > h2 { margin:0 0 4px; color:var(--rb-text); font-size:14px; letter-spacing:0; }
+.portal-server-rail .server-control { padding:10px 12px; border:1px solid var(--rb-line); border-left:1px solid var(--rb-line); border-radius:12px; background:var(--rb-surface); box-shadow:inset 3px 0 0 var(--game); }
+.portal-server-rail .server-online { color:#7fe0a8; font-weight:600; }
+.portal-server-rail .server-online::before { width:6px; height:6px; margin-right:6px; border-radius:0; box-shadow:none; }
+.portal-server-rail .server-start-button, .portal-server-rail .server-stop-button { min-height:30px; padding:0 12px; border:0; border-radius:0; font-weight:700; cursor:pointer; clip-path:var(--rb-notch); }
+.portal-server-rail .server-start-button { background:var(--game); color:#16151b; }
+.portal-server-rail .server-stop-button { background:var(--rb-surface-2); color:var(--rb-text); }
+.portal-server-rail .server-start-button:disabled, .portal-server-rail .server-stop-button:disabled { background:var(--rb-surface-2); color:#7c7b87; cursor:not-allowed; }
+.portal-server-rail .server-start-button:not(:disabled):hover { filter:brightness(1.1); }
+.portal-body .portal-welcome { padding:28px; border:1px solid var(--rb-line); border-radius:var(--rb-radius); background:var(--rb-surface); }
+.portal-body .portal-login-button { border-radius:0; background:var(--rb-ruby); color:#fff; clip-path:var(--rb-notch); }
+.portal-body .portal-login-button:hover { background:#ff6b8b; }
+@media (max-width:900px) { .portal-body .portal-shell { padding-top:4px; } .portal-server-rail { padding-bottom:8px; } }

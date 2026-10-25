@@ -1,43 +1,51 @@
 <svg xmlns="http://www.w3.org/2000/svg">
-  <!-- Original icons for the header and server list; not the games' official artwork. -->
-  <symbol id="game-portal" viewBox="0 0 32 32">
-    <rect width="32" height="32" rx="8" fill="#1b1e2b"/>
-    <rect x="6" y="6" width="9" height="9" rx="2.5" fill="#f3c969"/>
-    <rect x="17" y="6" width="9" height="9" rx="2.5" fill="#cfb6ff"/>
-    <rect x="6" y="17" width="9" height="9" rx="2.5" fill="#f29bd8"/>
-    <rect x="17" y="17" width="9" height="9" rx="2.5" fill="#8ee4dc"/>
+  <!-- Original pixel icons for the header and server list; not the games' official artwork. -->
+  <!-- Rubinco: a cut ruby. -->
+  <symbol id="game-portal" viewBox="0 0 16 16" shape-rendering="crispEdges">
+    <path fill="#201c30" d="M1 0h14v1h-14zM0 1h13v1h-13zM14 1h2v1h-2zM0 2h12v1h-12zM15 2h1v1h-1zM0 3h5v1h-5zM11 3h2v1h-2zM14 3h2v1h-2zM0 4h4v1h-4zM12 4h4v1h-4zM0 5h3v1h-3zM13 5h3v1h-3zM0 6h2v1h-2zM14 6h2v1h-2zM0 7h2v1h-2zM14 7h2v1h-2zM0 8h3v1h-3zM13 8h3v1h-3zM0 9h4v1h-4zM12 9h4v1h-4zM0 10h5v1h-5zM11 10h5v1h-5zM0 11h6v1h-6zM10 11h6v1h-6zM0 12h7v1h-7zM9 12h7v1h-7zM0 13h16v1h-16zM0 14h16v1h-16zM1 15h14v1h-14z"/>
+    <path fill="#ffe9a8" d="M13 1h1v1h-1zM12 2h3v1h-3zM13 3h1v1h-1z"/>
+    <path fill="#ff6b8b" d="M5 3h3v1h-3zM4 4h1v1h-1zM6 4h3v1h-3zM3 5h1v1h-1zM6 5h4v1h-4z"/>
+    <path fill="#ff3d66" d="M8 3h3v1h-3zM9 4h3v1h-3zM10 5h3v1h-3z"/>
+    <path fill="#ffffff" d="M5 4h1v1h-1zM4 5h2v1h-2z"/>
+    <path fill="#ffb3c3" d="M2 6h12v1h-12z"/>
+    <path fill="#ff4f74" d="M2 7h1v1h-1zM3 8h1v1h-1zM4 9h1v1h-1zM5 10h1v1h-1zM6 11h1v1h-1zM7 12h1v1h-1z"/>
+    <path fill="#e0284f" d="M3 7h10v1h-10zM4 8h8v1h-8zM5 9h6v1h-6zM6 10h4v1h-4zM7 11h2v1h-2z"/>
+    <path fill="#8e1033" d="M13 7h1v1h-1zM12 8h1v1h-1zM11 9h1v1h-1zM10 10h1v1h-1zM9 11h1v1h-1zM8 12h1v1h-1z"/>
   </symbol>
-  <!-- 7 Days to Die: a stencilled 7 on rusted metal, clawed through. -->
-  <symbol id="game-7dtd" viewBox="0 0 32 32">
-    <rect width="32" height="32" rx="8" fill="#3a1f17"/>
-    <rect x="2" y="2" width="28" height="28" rx="6" fill="none" stroke="#6b3a24" stroke-width="1.5"/>
-    <path d="M8 7h16v4.2L15.6 26h-5.2l8.2-14.6H8z" fill="#e9dcc4"/>
-    <path d="M14.6 26c.3 1.4.4 2.3.1 3.1-.3-.9-.6-1.9-.1-3.1zM11 26c.2 1 .2 1.6 0 2.2-.3-.7-.4-1.3 0-2.2z" fill="#c2412d"/>
-    <path d="M19 15l7-4M20.5 18.5l6.5-3.6M22 22l5-2.8" stroke="#c2412d" stroke-width="1.6" stroke-linecap="round"/>
+  <!-- 7 Days to Die: a clawed 7 on rusted metal. -->
+  <symbol id="game-7dtd" viewBox="0 0 16 16" shape-rendering="crispEdges">
+    <path fill="#3a1f17" d="M1 0h14v1h-14zM0 1h1v1h-1zM15 1h1v1h-1zM0 2h3v1h-3zM12 2h4v1h-4zM0 3h3v1h-3zM12 3h4v1h-4zM0 4h9v1h-9zM12 4h4v1h-4zM0 5h8v1h-8zM11 5h5v1h-5zM0 6h8v1h-8zM11 6h5v1h-5zM0 7h7v1h-7zM10 7h1v1h-1zM12 7h1v1h-1zM14 7h1v1h-1zM0 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM0 9h6v1h-6zM9 9h1v1h-1zM11 9h1v1h-1zM13 9h1v1h-1zM15 9h1v1h-1zM0 10h6v1h-6zM9 10h1v1h-1zM11 10h1v1h-1zM13 10h1v1h-1zM15 10h1v1h-1zM0 11h5v1h-5zM8 11h1v1h-1zM10 11h1v1h-1zM12 11h1v1h-1zM14 11h2v1h-2zM0 12h5v1h-5zM6 12h1v1h-1zM8 12h8v1h-8zM0 13h7v1h-7zM8 13h8v1h-8zM0 14h1v1h-1zM15 14h1v1h-1zM1 15h14v1h-14z"/>
+    <path fill="#4a281c" d="M1 1h14v1h-14zM1 14h14v1h-14z"/>
+    <path fill="#c9bba0" d="M3 2h1v1h-1zM3 3h1v1h-1z"/>
+    <path fill="#eadfc8" d="M4 2h8v1h-8zM4 3h8v1h-8zM9 4h3v1h-3zM8 5h3v1h-3zM8 6h3v1h-3zM7 7h3v1h-3zM7 8h3v1h-3zM6 9h3v1h-3zM6 10h3v1h-3zM5 11h3v1h-3z"/>
+    <path fill="#c2412d" d="M11 7h1v1h-1zM13 7h1v1h-1zM15 7h1v1h-1zM11 8h1v1h-1zM13 8h1v1h-1zM15 8h1v1h-1zM10 9h1v1h-1zM12 9h1v1h-1zM14 9h1v1h-1zM10 10h1v1h-1zM12 10h1v1h-1zM14 10h1v1h-1zM9 11h1v1h-1zM11 11h1v1h-1zM13 11h1v1h-1zM5 12h1v1h-1zM7 12h1v1h-1zM7 13h1v1h-1z"/>
   </symbol>
-  <!-- Terraria: a pixel tree on a grass and dirt block under a day sky. -->
-  <symbol id="game-terraria" viewBox="0 0 32 32">
-    <rect width="32" height="32" rx="8" fill="#4f8fd6"/>
-    <path d="M0 22h32v2H0z" fill="#5fbf3c"/>
-    <path d="M0 24h32v8H0z" fill="#8a5a33"/>
-    <path d="M4 26h3v2H4zM13 27h3v2h-3zM23 26h4v2h-4z" fill="#6e4426"/>
-    <path d="M14 13h4v9h-4z" fill="#7a4b28"/>
-    <path d="M10 7h12v3h2v4h-2v2h-4v-2h-4v2h-4v-2H8v-4h2z" fill="#2f8f2a"/>
-    <path d="M12 8h4v2h-4zM18 10h3v2h-3z" fill="#4dbb3c"/>
-    <path d="M24 4h2v2h-2zM6 5h1v1H6z" fill="#fff7c2"/>
+  <!-- Terraria: a tree on grass under a day sky. -->
+  <symbol id="game-terraria" viewBox="0 0 16 16" shape-rendering="crispEdges">
+    <path fill="#4a88d0" d="M1 0h14v1h-14zM1 1h12v1h-12zM14 1h1v1h-1zM2 2h4v1h-4zM10 2h5v1h-5z"/>
+    <path fill="#5b9be0" d="M0 1h1v1h-1zM15 1h1v1h-1zM0 2h1v1h-1zM15 2h1v1h-1zM0 3h4v1h-4zM12 3h4v1h-4zM0 4h3v1h-3zM13 4h3v1h-3zM0 5h3v1h-3zM13 5h3v1h-3zM0 6h4v1h-4zM12 6h4v1h-4zM0 7h5v1h-5zM11 7h5v1h-5zM0 8h7v1h-7zM9 8h7v1h-7zM0 9h7v1h-7zM9 9h7v1h-7zM0 10h7v1h-7zM9 10h7v1h-7z"/>
+    <path fill="#fff7c2" d="M13 1h1v1h-1zM1 2h1v1h-1z"/>
+    <path fill="#2f8f2a" d="M6 2h2v1h-2zM9 2h1v1h-1zM4 3h2v1h-2zM8 3h4v1h-4zM3 4h2v1h-2zM7 4h6v1h-6zM3 5h6v1h-6zM11 5h2v1h-2zM4 6h8v1h-8zM5 7h2v1h-2zM9 7h2v1h-2z"/>
+    <path fill="#56c53f" d="M8 2h1v1h-1zM6 3h2v1h-2zM5 4h2v1h-2zM9 5h2v1h-2z"/>
+    <path fill="#7a4b28" d="M7 7h2v1h-2zM7 8h2v1h-2zM7 9h2v1h-2zM7 10h2v1h-2z"/>
+    <path fill="#5fbf3c" d="M0 11h16v1h-16z"/>
+    <path fill="#4c9e2f" d="M0 12h1v1h-1zM5 12h2v1h-2zM11 12h1v1h-1z"/>
+    <path fill="#8a5a33" d="M1 12h4v1h-4zM7 12h4v1h-4zM12 12h1v1h-1zM14 12h2v1h-2zM0 13h2v1h-2zM4 13h12v1h-12zM0 14h9v1h-9zM11 14h5v1h-5zM1 15h14v1h-14z"/>
+    <path fill="#6b4325" d="M13 12h1v1h-1zM2 13h2v1h-2zM9 14h2v1h-2z"/>
   </symbol>
-  <!-- Core Keeper: the glowing core in a ring of cave stone. -->
-  <symbol id="game-corekeeper" viewBox="0 0 32 32">
-    <rect width="32" height="32" rx="8" fill="#3b2752"/>
-    <circle cx="16" cy="16" r="11" fill="#22182c"/>
-    <path d="M7 12h3v3H7zM22 9h3v3h-3zM23 19h3v3h-3zM9 21h3v3H9zM14 5h4v2h-4zM14 25h4v2h-4z" fill="#6d5680"/>
-    <circle cx="16" cy="16" r="6.5" fill="#45c8ff" opacity=".28"/>
-    <path d="M16 10.5l4.5 5.5-4.5 5.5-4.5-5.5z" fill="#7fe3ff"/>
-    <path d="M16 10.5l4.5 5.5H11.5z" fill="#c9f6ff"/>
+  <!-- Core Keeper: the glowing core in cave stone. -->
+  <symbol id="game-corekeeper" viewBox="0 0 16 16" shape-rendering="crispEdges">
+    <path fill="#3b2752" d="M1 0h14v1h-14zM0 1h7v1h-7zM9 1h7v1h-7zM0 2h4v1h-4zM13 2h3v1h-3zM0 3h2v1h-2zM13 3h3v1h-3zM0 4h2v1h-2zM14 4h2v1h-2zM0 5h2v1h-2zM14 5h2v1h-2zM0 6h2v1h-2zM14 6h2v1h-2zM0 7h1v1h-1zM15 7h1v1h-1zM0 8h1v1h-1zM15 8h1v1h-1zM0 9h2v1h-2zM14 9h2v1h-2zM0 10h2v1h-2zM14 10h2v1h-2zM0 11h2v1h-2zM14 11h2v1h-2zM0 12h3v1h-3zM14 12h2v1h-2zM0 13h3v1h-3zM12 13h4v1h-4zM0 14h7v1h-7zM9 14h7v1h-7zM1 15h14v1h-14z"/>
+    <path fill="#6d5680" d="M7 1h2v1h-2zM4 2h8v1h-8zM3 3h2v1h-2zM11 3h2v1h-2zM2 4h2v1h-2zM12 4h2v1h-2zM2 5h1v1h-1zM13 5h1v1h-1zM2 6h1v1h-1zM13 6h1v1h-1zM1 7h2v1h-2zM13 7h2v1h-2zM1 8h2v1h-2zM13 8h2v1h-2zM2 9h1v1h-1zM13 9h1v1h-1zM2 10h1v1h-1zM13 10h1v1h-1zM2 11h2v1h-2zM12 11h2v1h-2zM3 12h2v1h-2zM11 12h2v1h-2zM4 13h8v1h-8zM7 14h2v1h-2z"/>
+    <path fill="#8e7aa1" d="M12 2h1v1h-1zM2 3h1v1h-1zM13 12h1v1h-1zM3 13h1v1h-1z"/>
+    <path fill="#22182c" d="M5 3h6v1h-6zM4 4h3v1h-3zM9 4h3v1h-3zM3 5h3v1h-3zM10 5h3v1h-3zM3 6h2v1h-2zM11 6h2v1h-2zM3 7h1v1h-1zM12 7h1v1h-1zM3 8h1v1h-1zM12 8h1v1h-1zM3 9h2v1h-2zM11 9h2v1h-2zM3 10h3v1h-3zM10 10h3v1h-3zM4 11h3v1h-3zM9 11h3v1h-3zM5 12h6v1h-6z"/>
+    <path fill="#45c8ff" d="M7 4h2v1h-2zM6 5h4v1h-4zM5 6h1v1h-1zM9 6h2v1h-2zM4 7h2v1h-2zM10 7h2v1h-2zM4 8h2v1h-2zM10 8h2v1h-2zM5 9h2v1h-2zM9 9h2v1h-2zM6 10h4v1h-4zM7 11h2v1h-2z"/>
+    <path fill="#ffffff" d="M6 6h2v1h-2zM6 7h1v1h-1z"/>
+    <path fill="#9be9ff" d="M8 6h1v1h-1zM7 7h3v1h-3zM6 8h4v1h-4zM7 9h2v1h-2z"/>
   </symbol>
-  <symbol id="game-generic" viewBox="0 0 32 32">
-    <rect width="32" height="32" rx="8" fill="#26302f"/>
-    <path d="M9 13a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-8a3 3 0 0 1-3-3z" fill="#8ea39d"/>
-    <path d="M12 15h1.2v-1.2h1.3V15h1.2v1.3h-1.2v1.2h-1.3v-1.2H12zM19 14.2a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8zM20 17a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8z" fill="#26302f"/>
+  <!-- Any other game. -->
+  <symbol id="game-generic" viewBox="0 0 16 16" shape-rendering="crispEdges">
+    <path fill="#26302f" d="M1 0h14v1h-14zM0 1h16v1h-16zM0 2h16v1h-16zM0 3h16v1h-16zM0 4h16v1h-16zM0 5h4v1h-4zM12 5h4v1h-4zM0 6h3v1h-3zM5 6h1v1h-1zM10 6h1v1h-1zM13 6h3v1h-3zM0 7h3v1h-3zM4 7h3v1h-3zM13 7h3v1h-3zM0 8h3v1h-3zM5 8h1v1h-1zM9 8h1v1h-1zM11 8h1v1h-1zM13 8h3v1h-3zM0 9h3v1h-3zM13 9h3v1h-3zM0 10h4v1h-4zM7 10h2v1h-2zM12 10h4v1h-4zM0 11h16v1h-16zM0 12h16v1h-16zM0 13h16v1h-16zM0 14h16v1h-16zM1 15h14v1h-14z"/>
+    <path fill="#8ea39d" d="M4 5h8v1h-8zM3 6h2v1h-2zM6 6h4v1h-4zM11 6h2v1h-2zM3 7h1v1h-1zM7 7h6v1h-6zM3 8h2v1h-2zM6 8h3v1h-3zM10 8h1v1h-1zM12 8h1v1h-1zM3 9h10v1h-10zM4 10h3v1h-3zM9 10h3v1h-3z"/>
   </symbol>
 </svg>

@@ -4,12 +4,12 @@
   <nav class="site-links" aria-label="サイト">
     <a class="site-portal" th:href="${portalUrl}" th:classappend="${current == 'portal'} ? 'active'"
        th:attr="aria-current=${current == 'portal'} ? 'page'" aria-label="ポータル" title="ポータル">
-      <svg class="site-icon" viewBox="0 0 32 32" aria-hidden="true"><use th:href="@{/img/game-icons.svg(v='1')} + '#game-portal'"></use></svg>
+      <svg class="site-icon" viewBox="0 0 16 16" aria-hidden="true"><use th:href="@{/img/game-icons.svg(v='2')} + '#game-portal'"></use></svg>
     </a>
     <th:block th:if="${headerSites != null}">
       <a th:each="site : ${headerSites}" th:href="${site.url}" th:classappend="${'site-' + site.accent + (site.id == current ? ' active' : '')}"
          th:attr="aria-current=${site.id == current} ? 'page',aria-label=${site.game},title=${site.game}">
-        <svg class="site-icon" viewBox="0 0 32 32" aria-hidden="true"><use th:href="@{/img/game-icons.svg(v='1')} + '#game-' + ${#lists.contains({'7dtd', 'terraria', 'corekeeper'}, site.id) ? site.id : 'generic'}"></use></svg>
+        <svg class="site-icon" viewBox="0 0 16 16" aria-hidden="true"><use th:href="@{/img/game-icons.svg(v='2')} + '#game-' + ${#lists.contains({'7dtd', 'terraria', 'corekeeper'}, site.id) ? site.id : 'generic'}"></use></svg>
       </a>
     </th:block>
   </nav>
