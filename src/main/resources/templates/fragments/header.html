@@ -14,6 +14,10 @@
     </th:block>
   </nav>
   <div class="account-area">
+    <a class="guild-link" th:href="${guildUrl != null ? guildUrl : '/guild'}" th:classappend="${current == 'guild'} ? 'active'"
+       th:attr="aria-current=${current == 'guild'} ? 'page'" aria-label="無人の冒険者ギルド" title="無人の冒険者ギルド">
+      <svg class="site-icon" viewBox="0 0 16 16" aria-hidden="true"><use th:href="@{/img/guild-icons.svg(v='1')} + '#guild'"></use></svg>
+    </a>
     <a th:if="${!loggedIn and current == 'portal'}" class="nav-button" href="/portal?login" data-open-login>ログイン</a>
     <a th:if="${!loggedIn and current != 'portal'}" class="nav-button" th:href="@{/login}">ログイン</a>
     <details th:if="${loggedIn}" class="account-menu" data-account-menu>
