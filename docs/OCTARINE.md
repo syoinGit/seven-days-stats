@@ -204,7 +204,10 @@ Cognito にコールバック URL が無いため、Octarine へのログイン�
 
 ゲーム由来の名前はリポジトリに入れず、サーバーの `/etc/rubinco/corekeeper-names/objects.tsv`
 （ID・内部キー・日本語・英語のタブ区切り）に置く。アプリは1分ごとに読み直すので再起動は不要。
-`scripts/corekeeper/build-object-table.py <ObjectID.cs> <出力先>` で作れる（英語名は内部キーから作った仮名）。
+`scripts/corekeeper/build-object-table.py <ObjectID.cs> <出力先>` で ID と内部キーの表を作り、
+`scripts/corekeeper/add-localized-names.py <objects.tsv> <resources.assets> <出力>` でゲームの翻訳データ
+（専用サーバーの `CoreKeeperServer_Data/resources.assets` の `Items/<内部キー>` など）から日本語名と英語名を入れる。
+アイテムではない内部オブジェクト（爆発・地面・マップの印など）は名前が無く、内部キーのまま。
 
 ```bash
 sudo install -d -m 755 /etc/rubinco/corekeeper-names
