@@ -154,7 +154,8 @@ public class GuildChronicle {
     List<Change> changes = changes(" WHERE e.interaction_id = ? ORDER BY e.id", id);
     List<String> affiliations = new ArrayList<>();
     for (Ref person : entry.people()) {
-      world.history(person.id()).stream().filter(change -> id == change.interactionId())
+      // Births and initial values have no interaction (null), so compare without unboxing.
+      world.history(person.id()).stream().filter(change -> Long.valueOf(id).equals(change.interactionId()))
           .forEach(change -> affiliations.add(person.name() + " ／ " + change.text()));
     }
     return new Detail(entry, outcome, changes, threads(" WHERE t.origin_interaction_id = ?", id),
