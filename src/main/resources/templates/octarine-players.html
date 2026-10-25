@@ -7,13 +7,12 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='header-5')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='6')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='7')}">
 </head>
 <body class="octarine-body">
 <header th:replace="~{fragments/header :: appHeader('corekeeper', 'octarine-topbar')}"></header>
-<main class="octarine-shell ck-console">
-  <nav th:replace="~{fragments/octarine :: menu}"></nav>
-  <div class="ck-screen">
+<main class="octarine-shell">
+  <nav th:replace="~{fragments/octarine :: tabs}"></nav>
   <section class="octarine-panel" aria-labelledby="online-title">
     <div class="section-heading">
       <div><h1 id="online-title">いま接続中</h1></div>
@@ -65,7 +64,6 @@
     </ol>
     <p class="octarine-note">サーバーのログに残る接続と切断の時刻から数えています。サーバーが止まったときに接続中だった人は、止まったのを確認した時刻で区切ります。名前はゲーム内の名前です。プレイ時間の表は最新の名前、履歴はそのときの名前で表示します。</p>
   </section>
-  </div>
 </main>
 </body>
 </html>

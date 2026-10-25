@@ -8,13 +8,12 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='header-5')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='6')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='7')}">
 </head>
 <body class="octarine-body">
 <header th:replace="~{fragments/header :: appHeader('corekeeper', 'octarine-topbar')}"></header>
-<main class="octarine-shell ck-console">
-  <nav th:replace="~{fragments/octarine :: menu}"></nav>
-  <div class="ck-screen">
+<main class="octarine-shell">
+  <nav th:replace="~{fragments/octarine :: tabs}"></nav>
   <section class="octarine-panel" aria-labelledby="items-title">
     <div class="section-heading">
       <div><h1 id="items-title">アイテム在庫</h1></div>
@@ -57,7 +56,6 @@
       <a th:if="${items.hasNext()}" th:href="@{/octarine/items(q=${q},c=${c},sort=${sort},page=${items.number + 1})}">次へ →</a>
     </nav>
   </section>
-  </div>
 </main>
 </body>
 </html>
