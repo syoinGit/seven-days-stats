@@ -4,6 +4,7 @@
     <span aria-hidden="true">R</span>
     <b>Rubinco</b>
   </a>
+  <nav th:replace="~{fragments/site-links :: links('portal')}"></nav>
   <nav class="auth-nav" aria-label="アカウントメニュー">
     <a th:if="${!loggedIn}" class="nav-button" href="/portal?login" data-open-login>ログイン</a>
     <a th:if="${loggedIn and !currentViewer}" class="account-profile-link" aria-label="プロフィールを編集" th:href="${portalUrl + '/profile'}"><img class="user-avatar" th:src="${currentAvatar}" alt=""><span th:text="${currentDisplayName}"></span></a>

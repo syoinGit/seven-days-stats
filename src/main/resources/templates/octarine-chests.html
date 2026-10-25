@@ -7,16 +7,17 @@
   <title th:text="${'チェスト検索 | ' + game.displayName}">Octarine | Core Keeper</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='4')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='5')}">
 </head>
 <body class="octarine-body">
 <header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
-<main class="octarine-shell">
-  <nav th:replace="~{fragments/octarine :: tabs}"></nav>
+<main class="octarine-shell ck-console">
+  <nav th:replace="~{fragments/octarine :: menu}"></nav>
+  <div class="ck-screen">
   <section class="octarine-panel" aria-labelledby="chests-title">
     <div class="section-heading">
-      <div><p class="eyebrow">STORAGE</p><h1 id="chests-title">チェスト検索</h1></div>
+      <div><p class="eyebrow">倉庫管理 / STORAGE</p><h1 id="chests-title">チェスト</h1></div>
       <span class="octarine-count" th:text="${containers.totalElements + '件'}">0件</span>
     </div>
     <div th:replace="~{fragments/octarine :: snapshot}"></div>
@@ -42,7 +43,7 @@
         <span th:replace="~{fragments/octarine :: place(${container.place})}"></span>
         <ul class="octarine-slots" th:unless="${#lists.isEmpty(container.items)}">
           <li th:each="slot : ${container.items}" th:classappend="${slot.match} ? 'match'">
-            <a th:href="@{/octarine/items/{id}(id=${slot.objectId})}" th:classappend="${'ck-' + slot.category.icon()}"><svg th:replace="~{fragments/octarine :: icon(${slot.category})}"></svg><span th:text="${slot.name}">Wood</span><b th:text="${slot.amountLabel()}" th:unless="${slot.amountLabel().isEmpty()}">×99</b></a>
+            <a th:href="@{/octarine/items/{id}(id=${slot.objectId})}" th:classappend="${'ck-' + slot.category.icon()}"><svg th:replace="~{fragments/octarine :: icon(${slot.category})}"></svg><span th:text="${slot.name}">Wood</span><b th:text="${slot.countLabel()}" th:unless="${slot.countLabel().isEmpty()}">×99</b></a>
           </li>
         </ul>
       </li>
@@ -53,6 +54,7 @@
       <a th:if="${containers.hasNext()}" th:href="@{/octarine/chests(q=${q},page=${containers.number + 1})}">次へ →</a>
     </nav>
   </section>
+  </div>
 </main>
 </body>
 </html>

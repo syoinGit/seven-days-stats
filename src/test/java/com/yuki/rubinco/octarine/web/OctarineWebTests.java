@@ -139,7 +139,7 @@ class OctarineWebTests {
         .andExpect(content().string(containsString("当てはまるチェストはありません")));
     mvc.perform(get("/octarine/items").param("q", "てすとこいん").with(member()))
         .andExpect(content().string(containsString("テストコイン")))
-        .andExpect(content().string(containsString("耐久値")))
+        .andExpect(content().string(containsString("1枠を1個")))
         .andExpect(content().string(not(containsString("テスト鉄板"))));
     mvc.perform(get("/octarine/items/2021").with(member()))
         .andExpect(content().string(containsString("鉱石倉庫")))

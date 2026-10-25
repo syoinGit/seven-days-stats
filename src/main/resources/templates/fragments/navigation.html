@@ -6,11 +6,12 @@
     <span class="brand-mark" aria-hidden="true" th:text="${mark}">WP</span>
     <span><b th:text="${name}">WATCHPOINT</b><small th:text="${subtitle}"></small></span>
   </a>
+  <nav th:replace="~{fragments/site-links :: links(${name})}"></nav>
   <nav class="auth-nav" aria-label="サイトメニュー">
     <a th:if="${loggedIn and !currentViewer}" class="account-profile-link" aria-label="プロフィールを編集" th:href="${portalUrl + '/profile'}">
       <img class="user-avatar" th:src="${currentAvatar}" alt=""><span th:text="${currentDisplayName}"></span></a>
     <span th:if="${currentViewer}" class="account-profile-link"><img class="user-avatar" th:src="${currentAvatar}" alt="">ゲスト</span>
-    <a class="nav-button portal-header-return" th:href="${portalUrl}">ポータルへ</a>
+    <a class="nav-button portal-header-return" th:href="${portalUrl}">ポータル</a>
     <a th:if="${!loggedIn}" class="nav-button" th:href="@{/login}">ログイン</a>
     <form th:if="${loggedIn}" method="post" th:action="@{/logout}">
       <button class="nav-button" type="submit">ログアウト</button>

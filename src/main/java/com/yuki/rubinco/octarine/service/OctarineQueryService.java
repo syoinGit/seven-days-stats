@@ -116,7 +116,12 @@ public class OctarineQueryService {
     /** "×30" for stacks, "耐久 900" for equipment, nothing for a single item. */
     public String amountLabel() {
       if (category.durable()) return "耐久 " + amount;
-      return amount > 1 ? "×" + amount : "";
+      return countLabel();
+    }
+
+    /** For lists: "×30" for stacks; nothing for equipment (one per slot) or a single item. */
+    public String countLabel() {
+      return !category.durable() && amount > 1 ? "×" + amount : "";
     }
   }
 

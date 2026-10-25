@@ -135,3 +135,34 @@
 .ck-player-row small { display:block; color:#aaa9b2; }
 @media (max-width: 640px) { .ck-player-row { grid-template-columns:1fr; } }
 .profile-save.danger { background:#5a2028; border-color:#a8434f; color:#ffd9dd; }
+
+/* Layout: the timeline in the middle, game servers on the right; site links live in the header. */
+.portal-body .portal-topbar { flex-wrap:wrap; }
+.portal-body .portal-layout { grid-template-columns:minmax(0, 1fr) 290px; }
+.portal-server-rail { position:sticky; top:96px; align-self:start; display:grid; gap:10px; padding:34px 0; }
+.portal-server-rail h2 { margin:0; font-size:12px; letter-spacing:.05em; color:#ddd9d4; }
+.portal-server-rail .server-status-note { margin:0 0 6px; }
+.portal-server-rail .server-memory-budget { margin:0; }
+.portal-server-rail .server-control { --game:#8ee4dc; margin:0; padding:14px 16px; border-left:3px solid var(--game); }
+.portal-server-rail .server-control.game-amber { --game:#f3c969; }
+.portal-server-rail .server-control.game-violet { --game:#cfb6ff; }
+.portal-server-rail .server-control.game-magenta { --game:#f29bd8; }
+.portal-server-rail .server-control.game-none { --game:#7f8a86; }
+.portal-server-rail .server-control > header { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.portal-server-rail .server-control h3 { margin:0; font-size:14px; }
+.portal-server-rail .server-control h3 a { color:inherit; text-decoration:none; }
+.portal-server-rail .server-control h3 a:hover { color:var(--game); }
+.portal-server-rail .server-online { margin:8px 0 0; color:#7fe0a8; font-size:12px; font-weight:600; }
+.portal-server-rail .server-online::before { content:""; display:inline-block; width:7px; height:7px; margin-right:6px; border-radius:50%; background:#7fe0a8; box-shadow:0 0 8px #7fe0a8; }
+.portal-server-rail .server-memory-required { margin:8px 0 0; }
+.portal-server-rail .server-buttons { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+.portal-server-rail .server-buttons form { margin:0; }
+.portal-server-rail .server-buttons form:only-child { grid-column:1 / -1; }
+.portal-server-rail .server-start-button, .portal-server-rail .server-stop-button { min-height:36px; }
+.portal-server-rail .server-memory-note { margin:4px 0 0; }
+@media (max-width:900px) {
+  .portal-body .portal-layout { grid-template-columns:minmax(0, 1fr); gap:0; }
+  .portal-server-rail { position:static; order:-1; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); padding:22px 0 0; }
+  .portal-server-rail > h2, .portal-server-rail > p { grid-column:1 / -1; }
+}
+.portal-server-rail.server-controls { margin-top:0; }

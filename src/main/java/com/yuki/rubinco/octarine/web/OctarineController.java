@@ -48,7 +48,7 @@ public class OctarineController {
     var timeline = timelineService.sharedTimeline(List.of(GAME_ID), safePage)
         .map(event -> new TimelineItem(event.eventType(), event.title(), event.body(),
             event.occurredAt(), TIME_FORMATTER.format(event.occurredAt()),
-            event.actorPlayerId(), event.creatorSub()));
+            event.actorPlayerId(), event.creatorSub(), event.actorName()));
     var overview = progress.overview(GAME_ID, admin, importProperties.staleAfter());
     model.addAttribute("game", game);
     model.addAttribute("section", "overview");
@@ -56,8 +56,8 @@ public class OctarineController {
     model.addAttribute("overview", overview);
     model.addAttribute("timeline", timeline.getContent());
     model.addAttribute("timelinePage", timeline);
-    model.addAttribute("onlineNames", !sessions.tracking() ? null : String.join("、",
-        sessions.online().stream().map(CoreKeeperSessionQueryService.Online::name).toList()));
+    model.addAttribute("tracking", sessions.tracking());
+    model.addAttribute("online", sessions.online());
     var context = overview.visible() ? octarine.context(admin).filter(Context::hasData) : java.util.Optional.<Context>empty();
     model.addAttribute("ctx", context.orElse(null));
     context.ifPresent(ctx -> {
@@ -167,5 +167,5 @@ public class OctarineController {
       String title,
       String body,
       OffsetDateTime occurredAt,
-      String occurredAtLabel, Long actorPlayerId, String creatorSub) { }
+      String occurredAtLabel, Long actorPlayerId, String creatorSub, String actorName) { }
 }

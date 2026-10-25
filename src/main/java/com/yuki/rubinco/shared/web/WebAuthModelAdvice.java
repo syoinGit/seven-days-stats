@@ -11,6 +11,7 @@ import com.yuki.rubinco.luminite.web.LuminiteMaintenanceController;
 import com.yuki.rubinco.octarine.web.OctarineController;
 import com.yuki.rubinco.octarine.web.OctarineMaintenanceController;
 import com.yuki.rubinco.portal.config.PortalPlatformProperties;
+import com.yuki.rubinco.portal.service.GamePortalService;
 import com.yuki.rubinco.portal.web.PortalController;
 import com.yuki.rubinco.watchpoint.web.AiAnalysisMaintenanceController;
 import com.yuki.rubinco.watchpoint.web.DashboardController;
@@ -43,6 +44,10 @@ public class WebAuthModelAdvice {
   private final CurrentWebAccountService currentAccountService;
   private final PortalPlatformProperties platformProperties;
   private final PortalProfileService profiles;
+  private final GamePortalService portalService;
+
+  /** A game site in the shared header; {@code url} signs in on the site when the viewer is signed in. */
+  public record HeaderSite(String id, String name, String game, String url, String accent) { }
 
   @ModelAttribute
   public void addAuthenticationModel(Model model, Authentication authentication) {
@@ -64,5 +69,9 @@ public class WebAuthModelAdvice {
     model.addAttribute("watchpointUrl", platformProperties.getWatchpointUrl());
     model.addAttribute("luminiteUrl", platformProperties.getLuminiteUrl());
     model.addAttribute("octarineUrl", platformProperties.getOctarineUrl());
+    model.addAttribute("headerSites", portalService.sites().stream()
+        .map(site -> new HeaderSite(site.id(), site.displayName(), site.siteName(),
+            account.isPresent() ? platformProperties.siteEntryUrl(site.siteUrl()) : site.siteUrl(), site.accent()))
+        .toList());
   }
 }

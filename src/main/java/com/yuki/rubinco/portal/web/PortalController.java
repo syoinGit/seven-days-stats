@@ -60,9 +60,13 @@ public class PortalController {
     model.addAttribute("canStartServers", gameServerAccess.canStart(authentication));
     model.addAttribute("siteEntries", sites.stream().collect(Collectors.toMap(
         GamePortalService.SiteCard::id, site -> platformProperties.siteEntryUrl(site.siteUrl()))));
+    model.addAttribute("siteAccents", sites.stream().collect(Collectors.toMap(
+        GamePortalService.SiteCard::id, GamePortalService.SiteCard::accent)));
     model.addAttribute("cognitoEnabled", platformProperties.getCognito().isEnabled());
     model.addAttribute("loginUrl", "/oauth2/authorization/portal");
     var account = currentAccountService.current(authentication);
+    model.addAttribute("siteLinks", sites.stream().collect(Collectors.toMap(GamePortalService.SiteCard::id,
+        site -> account.isPresent() ? platformProperties.siteEntryUrl(site.siteUrl()) : site.siteUrl())));
     model.addAttribute("onlineCounts", account.isPresent() ? onlineCounts() : Map.of());
     if (account.isPresent()) {
       int safePage = Math.max(0, Math.min(page, 1000000));
