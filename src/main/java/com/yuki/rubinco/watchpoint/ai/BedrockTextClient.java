@@ -21,14 +21,23 @@ public class BedrockTextClient {
   private final AiAnalysisProperties properties;
 
   public String generate(String systemPrompt, String prompt, int maxTokens, float temperature) {
-    var response = runtime.converse(ConverseRequest.builder()
+    return generate(systemPrompt, prompt, maxTokens, temperature, null);
+  }
+
+  /** Optional call budget for isolated jobs; existing publishing callers keep their settings. */
+  public String generate(String systemPrompt, String prompt, int maxTokens, float temperature,
+      java.time.Duration timeout) {
+    var request = ConverseRequest.builder()
         .modelId(properties.modelId())
         .system(SystemContentBlock.fromText(systemPrompt))
         .messages(Message.builder().role(ConversationRole.USER)
             .content(ContentBlock.fromText(prompt)).build())
         .inferenceConfig(InferenceConfiguration.builder()
             .maxTokens(maxTokens).temperature(temperature).build())
-        .build());
+        ;
+    if (timeout != null) request.overrideConfiguration(config -> config
+        .apiCallTimeout(timeout).apiCallAttemptTimeout(timeout));
+    var response = runtime.converse(request.build());
     if (response.output() == null || response.output().message() == null) {
       throw new IllegalStateException("Bedrockからメッセージが返されませんでした。");
     }

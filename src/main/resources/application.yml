@@ -30,6 +30,11 @@ server:
     include-binding-errors: never
 
 app:
+  guild:
+    enabled: ${GUILD_ENABLED:false}
+    recent-days: ${GUILD_RECENT_DAYS:30}
+    recent-ratio: ${GUILD_RECENT_RATIO:0.5}
+    public-url: ${GUILD_PUBLIC_URL:}
   platform:
     domain: ${DOMAIN:rubinco.link}
     portal-url: ${PORTAL_SITE_URL:https://portal.${app.platform.domain}}

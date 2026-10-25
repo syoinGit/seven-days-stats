@@ -59,6 +59,18 @@ class CognitoSecurityMvpTests {
   @MockitoSpyBean private GameServerStartGateway startGateway;
 
   @Test
+  void guildIsPublicButGenerationRequiresAdminSessionAndCsrf() throws Exception {
+    mockMvc.perform(get("/guild")).andExpect(status().isOk());
+    mockMvc.perform(get("/guild/characters")).andExpect(status().isOk());
+    mockMvc.perform(get("/guild/maintenance").with(user("member").roles("MEMBER")))
+        .andExpect(status().isForbidden());
+    mockMvc.perform(post("/guild/maintenance/generate").with(user("admin").roles("ADMIN")))
+        .andExpect(status().isForbidden());
+    mockMvc.perform(post("/guild/maintenance/generate").with(user("admin").roles("ADMIN")).with(csrf()))
+        .andExpect(status().is3xxRedirection());
+  }
+
+  @Test
   void sessionCookiesAndRejectedBearerTokensCannotAuthorizeTheJwtApi() throws Exception {
     var session = new MockHttpSession();
     var context = SecurityContextHolder.createEmptyContext();

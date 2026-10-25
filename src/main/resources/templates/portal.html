@@ -10,7 +10,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='header-4')}">
-  <link rel="stylesheet" th:href="@{/css/portal.css(v='9')}">
+  <link rel="stylesheet" th:href="@{/css/portal.css(v='10')}">
   <script defer th:src="@{/js/portal.js(v='9')}"></script>
 </head>
 <body class="portal-body">
@@ -18,6 +18,7 @@
 
 <div class="portal-layout">
 <main class="portal-shell">
+  <a class="guild-entry" href="/guild">無人の冒険者ギルド <small>ログから生まれた住人たちの酒場へ →</small></a>
   <div class="form-notice success" th:if="${param.logout}">ログアウトしました。</div>
   <section th:if="${!loggedIn}" class="portal-welcome" aria-labelledby="portal-title">
     <h1 id="portal-title" class="visually-hidden">ポータル</h1>
