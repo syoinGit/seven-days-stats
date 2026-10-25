@@ -6,10 +6,18 @@
 #     (lower of the two directions), trust_min, wariness_min (higher of the two), thread (an open
 #     thread of that kind), cooldown_days (same card for the pair), adults (both 18+),
 #     age_gap_min ({a} older by at least this), memorial (both cared for someone who died)
+#     faction / faith / village: same or different ({a} and {b}; "same" faction or faith means both
+#     belong to the same one), a_faction / b_faction: none or member, a_faith / b_faith: none or believer,
+#     a_changed (kinds of change made to {a} in the last 14 days), former ({b} is in the faction {a} last
+#     left or was expelled from)
 #   outcomes: chance (weight), summary, template (scene used when the AI fails), both / a_to_b /
 #     b_to_a (axis changes as [min, max]), open (a thread), resolve (a thread kind), label (an attempt;
-#     code decides whether the pair's label really changes)
-version: "2026-10-25"
+#     code decides whether the pair's label really changes, change (join / leave / expel / move / convert:
+#     {a} joins {b}'s faction, leaves or is expelled from their own, moves to {b}'s village or takes {b}'s
+#     faith; a card is drawn only when every change it can make is possible for the pair)
+#   placeholders: {a_faction} {b_faction} {a_faith} {b_faith} {a_village} {b_village}
+#     (names before the change)
+version: "2026-10-25b"
 cards:
   # --- daily ---
   - id: weather-talk
@@ -281,3 +289,115 @@ cards:
     outcomes:
       - {id: glance, chance: 7, summary: "{a}は今日も{b}を目で追っていた", template: "{b}が笑うたび、{a}の視線はそちらへ向いた。", a_to_b: {affinity: [2, 4]}}
       - {id: moved-on, chance: 3, summary: "{a}の想いは、静かな友情に変わった", template: "{a}は小さく息をついて、{b}と普通に話した。", both: {affinity: [1, 2]}, resolve: crush}
+
+  # --- villages, factions and faiths ---
+  - id: faction-duty
+    kind: 雑談
+    tier: daily
+    weight: 5
+    when: {a_faction: member, cooldown_days: 3}
+    outcomes:
+      - {id: proud, chance: 6, summary: "{a}が{b}に{a_faction}での務めを語った", template: "{a}は{a_faction}での務めを語り、{b}は感心して聞いていた。", b_to_a: {trust: [1, 3]}, both: {affinity: [1, 2]}}
+      - {id: boast, chance: 4, summary: "{a}の{a_faction}自慢に{b}は少し鼻白んだ", template: "{a_faction}の話ばかりする{a}に、{b}は曖昧に笑った。", b_to_a: {affinity: [-2, 0], wariness: [0, 2]}}
+  - id: faith-talk
+    kind: 雑談
+    tier: daily
+    weight: 5
+    when: {a_faith: believer, cooldown_days: 3}
+    outcomes:
+      - {id: share, chance: 6, summary: "{a}が{b}に{a_faith}の教えを話した", template: "{a}は{a_faith}の祈りの言葉を口にし、{b}は静かに耳を傾けた。", both: {trust: [1, 2], affinity: [1, 2]}}
+      - {id: preachy, chance: 4, summary: "{a}の{a_faith}の話は長く、{b}は聞き疲れた", template: "{a}の話は説教めいてきて、{b}はそっと杯に目を落とした。", b_to_a: {affinity: [-2, 0]}}
+  - id: village-news
+    kind: 雑談
+    tier: daily
+    weight: 6
+    when: {village: different}
+    outcomes:
+      - {id: news, chance: 7, summary: "{a}が{b}に{a_village}の近ごろの様子を話した", template: "{a}が{a_village}の噂話をすると、{b}も{b_village}の話を返した。", both: {affinity: [1, 3]}}
+      - {id: gap, chance: 3, summary: "{a}と{b}は{a_village}と{b_village}の暮らしの違いに驚いた", template: "同じ街道沿いでも、こうも違うものかと二人は顔を見合わせた。", both: {trust: [0, 2]}}
+  - id: same-banner
+    kind: 協力
+    tier: daily
+    weight: 4
+    when: {faction: same}
+    outcomes:
+      - {id: together, chance: 1, summary: "{a}と{b}は{a_faction}の用事を二人で片づけた", template: "{a_faction}から回ってきた用事を、{a}と{b}は手分けして片づけた。", both: {trust: [2, 4], affinity: [1, 2]}}
+  - id: shared-prayer
+    kind: 雑談
+    tier: daily
+    weight: 4
+    when: {faith: same}
+    outcomes:
+      - {id: pray, chance: 1, summary: "{a}と{b}は{a_faith}の祈りを並んで捧げた", template: "食事の前、{a}と{b}は同じ祈りの言葉を小さく唱えた。", both: {affinity: [2, 3], trust: [1, 2]}}
+  - id: recent-change
+    kind: 相談
+    tier: daily
+    weight: 6
+    when: {a_changed: [join, leave, expel, move, convert], cooldown_days: 7}
+    outcomes:
+      - {id: open-up, chance: 7, summary: "{a}は{b}に近ごろの身の上の変化を打ち明けた", template: "{a}は近ごろの身の上の変化をぽつりぽつりと話した。{b}は黙ってうなずいた。", a_to_b: {trust: [2, 4]}, b_to_a: {affinity: [1, 3]}}
+      - {id: pry, chance: 3, summary: "{b}が{a}の身の上の変化を根掘り葉掘り聞き、{a}は口を閉ざした", template: "{b}の問いに、{a}は答えずに窓の外を見た。", a_to_b: {wariness: [2, 4], affinity: [-2, 0]}}
+  - id: faction-rivalry
+    kind: 口論
+    tier: progress
+    weight: 4
+    when: {faction: different, a_faction: member, b_faction: member, cooldown_days: 3}
+    outcomes:
+      - {id: clash, chance: 5, summary: "{a}と{b}は{a_faction}と{b_faction}のやり方をめぐって言い争った", template: "どちらの流儀が正しいかで、{a}と{b}の声がとがった。", both: {wariness: [2, 5], affinity: [-3, -1]}, open: {kind: grudge, days: 7, summary: "{a}と{b}は互いの派閥のことでわだかまりを残している"}}
+      - {id: respect, chance: 5, summary: "{a}と{b}は派閥は違えど互いの務めを認め合った", template: "旗は違っても、守りたいものは似ている。二人は杯を合わせた。", both: {trust: [2, 4]}}
+  - id: faith-dispute
+    kind: 口論
+    tier: progress
+    weight: 4
+    when: {faith: different, a_faith: believer, b_faith: believer, cooldown_days: 3}
+    outcomes:
+      - {id: dispute, chance: 5, summary: "{a}の{a_faith}と{b}の{b_faith}をめぐって言い合いになった", template: "祈る相手の違いが、思わぬ言い合いになった。", both: {wariness: [2, 5], affinity: [-3, -1]}}
+      - {id: understand, chance: 5, summary: "{a}と{b}は信じるものは違えど、互いの祈りを尊重した", template: "{a}は{b}の祈りの作法をたずね、{b}も{a}の話を聞いた。", both: {trust: [1, 3], affinity: [1, 2]}}
+  - id: former-comrade
+    kind: 口論
+    tier: progress
+    weight: 5
+    when: {former: true, cooldown_days: 5}
+    outcomes:
+      - {id: cold, chance: 6, summary: "{b}は{b_faction}を去った{a}に冷たく当たった", template: "{b}は{a}と目を合わせようとしなかった。古巣の話は出なかった。", b_to_a: {wariness: [3, 6], affinity: [-4, -2]}}
+      - {id: thaw, chance: 4, summary: "{a}と{b}は{b_faction}にいた頃を懐かしんだ", template: "あの頃は、と{b}が言い、{a}は苦笑いした。", both: {trust: [1, 3], wariness: [-3, -1]}}
+  - id: new-home
+    kind: 移住
+    tier: progress
+    weight: 2
+    when: {village: different, affinity_min: 25, cooldown_days: 14}
+    outcomes:
+      - {id: move, chance: 4, change: move, summary: "{a}は{b}の暮らす{b_village}へ移り住むことにした", template: "{b}に背中を押され、{a}は{b_village}で暮らすと決めた。", both: {affinity: [2, 4], trust: [1, 3]}}
+      - {id: stay, chance: 6, summary: "{a}は{b_village}の暮らしに心ひかれたが、今は{a_village}に残ると決めた", template: "{a}は{b_village}の話に聞き入ったが、まだ{a_village}を離れる気にはなれなかった。", both: {affinity: [1, 2]}}
+  - id: invite
+    kind: 勧誘
+    tier: major
+    weight: 2
+    when: {a_faction: none, b_faction: member, trust_min: 20, cooldown_days: 14}
+    outcomes:
+      - {id: join, chance: 4, change: join, summary: "{a}は{b}の誘いで{b_faction}に加わった", template: "{b}の差し出した手を、{a}はしっかりと握り返した。", a_to_b: {trust: [3, 5], debt: [1, 3]}, b_to_a: {affinity: [2, 4]}}
+      - {id: decline, chance: 6, summary: "{a}は{b}の{b_faction}への誘いを丁重に断った", template: "{a}は首を横に振った。{b}は残念そうに笑った。", b_to_a: {affinity: [-2, 0]}}
+  - id: conversion
+    kind: 改宗
+    tier: major
+    weight: 2
+    when: {faith: different, b_faith: believer, trust_min: 30, cooldown_days: 14}
+    outcomes:
+      - {id: convert, chance: 3, change: convert, summary: "{a}は{b}に導かれ、{b_faith}を信じることにした", template: "{b}の祈りを真似て、{a}はぎこちなく手を合わせた。", both: {trust: [3, 5], affinity: [2, 3]}}
+      - {id: keep, chance: 7, summary: "{a}は{b}の{b_faith}の話に耳を傾けたが、今の信じ方を変えなかった", template: "{a}は礼を言い、自分の祈りは自分のものだと静かに告げた。", both: {trust: [0, 2]}}
+  - id: expulsion
+    kind: 追放
+    tier: major
+    weight: 2
+    when: {faction: same, wariness_min: 50, cooldown_days: 14}
+    outcomes:
+      - {id: expel, chance: 4, change: expel, summary: "{b}の訴えで、{a}は{a_faction}を追われた", template: "{b}の言葉に誰も異を唱えなかった。{a}は黙って席を立った。", a_to_b: {wariness: [5, 10], affinity: [-8, -4]}, open: {kind: grudge, days: 14, summary: "{a}は{b}に派閥を追われたことを恨んでいる"}}
+      - {id: spared, chance: 6, summary: "{b}は{a}を責めたが、{a_faction}に残ることは許された", template: "厳しい言葉のあと、{b}は一度だけ機会をやると言った。", a_to_b: {wariness: [2, 4]}, b_to_a: {trust: [-3, -1]}}
+  - id: parting-ways
+    kind: 脱退
+    tier: major
+    weight: 2
+    when: {a_faction: member, faction: different, affinity_min: 30, cooldown_days: 14}
+    outcomes:
+      - {id: leave, chance: 3, change: leave, summary: "{a}は{b}と語るうちに、{a_faction}を離れる決心をした", template: "{a}は胸の紋章を外し、卓の上にそっと置いた。", a_to_b: {trust: [2, 4]}}
+      - {id: stay, chance: 7, summary: "{a}は{a_faction}への迷いを{b}に打ち明けたが、まだ留まると決めた", template: "迷いを口にしたあと、{a}は少しだけ晴れた顔をした。", a_to_b: {trust: [1, 3]}}

@@ -18,9 +18,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * One interaction an hour between residents in the tavern. Code chooses who, which event card, the
- * outcome, the relationship changes, threads and labels; the AI only writes the scene afterwards.
- * Everything for one hour is saved in one transaction, and an hour is never filled twice.
+ * Up to five interactions a day between residents in the tavern, at fixed JST hours. Code chooses who,
+ * which event card, the outcome, the relationship changes, threads, labels and any change of village,
+ * faction or faith; the AI only writes the scene afterwards. Everything for one slot is saved in one
+ * transaction, and a slot is never filled twice.
  */
 @Service
 @RequiredArgsConstructor
@@ -30,7 +31,11 @@ public class GuildInteractionService {
       "companion", "仲間", "lover", "恋人", "spouse", "夫婦", "rival", "宿敵", "mentor", "師弟");
   static final Map<String, String> THREADS = ordered("promise", "約束", "debt", "借り", "grudge", "遺恨", "search", "探し物", "crush", "片思い");
   static final Map<String, String> SELECTIONS = ordered("random", "ランダム", "warm", "好感度の高い組", "cold", "好感度の低い組",
-      "bond", "関係のある組", "thread", "火種のある組");
+      "bond", "関係のある組", "thread", "火種のある組", "affiliation", "村・派閥・信仰の違う組");
+  /** The most interactions a day, whatever the configuration says. */
+  static final int DAILY_CAP = 5;
+  /** How long a change of village, faction or faith counts as recent for event cards. */
+  private static final int RECENT_CHANGE_DAYS = 14;
   /** Labels code moves along by itself as the axes grow; the others need an event card. */
   private static final Set<String> AUTO_LABELS = Set.of("acquaintance", "friend", "companion", "close_friend");
   private static final Set<String> COOPERATIVE = Set.of("相談", "協力", "手合わせ", "指南");
@@ -40,8 +45,31 @@ public class GuildInteractionService {
   private final GuildProperties properties;
   private final GuildCards cards;
   private final GuildInteractionWriter writer;
+  private final GuildWorld world;
 
-  record Person(long id, String name, Integer age, String gender, String occupation, String personality) { }
+  /**
+   * Where a resident lives, their faction and faith (keys and names), the faction they last left or were
+   * expelled from (null if none), kinds of change made to them in the last few days, and their history as text.
+   */
+  record Affiliation(String home, String village, String faction, String faith, String villageName, String factionName,
+                     String faithName, String factionVillage, String formerFaction, Set<String> recentChanges, List<String> history) {
+    static final Affiliation NONE = new Affiliation("grantford", "grantford", GuildWorld.NONE, GuildWorld.NONE,
+        "グランフォード", "無所属", "無信仰", null, null, Set.of(), List.of());
+
+    boolean member() {
+      return !faction.equals(GuildWorld.NONE);
+    }
+
+    boolean believer() {
+      return !faith.equals(GuildWorld.NONE);
+    }
+  }
+
+  record Person(long id, String name, Integer age, String gender, String occupation, String personality, Affiliation affiliation) {
+    Person(long id, String name, Integer age, String gender, String occupation, String personality) {
+      this(id, name, age, gender, occupation, personality, Affiliation.NONE);
+    }
+  }
 
   /** How one resident feels about another. Every axis is bounded (see V56). */
   record Rel(int trust, int affinity, int wariness, int debt) {
@@ -103,18 +131,24 @@ public class GuildInteractionService {
     var local = now.withZoneSameInstant(GuildService.TOKYO);
     LocalDate date = local.toLocalDate();
     String slot = slot(local);
-    if (local.getHour() % properties.interactionIntervalHours() != 0) return "この時間は交流の枠ではありません。";
+    if (!properties.interactionHours().contains(local.getHour())) return "この時間は交流の枠ではありません。";
     jdbc.queryForObject("SELECT id FROM T_GUILD_LOCK WHERE id = 1 FOR UPDATE", Integer.class);
     List<String> done = jdbc.queryForList("SELECT message FROM T_GUILD_HOURLY_JOB WHERE slot_key = ?", String.class, slot);
     if (!done.isEmpty()) return "この時間（" + slot + "）はすでに処理済みです：" + done.getFirst();
     jdbc.update("UPDATE T_GUILD_THREAD SET status = 'FADED' WHERE status = 'OPEN' AND expires_on < ?", date);
     int today = jdbc.queryForObject("SELECT COUNT(*) FROM T_GUILD_INTERACTION WHERE slot_key LIKE ?", Integer.class, date + "T%");
-    if (today >= properties.interactionDailyMax()) return record(slot, "SKIPPED", "今日の交流は上限（" + properties.interactionDailyMax() + "件）に達しました。");
+    int max = Math.min(properties.interactionDailyMax(), DAILY_CAP);
+    if (today >= max) return record(slot, "SKIPPED", "今日の交流は上限（" + max + "件）に達しました。");
     List<Person> present = jdbc.query("""
-        SELECT c.id, c.name, c.age, c.gender, c.occupation, c.personality FROM T_GUILD_VISIT v
-        JOIN M_GUILD_CHARACTER c ON c.id = v.character_id WHERE v.visit_date = ? AND c.status = 'ALIVE' ORDER BY v.seat
+        SELECT c.id, c.name, c.age, c.gender, c.occupation, c.personality, c.home_village, c.current_village, c.faction, c.faith,
+          v2.name, f.name, fi.name, f.village_key FROM T_GUILD_VISIT v
+        JOIN M_GUILD_CHARACTER c ON c.id = v.character_id JOIN M_GUILD_VILLAGE v2 ON v2.village_key = c.current_village
+        JOIN M_GUILD_FACTION f ON f.faction_key = c.faction JOIN M_GUILD_FAITH fi ON fi.faith_key = c.faith
+        WHERE v.visit_date = ? AND c.status = 'ALIVE' ORDER BY v.seat
         """, (rs, row) -> new Person(rs.getLong(1), rs.getString(2), (Integer) rs.getObject(3), rs.getString(4),
-        rs.getString(5), rs.getString(6)), date);
+        rs.getString(5), rs.getString(6), affiliation(rs.getLong(1), rs.getString(7), rs.getString(8), rs.getString(9),
+        rs.getString(10), rs.getString(11), rs.getString(12), GuildWorld.faithName(rs.getString(13), rs.getString(10), rs.getString(8)),
+        rs.getString(14), date)), date);
     if (present.size() < 2) return record(slot, "SKIPPED", "酒場にいる住人が2人未満でした。");
 
     List<Pair> pairs = new ArrayList<>();
@@ -160,12 +194,18 @@ public class GuildInteractionService {
     OpenThread resolved = outcome.resolve() == null ? null : pair.threads().stream()
         .filter(thread -> thread.kind().equals(outcome.resolve())).findFirst().orElse(null);
     String opened = outcome.open() == null ? null : fill(outcome.open().summary(), pair);
+    Change change = outcome.change() == null ? null : change(outcome.change(), pair);
+    Set<String> keys = new HashSet<>();
+    for (Person person : List.of(pair.a(), pair.b())) {
+      keys.addAll(List.of(person.affiliation().village(), person.affiliation().faction(), person.affiliation().faith()));
+    }
 
     var scene = new GuildInteractionWriter.Scene(phase, card.kind(), summary, pair.a(), pair.b(),
         describe(pair.ab()), describe(pair.ba()), LABELS.get(before == null ? "acquaintance" : before),
         after.equals(before) ? null : LABELS.get(after), changes(abDelta, pair.a().name(), pair.b().name())
         + changes(baDelta, pair.b().name(), pair.a().name()), pair.threads().stream().map(OpenThread::summary).limit(3).toList(),
-        opened, resolved == null ? null : resolved.summary(), pair.deadName());
+        opened, resolved == null ? null : resolved.summary(), pair.deadName(), world.describe(keys),
+        change == null ? null : change.text(), change == null ? null : change.kind());
     String body;
     String writtenBy;
     try {
@@ -196,6 +236,12 @@ public class GuildInteractionService {
     if (outcome.open() != null) {
       jdbc.update("INSERT INTO T_GUILD_THREAD (kind,a_id,b_id,summary,origin_interaction_id,expires_on) VALUES (?,?,?,?,?,?)",
           outcome.open().kind(), pair.a().id(), pair.b().id(), opened, id, date.plusDays(outcome.open().days()));
+    }
+    if (change != null) {
+      jdbc.update("UPDATE M_GUILD_CHARACTER SET " + change.column() + " = ? WHERE id = ?", change.to(), pair.a().id());
+      jdbc.update("INSERT INTO T_GUILD_AFFILIATION_HISTORY (character_id,kind,from_value,to_value,change_kind,reason,interaction_id,changed_at) "
+          + "VALUES (?,?,?,?,?,?,?,?)", pair.a().id(), change.field(), change.from(), change.to(), change.kind(), shorten(summary), id,
+          local.toOffsetDateTime());
     }
     return record(slot, "SUCCEEDED", summary + "（" + SELECTIONS.get(selection) + "）");
   }
@@ -236,6 +282,55 @@ public class GuildInteractionService {
         count, coop, threads, dead);
   }
 
+  private Affiliation affiliation(long id, String home, String village, String faction, String faith, String villageName,
+                                  String factionName, String faithName, String factionVillage, LocalDate date) {
+    var history = world.history(id);
+    String former = history.stream().filter(change -> change.kind().equals("faction")).reduce((first, second) -> second)
+        .filter(change -> Set.of("leave", "expel").contains(change.changeKind())).map(GuildWorld.Change::fromKey).orElse(null);
+    OffsetDateTime since = start(date.minusDays(RECENT_CHANGE_DAYS));
+    Set<String> recent = new HashSet<>();
+    history.stream().filter(change -> GuildCards.CHANGES.contains(change.changeKind()) && !change.at().isBefore(since))
+        .forEach(change -> recent.add(change.changeKind()));
+    // Only changes that happened here; where they started out is already in the village, faction and faith.
+    List<String> lines = history.stream().filter(change -> GuildCards.CHANGES.contains(change.changeKind()))
+        .map(change -> change.day().getMonthValue() + "月" + change.day().getDayOfMonth() + "日 " + change.text() + "：" + change.reason())
+        .toList();
+    return new Affiliation(home, village, faction, faith, villageName, factionName, faithName, factionVillage, former, Set.copyOf(recent),
+        lines.subList(Math.max(0, lines.size() - 3), lines.size()));
+  }
+
+  /** A change code makes to {a}: which column, the history kind, from and to (keys), and the text the writer sees. */
+  record Change(String kind, String field, String column, String from, String to, String text) { }
+
+  /** Whether code may make this change to {a} with {b}; cards whose changes can't happen are not drawn. */
+  static boolean feasible(String change, Pair pair) {
+    var a = pair.a().affiliation();
+    var b = pair.b().affiliation();
+    return switch (change) {
+      case "join" -> !a.member() && b.member() && GuildWorld.canJoin(pair.a().occupation(), a.village(), b.factionVillage());
+      case "leave" -> a.member();
+      case "expel" -> a.member() && a.faction().equals(b.faction());
+      case "move" -> !a.member() && !a.village().equals(b.village());
+      case "convert" -> b.believer() && !a.faith().equals(b.faith());
+      default -> false;
+    };
+  }
+
+  private static Change change(String kind, Pair pair) {
+    var a = pair.a().affiliation();
+    var b = pair.b().affiliation();
+    String name = pair.a().name();
+    return switch (kind) {
+      case "join" -> new Change(kind, "faction", "faction", a.faction(), b.faction(), name + "が" + b.factionName() + "に加わる（加入）");
+      case "leave" -> new Change(kind, "faction", "faction", a.faction(), GuildWorld.NONE, name + "が" + a.factionName() + "を抜ける（脱退）");
+      case "expel" -> new Change(kind, "faction", "faction", a.faction(), GuildWorld.NONE, name + "が" + a.factionName() + "から追われる（追放）");
+      case "move" -> new Change(kind, "village", "current_village", a.village(), b.village(),
+          name + "が" + a.villageName() + "から" + b.villageName() + "へ移り住む（移住）");
+      case "convert" -> new Change(kind, "faith", "faith", a.faith(), b.faith(), name + "が" + a.faithName() + "から" + b.faithName() + "へ改める（改宗）");
+      default -> throw new IllegalStateException("Unknown change " + kind);
+    };
+  }
+
   private Rel rel(long from, long to) {
     return jdbc.query("SELECT trust, affinity, wariness, debt FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?",
         (rs, row) -> new Rel(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4)), from, to).stream().findFirst().orElse(Rel.NONE);
@@ -247,6 +342,12 @@ public class GuildInteractionService {
       case "cold" -> pair.maxWariness() >= 20 || pair.minAffinity() <= -10;
       case "bond" -> pair.label() != null && !pair.label().equals("acquaintance");
       case "thread" -> !pair.threads().isEmpty();
+      case "affiliation" -> {
+        var a = pair.a().affiliation();
+        var b = pair.b().affiliation();
+        yield !a.village().equals(b.village()) || (a.member() && b.member() && !a.faction().equals(b.faction()))
+            || (a.believer() && b.believer() && !a.faith().equals(b.faith()));
+      }
       default -> true;
     };
   }
@@ -281,6 +382,20 @@ public class GuildInteractionService {
     if (when.ageGapMin() != null && (pair.a().age() == null || pair.b().age() == null
         || pair.a().age() - pair.b().age() < when.ageGapMin())) return false;
     if (when.memorial() && pair.deadName() == null) return false;
+    var a = pair.a().affiliation();
+    var b = pair.b().affiliation();
+    if (when.faction() != null && (when.faction().equals("same") != (a.member() && a.faction().equals(b.faction())))) return false;
+    if (when.faction() != null && when.faction().equals("different") && a.faction().equals(b.faction())) return false;
+    if (when.faith() != null && (when.faith().equals("same") != (a.believer() && a.faith().equals(b.faith())))) return false;
+    if (when.faith() != null && when.faith().equals("different") && a.faith().equals(b.faith())) return false;
+    if (when.village() != null && when.village().equals("same") != a.village().equals(b.village())) return false;
+    if (when.aFaction() != null && when.aFaction().equals("member") != a.member()) return false;
+    if (when.bFaction() != null && when.bFaction().equals("member") != b.member()) return false;
+    if (when.aFaith() != null && when.aFaith().equals("believer") != a.believer()) return false;
+    if (when.bFaith() != null && when.bFaith().equals("believer") != b.believer()) return false;
+    if (!when.aChanged().isEmpty() && when.aChanged().stream().noneMatch(a.recentChanges()::contains)) return false;
+    if (when.former() && (a.formerFaction() == null || !a.formerFaction().equals(b.faction()))) return false;
+    if (card.changes().stream().anyMatch(change -> !feasible(change, pair))) return false;
     if (when.cooldownDays() != null) {
       int recent = jdbc.queryForObject("""
           SELECT COUNT(*) FROM T_GUILD_INTERACTION i WHERE i.card_id = ? AND i.happened_at >= ?
@@ -302,6 +417,7 @@ public class GuildInteractionService {
       case "thread" -> card.tier().equals("thread") ? 4 : 1;
       case "cold" -> card.kind().equals("口論") || card.kind().equals("和解") ? 3 : 1;
       case "warm", "bond" -> card.tier().equals("progress") || card.tier().equals("major") ? 2 : 1;
+      case "affiliation" -> card.when().affiliation() || !card.changes().isEmpty() ? 3 : 1;
       default -> 1;
     };
   }
@@ -404,7 +520,12 @@ public class GuildInteractionService {
   }
 
   static String fill(String text, Pair pair) {
-    return text.replace("{a}", pair.a().name()).replace("{b}", pair.b().name())
+    var a = pair.a().affiliation();
+    var b = pair.b().affiliation();
+    return text.replace("{a_faction}", a.factionName()).replace("{b_faction}", b.factionName())
+        .replace("{a_faith}", a.faithName()).replace("{b_faith}", b.faithName())
+        .replace("{a_village}", a.villageName()).replace("{b_village}", b.villageName())
+        .replace("{a}", pair.a().name()).replace("{b}", pair.b().name())
         .replace("{dead}", pair.deadName() == null ? "亡き友" : pair.deadName());
   }
 

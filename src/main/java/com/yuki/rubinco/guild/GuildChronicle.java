@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class GuildChronicle {
   static final int PAGE = 30;
   private final JdbcTemplate jdbc;
+  private final GuildWorld world;
 
   public record Ref(long id, String name, String status) { }
 
@@ -73,7 +74,9 @@ public class GuildChronicle {
     }
   }
 
-  public record Detail(Entry entry, String outcome, List<Change> changes, List<ThreadView> opened, List<ThreadView> resolved) { }
+  /** affiliations: "リネ ／ 派閥：無所属 → 白銀の騎士団（加入）" for each change of village, faction or faith this event made. */
+  public record Detail(Entry entry, String outcome, List<Change> changes, List<ThreadView> opened, List<ThreadView> resolved,
+                       List<String> affiliations) { }
 
   /** One relationship of a resident, with the label's history. */
   public record Relation(Ref other, String label, int trust, int affinity, int wariness, int debt, List<Change> history,
@@ -138,8 +141,13 @@ public class GuildChronicle {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     String outcome = jdbc.queryForObject("SELECT outcome FROM T_GUILD_INTERACTION WHERE id = ?", String.class, id);
     List<Change> changes = changes(" WHERE e.interaction_id = ? ORDER BY e.id", id);
+    List<String> affiliations = new ArrayList<>();
+    for (Ref person : entry.people()) {
+      world.history(person.id()).stream().filter(change -> id == change.interactionId())
+          .forEach(change -> affiliations.add(person.name() + " ／ " + change.text()));
+    }
     return new Detail(entry, outcome, changes, threads(" WHERE t.origin_interaction_id = ?", id),
-        threads(" WHERE t.resolved_interaction_id = ?", id));
+        threads(" WHERE t.resolved_interaction_id = ?", id), affiliations);
   }
 
   /** Everyone this resident has a relationship with, closest first. */

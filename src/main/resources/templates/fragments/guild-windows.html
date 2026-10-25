@@ -30,7 +30,15 @@
   <p th:if="${character.status == 'DEAD'}">この人物は亡くなりました。その人の記録はここに残ります。</p>
   <p th:if="${character.status == 'INJURED'}">現在は療養しています。</p><p th:if="${character.status == 'MISSING'}">現在は所在が分かっていません。</p>
   <div class="guild-dialogue"><p th:text="${character.introduction}"></p></div>
+  <dl class="guild-affiliation">
+    <dt>出身地</dt><dd th:text="${character.homeVillage}">グランフォード</dd>
+    <dt>現在地</dt><dd th:text="${character.village}">グランフォード</dd>
+    <dt>所属派閥</dt><dd th:text="${character.faction}">無所属</dd>
+    <dt>信仰</dt><dd th:text="${character.faith}">無信仰</dd>
+  </dl>
   <h3>人となり</h3><p th:text="${character.personality}"></p>
+  <th:block th:unless="${#lists.isEmpty(history)}"><h3>所属の履歴</h3>
+    <ol class="guild-memory"><li th:each="change : ${history}" th:text="${#temporals.format(change.day(), 'yyyy年M月d日') + ' ' + change.text() + ' — ' + change.reason}">2026年10月1日 派閥：無所属 → 白銀の騎士団（加入）</li></ol></th:block>
   <h3>生まれた記憶</h3>
   <th:block th:if="${!#lists.isEmpty(character.memoryLines())}"><p th:text="${character.memoryLabel + 'から生まれました。'}">7 Days to Die・10月3日 21時〜24時の記録から生まれました。</p>
     <ol class="guild-memory"><li th:each="line : ${character.memoryLines()}" th:text="${line}">21:14 ゾンビを倒した</li></ol>
@@ -112,6 +120,8 @@
   <h3>関係の変化</h3>
   <p th:if="${#lists.isEmpty(detail.changes)}">関係に変化はありませんでした。</p>
   <ul class="guild-changes"><li th:each="change : ${detail.changes}" th:text="${(change.kind == 'label' ? '関係: ' : change.from.name + ' → ' + change.to.name + ': ') + change.text()}">リネ → ロアン: 親しみ+2</li></ul>
+  <th:block th:unless="${#lists.isEmpty(detail.affiliations)}"><h3>所属の変化</h3>
+    <ul class="guild-changes"><li th:each="line : ${detail.affiliations}" th:text="${line}">リネ ／ 派閥：無所属 → 白銀の騎士団（加入）</li></ul></th:block>
   <th:block th:unless="${#lists.isEmpty(detail.opened)}"><h3>生まれた火種</h3>
     <ul class="guild-changes"><li th:each="t : ${detail.opened}" th:text="${t.kindName() + '：' + t.summary + '（' + t.statusName() + '）'}">約束：…</li></ul></th:block>
   <th:block th:unless="${#lists.isEmpty(detail.resolved)}"><h3>片づいた火種</h3>

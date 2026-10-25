@@ -19,6 +19,9 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 public class GuildCards {
   static final Set<String> TIERS = Set.of("daily", "progress", "thread", "major");
   static final Set<String> AXES = Set.of("trust", "affinity", "wariness", "debt");
+  /** What an outcome may change about {a}: join {b}'s faction, leave or be expelled from their own, move to {b}'s village, take {b}'s faith. */
+  static final Set<String> CHANGES = Set.of("join", "leave", "expel", "move", "convert");
+  private static final Set<String> SAME_OR_DIFFERENT = Set.of("same", "different");
 
   /** An axis change as an inclusive range per axis, e.g. affinity: [1, 3]. */
   public record Delta(Map<String, int[]> ranges) {
@@ -28,13 +31,25 @@ public class GuildCards {
   public record Opening(String kind, int days, String summary) { }
 
   public record Outcome(String id, int chance, String summary, String template, Delta both, Delta aToB, Delta bToA,
-                        Opening open, String resolve, String label) { }
+                        Opening open, String resolve, String label, String change) { }
 
   public record When(List<String> labels, List<String> notLabels, List<String> phases, Integer affinityMin,
                      Integer affinityMax, Integer trustMin, Integer warinessMin, String thread, Integer cooldownDays,
-                     boolean adults, Integer ageGapMin, boolean memorial) { }
+                     boolean adults, Integer ageGapMin, boolean memorial,
+                     String faction, String faith, String village, String aFaction, String bFaction, String aFaith, String bFaith,
+                     List<String> aChanged, boolean former) {
+    /** Whether the card is about villages, factions or faiths at all. */
+    boolean affiliation() {
+      return faction != null || faith != null || village != null || aFaction != null || bFaction != null || aFaith != null
+          || bFaith != null || !aChanged.isEmpty() || former;
+    }
+  }
 
-  public record Card(String id, String kind, String tier, int weight, When when, List<Outcome> outcomes) { }
+  public record Card(String id, String kind, String tier, int weight, When when, List<Outcome> outcomes) {
+    List<String> changes() {
+      return outcomes.stream().map(Outcome::change).filter(java.util.Objects::nonNull).distinct().toList();
+    }
+  }
 
   private final String version;
   private final List<Card> cards;
@@ -78,7 +93,12 @@ public class GuildCards {
     When condition = new When(strings(when.get("labels")), strings(when.get("not_labels")), phases,
         integer(when.get("affinity_min")), integer(when.get("affinity_max")), integer(when.get("trust_min")),
         integer(when.get("wariness_min")), (String) when.get("thread"), integer(when.get("cooldown_days")),
-        Boolean.TRUE.equals(when.get("adults")), integer(when.get("age_gap_min")), Boolean.TRUE.equals(when.get("memorial")));
+        Boolean.TRUE.equals(when.get("adults")), integer(when.get("age_gap_min")), Boolean.TRUE.equals(when.get("memorial")),
+        choice(when, "faction", SAME_OR_DIFFERENT, id), choice(when, "faith", SAME_OR_DIFFERENT, id),
+        choice(when, "village", SAME_OR_DIFFERENT, id), choice(when, "a_faction", Set.of("none", "member"), id),
+        choice(when, "b_faction", Set.of("none", "member"), id), choice(when, "a_faith", Set.of("none", "believer"), id),
+        choice(when, "b_faith", Set.of("none", "believer"), id), strings(when.get("a_changed")), Boolean.TRUE.equals(when.get("former")));
+    if (!CHANGES.containsAll(condition.aChanged())) throw new IllegalStateException("Unknown a_changed in guild card " + id);
     List<Outcome> outcomes = new ArrayList<>();
     for (Object item : list(raw.get("outcomes"))) {
       Map<String, Object> o = map(item);
@@ -86,10 +106,18 @@ public class GuildCards {
       outcomes.add(new Outcome(text(o, "id"), ((Number) o.get("chance")).intValue(), text(o, "summary"), text(o, "template"),
           delta(o.get("both")), delta(o.get("a_to_b")), delta(o.get("b_to_a")),
           open == null ? null : new Opening(text(open, "kind"), ((Number) open.get("days")).intValue(), text(open, "summary")),
-          (String) o.get("resolve"), (String) o.get("label")));
+          (String) o.get("resolve"), (String) o.get("label"), (String) o.get("change")));
+      if (o.get("change") != null && !CHANGES.contains(o.get("change"))) throw new IllegalStateException("Unknown change in guild card " + id);
     }
     if (weight <= 0 || outcomes.isEmpty()) throw new IllegalStateException("Guild card needs weight and outcomes: " + id);
     return new Card(id, text(raw, "kind"), tier, weight, condition, List.copyOf(outcomes));
+  }
+
+  private static String choice(Map<String, Object> when, String key, Set<String> allowed, String id) {
+    Object value = when.get(key);
+    if (value == null) return null;
+    if (!allowed.contains(String.valueOf(value))) throw new IllegalStateException("Unknown " + key + " in guild card " + id);
+    return String.valueOf(value);
   }
 
   private static Delta delta(Object raw) {

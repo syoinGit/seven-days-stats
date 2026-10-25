@@ -43,9 +43,9 @@ app:
     gender-cap: ${GUILD_GENDER_CAP:7}
     occupation-cap: ${GUILD_OCCUPATION_CAP:3}
     lineage-cap: ${GUILD_LINEAGE_CAP:5}
-    # Hourly interactions between today's visitors (JST). fallback: template or skip when the AI fails.
-    interaction-interval-hours: ${GUILD_INTERACTION_INTERVAL_HOURS:1}
-    interaction-daily-max: ${GUILD_INTERACTION_DAILY_MAX:24}
+    # Interactions between today's visitors at these JST hours, at most five a day. fallback: template or skip when the AI fails.
+    interaction-hours: ${GUILD_INTERACTION_HOURS:9,12,15,18,21}
+    interaction-daily-max: ${GUILD_INTERACTION_DAILY_MAX:5}
     interaction-fallback: ${GUILD_INTERACTION_FALLBACK:template}
     recent-pair-slots: ${GUILD_RECENT_PAIR_SLOTS:3}
     selection-weights:
@@ -54,6 +54,7 @@ app:
       cold: 1
       bond: 2
       thread: 2
+      affiliation: 2
   platform:
     domain: ${DOMAIN:rubinco.link}
     portal-url: ${PORTAL_SITE_URL:https://portal.${app.platform.domain}}

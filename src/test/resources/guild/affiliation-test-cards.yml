@@ -1,0 +1,17 @@
+# Two cards that always change something, for GuildTests.eventsChangeFactionsAndFaithsAndKeepTheHistory.
+version: "test"
+cards:
+  - id: test-invite
+    kind: 勧誘
+    tier: daily
+    weight: 1
+    when: {a_faction: none, b_faction: member}
+    outcomes:
+      - {id: join, chance: 1, change: join, summary: "{a}は{b}の誘いで{b_faction}に加わった", template: "{a}は{b_faction}に加わった。"}
+  - id: test-convert
+    kind: 改宗
+    tier: daily
+    weight: 1
+    when: {b_faith: believer, faith: different}
+    outcomes:
+      - {id: convert, chance: 1, change: convert, summary: "{a}は{b}に導かれ、{b_faith}を信じることにした", template: "{a}は{b_faith}を信じた。"}
