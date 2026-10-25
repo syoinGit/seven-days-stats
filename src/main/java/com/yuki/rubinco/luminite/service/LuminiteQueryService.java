@@ -33,6 +33,7 @@ import tools.jackson.databind.ObjectMapper;
 /** Read models for the Luminite pages. Everything comes from the latest valid snapshot. */
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class LuminiteQueryService {
   public static final String GAME_ID = TerrariaImportService.GAME_ID;
   private static final DisplayTimeFormatter TIME = new DisplayTimeFormatter();
@@ -113,6 +114,9 @@ public class LuminiteQueryService {
       try {
         summary = objectMapper.readValue(snapshot.getExtractedJson(), TerrariaSummary.class);
       } catch (RuntimeException exception) {
+        // Shown as "準備中"; say why, so a summary the code can no longer read is not silent.
+        log.warn("Luminite summary unreadable. snapshotId={}, reason={}", snapshot.getId(),
+            exception.getClass().getSimpleName());
         summary = null;
       }
     }

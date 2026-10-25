@@ -238,6 +238,29 @@ class LuminiteWebTests {
   }
 
   @Test
+  void snapshotFromBeforeManagedStorageStillShowsAndIsReImportedOnce() throws Exception {
+    // Production state: the latest snapshot was saved by a version without managed storage.
+    Long latest = jdbc.queryForObject("SELECT latest_snapshot_id FROM M_GAME_WORLD WHERE game_id = 'terraria'", Long.class);
+    var json = (tools.jackson.databind.node.ObjectNode) tools.jackson.databind.json.JsonMapper.builder().build()
+        .readTree(jdbc.queryForObject("SELECT extracted_json FROM T_WORLD_SNAPSHOT WHERE world_snapshot_id = ?", String.class, latest));
+    ((tools.jackson.databind.node.ObjectNode) json.get("totals")).remove(List.of("managedByKind", "storageRule"));
+    jdbc.update("UPDATE T_WORLD_SNAPSHOT SET extracted_json = ? WHERE world_snapshot_id = ?", json.toString(), latest);
+    jdbc.update("UPDATE T_WORLD_SNAPSHOT SET parser_version = 'tr-wld326-1'");
+    jdbc.update("UPDATE T_WORLD_IMPORT_RUN SET parser_version = 'tr-wld326-1'");
+
+    mvc.perform(get("/luminite").with(member()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(not(containsString("ワールドデータの統計は準備中"))));
+
+    // The save file is untouched, yet the rule change alone brings a fresh snapshot, once.
+    assertThat(importService.runScheduled().orElseThrow().getStatus()).isEqualTo("SUCCEEDED");
+    assertThat(jdbc.queryForObject("SELECT extracted_json FROM T_WORLD_SNAPSHOT WHERE world_snapshot_id = "
+        + "(SELECT latest_snapshot_id FROM M_GAME_WORLD WHERE game_id = 'terraria')", String.class))
+        .contains("\"storageRule\":1");
+    assertThat(importService.runScheduled().orElseThrow().getStatus()).isEqualTo("UNCHANGED");
+  }
+
+  @Test
   void unchangedSaveDoesNotCreateANewSnapshot() throws Exception {
     Integer before = jdbc.queryForObject("SELECT COUNT(*) FROM T_WORLD_SNAPSHOT", Integer.class);
     Files.setLastModifiedTime(WORLD_FILE, FileTime.from(Instant.now().minusSeconds(30)));

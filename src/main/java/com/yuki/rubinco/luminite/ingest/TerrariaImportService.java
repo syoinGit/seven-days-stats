@@ -172,8 +172,7 @@ public class TerrariaImportService {
 
     TerrariaSummary summary = TerrariaSummary.from(parsed, contentHash);
     // Totals counted under an older storage rule are not comparable: re-baseline without logging.
-    boolean itemBaseline = latest == null
-        || !Integer.valueOf(TerrariaStorage.RULE_VERSION).equals(nested(latestJson, "totals", "storageRule"));
+    boolean itemBaseline = latest == null || !currentStorageRule(latestJson);
     var stored = store.store(world.getId(), latest == null, itemBaseline, parsed,
         new WorldSnapshotRecorder.SnapshotInput(parsed.sourceSha256(), parsed.version(),
             TerrariaWorldParser.PARSER_VERSION, capturedAt, source.modifiedAt(), null,
@@ -215,6 +214,11 @@ public class TerrariaImportService {
     } catch (NoSuchAlgorithmException exception) {
       throw new IllegalStateException(exception);
     }
+  }
+
+  /** Whether a snapshot's totals were counted under the current managed-storage rule. */
+  private boolean currentStorageRule(Map<String, Object> summaryJson) {
+    return Integer.valueOf(TerrariaStorage.RULE_VERSION).equals(nested(summaryJson, "totals", "storageRule"));
   }
 
   private boolean unchangedSinceLastRun(M_GameWorld world, BasicFileAttributes attributes) {
