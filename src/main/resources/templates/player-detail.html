@@ -5,16 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png"><link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <meta http-equiv="refresh" content="60">
   <title th:text="${player.status.playerName + ' | WATCHPOINT'}">WATCHPOINT</title>
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-2')}">
 </head>
 <body>
-<header th:replace="~{fragments/navigation :: siteHeader(@{/dashboard}, 'WATCHPOINT', 'WP', 'WASTELAND ADVENTURE ARCHIVE', 'watchpoint-topbar')}"></header>
+<header th:replace="~{fragments/header :: appHeader('7dtd', 'watchpoint-topbar')}"></header>
 
 <main class="detail-shell"><nav th:replace="~{fragments/navigation :: rail('player')}"></nav><section class="layout detail-page">
   <header class="page-title">
     <img class="user-avatar profile-avatar" th:src="${@portalProfileService.avatar(player.status.playerId, null, profileDirectory, currentViewer)}" alt="">
     <nav class="breadcrumbs"><a th:href="@{/dashboard}"><span aria-hidden="true">⌂</span> 冒険記録</a><span>›</span><b><span aria-hidden="true">♙</span> プレイヤー</b></nav>
-    <p class="eyebrow">PLAYER / PERSONAL RECORD</p>
     <h1 th:text="${player.status.playerName}">player</h1>
     <p><span th:text="${player.status.statusLabel}">オンライン</span> / <span th:text="${player.status.poiName}">荒野のどこか</span></p>
     <form class="status-actions" th:if="${player.status.online and loggedIn and currentPlayerId != null and currentPlayerId == player.status.playerId}" method="post" th:action="@{/players/{id}/status(id=${player.status.playerId})}">

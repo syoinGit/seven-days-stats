@@ -7,16 +7,16 @@
   <title th:text="${'討伐図鑑 | ' + game.displayName}">Luminite | Terraria</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-2')}">
   <link rel="stylesheet" th:href="@{/css/luminite.css(v='1')}">
 </head>
 <body class="luminite-body">
-<header th:replace="~{fragments/navigation :: siteHeader(@{/luminite}, ${game.displayName}, '✦', 'TERRARIA EXPLORATION HUB', 'luminite-topbar')}"></header>
+<header th:replace="~{fragments/header :: appHeader('terraria', 'luminite-topbar')}"></header>
 <main class="luminite-shell">
   <nav th:replace="~{fragments/luminite :: tabs}"></nav>
   <section class="luminite-panel" aria-labelledby="bestiary-title">
     <div class="section-heading">
-      <div><p class="eyebrow">BESTIARY</p><h1 id="bestiary-title">討伐図鑑</h1></div>
+      <div><h1 id="bestiary-title">討伐図鑑</h1></div>
     </div>
     <div th:replace="~{fragments/luminite :: snapshot}"></div>
     <ul class="luminite-stats">

@@ -65,7 +65,7 @@ class DockerGameServerWebTests {
         .andExpect(jsonPath("$.minecraft.memory.startAllowed").value(false));
     mvc.perform(get("/portal").with(user("member").roles("PLAYER")))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("必要メモリ枠 1.0 GiB")))
+        .andExpect(content().string(containsString("必要メモリ 1.0 GiB")))
         .andExpect(content().string(containsString("メモリ枠が不足しています")))
         .andExpect(content().string(containsString("2.5 GiB")));
   }

@@ -8,22 +8,21 @@
 </li>
 
 <nav th:fragment="menu" class="ck-menu" aria-label="Octarineのメニュー">
-  <p class="ck-menu-title"><span aria-hidden="true">◆</span> MENU</p>
   <a th:href="@{/octarine}" th:classappend="${section == 'overview'} ? 'active'" th:attr="aria-current=${section == 'overview'} ? 'page'">
-    <svg class="ck-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{/img/octarine-icons.svg#menu-home}"></use></svg><span><b>拠点</b><small>HOME</small></span></a>
+    <svg class="ck-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{/img/octarine-icons.svg#menu-home}"></use></svg><span>拠点</span></a>
   <p class="ck-menu-group">倉庫管理</p>
   <a th:href="@{/octarine/items}" th:classappend="${section == 'items'} ? 'active'" th:attr="aria-current=${section == 'items'} ? 'page'">
-    <svg class="ck-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{/img/octarine-icons.svg#menu-items}"></use></svg><span><b>アイテム在庫</b><small>INVENTORY</small></span></a>
+    <svg class="ck-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{/img/octarine-icons.svg#menu-items}"></use></svg><span>アイテム在庫</span></a>
   <a th:href="@{/octarine/chests}" th:classappend="${section == 'chests'} ? 'active'" th:attr="aria-current=${section == 'chests'} ? 'page'">
-    <svg class="ck-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{/img/octarine-icons.svg#menu-chests}"></use></svg><span><b>チェスト</b><small>STORAGE</small></span></a>
+    <svg class="ck-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{/img/octarine-icons.svg#menu-chests}"></use></svg><span>チェスト</span></a>
   <p class="ck-menu-group">ログイン管理</p>
   <a th:href="@{/octarine/players}" th:classappend="${section == 'players'} ? 'active'" th:attr="aria-current=${section == 'players'} ? 'page'">
-    <svg class="ck-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{/img/octarine-icons.svg#menu-players}"></use></svg><span><b>接続とプレイ時間</b><small>MEMBERS</small></span></a>
+    <svg class="ck-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{/img/octarine-icons.svg#menu-players}"></use></svg><span>接続とプレイ時間</span></a>
   <p class="ck-menu-group">記録</p>
   <a th:href="@{/octarine/history}" th:classappend="${section == 'history'} ? 'active'" th:attr="aria-current=${section == 'history'} ? 'page'">
-    <svg class="ck-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{/img/octarine-icons.svg#menu-history}"></use></svg><span><b>進捗と履歴</b><small>LOG</small></span></a>
+    <svg class="ck-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{/img/octarine-icons.svg#menu-history}"></use></svg><span>進捗と履歴</span></a>
   <a th:if="${currentAdmin}" th:href="@{/octarine/maintenance}" th:classappend="${section == 'maintenance'} ? 'active'" class="ck-menu-admin">
-    <svg class="ck-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{/img/octarine-icons.svg#menu-admin}"></use></svg><span><b>管理画面</b><small>ADMIN</small></span></a>
+    <svg class="ck-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{/img/octarine-icons.svg#menu-admin}"></use></svg><span>管理画面</span></a>
 </nav>
 
 <p th:fragment="snapshot" class="octarine-note octarine-snapshot" th:if="${ctx != null and ctx.snapshotLabel != null}"

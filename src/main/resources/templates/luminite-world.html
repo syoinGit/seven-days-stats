@@ -7,16 +7,16 @@
   <title th:text="${'ワールド | ' + game.displayName}">Luminite | Terraria</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-2')}">
   <link rel="stylesheet" th:href="@{/css/luminite.css(v='1')}">
 </head>
 <body class="luminite-body">
-<header th:replace="~{fragments/navigation :: siteHeader(@{/luminite}, ${game.displayName}, '✦', 'TERRARIA EXPLORATION HUB', 'luminite-topbar')}"></header>
+<header th:replace="~{fragments/header :: appHeader('terraria', 'luminite-topbar')}"></header>
 <main class="luminite-shell">
   <nav th:replace="~{fragments/luminite :: tabs}"></nav>
   <section class="luminite-panel" aria-labelledby="world-title">
     <div class="section-heading">
-      <div><p class="eyebrow">WORLD</p><h1 id="world-title" th:text="${world.name}">ワールド名</h1></div>
+      <div><h1 id="world-title" th:text="${world.name}">ワールド名</h1></div>
     </div>
     <div th:replace="~{fragments/luminite :: snapshot}"></div>
     <dl class="luminite-facts luminite-facts-wide">
@@ -36,7 +36,7 @@
 
   <section class="luminite-panel" aria-labelledby="resources-title">
     <div class="section-heading">
-      <div><p class="eyebrow">RESOURCES</p><h2 id="resources-title">残っている資源</h2></div>
+      <div><h2 id="resources-title">残っている資源</h2></div>
     </div>
     <p class="luminite-note">ワールドに置かれたままのブロック数です（1ブロック = 掘ると1個）。プレイヤーが置いたブロックも含みます。</p>
     <th:block th:each="entry : ${resourceGroups}">
@@ -52,7 +52,7 @@
 
   <section class="luminite-panel" aria-labelledby="objects-title">
     <div class="section-heading">
-      <div><p class="eyebrow">FINDINGS</p><h2 id="objects-title">ワールドに残っている設置物</h2></div>
+      <div><h2 id="objects-title">ワールドに残っている設置物</h2></div>
     </div>
     <p class="luminite-note">ワールドに残っている設置物の数です。減っていれば誰かが壊した・拾ったということです。</p>
     <ul class="luminite-resources">
@@ -65,7 +65,7 @@
 
   <section class="luminite-panel" aria-labelledby="npcs-title">
     <div class="section-heading">
-      <div><p class="eyebrow">TOWN</p><h2 id="npcs-title">住人と家</h2></div>
+      <div><h2 id="npcs-title">住人と家</h2></div>
       <span class="luminite-count" th:text="${#lists.size(npcs) + '人'}">0人</span>
     </div>
     <p th:if="${#lists.isEmpty(npcs)}" class="luminite-empty">住人はいません。</p>
@@ -89,7 +89,7 @@
 
   <section class="luminite-panel" aria-labelledby="pylons-title">
     <div class="section-heading">
-      <div><p class="eyebrow">NETWORK</p><h2 id="pylons-title">パイロン</h2></div>
+      <div><h2 id="pylons-title">パイロン</h2></div>
     </div>
     <p th:if="${#lists.isEmpty(pylons)}" class="luminite-empty">パイロンはまだ置かれていません。</p>
     <ul class="luminite-signs" th:unless="${#lists.isEmpty(pylons)}">
@@ -102,7 +102,7 @@
 
   <section class="luminite-panel" aria-labelledby="build-title">
     <div class="section-heading">
-      <div><p class="eyebrow">BUILDING</p><h2 id="build-title">建築と配線</h2></div>
+      <div><h2 id="build-title">建築と配線</h2></div>
     </div>
     <ul class="luminite-resources">
       <li><span>ブロック</span><b th:text="${#numbers.formatInteger(tiles.activeTiles, 1, 'COMMA')}"></b></li>

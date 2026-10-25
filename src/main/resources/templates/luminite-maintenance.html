@@ -6,11 +6,11 @@
   <title>Luminite 管理 | Rubinco</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-2')}">
   <link rel="stylesheet" th:href="@{/css/luminite.css(v='1')}">
 </head>
 <body class="luminite-body">
-<header th:replace="~{fragments/navigation :: siteHeader(@{/luminite}, 'Luminite', '✦', 'ADMINISTRATION', 'luminite-topbar')}"></header>
+<header th:replace="~{fragments/header :: appHeader('terraria', 'luminite-topbar')}"></header>
 <main class="luminite-shell luminite-maintenance">
   <a th:href="@{/luminite}">← Luminiteへ戻る</a>
   <div class="form-notice success" th:if="${notice}" th:text="${notice}"></div>
@@ -18,7 +18,7 @@
 
   <section class="luminite-panel" aria-labelledby="runs-title">
     <div class="section-heading">
-      <div><p class="eyebrow">IMPORT</p><h2 id="runs-title">取り込み履歴</h2></div>
+      <div><h2 id="runs-title">取り込み履歴</h2></div>
       <form method="post" th:action="@{/luminite/maintenance/import}">
         <button type="submit">今すぐ再取得</button>
       </form>
@@ -51,13 +51,13 @@
   </section>
 
   <section class="luminite-panel" aria-labelledby="names-title">
-    <div class="section-heading"><div><p class="eyebrow">NAMES</p><h2 id="names-title">名前辞書</h2></div></div>
+    <div class="section-heading"><div><h2 id="names-title">名前辞書</h2></div></div>
     <p th:if="${namesLoaded}" class="luminite-note" th:text="${'アイテム名 ' + namesItemCount + '件を読み込んでいます。'}"></p>
     <p th:unless="${namesLoaded}" class="luminite-warning">名前辞書が見つかりません。TERRARIA_NAMES_DIR に生成した TSV を置いてください（docs/LUMINITE.md）。それまでアイテムは番号で表示されます。</p>
   </section>
 
   <section class="luminite-panel" aria-labelledby="worlds-title">
-    <div class="section-heading"><div><p class="eyebrow">WORLD</p><h2 id="worlds-title">ワールド世代</h2></div></div>
+    <div class="section-heading"><div><h2 id="worlds-title">ワールド世代</h2></div></div>
     <p class="luminite-note">「設定メモ」は管理者が入力した情報で、保存データからは確認していません。</p>
     <form class="luminite-form" th:each="world : ${worlds}" method="post" th:action="@{/luminite/maintenance/worlds/{id}(id=${world.id})}">
       <strong th:text="${world.worldKey + ' / 第' + world.generation + '世代' + (world.active ? '（有効）' : '')}"></strong>
@@ -80,7 +80,7 @@
   </section>
 
   <section class="luminite-panel" aria-labelledby="definitions-title">
-    <div class="section-heading"><div><p class="eyebrow">ITEMS</p><h2 id="definitions-title">進捗項目</h2></div></div>
+    <div class="section-heading"><div><h2 id="definitions-title">進捗項目</h2></div></div>
     <p class="luminite-note">内部キーと判定元は変更できません。公開ページには達成した項目だけを表示し、未達の項目や残りの数は出しません。</p>
     <form class="luminite-form luminite-definition" th:each="definition : ${definitions}" method="post"
           th:action="@{/luminite/maintenance/definitions/{id}(id=${definition.id})}">
@@ -94,7 +94,7 @@
   </section>
 
   <section class="luminite-panel" aria-labelledby="articles-title">
-    <div class="section-heading"><div><p class="eyebrow">GUIDE</p><h2 id="articles-title">攻略記事</h2></div></div>
+    <div class="section-heading"><div><h2 id="articles-title">攻略記事</h2></div></div>
     <p class="luminite-note">条件はすべての「表示」条件を満たし、どの「非表示」条件にも当たらないときに表示します。判定が不明な項目は条件を満たしません。外部Wikiの全文は転載しないでください。</p>
     <th:block th:each="view : ${articles}">
       <form class="luminite-form" method="post" th:action="@{/luminite/maintenance/articles/{id}(id=${view.article.id})}"

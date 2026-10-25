@@ -5,14 +5,13 @@
   <title>プロフィール | Rubinco</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-2')}">
   <link rel="stylesheet" th:href="@{/css/portal.css(v='6')}">
 </head>
 <body class="portal-body">
-<header th:replace="~{fragments/portal-header :: header}"></header>
+<header th:replace="~{fragments/header :: appHeader('portal', 'portal-topbar')}"></header>
 <main class="profile-page">
   <a class="profile-back" th:href="${portalUrl}">← ポータルへ戻る</a>
-  <p class="eyebrow">YOUR PROFILE</p>
   <h1>あなたのプロフィール</h1>
   <p class="profile-description">ここで選んだアイコンを、ポータルと連携済みのプレイヤープロフィールで使います。</p>
   <div class="form-notice success" th:if="${notice}" th:text="${notice}" role="status"></div>

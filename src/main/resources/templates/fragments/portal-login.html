@@ -2,7 +2,6 @@
 <html lang="ja" xmlns:th="http://www.thymeleaf.org"><body>
 <dialog th:fragment="modal" id="portal-login" class="portal-login-shell portal-login-modal" aria-labelledby="portal-login-title" th:attr="open=${loginRequested ? 'open' : null}">
   <form method="dialog" class="modal-close-form"><a class="nav-button modal-close-fallback" href="/portal">閉じる</a><button class="nav-button modal-close-button" aria-label="ログインを閉じる">閉じる ×</button></form>
-  <p class="eyebrow">PRIVATE MULTIVERSE GATEWAY</p>
   <h1 id="portal-login-title">仲間だけの世界へ。</h1>
   <p id="portal-login-description">
     招待されたアカウントでログインすると、Watchpoint・Luminite・Octarineを同じアカウントで利用できます。

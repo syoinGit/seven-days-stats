@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png"><link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <title>ユーザー連携 | Rubinco</title>
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-2')}">
   <link rel="stylesheet" th:href="@{/css/portal.css(v='maintenance-2')}">
   <script defer th:src="@{/js/confirm-forms.js(v='1')}"></script>
 </head>
 <body class="portal-body">
-<header th:replace="~{fragments/portal-header :: header}"></header>
+<header th:replace="~{fragments/header :: appHeader('portal', 'portal-topbar')}"></header>
 <main class="portal-maintenance">
   <a class="profile-back" th:href="${portalUrl}">← ポータルへ戻る</a>
   <section>
-    <header class="page-title"><p class="eyebrow">ADMINISTRATION</p><h1>ポータルユーザー</h1><p>ユーザーごとに7DTDプレイヤーを選択して保存します。連携はいつでも変更・解除できます。</p></header>
+    <header class="page-title"><h1>ポータルユーザー</h1><p>ユーザーごとに7DTDプレイヤーを選択して保存します。連携はいつでも変更・解除できます。</p></header>
     <div class="form-notice success" th:if="${notice}" th:text="${notice}"></div>
     <div class="form-notice error" th:if="${error}" th:text="${error}"></div>
     <article class="panel">

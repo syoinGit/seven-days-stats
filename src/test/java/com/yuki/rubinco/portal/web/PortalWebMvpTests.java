@@ -84,13 +84,12 @@ class PortalWebMvpTests {
         .andExpect(header().string("X-Frame-Options", "DENY"))
         .andExpect(header().string(
             "Content-Security-Policy", containsString("frame-ancestors 'none'")))
-        .andExpect(content().string(containsString("Watchpoint")))
-        .andExpect(content().string(containsString("Luminite")))
+        .andExpect(content().string(containsString("aria-label=\"7 Days to Die\"")))
+        .andExpect(content().string(containsString("aria-label=\"Terraria\"")))
         .andExpect(content().string(not(containsString("portal-game-status"))));
 
     mockMvc.perform(get("/luminite").with(user("mvp-admin").roles("ADMIN")))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("TERRARIA ONLY")))
         .andExpect(content().string(containsString("接続情報は準備中です")))
         .andExpect(content().string(containsString("Terrariaの記録はまだありません")));
   }
@@ -140,7 +139,7 @@ class PortalWebMvpTests {
     }
     String html = mockMvc.perform(get("/portal").with(user("mvp-admin").roles("ADMIN")))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("全体タイムライン")))
+        .andExpect(content().string(containsString("shared-timeline-title")))
         .andExpect(content().string(containsString("過去の記録")))
         .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
     assertThat(html).contains("Shared record 20", "Shared record 19", "2026/09/10 21:20")
@@ -158,13 +157,15 @@ class PortalWebMvpTests {
   void guestLoginOpensTheTimelineAndLoginEntryRemainsOnlyInTheHeader() throws Exception {
     String publicHtml = mockMvc.perform(get("/portal")).andExpect(status().isOk())
         .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
-    assertThat(publicHtml).contains("portal-server-rail", "Watchpoint", "Luminite", "全体タイムライン")
-        .doesNotContain("open=\"open\"", "class=\"start-button\"");
-    assertThat(publicHtml.split("data-open-login", -1)).hasSize(2);
+    assertThat(publicHtml).contains("portal-server-rail", "portal-welcome")
+        .doesNotContain("open=\"open\"", "class=\"start-button\"", "shared-timeline-title");
+    // The header login and the welcome button open the same dialog.
+    assertThat(publicHtml.split("data-open-login", -1)).hasSize(3);
     assertThat(publicHtml.substring(0, publicHtml.indexOf("</header>"))).contains("data-open-login");
-    // Site links sit in the header; the right sidebar holds the game servers.
+    // Game icons sit in the header without site names; the right sidebar holds the game servers.
     assertThat(publicHtml.substring(0, publicHtml.indexOf("</header>")))
-        .contains("class=\"site-links\"", "<small>7 Days to Die</small>", "<small>Terraria</small>");
+        .contains("class=\"site-links\"", "aria-label=\"7 Days to Die\"", "#game-terraria", "#game-portal")
+        .doesNotContain("<small>", "Watchpoint", "Luminite");
     var guest = new M_WebAccount();
     guest.setLoginId("guest");
     guest.setPasswordHash("unused");
@@ -175,17 +176,17 @@ class PortalWebMvpTests {
         .andExpect(redirectedUrl("/portal#timeline"));
     mockMvc.perform(get("/portal").session(session))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("全体タイムライン")))
+        .andExpect(content().string(containsString("shared-timeline-title")))
         .andExpect(content().string(not(containsString("portal-welcome"))))
         .andExpect(content().string(not(containsString("data-open-login"))))
         .andExpect(content().string(not(containsString("class=\"start-button\""))));
     String dashboard = mockMvc.perform(get("/dashboard").with(user("mvp-admin").roles("ADMIN")))
         .andExpect(status().isOk())
         .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
-    assertThat(dashboard.substring(0, dashboard.indexOf("</header>")))
-        .contains("portal-header-return", "href=\"/portal\"");
-    assertThat(dashboard.substring(dashboard.indexOf("global-rail"), dashboard.indexOf("</nav>", dashboard.indexOf("global-rail"))))
-        .doesNotContain("portal-header-return", "portal-return");
+    // Logout lives in the avatar menu, not on the page.
+    String header = dashboard.substring(0, dashboard.indexOf("</header>"));
+    assertThat(header).contains("href=\"/portal\"", "account-menu", "ログアウト");
+    assertThat(dashboard.substring(dashboard.indexOf("</header>"))).doesNotContain("ログアウト");
   }
 
   @Test
@@ -205,8 +206,8 @@ class PortalWebMvpTests {
       String html = mockMvc.perform(get(paths[i]).with(user("mvp-admin").roles("ADMIN")))
           .andExpect(status().isOk()).andReturn().getResponse()
           .getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
-      int start = html.indexOf("<nav class=\"auth-nav\"");
-      menus[i] = html.substring(start, html.indexOf("</nav>", start))
+      int start = html.indexOf("<div class=\"account-area\"");
+      menus[i] = html.substring(start, html.indexOf("</details>", start))
           .replaceAll("value=\"[^\"]*\"", "value=\"csrf\"");
     }
     assertThat(menus[0]).isEqualTo(menus[1]);
@@ -316,7 +317,7 @@ class PortalWebMvpTests {
         .andExpect(content().string(containsString("data-start-server=\"corekeeper\"")))
         .andExpect(content().string(containsString("data-start-server=\"minecraft\"")))
         .andExpect(content().string(not(containsString("data-start-server=\"terraria\""))))
-        .andExpect(content().string(containsString("自動起動")));
+        .andExpect(content().string(containsString("server-auto-start")));
     mockMvc.perform(get("/portal").with(user("guest").roles("VIEWER")))
         .andExpect(status().isOk())
         .andExpect(content().string(not(containsString("data-start-server="))));

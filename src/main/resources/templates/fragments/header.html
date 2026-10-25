@@ -1,0 +1,31 @@
+<!doctype html><html lang="ja" xmlns:th="http://www.thymeleaf.org"><body>
+<!-- One header on every site: the portal and game icons, and the account menu. current: 'portal' or a game id. -->
+<header th:fragment="appHeader(current, theme)" class="topbar app-header" th:classappend="${theme}">
+  <nav class="site-links" aria-label="サイト">
+    <a class="site-portal" th:href="${portalUrl}" th:classappend="${current == 'portal'} ? 'active'"
+       th:attr="aria-current=${current == 'portal'} ? 'page'" aria-label="ポータル" title="ポータル">
+      <svg class="site-icon" viewBox="0 0 32 32" aria-hidden="true"><use th:href="@{/img/game-icons.svg(v='1')} + '#game-portal'"></use></svg>
+    </a>
+    <th:block th:if="${headerSites != null}">
+      <a th:each="site : ${headerSites}" th:href="${site.url}" th:classappend="${'site-' + site.accent + (site.id == current ? ' active' : '')}"
+         th:attr="aria-current=${site.id == current} ? 'page',aria-label=${site.game},title=${site.game}">
+        <svg class="site-icon" viewBox="0 0 32 32" aria-hidden="true"><use th:href="@{/img/game-icons.svg(v='1')} + '#game-' + ${#lists.contains({'7dtd', 'terraria', 'corekeeper'}, site.id) ? site.id : 'generic'}"></use></svg>
+      </a>
+    </th:block>
+  </nav>
+  <div class="account-area">
+    <a th:if="${!loggedIn and current == 'portal'}" class="nav-button" href="/portal?login" data-open-login>ログイン</a>
+    <a th:if="${!loggedIn and current != 'portal'}" class="nav-button" th:href="@{/login}">ログイン</a>
+    <details th:if="${loggedIn}" class="account-menu" data-account-menu>
+      <summary aria-label="アカウントメニュー"><img class="user-avatar" th:src="${currentAvatar}" alt=""></summary>
+      <div class="account-menu-panel">
+        <p class="account-menu-name" th:text="${currentDisplayName}">名前</p>
+        <a th:unless="${currentViewer}" th:href="${portalUrl + '/profile'}">プロフィール</a>
+        <a th:if="${currentAdmin}" th:href="${portalUrl + '/maintenance/accounts'}">メンテナンス</a>
+        <form method="post" th:action="@{/logout}"><button type="submit">ログアウト</button></form>
+      </div>
+    </details>
+  </div>
+  <script defer th:src="@{/js/account-menu.js(v='1')}"></script>
+</header>
+</body></html>

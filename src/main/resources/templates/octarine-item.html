@@ -7,11 +7,11 @@
   <title th:text="${'アイテム | ' + game.displayName}">Octarine | Core Keeper</title>
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-1')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='5')}">
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-2')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='6')}">
 </head>
 <body class="octarine-body">
-<header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
+<header th:replace="~{fragments/header :: appHeader('corekeeper', 'octarine-topbar')}"></header>
 <main class="octarine-shell ck-console">
   <nav th:replace="~{fragments/octarine :: menu}"></nav>
   <div class="ck-screen">
@@ -19,7 +19,7 @@
     <a class="octarine-back" th:href="@{/octarine/items}">← アイテム一覧</a>
     <div class="section-heading">
       <div>
-        <p class="eyebrow" th:text="${item.category.label() + ' · OBJECT #' + item.objectId}">素材 · OBJECT #1001</p>
+        <p class="eyebrow" th:text="${item.category.label()}">素材</p>
         <h1 id="item-title" class="ck-title" th:classappend="${'ck-' + item.category.icon()}"><svg th:replace="~{fragments/octarine :: icon(${item.category})}"></svg><span th:text="${item.name}">Copper Bar</span></h1>
         <p class="octarine-sub" th:if="${item.key != null and item.key != item.name}" th:text="${item.key}">CopperBar</p>
       </div>
