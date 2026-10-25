@@ -117,23 +117,14 @@ public class GuildController {
     return stage(model, "log", "pair", first.name() + "と" + second.name());
   }
 
-  /** How many sit on each floor (seats 6-9 are upstairs), and where the current talk is, for the floor buttons. */
-  public record Floors(long downstairs, long upstairs, boolean talkDown, boolean talkUp) {
-    static Floors of(GuildService.Room room, GuildChronicle.Scene scene) {
-      var visits = room.visits();
-      java.util.function.Predicate<GuildService.Visit> talking = visit -> scene != null && scene.lines().containsKey(visit.character().id());
-      return new Floors(visits.stream().filter(visit -> visit.seat() < 6).count(), visits.stream().filter(visit -> visit.seat() >= 6).count(),
-          visits.stream().anyMatch(visit -> visit.seat() < 6 && talking.test(visit)), visits.stream().anyMatch(visit -> visit.seat() >= 6 && talking.test(visit)));
-    }
-  }
-
   private String stage(Model model, String tab, String window, String title) {
     var now = ZonedDateTime.now(GuildService.TOKYO);
     var room = guild.room(now);
     model.addAttribute("room", room);
     var scene = chronicle.scene(now, room.date());
     model.addAttribute("scene", scene);
-    model.addAttribute("floors", Floors.of(room, scene));
+    model.addAttribute("tavern", GuildTavern.arrange(room.visits(), chronicle.groups(now, room.date()),
+        scene == null ? java.util.Set.of() : scene.lines().keySet(), room.date(), room.phase()));
     var todayRun = dungeon.day(room.date(), now);
     model.addAttribute("todayRun", todayRun);
     model.addAttribute("runMembers", todayRun == null ? java.util.List.of()

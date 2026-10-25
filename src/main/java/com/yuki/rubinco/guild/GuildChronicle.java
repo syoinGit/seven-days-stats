@@ -216,6 +216,18 @@ public class GuildChronicle {
     return new Scene(entry.get().id(), entry.get().summary(), lines);
   }
 
+  /** Who talked with whom today, newest first, so the tavern can seat each party together. */
+  public List<List<Long>> groups(ZonedDateTime now, LocalDate visitDate) {
+    var local = now.withZoneSameInstant(GuildService.TOKYO);
+    if (!local.toLocalDate().equals(visitDate)) return List.of();
+    Map<Long, List<Long>> groups = new LinkedHashMap<>();
+    jdbc.query("SELECT p.interaction_id, p.character_id FROM T_GUILD_INTERACTION_PARTICIPANT p JOIN T_GUILD_INTERACTION i ON i.id = p.interaction_id"
+            + " WHERE i.happened_at >= ? AND i.happened_at <= ? ORDER BY i.happened_at DESC, i.id DESC, p.position",
+        (org.springframework.jdbc.core.RowCallbackHandler) rs -> groups.computeIfAbsent(rs.getLong(1), id -> new ArrayList<>()).add(rs.getLong(2)),
+        visitDate.atStartOfDay(GuildService.TOKYO).toOffsetDateTime(), local.toOffsetDateTime());
+    return List.copyOf(groups.values());
+  }
+
   public Ref person(long id) {
     return jdbc.query("SELECT id, name, status FROM M_GUILD_CHARACTER WHERE id = ?",
         (rs, row) -> new Ref(rs.getLong(1), rs.getString(2), rs.getString(3)), id).stream().findFirst()

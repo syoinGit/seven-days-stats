@@ -496,9 +496,38 @@ class GuildTests {
     }
     guild.prepareToday();
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_VISIT")).isEqualTo(10);
-    mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("seat-9 upstairs")))
-        .andExpect(content().string(containsString("1F（6人）"))).andExpect(content().string(containsString("2F（4人）")))
-        .andExpect(content().string(containsString("table-four")));
+    String tavern = mvc.perform(get("/guild")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("id=\"guild-area-counter\"")))
+        .andExpect(content().string(containsString("for=\"guild-area-hearth\"")))
+        .andExpect(content().string(containsString("tv-cork")))
+        .andReturn().getResponse().getContentAsString();
+    // All ten are somewhere in the four places, once each, and the map shows a dot for each.
+    assertThat(tavern.split("class=\"room-person ", -1)).hasSize(11);
+    String map = tavern.substring(tavern.indexOf("class=\"tv-map\""));
+    assertThat(map.substring(0, map.indexOf("</div>")).split("<i></i>", -1)).hasSize(11);
+  }
+
+  /** Whoever talked today shares a table, the newest talk at the first; the rest spread out the same way all day part. */
+  @Test void theTavernSeatsTodaysTalkersTogether() {
+    var visits = new java.util.ArrayList<GuildService.Visit>();
+    for (long id = 1; id <= 10; id++) {
+      var character = new GuildService.Character(id, LocalDate.of(2026, 1, 1), "7dtd", "客" + id, "", "", "", "moss", "ALIVE",
+          30, "male", "", null, null, null, null, null, null, null, null, null);
+      visits.add(new GuildService.Visit(character, (int) id - 1, "…"));
+    }
+    var date = LocalDate.of(2026, 10, 25);
+    var layout = GuildTavern.arrange(visits, List.of(List.of(4L, 7L), List.of(2L, 9L), List.of(4L, 1L), List.of(5L, 99L)), java.util.Set.of(4L, 7L), date, "evening");
+    var tables = layout.area("tables").seats();
+    assertThat(tables.stream().filter(seat -> seat.slot() < 3).map(seat -> seat.visit().character().id())).contains(4L, 7L);
+    assertThat(tables.stream().filter(seat -> seat.slot() >= 3).map(seat -> seat.visit().character().id())).contains(2L, 9L);
+    assertThat(layout.areas().stream().mapToInt(GuildTavern.Area::count).sum()).isEqualTo(10);
+    assertThat(layout.areas().stream().flatMap(area -> area.seats().stream()).map(seat -> seat.visit().character().id()).distinct()).hasSize(10);
+    assertThat(layout.current()).isEqualTo("tables");
+    assertThat(layout.area("tables").talk()).isTrue();
+    // Same day and part of the day, same room; the order (and so the places) moves on with the day.
+    assertThat(GuildTavern.arrange(visits, List.of(), java.util.Set.of(), date, "evening"))
+        .isEqualTo(GuildTavern.arrange(visits, List.of(), java.util.Set.of(), date, "evening"));
+    assertThat(GuildTavern.arrange(List.of(), List.of(), java.util.Set.of(), date, "morning").current()).isEqualTo("counter");
   }
 
   /** 21:50: a party leaves; its stages come out at 22:00, 22:10, 22:20 and 22:30, the result with the last. */
@@ -587,7 +616,7 @@ class GuildTests {
     for (int i = 0; i < 3; i++) resident("探索" + (char) ('ア' + i * 2), 25 + i, "ALIVE", i);
     mvc.perform(get("/guild/dungeon")).andExpect(status().isOk()).andExpect(content().string(containsString("まだ誰もダンジョンへ向かっていません")));
     mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("今夜の探索はまだです")))
-        .andExpect(content().string(containsString("1F（3人）"))).andExpect(content().string(containsString("2F（0人）")));
+        .andExpect(content().string(containsString("guild-back")));
     dungeon.depart(ZonedDateTime.now(GuildService.TOKYO));
     long id = jdbc.queryForObject("SELECT id FROM T_GUILD_EXPEDITION", Long.class);
     List<Long> party = jdbc.queryForList("SELECT character_id FROM T_GUILD_EXPEDITION_MEMBER", Long.class);
@@ -749,7 +778,7 @@ class GuildTests {
         .andExpect(content().string(not(containsString("PRIVATE_PLAYER_SECRET"))))
         .andExpect(content().string(not(containsString("765611"))))
         .andExpect(content().string(not(containsString("source_key"))));
-    mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("seat-0 ")))
+    mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("slot-0 ")))
         .andExpect(content().string(containsString("#outfit-")))
         .andExpect(content().string(containsString("class=\"guild-link active\"")))
         .andExpect(content().string(not(containsString("<dialog id=\"guild-window\" class=\"guild-window\" open"))));
