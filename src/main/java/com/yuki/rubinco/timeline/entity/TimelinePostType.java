@@ -84,21 +84,21 @@ public enum TimelinePostType {
 
   public String tagLabel() {
     return switch (this) {
-      case LOGIN -> "ONLINE";
-      case LOGOUT -> "OFFLINE";
-      case KILL, PLAYER_DEATH -> "ELIMINATION";
-      case BLOOD_MOON -> "BLOOD MOON ALERT";
-      case AIR_DROP -> "AIR DROP";
-      case HORDE_ALERT -> "HORDE ALERT";
-      case WORLD_EVENT -> "WORLD INTEL";
-      case SLEEPER -> "EXPLORATION";
-      case VEHICLE -> "TRAVEL";
-      case PLAYER_MESSAGE -> "SURVIVOR POST";
-      case DIARY -> "FIELD JOURNAL";
-      case WATCHPOINT -> "AI OBSERVATION";
-      case PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY -> "ANALYSIS";
-      case SURVIVOR_KAREN -> "SURVIVOR LIFE";
-      case SURVIVOR_MARK -> "TRAIL REPORT";
+      case LOGIN -> "ログイン";
+      case LOGOUT -> "ログアウト";
+      case KILL, PLAYER_DEATH -> "戦闘";
+      case BLOOD_MOON -> "血月";
+      case AIR_DROP -> "補給";
+      case HORDE_ALERT -> "ホード";
+      case WORLD_EVENT -> "ワールド";
+      case SLEEPER -> "探索";
+      case VEHICLE -> "移動";
+      case PLAYER_MESSAGE -> "つぶやき";
+      case DIARY -> "日記";
+      case WATCHPOINT -> "観測";
+      case PLAYER_ANALYSIS, SERVER_ANALYSIS, DAILY_SUMMARY -> "分析";
+      case SURVIVOR_KAREN -> "暮らし";
+      case SURVIVOR_MARK -> "道中";
     };
   }
 

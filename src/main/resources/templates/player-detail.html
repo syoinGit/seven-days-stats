@@ -2,20 +2,19 @@
 <html lang="ja" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png"><link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" type="image/png" sizes="64x64" th:href="@{/img/watchpoint-icon-64.png}"><link rel="apple-touch-icon" th:href="@{/img/watchpoint-icon.png}">
   <meta http-equiv="refresh" content="60">
-  <title th:text="${player.status.playerName + ' | WATCHPOINT'}">WATCHPOINT</title>
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-3')}">
+  <title th:text="${player.status.playerName + ' | Watchpoint'}">WATCHPOINT</title>
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-4')}"><link rel="stylesheet" th:href="@{/css/watchpoint.css(v='1')}">
 </head>
-<body>
+<body class="watchpoint-body">
 <header th:replace="~{fragments/header :: appHeader('7dtd', 'watchpoint-topbar')}"></header>
 
 <main class="detail-shell"><nav th:replace="~{fragments/navigation :: rail('player')}"></nav><section class="layout detail-page">
   <header class="page-title">
     <img class="user-avatar profile-avatar" th:src="${@portalProfileService.avatar(player.status.playerId, null, profileDirectory, currentViewer)}" alt="">
-    <nav class="breadcrumbs"><a th:href="@{/dashboard}"><span aria-hidden="true">⌂</span> 冒険記録</a><span>›</span><b><span aria-hidden="true">♙</span> プレイヤー</b></nav>
     <h1 th:text="${player.status.playerName}">player</h1>
-    <p><span th:text="${player.status.statusLabel}">オンライン</span> / <span th:text="${player.status.poiName}">荒野のどこか</span></p>
+    <p><span th:text="${player.status.statusLabel}">オンライン</span> / <span th:text="${player.status.placeLabel}">荒野のどこか</span></p>
     <form class="status-actions" th:if="${player.status.online and loggedIn and currentPlayerId != null and currentPlayerId == player.status.playerId}" method="post" th:action="@{/players/{id}/status(id=${player.status.playerId})}">
       <button name="status" value="ACTIVE" type="submit">🟢 活動中</button>
       <button name="status" value="EATING" type="submit">🍚 ごはん中</button>
@@ -29,7 +28,7 @@
       <div class="player-main">
         <span class="status-dot" th:classappend="${player.status.online == false} ? ' offline'"></span>
         <div>
-          <h2 th:text="${player.status.poiName}">荒野のどこか</h2>
+          <h2 th:text="${player.status.placeLabel}">荒野のどこか</h2>
           <p th:text="${player.status.coordinate ?: '-'}">座標</p>
         </div>
       </div>
@@ -77,13 +76,13 @@
   </section>
 
   <section class="metric-grid personal-metrics">
-    <article class="metric-card"><span>KILLS</span><strong th:text="${player.insights.kills}">0</strong><small>累計討伐</small></article>
-    <article class="metric-card"><span>ENCOUNTERS</span><strong th:text="${player.insights.encounters}">0</strong><small>スリーパー遭遇</small></article>
-    <article class="metric-card"><span>ACTIVE DAYS</span><strong th:text="${player.insights.activeDays}">0</strong><small>活動日数</small></article>
-    <article class="metric-card"><span>PLAY TIME</span><strong><span th:text="${player.insights.playMinutes / 60}">0</span>h</strong><small><span th:text="${player.insights.playMinutes % 60}">0</span>m / 完了セッション</small></article>
+    <article class="metric-card"><span>討伐</span><strong th:text="${player.insights.kills}">0</strong><small>累計</small></article>
+    <article class="metric-card"><span>遭遇</span><strong th:text="${player.insights.encounters}">0</strong><small>眠っていた敵</small></article>
+    <article class="metric-card"><span>活動日数</span><strong th:text="${player.insights.activeDays}">0</strong><small>日</small></article>
+    <article class="metric-card"><span>プレイ時間</span><strong th:text="${(player.insights.playMinutes / 60) + '時間' + (player.insights.playMinutes % 60) + '分'}">0時間0分</strong><small>ログイン中を含む</small></article>
   </section>
 
-  <article class="panel personal-activity-panel"><div class="panel-head"><h2>この冒険者の活動推移</h2><small th:text="${'愛用車両 ' + player.insights.favoriteVehicle}">活動履歴</small></div><div class="activity-chart compact-chart"><div class="activity-day" th:each="day : ${player.insights.dailyActivity}"><span th:text="${day.kills + ' KILL'}">0</span><div><i class="personal-bar" th:style="${'height:' + day.percentage + '%'}"></i></div><small th:text="${day.day}">day</small></div><p th:if="${#lists.isEmpty(player.insights.dailyActivity)}" class="empty">日別活動記録がありません。</p></div></article>
+  <article class="panel personal-activity-panel"><div class="panel-head"><h2>この冒険者の活動推移</h2><small th:text="${'愛用車両 ' + player.insights.favoriteVehicle}">活動履歴</small></div><div class="activity-chart compact-chart"><div class="activity-day" th:each="day : ${player.insights.dailyActivity}"><span th:text="${day.kills + '体'}">0</span><div><i class="personal-bar" th:style="${'height:' + day.percentage + '%'}"></i></div><small th:text="${day.day}">day</small></div><p th:if="${#lists.isEmpty(player.insights.dailyActivity)}" class="empty">日別活動記録がありません。</p></div></article>
 
   <section class="main-grid">
     <article class="panel timeline-panel">
@@ -92,10 +91,10 @@
       </div>
       <ol class="timeline">
         <li th:if="${#lists.isEmpty(player.timelineEntries)}" class="empty">まだイベントログがありません。</li>
-        <li th:each="entry : ${player.timelineEntries}">
+        <li th:each="entry : ${player.timelineEntries}" th:classappend="${'tone-' + entry.tone}">
           <time th:text="${entry.occurredAt ?: '-'}">time</time>
           <div>
-            <span class="tag" th:text="${entry.kind}">EVENT</span>
+            <span class="tag" th:text="${entry.kindLabel}">できごと</span>
             <p th:text="${entry.message}">event</p>
             <small th:if="${!#strings.isEmpty(entry.coordinate)}"
                    th:text="${'（' + entry.coordinate + '）'}">position</small>

@@ -450,6 +450,101 @@ class DashboardViewServiceTests {
   }
 
   @Test
+  void renamedPlayerKeepsKillsAndPlayTimeRecordedUnderTheOldName() {
+    OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+    jdbcTemplate.update("""
+        insert into m_player (id, player_key, platform, user_id, player_name, last_seen_at)
+        values (1, 'EOS:eos-a', 'EOS', 'eos-a', 'NewName', ?)
+        """, Timestamp.from(now.toInstant()));
+    jdbcTemplate.update("""
+        insert into t_entity_kill_transaction
+        (occurred_at, player_name, player_entity_id, player_id, target_entity_type, target_entity_id,
+         source_file, source_log_hash)
+        values (?, 'OldName', 101, 1, 'zombieA', 11, 'log', 'rename-kill')
+        """, now.minusMinutes(50));
+    jdbcTemplate.update("""
+        insert into t_player_join_transaction
+        (occurred_at, player_name, player_entity_id, player_id, join_reason, source_file, source_log_hash)
+        values (?, 'OldName', 101, 1, 'JoinMultiplayer', 'log', 'rename-join')
+        """, now.minusMinutes(70));
+    jdbcTemplate.update("""
+        insert into t_player_leave_transaction
+        (occurred_at, player_name, player_entity_id, player_id, source_file, source_log_hash)
+        values (?, 'OldName', 101, 1, 'log', 'rename-leave')
+        """, now.minusMinutes(10));
+
+    DashboardViewService.KillDetailView detail = dashboardViewService.killDetail();
+
+    assertThat(detail.rankings()).singleElement().satisfies(row -> {
+      assertThat(row.playerName()).isEqualTo("NewName");
+      assertThat(row.kills()).isEqualTo(1);
+      assertThat(row.playMinutes()).isEqualTo(60);
+    });
+    assertThat(detail.scoreChart().series()).singleElement()
+        .satisfies(series -> assertThat(series.playerName()).isEqualTo("NewName"));
+    assertThat(dashboardViewService.playerDetail(1L).orElseThrow().insights().playMinutes()).isEqualTo(60);
+  }
+
+  @Test
+  void rankingCoversEveryPlayerNotOnlyTheSidebarOnes() {
+    OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+    for (int i = 1; i <= 14; i++) {
+      jdbcTemplate.update("""
+          insert into m_player (id, player_key, platform, user_id, player_name, last_seen_at)
+          values (?, ?, 'EOS', ?, ?, ?)
+          """, i, "EOS:eos-" + i, "eos-" + i, "Player" + i, Timestamp.from(now.minusMinutes(i).toInstant()));
+    }
+
+    assertThat(dashboardViewService.killDetail().rankings()).hasSize(14);
+    assertThat(dashboardViewService.dashboard().playerStatuses()).hasSize(12);
+  }
+
+  @Test
+  void dailyChartsUseJapaneseDates() {
+    // 00:30 JST is still the previous day in UTC.
+    OffsetDateTime earlyJst = LocalDate.now(DisplayTimeFormatter.JST)
+        .atStartOfDay(DisplayTimeFormatter.JST).plusMinutes(30).toOffsetDateTime();
+    jdbcTemplate.update("""
+        insert into t_entity_kill_transaction
+        (occurred_at, player_name, player_entity_id, target_entity_type, target_entity_id,
+         source_file, source_log_hash)
+        values (?, 'PlayerA', 1, 'zombieA', 10, 'log', 'jst-kill')
+        """, earlyJst);
+
+    assertThat(dashboardViewService.killDetail().dailyKills()).singleElement()
+        .satisfies(day -> assertThat(day.day()).isEqualTo(LocalDate.now(DisplayTimeFormatter.JST).toString()));
+  }
+
+  @Test
+  void playerFarFromAnyPoiIsInTheWildernessAndDrivingPastDoesNotExplore() {
+    OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+    jdbcTemplate.update("""
+        insert into m_world_poi
+        (source_path, source_hash, world_name, poi_name, category, x, y, z)
+        values ('world', 'poi-store', 'World', 'store_book_01', 'trader', 100, 30, 100)
+        """);
+    jdbcTemplate.update("""
+        insert into m_player (id, player_key, platform, user_id, player_name, last_seen_at)
+        values (1, 'EOS:eos-a', 'EOS', 'eos-a', 'PlayerA', ?)
+        """, Timestamp.from(now.toInstant()));
+    jdbcTemplate.update("""
+        insert into t_player_current_state
+        (player_entity_id, player_id, player_name, position_x, position_y, position_z, online, last_updated)
+        values (101, 1, 'PlayerA', 900, 30, 900, true, ?)
+        """, now);
+    jdbcTemplate.update("""
+        insert into t_player_position_transaction
+        (occurred_at, player_name, player_entity_id, player_id, position_x, position_y, position_z,
+         position_source_type, movement_mode, source_event_hash, source_file)
+        values (?, 'PlayerA', 101, 1, 110, 30, 110, 'LP_COMMAND', 'VEHICLE', 'drive-by', 'telnet')
+        """, now.minusMinutes(5));
+
+    assertThat(dashboardViewService.dashboard().playerStatuses()).singleElement()
+        .satisfies(player -> assertThat(player.statusSummary()).isEqualTo("荒野を移動中"));
+    assertThat(dashboardViewService.explorationDetail().exploredCount()).isZero();
+  }
+
+  @Test
   void adventureRankingIncludesCurrentOnlineSession() {
     OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
     jdbcTemplate.update("""

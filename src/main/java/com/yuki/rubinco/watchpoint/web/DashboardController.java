@@ -1,6 +1,7 @@
 package com.yuki.rubinco.watchpoint.web;
 
 import com.yuki.rubinco.account.service.CurrentWebAccountService;
+import com.yuki.rubinco.portal.service.ServerActivityGate;
 import com.yuki.rubinco.timeline.service.TimelinePostService;
 import com.yuki.rubinco.watchpoint.readmodel.DashboardViewService;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ public class DashboardController {
   private final DashboardViewService dashboardViewService;
   private final CurrentWebAccountService currentAccountService;
   private final TimelinePostService timelinePostService;
+  private final ServerActivityGate serverGate;
 
   @GetMapping("/")
   public String landing(Authentication authentication) {
@@ -32,6 +34,8 @@ public class DashboardController {
   public String index(Model model, Authentication authentication) {
     DashboardViewService.DashboardView dashboard = dashboardViewService.dashboard(false);
     model.addAttribute("dashboard", dashboard);
+    // The world clock and blood moon countdown describe a running world; hide them while it is stopped.
+    model.addAttribute("serverStopped", serverGate.stopped("7dtd"));
     model.addAttribute("timelinePage", TimelinePage.from(timelinePostService.feed(authentication, 0)));
     return "dashboard";
   }

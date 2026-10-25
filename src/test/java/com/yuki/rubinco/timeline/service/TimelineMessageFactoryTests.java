@@ -65,7 +65,7 @@ class TimelineMessageFactoryTests {
 
   @Test
   void timelineTypeOwnsItsPresentationAndAiMapping() {
-    assertThat(TimelinePostType.BLOOD_MOON.tagLabel()).isEqualTo("BLOOD MOON ALERT");
+    assertThat(TimelinePostType.BLOOD_MOON.tagLabel()).isEqualTo("血月");
     assertThat(TimelinePostType.BLOOD_MOON.tone()).isEqualTo("blood-moon");
     assertThat(TimelinePostType.BLOOD_MOON.linksActorToPlayer()).isFalse();
     assertThat(TimelinePostType.fromAiPostType(AiPostType.PLAYER_ANALYSIS))
@@ -85,11 +85,11 @@ class TimelineMessageFactoryTests {
     assertThat(TimelinePostType.SURVIVOR_KAREN.systemActorName()).contains("サバイバーカレン");
     assertThat(TimelinePostType.SURVIVOR_KAREN.avatarPath())
         .contains("/img/survivor-karen-avatar.png");
-    assertThat(TimelinePostType.SURVIVOR_KAREN.tagLabel()).isEqualTo("SURVIVOR LIFE");
+    assertThat(TimelinePostType.SURVIVOR_KAREN.tagLabel()).isEqualTo("暮らし");
     assertThat(TimelinePostType.SURVIVOR_KAREN.isAiGenerated()).isFalse();
     assertThat(TimelinePostType.SURVIVOR_MARK.systemActorName()).contains("サバイバーマーク");
     assertThat(TimelinePostType.SURVIVOR_MARK.avatarPath()).contains("/img/survivor-mark-avatar.png");
-    assertThat(TimelinePostType.SURVIVOR_MARK.tagLabel()).isEqualTo("TRAIL REPORT");
+    assertThat(TimelinePostType.SURVIVOR_MARK.tagLabel()).isEqualTo("道中");
     assertThat(TimelinePostType.SURVIVOR_MARK.tone()).isEqualTo("mark");
   }
 

@@ -761,3 +761,5 @@ body .topbar.app-header { border-bottom:1px solid var(--rb-line); background:col
 .pixel-status.status-starting, .pixel-status.status-stopping { color:#f3c969; }
 .pixel-status.status-error { color:#ff8c91; }
 .pixel-status.status-offline, .pixel-status.status-unknown { color:#8d8c98; }
+/* The 7DTD watchtower is drawn art, not a 16px sprite: smooth scaling on a dark tile like the others. */
+img.site-icon { object-fit:contain; background:#2a1c20; image-rendering:auto; }

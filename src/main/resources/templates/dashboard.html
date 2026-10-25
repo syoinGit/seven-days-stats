@@ -2,12 +2,12 @@
 <html lang="ja" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png"><link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
-  <title>WATCHPOINT</title>
-  <link rel="stylesheet" th:href="@{/css/app.css(v='header-3')}">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" type="image/png" sizes="64x64" th:href="@{/img/watchpoint-icon-64.png}"><link rel="apple-touch-icon" th:href="@{/img/watchpoint-icon.png}">
+  <title>タイムライン | Watchpoint</title>
+  <link rel="stylesheet" th:href="@{/css/app.css(v='header-4')}"><link rel="stylesheet" th:href="@{/css/watchpoint.css(v='1')}">
   <script defer th:src="@{/js/timeline.js(v='20260909-1')}"></script>
 </head>
-<body>
+<body class="watchpoint-body">
 <header th:replace="~{fragments/header :: appHeader('7dtd', 'watchpoint-topbar')}"></header>
 
 <main class="app-shell">
@@ -15,12 +15,9 @@
 
   <section class="feed-column">
     <header class="feed-header">
-      <div>
-        <nav class="breadcrumbs compact"><a th:href="@{/dashboard}"><span aria-hidden="true">⌂</span> ホーム</a><span>›</span><b><span aria-hidden="true">⌁</span> タイムライン</b></nav>
-        <h1>冒険タイムライン</h1>
-      </div>
+      <h1>タイムライン</h1>
       <button class="feed-refresh" type="button" data-refresh-page>
-        <span aria-hidden="true">↻</span> 最新の観測を取得
+        <span aria-hidden="true">↻</span> 更新
       </button>
     </header>
 
@@ -52,23 +49,27 @@
   </section>
 
   <aside class="status-sidebar">
-    <section class="side-module blood-alert"
+    <!-- World day and the blood moon countdown only mean something while the server runs. -->
+    <section class="side-module blood-alert" th:if="${!serverStopped}"
              th:classappend="${' blood-alert-' + dashboard.bloodMoon.alertLevel}">
-      <p class="module-code">WORLD DAY / BLOOD MOON</p>
-      <div class="world-clock">
-        <span th:text="${dashboard.worldTime.day != null ? 'DAY ' + dashboard.worldTime.day : 'DAY --'}">DAY --</span>
-        <b th:text="${dashboard.worldTime.time}">--:--</b>
+      <div class="module-head">
+        <h2>血月</h2>
+        <span class="world-day" th:if="${dashboard.worldTime.day != null}" th:text="${dashboard.worldTime.day + '日目 ' + dashboard.worldTime.time}">7日目 21:00</span>
       </div>
-      <h2>次回の血月</h2>
       <strong th:text="${dashboard.bloodMoon.detailText}">予定情報なし</strong>
       <b class="blood-countdown" th:text="${dashboard.bloodMoon.countdownText}">血月情報を待機中</b>
-      <small th:text="${dashboard.bloodMoon.occurredAt ?: '未観測'}">未観測</small>
+      <small th:if="${!#strings.isEmpty(dashboard.bloodMoon.occurredAt)}" th:text="${'前回 ' + dashboard.bloodMoon.occurredAt}">前回</small>
+    </section>
+    <section class="side-module world-stopped" th:if="${serverStopped}">
+      <div class="module-head"><h2>ワールド</h2><span class="pixel-status status-offline">サーバー停止中</span></div>
     </section>
 
     <section class="side-module">
       <div class="module-head">
-        <div><p class="module-code">PILOT STATUS</p><h2>プレイヤー</h2></div>
-        <b class="module-online"><span class="live-pulse"></span><span th:text="${dashboard.serverState.playerCount + ' ONLINE'}">0 ONLINE</span></b>
+        <h2>プレイヤー</h2>
+        <span class="pixel-status" th:with="online=${serverStopped ? 0 : (dashboard.serverState.playerCount ?: 0)}"
+              th:classappend="${online > 0} ? 'status-online' : 'status-offline'"
+              th:text="${online + '人がオンライン'}">0人がオンライン</span>
       </div>
       <div class="pilot-list live-party">
         <a class="pilot" th:if="${!currentViewer}" th:each="player : ${dashboard.playerStatuses}"
@@ -77,40 +78,38 @@
           <span class="pilot-info">
             <strong th:text="${player.playerName}">player</strong>
             <small th:text="${player.statusSummary}">探索中</small>
-            <small class="pilot-vitals">
+            <small class="pilot-vitals" th:if="${player.online}">
               <span th:text="${player.health != null ? 'HP ' + player.health : 'HP --'}">HP --</span>
-              <span th:if="${player.online and player.currentVehicle != null}" th:text="${' / ' + player.currentVehicle + 'で移動中'}">vehicle</span>
-              <span th:if="${player.online == false}"> / OFFLINE</span>
+              <span th:if="${player.currentVehicle != null}" th:text="${' / ' + player.currentVehicle + 'で移動中'}">vehicle</span>
             </small>
           </span>
-          <b th:text="${player.level != null ? 'LV.' + player.level : '--'}">--</b>
+          <b th:text="${player.level != null ? 'Lv.' + player.level : ''}">Lv.</b>
         </a>
         <div class="pilot" th:if="${currentViewer}" th:each="player : ${dashboard.playerStatuses}">
           <img class="user-avatar" th:src="${@portalProfileService.avatar(player.playerId, null, profileDirectory, currentViewer)}" alt="" loading="lazy">
-          <span class="pilot-info"><strong th:text="${player.playerName}">player</strong><small th:text="${player.statusSummary}">探索中</small><small class="pilot-vitals"><span th:text="${player.health != null ? 'HP ' + player.health : 'HP --'}">HP --</span><span th:if="${player.online == false}"> / OFFLINE</span></small></span>
-          <b th:text="${player.level != null ? 'LV.' + player.level : '--'}">--</b>
+          <span class="pilot-info"><strong th:text="${player.playerName}">player</strong><small th:text="${player.statusSummary}">探索中</small><small class="pilot-vitals" th:if="${player.online}"><span th:text="${player.health != null ? 'HP ' + player.health : 'HP --'}">HP --</span></small></span>
+          <b th:text="${player.level != null ? 'Lv.' + player.level : ''}">Lv.</b>
         </div>
-        <p th:if="${#lists.isEmpty(dashboard.playerStatuses)}" class="empty">未観測</p>
+        <p th:if="${#lists.isEmpty(dashboard.playerStatuses)}" class="empty">まだ記録がありません。</p>
       </div>
     </section>
 
     <a class="side-module diary-side-card" th:if="${dashboard.aiComment != null}"
        th:href="@{/diaries/{date}(date=${dashboard.aiComment.diaryDate})}">
-      <p class="module-code">DAILY FIELD JOURNAL</p>
-      <small th:text="${dashboard.aiComment.diaryDate}">date</small>
-      <h2 th:text="${dashboard.aiComment.title}">毎日の冒険日記</h2>
+      <div class="module-head"><h2>冒険日記</h2><small th:text="${dashboard.aiComment.diaryDate}">date</small></div>
+      <h3 th:text="${dashboard.aiComment.title}">日記タイトル</h3>
       <p th:text="${dashboard.aiComment.body}">日記本文</p>
       <span>日記を読む →</span>
     </a>
     <a class="side-module diary-side-card empty-diary" th:if="${dashboard.aiComment == null}" th:href="@{/diaries}">
-      <p class="module-code">DAILY FIELD JOURNAL</p><h2>毎日の冒険日記</h2><p>公開された日記はまだありません。</p><span>日記一覧を見る →</span>
+      <div class="module-head"><h2>冒険日記</h2></div><p>公開された日記はまだありません。</p><span>日記一覧へ →</span>
     </a>
 
     <a class="side-module server-summary" th:href="@{/server}">
-      <p class="module-code">SERVER INFORMATION</p>
+      <div class="module-head"><h2>サーバー</h2></div>
       <div><span>FPS</span><b th:text="${dashboard.serverState.fps ?: '-'}">-</b></div>
-      <div><span>LAST SIGNAL</span><b th:text="${dashboard.serverState.occurredAt ?: '-'}">-</b></div>
-      <small>詳細ステータスを見る →</small>
+      <div><span>最終受信</span><b th:text="${dashboard.serverState.occurredAt ?: '-'}">-</b></div>
+      <small>サーバー情報 →</small>
     </a>
   </aside>
 </main>

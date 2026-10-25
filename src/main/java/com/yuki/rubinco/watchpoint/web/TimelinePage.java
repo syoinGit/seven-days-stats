@@ -53,7 +53,7 @@ public record TimelinePage(List<Item> items, int nextOffset, boolean hasMore) {
       return new Item(
           "POST", post.id(), actorPlayerId, post.actor(), post.postType(), post.occurredAt(), post.message(),
           post.coordinate(), type == null ? "neutral" : type.tone(),
-          type == null ? "ACTIVITY" : type.tagLabel(),
+          type == null ? "できごと" : type.tagLabel(),
           post.linkUrl(), post.linkLabel(), post.reactions(), post.currentReaction(), post.ownPost(),
           post.imageUrl(), post.baseLikeCount(), post.postSubtype());
     }

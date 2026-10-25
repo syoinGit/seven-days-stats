@@ -1,0 +1,160 @@
+/* Watchpoint on the Rubinco design layer: the portal's cards and pixel details, in amber and blood-moon red. */
+.watchpoint-body {
+  --void:var(--rb-bg);
+  --base:var(--rb-bg);
+  --panel:var(--rb-surface);
+  --panel-2:var(--rb-surface-2);
+  --steel:var(--rb-line);
+  --line:#ffffff1f;
+  --text:var(--rb-text);
+  --muted:var(--rb-muted);
+  --signal:#f3c969;
+  --signal-soft:#f3c96914;
+  --danger:#ff6b5e;
+  --cyan:#86c9d6;
+  --good:#7fe0a8;
+  --shadow:none;
+  --wp-moon:#ff5a4f;
+  background:radial-gradient(#ffffff0a 1px, transparent 1.2px) 0 0 / 18px 18px, radial-gradient(ellipse at 88% -12%, #ff5a4f1c, transparent 45%), var(--rb-bg);
+}
+.watchpoint-body::after { display:none; }
+
+/* Section titles carry a pixel square, like the portal. */
+.watchpoint-body .side-module h2, .watchpoint-body .panel-head h2, .watchpoint-body .feed-header h1, .watchpoint-body .page-title h1 { display:flex; align-items:center; gap:10px; letter-spacing:0; }
+.watchpoint-body .side-module h2::before, .watchpoint-body .panel-head h2::before, .watchpoint-body .feed-header h1::before, .watchpoint-body .page-title h1::before { content:""; width:8px; height:8px; flex:none; background:var(--signal); box-shadow:4px 4px 0 #f3c96955; }
+.watchpoint-body .feed-header h1, .watchpoint-body .page-title h1 { margin:0; font-size:20px; }
+.watchpoint-body .side-module h2, .watchpoint-body .panel-head h2 { margin:0; font-size:14px; }
+
+/* Rail: rounded tabs under the header. */
+.watchpoint-body .rail { top:64px; padding:8px clamp(12px, 3vw, 28px); border-bottom:1px solid var(--rb-line); background:color-mix(in srgb, var(--rb-bg) 88%, transparent); }
+.watchpoint-body .rail-top { gap:4px; overflow-x:auto; scrollbar-width:none; }
+.watchpoint-body .rail a { padding:8px 12px; border-radius:999px; color:var(--rb-muted); font-size:13px; font-weight:600; }
+.watchpoint-body .rail a:hover { background:var(--rb-surface); color:var(--rb-text); }
+.watchpoint-body .rail a.active { background:#f3c9691f; color:var(--signal); box-shadow:none; }
+.watchpoint-body .server-nav { border-left:0; }
+
+/* Timeline. */
+.watchpoint-body .app-shell { grid-template-columns:minmax(0, 760px) minmax(280px, 340px); gap:28px; padding:0 clamp(12px, 3vw, 28px); }
+.watchpoint-body .feed-column { border-right:0; }
+.watchpoint-body .feed-header { align-items:center; padding:28px 0 16px; border-bottom:0; }
+.watchpoint-body .feed-refresh { padding:8px 14px; border:1px solid var(--rb-line); border-radius:999px; background:var(--rb-surface); color:var(--rb-muted); font-size:12px; font-weight:600; letter-spacing:0; }
+.watchpoint-body .feed-refresh:hover, .watchpoint-body .feed-refresh.has-update { border-color:var(--signal); color:var(--signal); background:var(--rb-surface); }
+.watchpoint-body .feed { padding:0 0 24px; background:none; }
+.watchpoint-body .feed-item { gap:14px; min-height:0; margin-bottom:12px; padding:18px 20px; border:1px solid var(--rb-line); border-radius:var(--rb-radius); background:var(--rb-surface); box-shadow:none; }
+.watchpoint-body .feed-item:hover { border-color:#ffffff26; background:var(--rb-surface); }
+.watchpoint-body .feed-avatar, .watchpoint-body .system-avatar { width:40px; height:40px; border:0; border-radius:10px; background:var(--rb-surface-2); box-shadow:none; clip-path:none; object-fit:cover; }
+.watchpoint-body .feed-body header strong, .watchpoint-body .feed-actor { color:var(--rb-text); font-size:14px; font-weight:650; }
+.watchpoint-body .feed-actor:hover { color:var(--signal); }
+.watchpoint-body .feed-body time { font-family:inherit; font-size:11px; }
+.watchpoint-body .feed-body p { color:#d6d3da; font-size:14px; line-height:1.8; }
+.watchpoint-body .feed-media { border:0; border-radius:10px; }
+.watchpoint-body .feed-body footer { font-family:inherit; font-size:11px; }
+/* Tags are small pixel-cut badges in the tone colour. */
+.watchpoint-body .tag { padding:3px 8px; border:0; background:color-mix(in srgb, currentColor 14%, transparent); font-family:inherit; font-size:11px; font-weight:600; clip-path:var(--rb-notch); }
+.watchpoint-body .tone-blood-moon .tag { color:var(--wp-moon); }
+.watchpoint-body .timeline-card-link { padding:7px 12px; border:0; background:#f3c9691f; font-size:12px; font-weight:700; clip-path:var(--rb-notch); }
+.watchpoint-body .timeline-card-link:hover { background:var(--signal); color:#16151b; }
+.watchpoint-body .reaction-count, .watchpoint-body .reaction-menu summary, .watchpoint-body .karen-popularity, .watchpoint-body .mark-popularity { border-radius:999px; background:var(--rb-surface-2); font-size:11px; }
+.watchpoint-body .reaction-options { border-radius:12px; background:var(--rb-surface-2); }
+.watchpoint-body .like-button { border-radius:999px; }
+.watchpoint-body .timeline-notices, .watchpoint-body .timeline-compose, .watchpoint-body .timeline-login-prompt { margin-left:0; margin-right:0; }
+.watchpoint-body .timeline-compose { border-color:var(--rb-line); border-radius:var(--rb-radius); background:var(--rb-surface); }
+.watchpoint-body .timeline-compose textarea { border-color:var(--rb-line); border-radius:10px; background:var(--rb-bg); }
+.watchpoint-body .timeline-compose-actions small { font-size:11px; }
+.watchpoint-body .timeline-compose-actions button { padding:8px 16px; border:0; background:var(--signal); color:#16151b; font-size:12px; clip-path:var(--rb-notch); }
+.watchpoint-body .timeline-login-prompt { border-radius:12px; font-size:12px; }
+.watchpoint-body .timeline-loader { width:100%; margin:4px 0 28px; border-color:var(--rb-line); border-radius:12px; background:var(--rb-surface); }
+.watchpoint-body .timeline-loader b { font-size:12px; }
+
+/* Right sidebar. */
+.watchpoint-body .status-sidebar { top:118px; max-height:calc(100vh - 118px); padding:28px 0 18px; }
+.watchpoint-body .side-module { margin-bottom:12px; padding:14px 16px; border:1px solid var(--rb-line); border-radius:var(--rb-radius); background:var(--rb-surface); }
+.watchpoint-body a.side-module:hover { border-color:#ffffff26; }
+.watchpoint-body .module-head { gap:10px; }
+.watchpoint-body .module-head > small { color:var(--rb-muted); font-size:11px; }
+.watchpoint-body .blood-alert { border-color:var(--rb-line); box-shadow:inset 3px 0 0 var(--wp-moon); }
+.watchpoint-body .blood-alert::after { display:none; }
+.watchpoint-body .blood-alert h2::before { background:var(--wp-moon); box-shadow:4px 4px 0 #ff5a4f55; }
+.watchpoint-body .world-day { color:var(--rb-muted); font-size:12px; font-variant-numeric:tabular-nums; }
+.watchpoint-body .blood-alert > strong { margin-top:12px; font-size:13px; font-weight:600; }
+.watchpoint-body .blood-countdown { margin-top:8px; padding:4px 10px; border:0; background:#ff5a4f1f; color:var(--wp-moon); font-family:inherit; font-size:14px; font-weight:700; letter-spacing:0; clip-path:var(--rb-notch); }
+.watchpoint-body .blood-alert-tomorrow .blood-countdown { background:#f3c9691f; color:var(--signal); }
+.watchpoint-body .blood-alert-today { background:linear-gradient(135deg, #ff5a4f1f, var(--rb-surface) 70%); }
+.watchpoint-body .blood-alert-today .blood-countdown { background:var(--wp-moon); color:#fff; }
+.watchpoint-body .blood-alert > small { font-size:11px; }
+.watchpoint-body .pilot-list { margin:10px -16px -14px; }
+.watchpoint-body .pilot { padding:10px 16px; border-top:1px solid var(--rb-line); }
+.watchpoint-body .pilot:hover { background:var(--rb-surface-2); }
+.watchpoint-body .pilot .user-avatar { border-radius:10px; }
+.watchpoint-body .pilot-info strong { font-size:13px; }
+.watchpoint-body .pilot-info small { font-size:11px; }
+.watchpoint-body .pilot-info .pilot-vitals { color:#bfbdc6; font-family:inherit; }
+.watchpoint-body .pilot > b { font-family:inherit; font-size:11px; }
+.watchpoint-body .pilot-list .empty { padding:18px; font-size:12px; }
+.watchpoint-body .diary-side-card { border-color:var(--rb-line); background:var(--rb-surface); }
+.watchpoint-body .diary-side-card h3 { margin:12px 0 0; font-size:14px; }
+.watchpoint-body .diary-side-card > p { display:-webkit-box; overflow:hidden; margin:8px 0 12px; color:#c9c7cf; font-size:12px; line-height:1.75; -webkit-box-orient:vertical; -webkit-line-clamp:4; }
+.watchpoint-body .diary-side-card > span, .watchpoint-body .server-summary > small { font-size:12px; font-weight:700; }
+.watchpoint-body .server-summary div span { font-size:12px; }
+.watchpoint-body .server-summary div b { font-family:inherit; font-size:12px; }
+.watchpoint-body .module-head .pixel-status { font-size:11px; }
+
+/* Detail pages. */
+.watchpoint-body .layout { padding:28px 0 60px; }
+.watchpoint-body .detail-page { gap:16px; }
+.watchpoint-body .page-title { padding:0 0 4px; border-bottom:0; }
+.watchpoint-body .page-title > p:last-child { font-size:13px; }
+.watchpoint-body .breadcrumbs { margin-bottom:12px; font-size:12px; }
+.watchpoint-body .panel, .watchpoint-body .player-card, .watchpoint-body .metric-card, .watchpoint-body .leader-card, .watchpoint-body .vehicle-card, .watchpoint-body .ranking-card, .watchpoint-body .diary-metrics article { border:1px solid var(--rb-line); border-radius:var(--rb-radius); background:var(--rb-surface); box-shadow:none; }
+.watchpoint-body .panel-head { align-items:center; padding:14px 18px; border-bottom:1px solid var(--rb-line); background:none; }
+.watchpoint-body .panel-head small { font-size:11px; letter-spacing:0; }
+.watchpoint-body .metric-card::before { top:14px; left:auto; right:14px; width:8px; height:8px; background:var(--signal); }
+.watchpoint-body .metric-card span, .watchpoint-body .metric-card small, .watchpoint-body .diary-metrics span { font-size:12px; letter-spacing:0; }
+.watchpoint-body .metric-card strong, .watchpoint-body .diary-metrics strong { font-family:inherit; font-variant-numeric:tabular-nums; }
+.watchpoint-body dt { color:var(--rb-muted); font-size:11px; letter-spacing:0; }
+.watchpoint-body dd { font-size:13px; }
+.watchpoint-body th { color:var(--rb-muted); font-size:11px; letter-spacing:0; }
+.watchpoint-body th, .watchpoint-body td { font-size:12px; }
+.watchpoint-body .num, .watchpoint-body .ranking-card dd { font-family:inherit; font-variant-numeric:tabular-nums; }
+.watchpoint-body .ranking-card .rank, .watchpoint-body .leader-card > span { font-family:inherit; }
+.watchpoint-body .ranking-avatar, .watchpoint-body .profile-avatar { border-radius:10px; }
+.watchpoint-body .rank-name a { font-size:15px; }
+.watchpoint-body .activity-day > span, .watchpoint-body .activity-day small, .watchpoint-body .score-chart > small, .watchpoint-body .growth-chart > small, .watchpoint-body .server-chart-axis { font-family:inherit; font-size:11px; }
+.watchpoint-body .activity-day i { border-radius:3px 3px 0 0; box-shadow:none; }
+.watchpoint-body .score-legend span, .watchpoint-body .growth-legend span { font-size:12px; }
+.watchpoint-body .combat-log time, .watchpoint-body .timeline time, .watchpoint-body .incident-panel time { font-family:inherit; font-size:11px; }
+.watchpoint-body .combat-log div small { font-family:inherit; font-size:11px; }
+.watchpoint-body .enemy-ranking li span small, .watchpoint-body .vehicle-type-ranking small, .watchpoint-body .poi-row span, .watchpoint-body .poi-row p, .watchpoint-body .poi-row small { font-size:11px; }
+.watchpoint-body .enemy-ranking li em, .watchpoint-body .vehicle-type-ranking em { font-family:inherit; }
+.watchpoint-body .exploration-progress { height:6px; background:var(--rb-surface-2); }
+.watchpoint-body .exploration-progress i { box-shadow:none; }
+.watchpoint-body .poi-cards > article, .watchpoint-body .poi-cards > article.discovered { border-color:var(--rb-line); background:none; }
+.watchpoint-body .poi-state { font-family:inherit; font-size:11px; }
+.watchpoint-body .poi-cards article > p { font-size:11px; }
+.watchpoint-body .vehicle-card > header { font-family:inherit; font-size:11px; }
+.watchpoint-body .vehicle-card > small { font-family:inherit; font-size:11px; }
+.watchpoint-body .diary-public-card > header, .watchpoint-body .diary-public-detail > header { font-family:inherit; font-size:12px; letter-spacing:0; }
+.watchpoint-body .diary-public-card footer small, .watchpoint-body .diary-public-detail footer small { font-family:inherit; font-size:11px; }
+.watchpoint-body .diary-public-detail { background:var(--rb-surface); }
+.watchpoint-body .diary-tag-list span { border:0; border-radius:999px; background:var(--rb-surface-2); font-size:11px; }
+.watchpoint-body .health-summary { border-left:1px solid var(--rb-line); box-shadow:inset 3px 0 0 var(--muted); }
+.watchpoint-body.watchpoint-body .health-stable .health-summary { box-shadow:inset 3px 0 0 var(--good); }
+.watchpoint-body.watchpoint-body .health-watch .health-summary { box-shadow:inset 3px 0 0 var(--signal); }
+.watchpoint-body.watchpoint-body .health-unstable .health-summary { box-shadow:inset 3px 0 0 var(--danger); }
+.watchpoint-body .health-summary strong { font-family:inherit; }
+.watchpoint-body .health-summary small { font-size:11px; }
+.watchpoint-body .incident-panel li:not(.empty) { font-size:12px; }
+.watchpoint-body .primary-link, .watchpoint-body .form-actions button, .watchpoint-body .ai-test-action button { border:0; border-radius:0; clip-path:var(--rb-notch); }
+.watchpoint-body .form-notice { border-radius:10px; }
+.watchpoint-body .ai-comment-form input, .watchpoint-body .ai-comment-form textarea, .watchpoint-body .ai-comment-form select { border-color:var(--rb-line); border-radius:10px; background:var(--rb-bg); }
+.watchpoint-body .ai-comment-form label { color:var(--rb-muted); font-size:12px; letter-spacing:0; }
+
+@media (max-width:820px) {
+  .watchpoint-body .app-shell { grid-template-columns:minmax(0, 1fr); gap:0; }
+  .watchpoint-body .status-sidebar { position:static; max-height:none; padding-top:0; }
+}
+.watchpoint-body .page-title:has(.profile-avatar) { display:grid; grid-template-columns:auto 1fr; column-gap:16px; align-items:center; }
+.watchpoint-body .page-title .profile-avatar { grid-row:span 2; width:64px; height:64px; margin:0; }
+.watchpoint-body .page-title .profile-avatar ~ p { margin:6px 0 0; color:var(--rb-muted); font-size:13px; }
+.watchpoint-body .page-title .status-actions { grid-column:1 / -1; }
+.watchpoint-body .timeline .tag { display:inline-block; }

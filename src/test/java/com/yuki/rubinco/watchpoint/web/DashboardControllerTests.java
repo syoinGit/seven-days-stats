@@ -23,7 +23,10 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.ui.ConcurrentModel;
+import com.yuki.rubinco.portal.service.ServerActivityGate;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:h2:mem:rubinco_web;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
@@ -49,6 +52,22 @@ class DashboardControllerTests {
 
   @Autowired
   private PlayerInteractionController interactionController;
+
+  @MockitoBean
+  private ServerActivityGate serverGate;
+
+  @Test
+  void bloodMoonCountdownIsHiddenWhileTheServerIsStopped() throws Exception {
+    when(serverGate.stopped("7dtd")).thenReturn(false);
+    String running = mockMvc.perform(get("/dashboard").with(user("viewer").roles("PLAYER")))
+        .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+    assertThat(running).contains("blood-countdown").doesNotContain("サーバー停止中");
+
+    when(serverGate.stopped("7dtd")).thenReturn(true);
+    String stopped = mockMvc.perform(get("/dashboard").with(user("viewer").roles("PLAYER")))
+        .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+    assertThat(stopped).contains("サーバー停止中", "0人がオンライン").doesNotContain("blood-countdown");
+  }
 
   @Test
   void dashboardReturnsViewAndModel() {
@@ -161,12 +180,21 @@ class DashboardControllerTests {
   @Test
   void everyPageDeclaresTheSiteIcons() throws Exception {
     try (var templates = Files.list(Path.of("src/main/resources/templates"))) {
+      // Watchpoint pages use the watchtower; every other page uses the Rubinco ruby.
       assertThat(templates.filter(path -> path.toString().endsWith(".html")))
-          .allSatisfy(path -> assertThat(Files.readString(path))
-              .contains("/img/site-icon-64.png", "/img/apple-touch-icon.png"));
+          .allSatisfy(path -> {
+            String html = Files.readString(path);
+            if (html.contains("watchpoint-body")) {
+              assertThat(html).contains("/img/watchpoint-icon-64.png", "/img/watchpoint-icon.png");
+            } else {
+              assertThat(html).contains("/img/site-icon-64.png", "/img/apple-touch-icon.png");
+            }
+          });
     }
     assertThat(Path.of("src/main/resources/static/img/site-icon-64.png")).exists();
     assertThat(Path.of("src/main/resources/static/img/apple-touch-icon.png")).exists();
+    assertThat(Path.of("src/main/resources/static/img/watchpoint-icon-64.png")).exists();
+    assertThat(Path.of("src/main/resources/static/img/watchpoint-icon.png")).exists();
   }
 
   @Test
