@@ -31,7 +31,11 @@ import java.util.TreeMap;
  * table says it does, so a misread field fails the whole parse instead of producing wrong numbers.
  */
 public class TerrariaWorldParser {
-  public static final String PARSER_VERSION = "tr-wld326-1";
+  /**
+   * Part of a snapshot's identity (with the file hash), so a new value re-imports an unchanged save.
+   * The managed-storage rule is included: totals counted under an older rule must be redone.
+   */
+  public static final String PARSER_VERSION = "tr-wld326-1-s" + TerrariaStorage.RULE_VERSION;
   /** The only save format verified against a real world. Others are rejected, not guessed. */
   public static final int SUPPORTED_VERSION = 326;
   private static final int SECTION_COUNT = 11;

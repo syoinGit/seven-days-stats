@@ -50,7 +50,8 @@ public record TerrariaSummary(
       long storedItems, long bestiaryKills, int bestiaryKilledSpecies, int bestiarySighted,
       int bestiaryChatted, int signs, int tombstones, int rooms, int savedMobs,
       int trainingDummies, int logicSensors, int pressurePlates, int shimmeredTownNpcs,
-      Map<String, Integer> managedByKind, int storageRule) { }
+      // Added later: snapshots saved before managed storage have neither (null), so keep them nullable.
+      Map<String, Integer> managedByKind, Integer storageRule) { }
 
   public static TerrariaSummary from(TerrariaWorld world, String contentHash) {
     var h = world.header();
