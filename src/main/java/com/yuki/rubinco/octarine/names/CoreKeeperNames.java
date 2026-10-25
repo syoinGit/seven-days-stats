@@ -27,10 +27,17 @@ public class CoreKeeperNames {
   private static final Duration RECHECK = Duration.ofMinutes(1);
   private static final String FILE = "objects.tsv";
 
-  /** {@code key} is the game's internal name; {@code ja} is optional and hand-maintained. */
-  public record Name(int id, String key, String ja, String en) {
+  /**
+   * {@code key} is the game's internal name. {@code type} and {@code tags} are the game's
+   * ObjectType and ObjectCategoryTag numbers; null and empty when the table has no such columns.
+   */
+  public record Name(int id, String key, String ja, String en, Integer type, Set<Integer> tags) {
     public String label() {
       return ja != null ? ja : en != null ? en : key != null ? key : "#" + id;
+    }
+
+    public ItemCategory category() {
+      return ItemCategory.of(type, tags);
     }
 
     /** Bosses are progress: their names stay off public statistics. */
@@ -54,7 +61,7 @@ public class CoreKeeperNames {
 
   public Name object(int id) {
     Name name = current().objects().get(id);
-    return name != null ? name : new Name(id, null, null, null);
+    return name != null ? name : new Name(id, null, null, null, null, Set.of());
   }
 
   public boolean loaded() {
@@ -101,7 +108,12 @@ public class CoreKeeperNames {
           .filter(line -> !line.isBlank()).map(line -> line.split("\t", -1))
           .filter(row -> row.length >= 2).forEach(row -> {
             int id = Integer.parseInt(row[0]);
-            objects.put(id, new Name(id, blank(row, 1), blank(row, 2), blank(row, 3)));
+            String type = blank(row, 4);
+            String tags = blank(row, 5);
+            objects.put(id, new Name(id, blank(row, 1), blank(row, 2), blank(row, 3),
+                type == null ? null : Integer.valueOf(type),
+                tags == null ? Set.of() : java.util.Arrays.stream(tags.split(","))
+                    .map(String::strip).map(Integer::valueOf).collect(Collectors.toUnmodifiableSet())));
           });
       table = new Table(Map.copyOf(objects), stamp);
       log.info("Core Keeper object names loaded. directory={}, objects={}", directory, objects.size());

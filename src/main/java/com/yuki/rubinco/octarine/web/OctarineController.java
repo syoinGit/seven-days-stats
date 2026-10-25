@@ -3,6 +3,7 @@ package com.yuki.rubinco.octarine.web;
 import com.yuki.rubinco.account.security.AdminAccess;
 import com.yuki.rubinco.octarine.ingest.CoreKeeperImportProperties;
 import com.yuki.rubinco.octarine.ingest.CoreKeeperImportService;
+import com.yuki.rubinco.octarine.names.ItemCategory;
 import com.yuki.rubinco.octarine.service.OctarineQueryService;
 import com.yuki.rubinco.octarine.service.OctarineQueryService.Context;
 import com.yuki.rubinco.portal.service.GamePortalService;
@@ -77,13 +78,17 @@ public class OctarineController {
 
   @GetMapping("/octarine/items")
   public String items(Model model, Authentication authentication,
-      @RequestParam(required = false) String q, @RequestParam(defaultValue = "amount") String sort,
-      @RequestParam(defaultValue = "0") int page) {
+      @RequestParam(required = false) String q, @RequestParam(required = false) String c,
+      @RequestParam(defaultValue = "amount") String sort, @RequestParam(defaultValue = "0") int page) {
     return withData(model, authentication, "items", ctx -> {
       String query = trim(q);
+      ItemCategory category = java.util.Arrays.stream(ItemCategory.values())
+          .filter(value -> value.icon().equals(c)).findFirst().orElse(null);
       model.addAttribute("q", query);
+      model.addAttribute("c", category == null ? null : category.icon());
       model.addAttribute("sort", sort);
-      model.addAttribute("items", octarine.items(ctx, query, sort, clamp(page), PAGE_SIZE));
+      model.addAttribute("categories", ItemCategory.values());
+      model.addAttribute("items", octarine.items(ctx, query, category, sort, clamp(page), PAGE_SIZE));
       return "octarine-items";
     });
   }
@@ -104,6 +109,7 @@ public class OctarineController {
       String query = trim(q);
       model.addAttribute("q", query);
       model.addAttribute("containers", octarine.containers(ctx, query, clamp(page), 30));
+      model.addAttribute("categories", ItemCategory.values());
       return "octarine-chests";
     });
   }
@@ -114,6 +120,7 @@ public class OctarineController {
       model.addAttribute("container", octarine.container(ctx, containerId)
           .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
       model.addAttribute("changes", octarine.chestChanges(ctx, containerId, 100));
+      model.addAttribute("categories", ItemCategory.values());
       return "octarine-chest";
     });
   }

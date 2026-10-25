@@ -22,8 +22,14 @@
 </p>
 
 <p th:fragment="amountNote" class="octarine-note">
-  「数」はゲームが保存している値で、素材などは個数、道具・武器・防具は残りの耐久値です。保存データからはどちらか区別できません。
+  「数」はゲームが保存している値で、素材などは個数、武器・防具・道具は残りの耐久値です（分類はゲームのデータによる。名前表に分類が無いアイテムは「その他」）。
 </p>
+
+<svg th:fragment="icon(category)" class="ck-icon" th:classappend="${'ck-' + category.icon()}" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{'/img/octarine-icons.svg#' + ${category.icon()}}"></use></svg>
+
+<ul th:fragment="legend" class="ck-legend" aria-label="アイコンの意味" th:if="${categories != null}">
+  <li th:each="category : ${categories}"><svg th:replace="~{fragments/octarine :: icon(${category})}"></svg><span th:text="${category.label()}">武器</span></li>
+</ul>
 
 <span th:fragment="place(place)" class="octarine-place" th:if="${place != null}" th:text="${place.label()}">コアから東120・北40</span>
 </body>

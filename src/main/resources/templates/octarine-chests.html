@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='profile-1')}">
-  <link rel="stylesheet" th:href="@{/css/octarine.css(v='2')}">
+  <link rel="stylesheet" th:href="@{/css/octarine.css(v='3')}">
 </head>
 <body class="octarine-body">
 <header th:replace="~{fragments/navigation :: siteHeader(@{/octarine}, ${game.displayName}, '◆', 'CORE KEEPER EXPEDITION LOG', 'octarine-topbar')}"></header>
@@ -30,6 +30,7 @@
       ラベルの無いチェスト・宝箱、商人の品ぞろえ、お墓、落ちているアイテムは出しません。
       場所はコアを中心にしたタイル数です。
     </p>
+    <ul th:replace="~{fragments/octarine :: legend}"></ul>
     <p th:if="${containers.isEmpty()}" class="octarine-empty">当てはまるチェストはありません。</p>
     <ul class="octarine-containers" th:unless="${containers.isEmpty()}">
       <li th:each="container : ${containers.content}">
@@ -41,7 +42,7 @@
         <span th:replace="~{fragments/octarine :: place(${container.place})}"></span>
         <ul class="octarine-slots" th:unless="${#lists.isEmpty(container.items)}">
           <li th:each="slot : ${container.items}" th:classappend="${slot.match} ? 'match'">
-            <a th:href="@{/octarine/items/{id}(id=${slot.objectId})}"><span th:text="${slot.name}">Wood</span><b th:text="${slot.amount}" th:if="${slot.amount > 1}">99</b></a>
+            <a th:href="@{/octarine/items/{id}(id=${slot.objectId})}" th:classappend="${'ck-' + slot.category.icon()}"><svg th:replace="~{fragments/octarine :: icon(${slot.category})}"></svg><span th:text="${slot.name}">Wood</span><b th:text="${slot.amountLabel()}" th:unless="${slot.amountLabel().isEmpty()}">×99</b></a>
           </li>
         </ul>
       </li>
