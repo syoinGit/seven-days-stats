@@ -665,6 +665,10 @@ class GuildTests {
     source();
     long rine = resident("リネ", 28, "ALIVE", 0);
     long roan = resident("ロアン", 30, "ALIVE", 1);
+    // Like real births: history rows with no interaction, which the detail page must step over.
+    for (long person : List.of(rine, roan)) {
+      jdbc.update("INSERT INTO T_GUILD_AFFILIATION_HISTORY (character_id,kind,to_value,change_kind,reason) VALUES (?,'village','grantford','birth','記憶から')", person);
+    }
     interactions.runHour(HOUR);
     long id = jdbc.queryForObject("SELECT id FROM T_GUILD_INTERACTION", Long.class);
     String summary = jdbc.queryForObject("SELECT summary FROM T_GUILD_INTERACTION", String.class);
