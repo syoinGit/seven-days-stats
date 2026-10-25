@@ -8,37 +8,17 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='header-4')}">
-  <link rel="stylesheet" th:href="@{/css/luminite.css(v='1')}">
+  <link rel="stylesheet" th:href="@{/css/luminite.css(v='2')}">
 </head>
 <body class="luminite-body">
 <header th:replace="~{fragments/header :: appHeader('terraria', 'luminite-topbar')}"></header>
 
 <main class="luminite-shell">
   <h1 class="visually-hidden" th:text="${game.displayName}">Luminite</h1>
-  <a th:if="${currentAdmin}" class="luminite-admin-link" th:href="@{/luminite/maintenance}">管理画面 →</a>
-
   <nav th:replace="~{fragments/luminite :: tabs}"></nav>
 
-  <section class="luminite-overview" aria-label="Terrariaサーバー概要">
-    <article>
-      <span class="eyebrow">進行</span>
-      <strong th:text="${overview.hasSnapshot ? overview.achievedCount : '—'}">0</strong>
-      <p>保存データで達成を確認できた項目の数です。</p>
-    </article>
-    <article>
-      <span class="eyebrow">最終確認</span>
-      <strong th:text="${overview.freshnessLabel ?: '未取得'}">未取得</strong>
-      <p th:if="${overview.lastCheckedLabel}" th:text="${'最終確認 ' + overview.lastCheckedLabel}"></p>
-      <p th:if="${overview.stale}" class="luminite-warning">取得が遅れているか、失敗しています。表示は最後に正常に読めた内容です。</p>
-    </article>
-    <article>
-      <span class="eyebrow">サーバー</span>
-      <strong class="status-chip" th:classappend="${'status-' + serverStatus.code}" th:text="${serverStatus.label}">停止中</strong>
-      <p>Version <span th:text="${game.version}">1.4.4</span></p>
-      <p th:text="${game.connection}">接続情報は準備中です</p>
-    </article>
-  </section>
-
+  <div class="lm-columns">
+  <div class="lm-main">
   <section th:if="${!overview.visible}" class="luminite-panel" aria-label="準備中">
     <p class="luminite-empty">このワールドの統計は準備中です。</p>
   </section>
@@ -88,6 +68,32 @@
     </div>
   </section>
 
+  <section class="luminite-panel" th:if="${activity != null}" aria-labelledby="luminite-activity-title">
+    <div class="section-heading">
+      <div><h2 id="luminite-activity-title">最近の動き</h2></div>
+      <a th:href="@{/luminite/history}">すべての履歴 →</a>
+    </div>
+    <p th:if="${#lists.isEmpty(activity)}" class="luminite-empty">初回取り込み以降の変化はまだありません。</p>
+    <ol class="luminite-activity" th:unless="${#lists.isEmpty(activity)}">
+      <li th:each="item : ${activity}" th:classappend="${'kind-' + #strings.toLowerCase(item.kind)}">
+        <time th:datetime="${item.at}" th:text="${item.atLabel}">---</time>
+        <b th:text="${item.title}">保管アイテムの変化</b>
+        <p th:each="detail : ${item.details}" th:text="${detail}"></p>
+      </li>
+    </ol>
+    <p class="luminite-note">日時はサイトが変化を確認した時刻です。誰が動かしたかはワールドファイルに残りません。</p>
+  </section>
+
+  <section class="luminite-panel" th:if="${overview.hasSnapshot and !#lists.isEmpty(overview.recentEvents)}" aria-labelledby="luminite-changes-title">
+    <div class="section-heading">
+      <div><h2 id="luminite-changes-title">最近の達成</h2></div>
+      <a th:href="@{/luminite/history}">すべての履歴 →</a>
+    </div>
+    <ol class="luminite-events">
+      <th:block th:each="event : ${overview.recentEvents}"><li th:replace="~{fragments/octarine :: eventRow(${event})}"></li></th:block>
+    </ol>
+  </section>
+
   <section class="luminite-panel" aria-labelledby="luminite-progress-title">
     <div class="section-heading">
       <div>
@@ -134,59 +140,51 @@
     </article>
   </section>
 
-  <section class="luminite-panel" th:if="${activity != null}" aria-labelledby="luminite-activity-title">
-    <div class="section-heading">
-      <div><h2 id="luminite-activity-title">最近の動き</h2></div>
-      <a th:href="@{/luminite/history}">すべての履歴 →</a>
-    </div>
-    <p th:if="${#lists.isEmpty(activity)}" class="luminite-empty">初回取り込み以降の変化はまだありません。</p>
-    <ol class="luminite-activity" th:unless="${#lists.isEmpty(activity)}">
-      <li th:each="item : ${activity}" th:classappend="${'kind-' + #strings.toLowerCase(item.kind)}">
-        <time th:datetime="${item.at}" th:text="${item.atLabel}">---</time>
-        <b th:text="${item.title}">保管アイテムの変化</b>
-        <p th:each="detail : ${item.details}" th:text="${detail}"></p>
-      </li>
-    </ol>
-    <p class="luminite-note">日時はサイトが変化を確認した時刻です。誰が動かしたかはワールドファイルに残りません。</p>
-  </section>
 
-  <section class="luminite-panel" th:if="${overview.hasSnapshot and !#lists.isEmpty(overview.recentEvents)}" aria-labelledby="luminite-changes-title">
-    <div class="section-heading">
-      <div><h2 id="luminite-changes-title">最近の達成</h2></div>
-      <a th:href="@{/luminite/history}">すべての履歴 →</a>
-    </div>
-    <ol class="luminite-events">
-      <th:block th:each="event : ${overview.recentEvents}"><li th:replace="~{fragments/octarine :: eventRow(${event})}"></li></th:block>
-    </ol>
-  </section>
   </th:block>
 
-  <section class="luminite-panel" aria-labelledby="luminite-timeline-title">
-    <div class="section-heading">
-      <div>
-        <h2 id="luminite-timeline-title">Terrariaのタイムライン</h2>
+  </div>
+
+  <aside class="lm-side">
+    <section class="lm-card" aria-labelledby="luminite-server-title">
+      <div class="lm-card-head">
+        <h2 id="luminite-server-title">サーバー</h2>
+        <span class="pixel-status" th:classappend="${'status-' + serverStatus.code}" th:text="${serverStatus.label}">停止中</span>
       </div>
-      <a th:href="${portalUrl}">ポータルへ戻る →</a>
-    </div>
-    <ol class="feed" id="timeline">
-      <li th:if="${#lists.isEmpty(timeline)}" class="empty">
-        <span th:text="${timelinePage.number == 0 ? 'Terrariaの記録はまだありません。' : 'このページの記録はありません。'}"></span>
-      </li>
-      <li class="feed-item" th:each="item : ${timeline}">
-        <img class="user-avatar" th:src="${@portalProfileService.avatar(item.actorPlayerId, item.creatorSub, profileDirectory, currentViewer)}" alt="" loading="lazy">
-        <div class="feed-meta">
-          <b th:text="${item.eventType}">PROGRESS</b>
-          <time th:datetime="${item.occurredAt}" th:text="${item.occurredAtLabel}">---</time>
-        </div>
-        <h3 th:text="${item.title}">探索記録</h3>
-        <p th:text="${item.body}">探索記録の本文</p>
-      </li>
-    </ol>
-    <nav class="portal-feed-pages" aria-label="Terrariaタイムラインのページ">
-      <a th:if="${timelinePage.hasPrevious()}" th:href="@{/luminite(page=${timelinePage.number - 1})} + '#timeline'">← 新しい記録</a>
-      <a th:if="${timelinePage.hasNext()}" th:href="@{/luminite(page=${timelinePage.number + 1})} + '#timeline'">過去の記録 →</a>
-    </nav>
-  </section>
+      <dl class="lm-facts">
+        <div><dt>バージョン</dt><dd th:text="${game.version}">1.4.4</dd></div>
+        <div><dt>接続先</dt><dd th:text="${game.connection}">接続情報は準備中です</dd></div>
+        <div><dt>達成した進捗</dt><dd th:text="${overview.hasSnapshot ? overview.achievedCount + '項目' : '—'}">0項目</dd></div>
+        <div><dt>ワールドの確認</dt><dd th:text="${overview.freshnessLabel ?: '未取得'}">未取得</dd></div>
+      </dl>
+      <p th:if="${overview.stale}" class="luminite-warning">取り込みが遅れているか、失敗しています。表示は最後に正常に読めた内容です。</p>
+      <a th:if="${currentAdmin}" class="lm-card-link" th:href="@{/luminite/maintenance}">管理画面 →</a>
+    </section>
+
+    <section class="lm-card" aria-labelledby="luminite-timeline-title" id="timeline">
+      <div class="lm-card-head"><h2 id="luminite-timeline-title">タイムライン</h2></div>
+      <p th:if="${#lists.isEmpty(timeline)}" class="luminite-empty"
+         th:text="${timelinePage.number == 0 ? 'Terrariaの投稿はまだありません。' : 'このページの投稿はありません。'}">Terrariaの投稿はまだありません。</p>
+      <ol class="lm-feed" th:unless="${#lists.isEmpty(timeline)}">
+        <li th:each="item : ${timeline}">
+          <header>
+            <img class="user-avatar" th:src="${@portalProfileService.avatar(item.actorPlayerId, item.creatorSub, profileDirectory, currentViewer)}" alt="" loading="lazy">
+            <span>
+              <b th:text="${@portalProfileService.authorName(item.actorPlayerId, item.creatorSub, item.actorName, profileDirectory, currentViewer)}">WATCHPOINT</b>
+              <time th:datetime="${item.occurredAt}" th:text="${item.occurredAtLabel}">---</time>
+            </span>
+          </header>
+          <h3 th:text="${item.title}">投稿タイトル</h3>
+          <p th:text="${item.body}">投稿の本文</p>
+        </li>
+      </ol>
+      <nav class="lm-pages" aria-label="タイムラインのページ">
+        <a th:if="${timelinePage.hasPrevious()}" th:href="@{/luminite(page=${timelinePage.number - 1})} + '#timeline'">← 新しい投稿</a>
+        <a th:if="${timelinePage.hasNext()}" th:href="@{/luminite(page=${timelinePage.number + 1})} + '#timeline'">過去の投稿 →</a>
+      </nav>
+    </section>
+  </aside>
+  </div>
 </main>
 </body>
 </html>
