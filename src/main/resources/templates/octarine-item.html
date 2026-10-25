@@ -25,7 +25,8 @@
     </div>
     <div th:replace="~{fragments/octarine :: snapshot}"></div>
     <ul class="octarine-stats">
-      <li><span>数の合計</span><strong th:text="${#numbers.formatInteger(item.amount, 1, 'COMMA')}">12</strong><small>保管中の枠の「数」の合計</small></li>
+      <li th:unless="${item.category.durable()}"><span>数の合計</span><strong th:text="${#numbers.formatInteger(item.amount, 1, 'COMMA')}">12</strong><small>保管中の枠の「数」の合計</small></li>
+      <li th:if="${item.category.durable()}"><span>個数</span><strong th:text="${item.slots + '個'}">2個</strong><small th:text="${'装備は1枠に1個。耐久の合計 ' + #numbers.formatInteger(item.amount, 1, 'COMMA')}">耐久の合計</small></li>
       <li><span>枠</span><strong th:text="${item.slots}">3</strong><small>このアイテムが入っている枠の数</small></li>
       <li><span>置き場所</span><strong th:text="${item.containers + 'か所'}">2か所</strong><small>入っている入れ物の数</small></li>
       <li><span>最後の変化</span><strong class="octarine-small-value" th:text="${item.lastChanged}">---</strong><small>変化を確認した時刻</small></li>
@@ -42,7 +43,7 @@
             <td><a th:href="@{/octarine/chests/{id}(id=${holder.containerId})}" th:text="${holder.chest}">鉱石倉庫</a></td>
             <td th:text="${holder.kind}">Wood Chest</td>
             <td><span th:replace="~{fragments/octarine :: place(${holder.place})}"></span></td>
-            <td class="num" th:text="${holder.amount}">5</td>
+            <td class="num" th:text="${item.category.durable() ? '耐久 ' + holder.amount : holder.amount}">5</td>
           </tr>
         </tbody>
       </table>
@@ -51,10 +52,10 @@
     <h2 class="octarine-group-title">数の変化</h2>
     <p th:if="${#lists.isEmpty(detail.changes)}" class="octarine-empty">初回取り込み以降、変わっていません。</p>
     <ol class="octarine-changes" th:unless="${#lists.isEmpty(detail.changes)}">
-      <li th:each="change : ${detail.changes}" th:classappend="${change.delta > 0 or (change.delta == 0 and change.currentSlots > change.previousSlots) ? 'up' : 'down'}">
+      <li th:each="change : ${detail.changes}" th:classappend="${change.up() ? 'up' : 'down'}">
         <time th:text="${change.at}">---</time>
-        <span th:text="${change.previous + ' → ' + change.current + '（' + change.previousSlots + '枠 → ' + change.currentSlots + '枠）'}">3 → 5</span>
-        <b th:text="${(change.delta > 0 ? '+' : '') + change.delta}">+2</b>
+        <span th:text="${change.label()}">3 → 5</span>
+        <b th:text="${change.deltaLabel()}">+2</b>
       </li>
     </ol>
     <p class="octarine-note">取り込みの間隔ごとの差分です。その間に出し入れがあっても、差し引きしか分かりません。ラベルを付けた・外したときの中身は、増減に数えません。</p>

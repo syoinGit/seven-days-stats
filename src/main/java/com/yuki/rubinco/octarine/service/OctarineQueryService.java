@@ -77,12 +77,37 @@ public class OctarineQueryService {
   public record ActivityItem(OffsetDateTime at, String atLabel, String title, List<String> details) { }
 
   public record ItemRow(int objectId, String name, String key, long amount, int slots,
-      int containers, String lastChanged, ItemCategory category) { }
+      int containers, String lastChanged, ItemCategory category) {
+    /** How many there are: equipment never stacks, so one per slot; stacks sum their counts. */
+    public long count() {
+      return category.durable() ? slots : amount;
+    }
+  }
 
   public record Holder(Long containerId, String chest, String kind, Place place, int slot, int amount) { }
 
   public record ItemChange(String at, long previous, long current, long delta, int previousSlots,
-      int currentSlots) { }
+      int currentSlots, boolean durable) {
+    /** "3 → 5" for stacks; "1個 → 2個（耐久 200 → 400）" for equipment. */
+    public String label() {
+      if (!durable) return previous + " → " + current + "（" + previousSlots + "枠 → " + currentSlots + "枠）";
+      return previousSlots + "個 → " + currentSlots + "個（耐久の合計 " + previous + " → " + current + "）";
+    }
+
+    public long countDelta() {
+      return durable ? currentSlots - previousSlots : delta;
+    }
+
+    public boolean up() {
+      return countDelta() > 0 || (countDelta() == 0 && (delta > 0 || currentSlots > previousSlots));
+    }
+
+    public String deltaLabel() {
+      long shown = countDelta();
+      if (durable && shown == 0) return "耐久 " + (delta > 0 ? "+" : "") + delta;
+      return (shown > 0 ? "+" : "") + shown + (durable ? "個" : "");
+    }
+  }
 
   public record ItemDetail(ItemRow item, List<Holder> holders, List<ItemChange> changes) { }
 
@@ -111,7 +136,33 @@ public class OctarineQueryService {
   }
 
   public record ChestChange(String at, String item, int objectId, long previous, long current,
-      long delta) { }
+      long delta, Integer previousSlots, Integer currentSlots, boolean durable) {
+    /** Equipment counts pieces (slots) when known; older rows only have durability. */
+    public String label() {
+      if (durable && previousSlots != null && currentSlots != null && !previousSlots.equals(currentSlots)) {
+        return previousSlots + "個 → " + currentSlots + "個";
+      }
+      return durable ? "耐久 " + previous + " → " + current : previous + " → " + current;
+    }
+
+    public String deltaLabel() {
+      return OctarineQueryService.deltaLabel(durable, delta, previousSlots, currentSlots);
+    }
+
+    public boolean up() {
+      return durable && previousSlots != null && currentSlots != null && !previousSlots.equals(currentSlots)
+          ? currentSlots > previousSlots : delta > 0;
+    }
+  }
+
+  /** "+3", "+1個", "耐久 -5". */
+  static String deltaLabel(boolean durable, long delta, Integer previousSlots, Integer currentSlots) {
+    if (durable && previousSlots != null && currentSlots != null && !previousSlots.equals(currentSlots)) {
+      int pieces = currentSlots - previousSlots;
+      return (pieces > 0 ? "+" : "") + pieces + "個";
+    }
+    return (durable ? "耐久 " : "") + (delta > 0 ? "+" : "") + delta;
+  }
 
   @Transactional(readOnly = true)
   public Optional<Context> context(boolean admin) {
@@ -155,14 +206,15 @@ public class OctarineQueryService {
     Map<Long, Map<String, List<Object[]>>> bySnapshot = new LinkedHashMap<>();
     Map<Long, Timestamp> times = new LinkedHashMap<>();
     jdbc.query("SELECT world_snapshot_id, chest_object_id, pos_x, pos_z, label, object_id, previous_amount, "
-        + "new_amount, observed_at FROM T_CK_CHEST_CHANGE WHERE game_world_id = ? "
+        + "new_amount, observed_at, previous_slots, new_slots FROM T_CK_CHEST_CHANGE WHERE game_world_id = ? "
         + "ORDER BY observed_at DESC, ck_chest_change_id DESC LIMIT 1000", rs -> {
           long snapshot = rs.getLong(1);
           times.putIfAbsent(snapshot, rs.getTimestamp(9));
           String chest = rs.getInt(2) + ":" + rs.getInt(3) + ":" + rs.getInt(4) + ":" + rs.getString(5);
           bySnapshot.computeIfAbsent(snapshot, id -> new LinkedHashMap<>())
               .computeIfAbsent(chest, key -> new ArrayList<>())
-              .add(new Object[] {rs.getString(5), rs.getInt(6), rs.getLong(7), rs.getLong(8)});
+              .add(new Object[] {rs.getString(5), rs.getInt(6), rs.getLong(7), rs.getLong(8),
+                  rs.getObject(10, Integer.class), rs.getObject(11, Integer.class)});
         }, context.worldId());
     List<ActivityItem> result = new ArrayList<>();
     bySnapshot.forEach((snapshot, chests) -> {
@@ -178,24 +230,28 @@ public class OctarineQueryService {
   /** One chest's changes, newest first. */
   @Transactional(readOnly = true)
   public List<ChestChange> chestChanges(Context context, long containerId, int limit) {
-    return jdbc.query("SELECT h.observed_at, h.object_id, h.previous_amount, h.new_amount "
+    return jdbc.query("SELECT h.observed_at, h.object_id, h.previous_amount, h.new_amount, h.previous_slots, h.new_slots "
         + "FROM T_CK_CHEST_CHANGE h JOIN T_CK_CONTAINER c ON c.game_world_id = h.game_world_id "
         + "AND c.object_id = h.chest_object_id AND c.pos_x = h.pos_x AND c.pos_z = h.pos_z "
         + "WHERE c.game_world_id = ? AND c.ck_container_id = ? "
         + "ORDER BY h.observed_at DESC, h.ck_chest_change_id DESC LIMIT ?",
         (rs, i) -> new ChestChange(TIME.format(time(rs.getTimestamp(1))), names.object(rs.getInt(2)).label(),
-            rs.getInt(2), rs.getLong(3), rs.getLong(4), rs.getLong(4) - rs.getLong(3)),
+            rs.getInt(2), rs.getLong(3), rs.getLong(4), rs.getLong(4) - rs.getLong(3),
+            rs.getObject(5, Integer.class), rs.getObject(6, Integer.class),
+            names.object(rs.getInt(2)).category().durable()),
         context.worldId(), containerId, limit);
   }
 
-  /** "増えた: A +3 / 減った: B -2", largest changes first. */
+  /** "増えた: A +3、鎧 +1個 / 減った: B -2", largest changes first. */
   private String describe(List<Object[]> rows) {
     List<String> up = new ArrayList<>();
     List<String> down = new ArrayList<>();
     rows.stream().sorted(Comparator.comparingLong((Object[] row) -> -Math.abs((long) row[3] - (long) row[2])))
         .forEach(row -> {
-          long delta = (long) row[3] - (long) row[2];
-          (delta > 0 ? up : down).add(names.object((int) row[1]).label() + (delta > 0 ? " +" : " ") + delta);
+          var name = names.object((int) row[1]);
+          var change = new ChestChange(null, name.label(), (int) row[1], (long) row[2], (long) row[3],
+              (long) row[3] - (long) row[2], (Integer) row[4], (Integer) row[5], name.category().durable());
+          (change.up() ? up : down).add(name.label() + " " + change.deltaLabel());
         });
     List<String> parts = new ArrayList<>();
     if (!up.isEmpty()) parts.add("増えた: " + joinLimited(up));
@@ -215,7 +271,7 @@ public class OctarineQueryService {
       case "name" -> Comparator.comparing(ItemRow::name);
       case "recent" -> Comparator.comparing(ItemRow::lastChanged, Comparator.nullsLast(Comparator.reverseOrder()));
       case "slots" -> Comparator.comparingInt(ItemRow::slots).reversed().thenComparing(ItemRow::name);
-      default -> Comparator.comparingLong(ItemRow::amount).reversed().thenComparing(ItemRow::name);
+      default -> Comparator.comparingLong(ItemRow::count).reversed().thenComparing(ItemRow::name);
     };
     return page(rows.stream()
         .filter(row -> matching == null || matching.contains(row.objectId())
@@ -242,7 +298,7 @@ public class OctarineQueryService {
         + "FROM T_CK_ITEM_CHANGE WHERE game_world_id = ? AND object_id = ? "
         + "ORDER BY observed_at DESC, ck_item_change_id DESC LIMIT 100",
         (rs, i) -> new ItemChange(TIME.format(time(rs.getTimestamp(1))), rs.getLong(2), rs.getLong(3),
-            rs.getLong(3) - rs.getLong(2), rs.getInt(4), rs.getInt(5)),
+            rs.getLong(3) - rs.getLong(2), rs.getInt(4), rs.getInt(5), rows.get(0).category().durable()),
         context.worldId(), objectId);
     return Optional.of(new ItemDetail(rows.get(0), holders, changes));
   }
