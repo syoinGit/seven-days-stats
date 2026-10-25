@@ -18,6 +18,8 @@
   アイテム名の辞書がサーバーに置かれていないため、番号で表示しています。
 </p>
 
+<svg th:fragment="icon(category)" class="lm-icon" th:classappend="${'lm-' + category.icon()}" viewBox="0 0 24 24" aria-hidden="true"><use th:href="@{'/img/luminite-icons.svg#' + ${category.icon()}}"></use></svg>
+
 <span th:fragment="place(place)" class="luminite-place" th:if="${place != null}">
   <b th:text="${place.layer}">地下</b>
   <span th:text="${place.label()}">中心から東へ120ft / 地表から40ft下</span>

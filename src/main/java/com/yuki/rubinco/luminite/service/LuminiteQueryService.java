@@ -3,6 +3,7 @@ package com.yuki.rubinco.luminite.service;
 import com.yuki.rubinco.luminite.ingest.TerrariaCatalog;
 import com.yuki.rubinco.luminite.ingest.TerrariaImportService;
 import com.yuki.rubinco.luminite.ingest.TerrariaSummary;
+import com.yuki.rubinco.luminite.names.TerrariaItemCategory;
 import com.yuki.rubinco.luminite.names.TerrariaNames;
 import com.yuki.rubinco.shared.DisplayTimeFormatter;
 import com.yuki.rubinco.worldprogress.entity.M_GameWorld;
@@ -75,7 +76,7 @@ public class LuminiteQueryService {
       List<String> details, String link) { }
 
   public record ItemRow(int itemId, String name, String englishName, long total, int containers,
-      String firstSeen, String lastChanged) { }
+      String firstSeen, String lastChanged, TerrariaItemCategory category) { }
 
   public record Holder(Long containerId, String container, String kind, Place place, int slot,
       int stack, String prefix) { }
@@ -84,7 +85,8 @@ public class LuminiteQueryService {
 
   public record ItemDetail(ItemRow item, List<Holder> holders, List<ItemChange> changes) { }
 
-  public record ContainerItem(int slot, int itemId, String name, int stack, boolean match) { }
+  public record ContainerItem(int slot, int itemId, String name, int stack, boolean match,
+      TerrariaItemCategory category) { }
 
   public record ContainerRow(Long id, String label, String kind, String customName, Place place,
       int slots, int filled, List<ContainerItem> items) { }
@@ -252,7 +254,8 @@ public class LuminiteQueryService {
   }
 
   @Transactional(readOnly = true)
-  public Page<ItemRow> items(Context context, String query, String sort, int page, int size) {
+  public Page<ItemRow> items(Context context, String query, TerrariaItemCategory category, String sort,
+      int page, int size) {
     List<ItemRow> rows = jdbc.query("SELECT item_id, total, container_count, first_seen_at, last_changed_at "
         + "FROM T_TERRARIA_ITEM_TOTAL WHERE game_world_id = ? AND total > 0",
         (rs, i) -> itemRow(rs.getInt(1), rs.getLong(2), rs.getInt(3), rs.getTimestamp(4), rs.getTimestamp(5)),
@@ -265,6 +268,7 @@ public class LuminiteQueryService {
       default -> Comparator.comparingLong(ItemRow::total).reversed().thenComparing(ItemRow::name);
     };
     List<ItemRow> filtered = rows.stream()
+        .filter(row -> category == null || row.category() == category)
         .filter(row -> matching == null || matching.contains(row.itemId())
             || String.valueOf(row.itemId()).equals(query.strip()))
         .sorted(order).toList();
@@ -304,7 +308,8 @@ public class LuminiteQueryService {
         + "WHERE i.game_world_id = ? AND c.managed ORDER BY i.terraria_container_id, i.slot", rs -> {
           int itemId = rs.getInt(3);
           items.computeIfAbsent(rs.getLong(1), id -> new ArrayList<>()).add(new ContainerItem(rs.getInt(2),
-              itemId, names.item(itemId).label(), rs.getInt(4), matching.contains(itemId)));
+              itemId, names.item(itemId).label(), rs.getInt(4), matching.contains(itemId),
+              names.itemCategory(itemId)));
         }, context.worldId());
     String needle = TerrariaNames.normalize(query);
     List<ContainerRow> rows = jdbc.query("SELECT terraria_container_id, container_kind, tile_type, tile_style, name, "
@@ -326,7 +331,7 @@ public class LuminiteQueryService {
     List<ContainerItem> items = jdbc.query("SELECT slot, item_id, stack, prefix_id FROM T_TERRARIA_CONTAINER_ITEM "
         + "WHERE game_world_id = ? AND terraria_container_id = ? ORDER BY slot",
         (rs, i) -> new ContainerItem(rs.getInt(1), rs.getInt(2), names.itemWithPrefix(rs.getInt(2), rs.getInt(4)),
-            rs.getInt(3), false), context.worldId(), containerId);
+            rs.getInt(3), false, names.itemCategory(rs.getInt(2))), context.worldId(), containerId);
     return jdbc.query("SELECT terraria_container_id, container_kind, tile_type, tile_style, name, tile_x, tile_y, "
         + "slot_count, filled_slots FROM T_TERRARIA_CONTAINER WHERE game_world_id = ? AND terraria_container_id = ? "
         + "AND managed",
@@ -400,6 +405,10 @@ public class LuminiteQueryService {
     return names.loaded();
   }
 
+  public boolean categoriesLoaded() {
+    return names.categoriesLoaded();
+  }
+
   private ContainerRow containerRow(Context context, Long id, String kind, Integer tileType, Integer style,
       String name, int x, int y, int slots, int filled, List<ContainerItem> items) {
     return new ContainerRow(id, containerLabel(kind, tileType, style, name), kindLabel(kind), name,
@@ -443,7 +452,7 @@ public class LuminiteQueryService {
   private ItemRow itemRow(int itemId, long total, int containers, Timestamp firstSeen, Timestamp lastChanged) {
     var name = names.item(itemId);
     return new ItemRow(itemId, name.label(), name.en(), total, containers,
-        TIME.format(time(firstSeen)), TIME.format(time(lastChanged)));
+        TIME.format(time(firstSeen)), TIME.format(time(lastChanged)), names.itemCategory(itemId));
   }
 
   private static String sizeLabel(int wide, int high) {

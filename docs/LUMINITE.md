@@ -70,6 +70,25 @@ python3 scripts/terraria/build-name-tables.py $W/decomp $W/res $W/tables
 ```
 
 `items.tsv` `npcs.tsv` `prefixes.tsv` `containers.tsv` `mapobjects.tsv` の5つができる（約430KB）。
+
+### アイテムの分類（任意）
+
+アイテム一覧の分類（武器・弾薬・道具・防具・アクセサリー・見た目・ポーション・料理・ブロック・壁・
+家具・設置物・鉱石・インゴット・素材・その他）は、`items.tsv` の5列目 `category` から読む。
+列が無い辞書でも動き、その場合は分類の絞り込みを出さない。分類はゲームの数値（攻撃力、ツルハシ力、
+防具の部位、設置するタイルが固いかどうかなど）から決める。ゲーム本体を mono で読み込むだけで、
+ゲームは起動しない。
+
+```bash
+R="$HOME/Library/Application Support/Steam/steamapps/common/Terraria/Terraria.app/Contents/Resources"
+mkdir -p $W/cat/empty
+mcs -out:$W/cat/DumpItemTypes.exe scripts/terraria/DumpItemTypes.cs
+mono $W/cat/DumpItemTypes.exe "$R" $W/cat/empty $W/cat/itemstats.tsv $W/cat/tiles.tsv
+python3 -I scripts/terraria/add-item-categories.py $W/cat/itemstats.tsv $W/cat/tiles.tsv $W/tables/items.tsv
+```
+
+何度実行しても `category` 列を置き換えるだけ。プレイヤーが必要な一部の見た目アイテム（8件ほど）は
+読み出せず「その他」になる。分類はサイト独自の目安で、ゲーム内の表示とは一致しないことがある。
 ゲームを更新してアイテムが増えたら作り直す。サーバーへの配置:
 
 ```bash

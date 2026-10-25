@@ -123,6 +123,23 @@ class LuminiteWebTests {
   }
 
   @Test
+  void itemsCanBeNarrowedByCategoryFromTheNamesTable() throws Exception {
+    mvc.perform(get("/luminite/items").param("c", "ore").with(member()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("鉱石・インゴット")))
+        .andExpect(content().string(containsString("lm-ore")))
+        .andExpect(content().string(containsString("テスト鉄塊")))
+        .andExpect(content().string(not(containsString("テスト生命石"))));
+    mvc.perform(get("/luminite/items").param("c", "no-such-category").with(member()))
+        .andExpect(content().string(containsString("テスト鉄塊")))
+        .andExpect(content().string(containsString("テスト生命石")));
+    mvc.perform(get("/luminite/items/22").with(member()))
+        .andExpect(content().string(containsString("鉱石・インゴット · Test Iron Bar")));
+    mvc.perform(get("/luminite/chests").with(member()))
+        .andExpect(content().string(containsString("/img/luminite-icons.svg#ore")));
+  }
+
+  @Test
   void chestSearchFindsContainersByItemName() throws Exception {
     mvc.perform(get("/luminite/chests").param("q", "てすと生命").with(member()))
         .andExpect(status().isOk())

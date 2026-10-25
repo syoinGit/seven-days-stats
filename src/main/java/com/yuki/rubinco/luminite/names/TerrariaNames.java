@@ -34,10 +34,11 @@ public class TerrariaNames {
     }
   }
 
-  private record Tables(Map<Integer, Name> items, Map<Integer, Name> npcs,
+  private record Tables(Map<Integer, Name> items, Map<Integer, TerrariaItemCategory> itemCategories,
+      Map<Integer, Name> npcs,
       Map<String, Name> npcsByKey, Map<Integer, Name> prefixes, Map<String, Name> containers,
       Map<String, Name> mapObjects, Map<String, FileTime> stamps) {
-    static final Tables EMPTY = new Tables(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
+    static final Tables EMPTY = new Tables(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
   }
 
   private final Path directory;
@@ -52,6 +53,15 @@ public class TerrariaNames {
   public Name item(int id) {
     Name name = current().items().get(id);
     return name != null ? name : new Name(String.valueOf(id), null, "アイテム #" + id);
+  }
+
+  /** OTHER until the names table has a category column. */
+  public TerrariaItemCategory itemCategory(int id) {
+    return current().itemCategories().getOrDefault(id, TerrariaItemCategory.OTHER);
+  }
+
+  public boolean categoriesLoaded() {
+    return !current().itemCategories().isEmpty();
   }
 
   public Name npc(int netId) {
@@ -149,6 +159,10 @@ public class TerrariaNames {
       }
       if (stamps.equals(tables.stamps())) return;
       Map<Integer, Name> items = byId(directory.resolve("items.tsv"));
+      Map<Integer, TerrariaItemCategory> itemCategories = new HashMap<>();
+      for (String[] row : rows(directory.resolve("items.tsv"))) {
+        if (row.length > 4 && !row[4].isBlank()) itemCategories.put(Integer.parseInt(row[0]), TerrariaItemCategory.of(row[4]));
+      }
       Map<Integer, Name> npcs = byId(directory.resolve("npcs.tsv"));
       Map<String, Name> npcsByKey = new HashMap<>();
       npcs.values().forEach(name -> npcsByKey.putIfAbsent(name.key(), name));
@@ -160,7 +174,7 @@ public class TerrariaNames {
       for (String[] row : rows(directory.resolve("mapobjects.tsv"))) {
         mapObjects.put(row[0], new Name(row[0], blank(row, 1), blank(row, 2)));
       }
-      tables = new Tables(Map.copyOf(items), Map.copyOf(npcs), Map.copyOf(npcsByKey),
+      tables = new Tables(Map.copyOf(items), Map.copyOf(itemCategories), Map.copyOf(npcs), Map.copyOf(npcsByKey),
           Map.copyOf(byId(directory.resolve("prefixes.tsv"))), Map.copyOf(containers),
           Map.copyOf(mapObjects), Map.copyOf(stamps));
       log.info("Terraria name tables loaded. directory={}, items={}, npcs={}", directory, items.size(), npcs.size());

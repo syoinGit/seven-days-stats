@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
   <link rel="stylesheet" th:href="@{/css/app.css(v='header-4')}">
-  <link rel="stylesheet" th:href="@{/css/luminite.css(v='2')}">
+  <link rel="stylesheet" th:href="@{/css/luminite.css(v='3')}">
 </head>
 <body class="luminite-body">
 <header th:replace="~{fragments/header :: appHeader('terraria', 'luminite-topbar')}"></header>
@@ -23,6 +23,7 @@
     <p th:replace="~{fragments/luminite :: namesMissing}"></p>
     <form class="luminite-search" method="get" th:action="@{/luminite/items}" role="search">
       <label><span>アイテム名</span><input type="search" name="q" maxlength="60" th:value="${q}" placeholder="例: ライフクリスタル、ぽーしょん"></label>
+      <input type="hidden" name="c" th:value="${c}" th:if="${c != null}">
       <label><span>並び順</span>
         <select name="sort">
           <option value="count" th:selected="${sort == 'count'}">個数が多い順</option>
@@ -33,21 +34,26 @@
       </label>
       <button type="submit">検索</button>
     </form>
+    <nav class="lm-filter" aria-label="分類で絞り込む" th:if="${categoriesLoaded}">
+      <a th:href="@{/luminite/items(q=${q},sort=${sort})}" th:classappend="${c == null} ? 'active'">すべて</a>
+      <a th:each="category : ${categories}" th:href="@{/luminite/items(q=${q},sort=${sort},c=${category.icon()})}"
+         th:classappend="${'lm-' + category.icon() + (c == category.icon() ? ' active' : '')}"><svg th:replace="~{fragments/luminite :: icon(${category})}"></svg><span th:text="${category.label()}">武器</span></a>
+    </nav>
     <p class="luminite-note">管理チェスト（住人の家かパイロンから50タイル以内のチェスト・タンス・額縁・武器ラック・マネキンなど）に入っているアイテムの合計です。プレイヤーの持ち物やピギーバンクはワールドファイルに含まれないため数えていません。</p>
-    <p th:if="${items.isEmpty()}" class="luminite-empty" th:text="${q == null ? 'まだ保管されているアイテムはありません。' : '「' + q + '」に当てはまる保管中のアイテムはありません。'}"></p>
+    <p th:if="${items.isEmpty()}" class="luminite-empty" th:text="${q == null and c == null ? 'まだ保管されているアイテムはありません。' : '当てはまる保管中のアイテムはありません。'}"></p>
     <ul class="luminite-items" th:unless="${items.isEmpty()}">
       <li th:each="item : ${items.content}">
-        <a th:href="@{/luminite/items/{id}(id=${item.itemId})}">
-          <b th:text="${item.name}">ライフクリスタル</b>
+        <a th:href="@{/luminite/items/{id}(id=${item.itemId})}" th:classappend="${'lm-' + item.category.icon()}">
+          <b><svg th:replace="~{fragments/luminite :: icon(${item.category})}"></svg><span th:text="${item.name}">ライフクリスタル</span></b>
           <strong th:text="${#numbers.formatInteger(item.total, 1, 'COMMA')}">12</strong>
           <small th:text="${item.containers + 'か所 · ' + (item.englishName ?: '#' + item.itemId)}">3か所</small>
         </a>
       </li>
     </ul>
     <nav class="portal-feed-pages" aria-label="アイテムのページ">
-      <a th:if="${items.hasPrevious()}" th:href="@{/luminite/items(q=${q},sort=${sort},page=${items.number - 1})}">← 前へ</a>
+      <a th:if="${items.hasPrevious()}" th:href="@{/luminite/items(q=${q},c=${c},sort=${sort},page=${items.number - 1})}">← 前へ</a>
       <span th:if="${items.totalPages > 1}" th:text="${(items.number + 1) + ' / ' + items.totalPages}"></span>
-      <a th:if="${items.hasNext()}" th:href="@{/luminite/items(q=${q},sort=${sort},page=${items.number + 1})}">次へ →</a>
+      <a th:if="${items.hasNext()}" th:href="@{/luminite/items(q=${q},c=${c},sort=${sort},page=${items.number + 1})}">次へ →</a>
     </nav>
   </section>
 </main>
