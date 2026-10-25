@@ -408,6 +408,14 @@ class GuildTests {
     assertThat(GuildInteractionService.attraction(java.util.Map.of("affinity", -3), mixed, cool)).containsEntry("affinity", -3);
   }
 
+  /** Interactions run in the evening, so every card must be able to fall then; gender and taste cards are read. */
+  @Test void everyCardCanFallInTheEvening() {
+    var cards = new GuildCards().cards();
+    assertThat(cards).hasSizeGreaterThan(70);
+    assertThat(cards).allMatch(card -> card.when().phases().isEmpty() || card.when().phases().contains("evening"));
+    assertThat(cards).anyMatch(card -> "different".equals(card.when().gender())).anyMatch(card -> card.when().smitten());
+  }
+
   @Test void oneSidedFeelingsBecomeACrush() throws Exception {
     long rine = resident("リネ", 28, "ALIVE", 0);
     long roan = resident("ロアン", 30, "ALIVE", 1);

@@ -431,6 +431,8 @@ public class GuildInteractionService {
     if (when.ageGapMin() != null && (pair.a().age() == null || pair.b().age() == null
         || pair.a().age() - pair.b().age() < when.ageGapMin())) return false;
     if (when.memorial() && pair.deadName() == null) return false;
+    if (when.gender() != null && (pair.sameGender() == null || pair.sameGender() != when.gender().equals("same"))) return false;
+    if (when.smitten() && !pair.ab().smitten()) return false;
     var a = pair.a().affiliation();
     var b = pair.b().affiliation();
     if (when.faction() != null && (when.faction().equals("same") != (a.member() && a.faction().equals(b.faction())))) return false;

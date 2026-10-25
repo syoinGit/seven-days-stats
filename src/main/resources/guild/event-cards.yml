@@ -9,7 +9,8 @@
 #     faction / faith / village: same or different ({a} and {b}; "same" faction or faith means both
 #     belong to the same one), a_faction / b_faction: none or member, a_faith / b_faith: none or believer,
 #     a_changed (kinds of change made to {a} in the last 14 days), former ({b} is in the faction {a} last
-#     left or was expelled from)
+#     left or was expelled from), gender: same or different (unknown genders match neither),
+#     smitten ({a} finds {b} their type)
 #   outcomes: chance (weight), summary, template (scene used when the AI fails), both / a_to_b /
 #     b_to_a (axis changes as [min, max]), open (a thread), resolve (a thread kind), label (an attempt;
 #     code decides whether the pair's label really changes, change (join / leave / expel / move / convert:
@@ -17,7 +18,7 @@
 #     faith; a card is drawn only when every change it can make is possible for the pair)
 #   placeholders: {a_faction} {b_faction} {a_faith} {b_faith} {a_village} {b_village}
 #     (names before the change)
-version: "2026-10-25b"
+version: "2026-10-25c"
 cards:
   # --- daily ---
   - id: weather-talk
@@ -52,7 +53,6 @@ cards:
     kind: 雑談
     tier: daily
     weight: 7
-    phases: [morning, afternoon]
     outcomes:
       - {id: guess, chance: 1, summary: "{a}と{b}は掲示板の依頼をあれこれ品定めした", template: "掲示板の前で、{a}と{b}はどの依頼が割に合うかを言い合った。", both: {affinity: [1, 2]}}
   - id: fireside-song
@@ -67,9 +67,8 @@ cards:
     kind: 雑談
     tier: daily
     weight: 6
-    phases: [morning]
     outcomes:
-      - {id: calm, chance: 1, summary: "{a}と{b}は朝の茶を並んで飲んだ", template: "朝の光の中、{a}と{b}は同じ卓で茶をすすった。", both: {affinity: [1, 2]}}
+      - {id: calm, chance: 1, summary: "{a}と{b}は温かい茶を並んで飲んだ", template: "湯気の立つ杯を手に、{a}と{b}は同じ卓で茶をすすった。", both: {affinity: [1, 2]}}
   - id: grumble-weather
     kind: 愚痴
     tier: daily
@@ -112,7 +111,6 @@ cards:
     kind: 手合わせ
     tier: daily
     weight: 5
-    phases: [afternoon]
     outcomes:
       - {id: good, chance: 6, summary: "{a}と{b}は裏庭で手合わせをし、互いの腕を認めた", template: "木剣の音が裏庭に響いた。息を切らして、二人は笑った。", both: {trust: [2, 4], affinity: [1, 2]}}
       - {id: rough, chance: 4, summary: "{a}の手合わせは荒く、{b}は腹を立てた", template: "{a}の一撃が強すぎた。{b}は肩を押さえてにらんだ。", b_to_a: {wariness: [3, 6], affinity: [-3, -1]}, open: {kind: grudge, days: 7, summary: "{b}は手合わせで{a}に打たれたことを根に持っている"}}
@@ -128,7 +126,6 @@ cards:
     kind: 協力
     tier: daily
     weight: 6
-    phases: [morning, afternoon]
     outcomes:
       - {id: done, chance: 1, summary: "{b}が{a}の荷運びを手伝った", template: "重い木箱を、{a}と{b}は二人がかりで運んだ。", a_to_b: {trust: [2, 4], debt: [2, 4]}, b_to_a: {affinity: [1, 2]}}
   - id: seat-quarrel
@@ -401,3 +398,209 @@ cards:
     outcomes:
       - {id: leave, chance: 3, change: leave, summary: "{a}は{b}と語るうちに、{a_faction}を離れる決心をした", template: "{a}は胸の紋章を外し、卓の上にそっと置いた。", a_to_b: {trust: [2, 4]}}
       - {id: stay, chance: 7, summary: "{a}は{a_faction}への迷いを{b}に打ち明けたが、まだ留まると決めた", template: "迷いを口にしたあと、{a}は少しだけ晴れた顔をした。", a_to_b: {trust: [1, 3]}}
+
+  # --- more everyday scenes ---
+  - id: ghost-story
+    kind: 雑談
+    tier: daily
+    weight: 6
+    outcomes:
+      - {id: chill, chance: 6, summary: "{a}が街道の幽霊話をして、{b}は背筋を冷やした", template: "{a}が声をひそめて語る幽霊話に、{b}は思わず肩をすくめた。", both: {affinity: [1, 3]}}
+      - {id: laugh, chance: 4, summary: "{a}の怪談は怖くなく、{b}は笑い出した", template: "いちばん怖いはずの場面で、{b}が吹き出した。{a}は頬をふくらませた。", both: {affinity: [1, 2]}}
+  - id: old-scar
+    kind: 雑談
+    tier: daily
+    weight: 5
+    when: {affinity_min: 5}
+    outcomes:
+      - {id: story, chance: 7, summary: "{a}は古傷のいわれを{b}に話した", template: "袖をまくった{a}の腕には古い傷があった。{b}はそのいきさつを黙って聞いた。", a_to_b: {trust: [2, 4]}, b_to_a: {affinity: [1, 3]}}
+      - {id: dodge, chance: 3, summary: "{b}が古傷のことを聞くと、{a}ははぐらかした", template: "その傷は、と{b}が言いかけると、{a}は杯で口元を隠した。", b_to_a: {trust: [-1, 0]}}
+  - id: dream-talk
+    kind: 雑談
+    tier: daily
+    weight: 7
+    outcomes:
+      - {id: share, chance: 7, summary: "{a}と{b}はいつか叶えたい夢を語り合った", template: "いつか、と{a}が言い、{b}も自分のいつかを口にした。", both: {affinity: [2, 3], trust: [1, 2]}}
+      - {id: scoff, chance: 3, summary: "{a}の夢を{b}は笑い飛ばした", template: "{b}は悪気なく笑ったが、{a}は少しむっとした。", a_to_b: {affinity: [-2, 0], wariness: [1, 2]}}
+  - id: animal-talk
+    kind: 雑談
+    tier: daily
+    weight: 6
+    outcomes:
+      - {id: cute, chance: 1, summary: "{a}は昔かわいがっていた動物の話を{b}にした", template: "{a}が手で大きさを示しながら、昔飼っていた動物の話をした。{b}は目を細めた。", both: {affinity: [1, 3]}}
+  - id: star-gazing
+    kind: 雑談
+    tier: daily
+    weight: 5
+    phases: [evening]
+    outcomes:
+      - {id: stars, chance: 7, summary: "{a}と{b}は窓から星を眺め、星の名前を教え合った", template: "窓の外には星が出ていた。{a}が指さし、{b}がその名を言い当てた。", both: {affinity: [2, 3]}}
+      - {id: cloudy, chance: 3, summary: "{a}と{b}は星を見ようとしたが、雲に隠れていた", template: "あいにくの曇り空だった。二人は顔を見合わせて笑った。", both: {affinity: [1, 2]}}
+  - id: riddle
+    kind: 雑談
+    tier: daily
+    weight: 5
+    outcomes:
+      - {id: solved, chance: 5, summary: "{a}が出したなぞなぞを{b}が見事に解いた", template: "しばらく考えこんだあと、{b}がぱっと顔を上げて答えた。{a}は拍手した。", both: {affinity: [1, 3]}}
+      - {id: stumped, chance: 5, summary: "{a}のなぞなぞに{b}は降参した", template: "答えを聞いた{b}は、そんなのありかと卓をたたいた。", both: {affinity: [1, 2]}, b_to_a: {wariness: [0, 1]}}
+  - id: tall-tale
+    kind: 雑談
+    tier: daily
+    weight: 5
+    outcomes:
+      - {id: impressed, chance: 5, summary: "{a}の武勇伝に{b}は身を乗り出した", template: "{a}の話が佳境に入ると、{b}は杯を置いて聞き入った。", b_to_a: {trust: [1, 2], affinity: [1, 2]}}
+      - {id: doubt, chance: 5, summary: "{a}の武勇伝を{b}はほら話だと疑った", template: "竜を三匹、と{a}が言ったところで、{b}は眉をつり上げた。", b_to_a: {trust: [-2, 0]}, both: {affinity: [0, 1]}}
+  - id: midnight-snack
+    kind: 雑談
+    tier: daily
+    weight: 5
+    phases: [evening]
+    outcomes:
+      - {id: share, chance: 7, summary: "{a}と{b}は夜更けの小腹を満たすパンを分け合った", template: "厨房の残りのパンを、{a}は半分に割って{b}に渡した。", both: {affinity: [2, 3]}, b_to_a: {debt: [0, 1]}}
+      - {id: last-one, chance: 3, summary: "最後の一切れをめぐって{a}と{b}はにらみ合った", template: "皿の上には一切れだけ。二人の手が同時に伸びた。", both: {wariness: [0, 2], affinity: [0, 1]}}
+  - id: gossip
+    kind: 愚痴
+    tier: daily
+    weight: 5
+    outcomes:
+      - {id: juicy, chance: 6, summary: "{a}と{b}は街の噂話で盛り上がった", template: "粉屋の娘がどうの、門番がどうの。二人の噂話は尽きなかった。", both: {affinity: [1, 3]}}
+      - {id: uneasy, chance: 4, summary: "{a}の噂話に{b}は眉をひそめた", template: "人の噂はほどほどに、と{b}は言った。{a}は肩をすくめた。", b_to_a: {trust: [-2, 0], wariness: [0, 1]}}
+  - id: bad-luck
+    kind: 愚痴
+    tier: daily
+    weight: 5
+    outcomes:
+      - {id: cheer, chance: 6, summary: "依頼をしくじった{a}を、{b}が励ました", template: "うなだれる{a}の背中を、{b}が軽くたたいた。", a_to_b: {trust: [2, 3], affinity: [1, 3]}}
+      - {id: rub, chance: 4, summary: "依頼をしくじった{a}に、{b}は余計なひと言を言った", template: "{b}のひと言に、{a}は黙って杯をあおった。", a_to_b: {affinity: [-3, -1], wariness: [1, 3]}}
+  - id: comfort
+    kind: 相談
+    tier: daily
+    weight: 5
+    when: {affinity_min: 10}
+    outcomes:
+      - {id: listen, chance: 1, summary: "沈んだ顔の{a}に、{b}が何も聞かずに付き合った", template: "{b}は何も言わず、{a}の隣に座って同じ杯を傾けた。", a_to_b: {trust: [2, 4], affinity: [2, 3]}}
+  - id: trip-plan
+    kind: 相談
+    tier: daily
+    weight: 5
+    outcomes:
+      - {id: plan, chance: 7, summary: "{a}と{b}は地図を広げ、遠出の道筋を考えた", template: "卓に広げた地図の上を、二人の指が行ったり来たりした。", both: {trust: [1, 3]}, open: {kind: promise, days: 10, summary: "{a}と{b}はいつか一緒に遠出しようと約束した"}}
+      - {id: disagree, chance: 3, summary: "{a}と{b}は遠出の道筋で意見が割れた", template: "山越えか、川沿いか。地図の上で二人の意見はぶつかった。", both: {wariness: [1, 2]}}
+  - id: letter-help
+    kind: 協力
+    tier: daily
+    weight: 4
+    outcomes:
+      - {id: write, chance: 1, summary: "{b}が{a}の故郷への手紙の代筆を手伝った", template: "{a}の言葉を、{b}がていねいな字で書きとめていった。", a_to_b: {trust: [2, 4], debt: [1, 3]}, b_to_a: {affinity: [1, 2]}}
+  - id: mend-gear
+    kind: 協力
+    tier: daily
+    weight: 5
+    outcomes:
+      - {id: fixed, chance: 7, summary: "{b}が{a}の壊れた道具を直してやった", template: "{b}の手の中で、{a}の道具はみるみる元の形に戻った。", a_to_b: {trust: [2, 3], debt: [2, 3]}}
+      - {id: worse, chance: 3, summary: "{b}は{a}の道具を直そうとして、かえって壊してしまった", template: "ぱきり、と嫌な音がした。{b}は気まずそうに目をそらした。", a_to_b: {affinity: [-2, 0]}, b_to_a: {debt: [0, 2]}}
+  - id: cook-together
+    kind: 協力
+    tier: daily
+    weight: 4
+    outcomes:
+      - {id: tasty, chance: 6, summary: "{a}と{b}は厨房を借りて一品こしらえた", template: "鍋から良い匂いが立ちのぼった。味見をして二人はうなずき合った。", both: {affinity: [2, 3], trust: [1, 2]}}
+      - {id: burnt, chance: 4, summary: "{a}と{b}の料理は焦げてしまった", template: "黒くなった鍋の底を見て、二人はしばらく黙りこんだ。", both: {affinity: [1, 2]}}
+  - id: arm-wrestle
+    kind: 手合わせ
+    tier: daily
+    weight: 5
+    outcomes:
+      - {id: a-wins, chance: 5, summary: "腕相撲は{a}の勝ち", template: "卓がきしみ、{b}の腕が倒れた。酒場に歓声が上がった。", both: {trust: [1, 2]}, b_to_a: {wariness: [0, 1]}}
+      - {id: b-wins, chance: 5, summary: "腕相撲は{b}の勝ち", template: "{a}の顔が真っ赤になったが、最後に腕を倒したのは{b}だった。", both: {trust: [1, 2], affinity: [0, 1]}}
+  - id: dice-game
+    kind: 遊び
+    tier: daily
+    weight: 5
+    phases: [evening]
+    outcomes:
+      - {id: lucky, chance: 5, summary: "サイコロ遊びで{a}が{b}から銅貨を巻き上げた", template: "サイコロは三度続けて{a}に味方した。{b}は財布をのぞきこんだ。", b_to_a: {wariness: [0, 2]}, both: {affinity: [1, 2]}}
+      - {id: even, chance: 5, summary: "{a}と{b}のサイコロ勝負は引き分けに終わった", template: "勝っては負け、負けては勝ち。最後は二人とも笑って手を止めた。", both: {affinity: [2, 3]}}
+  - id: lend-book
+    kind: 贈り物
+    tier: daily
+    weight: 4
+    outcomes:
+      - {id: lend, chance: 1, summary: "{a}は気に入りの本を{b}に貸した", template: "{a}は角のすり切れた本を差し出した。{b}は大事そうに受け取った。", b_to_a: {affinity: [2, 3], debt: [1, 3]}, open: {kind: promise, days: 7, summary: "{b}は{a}から借りた本を読んで返すと約束した"}}
+  - id: snoring
+    kind: 口論
+    tier: daily
+    weight: 3
+    outcomes:
+      - {id: grumble, chance: 6, summary: "{b}は{a}の大いびきに文句を言った", template: "昨夜は眠れなかった、と{b}がにらむと、{a}は頭をかいた。", b_to_a: {wariness: [1, 3], affinity: [-2, 0]}}
+      - {id: laugh, chance: 4, summary: "{a}のいびきの話で、{a}と{b}は笑い合った", template: "まるで熊だった、と{b}が言うと、{a}も吹き出した。", both: {affinity: [1, 2]}}
+  - id: cold-shoulder
+    kind: 口論
+    tier: daily
+    weight: 4
+    when: {wariness_min: 15}
+    outcomes:
+      - {id: ignore, chance: 6, summary: "{a}は{b}が話しかけても、そっけなく返した", template: "{b}の言葉に、{a}は短く答えただけで窓の外を見た。", b_to_a: {affinity: [-3, -1]}, a_to_b: {wariness: [0, 1]}}
+      - {id: crack, chance: 4, summary: "{a}は{b}への態度を少しだけ和らげた", template: "そっけない返事のあと、{a}は小さく、悪かったと付け足した。", both: {wariness: [-3, -1]}}
+  - id: small-apology
+    kind: 和解
+    tier: daily
+    weight: 4
+    when: {wariness_min: 10}
+    outcomes:
+      - {id: accept, chance: 7, summary: "{a}が{b}にこの前のことを謝った", template: "{a}が頭を下げると、{b}はもういいと手を振った。", both: {wariness: [-5, -2], trust: [1, 2]}}
+      - {id: stiff, chance: 3, summary: "{a}は謝ったが、{b}の返事は硬かった", template: "{b}はうなずいたが、その目はまだ笑っていなかった。", a_to_b: {wariness: [-2, 0]}}
+  - id: compliment
+    kind: 雑談
+    tier: daily
+    weight: 5
+    when: {gender: different}
+    outcomes:
+      - {id: flustered, chance: 4, summary: "{a}に身なりを褒められ、{b}は少しどぎまぎした", template: "その上着、似合うね。{a}の何気ないひと言に、{b}は目を泳がせた。", b_to_a: {affinity: [1, 3]}}
+      - {id: polite, chance: 6, summary: "{a}は{b}の身なりを褒め、{b}は礼儀正しく礼を言った", template: "{b}は軽く会釈して礼を言った。それ以上話は続かなかった。", b_to_a: {affinity: [0, 1]}}
+  - id: same-kind-talk
+    kind: 雑談
+    tier: daily
+    weight: 5
+    when: {gender: same, affinity_min: 10}
+    outcomes:
+      - {id: easy, chance: 1, summary: "{a}と{b}は気安い調子で夜更けまでしゃべった", template: "遠慮のいらない相手との話は、気づけば夜更けまで続いた。", both: {affinity: [2, 4], trust: [1, 2]}}
+  - id: awkward-glance
+    kind: 恋愛
+    tier: daily
+    weight: 5
+    when: {smitten: true, adults: true, not_labels: [lover, spouse]}
+    outcomes:
+      - {id: fumble, chance: 6, summary: "{b}の前で、{a}はなぜか杯を倒してしまった", template: "{b}がこちらを見た途端、{a}の手もとで杯が倒れた。", a_to_b: {affinity: [1, 3]}, b_to_a: {affinity: [0, 2]}}
+      - {id: stare, chance: 4, summary: "{a}は{b}の横顔をつい目で追っていた", template: "{b}が振り向くと、{a}はあわてて掲示板のほうを向いた。", a_to_b: {affinity: [2, 3]}}
+  - id: walk-back
+    kind: 恋愛
+    tier: progress
+    weight: 3
+    when: {gender: different, adults: true, affinity_min: 30, not_labels: [rival], cooldown_days: 5}
+    phases: [evening]
+    outcomes:
+      - {id: walk, chance: 6, summary: "夜道が暗いからと、{a}は{b}を宿まで送った", template: "月明かりの道を、二人は並んで歩いた。話はとりとめもなかった。", both: {affinity: [2, 4], trust: [1, 3]}}
+      - {id: decline, chance: 4, summary: "{a}は{b}を送ろうとしたが、{b}は一人で大丈夫だと断った", template: "平気だよ、と{b}は笑って戸口を出ていった。", a_to_b: {affinity: [0, 1]}}
+  - id: make-promise
+    kind: 相談
+    tier: progress
+    weight: 4
+    when: {labels: [friend, companion, close_friend], cooldown_days: 7}
+    outcomes:
+      - {id: promise, chance: 1, summary: "{a}と{b}は次の祭りに一緒に行こうと約束した", template: "指を折って日を数え、二人は約束を交わした。", both: {affinity: [2, 3], trust: [2, 3]}, open: {kind: promise, days: 14, summary: "{a}と{b}は次の祭りに一緒に行く約束をしている"}}
+  - id: celebrate
+    kind: 贈り物
+    tier: progress
+    weight: 3
+    when: {affinity_min: 30, cooldown_days: 10}
+    outcomes:
+      - {id: party, chance: 7, summary: "{a}は{b}のささやかな祝い事を、焼き菓子で祝った", template: "{a}が差し出した焼き菓子に、{b}は驚いて、それから笑った。", b_to_a: {affinity: [3, 5], debt: [1, 3]}, a_to_b: {affinity: [1, 2]}}
+      - {id: forgot, chance: 3, summary: "{a}は{b}の祝い事を忘れていて、あわてて詫びた", template: "今日だったのか、と{a}は頭を抱えた。{b}は苦笑いした。", b_to_a: {affinity: [-2, 0]}}
+  - id: back-to-back
+    kind: 協力
+    tier: progress
+    weight: 3
+    when: {trust_min: 15, cooldown_days: 5}
+    outcomes:
+      - {id: trust, chance: 1, summary: "酔客のからみを、{a}と{b}は背中合わせでいなした", template: "大柄な酔客が絡んできたが、二人が並んで立つと、すごすごと引き下がった。", both: {trust: [3, 5], affinity: [1, 3]}}
