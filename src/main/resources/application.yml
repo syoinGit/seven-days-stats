@@ -43,11 +43,14 @@ app:
     gender-cap: ${GUILD_GENDER_CAP:7}
     occupation-cap: ${GUILD_OCCUPATION_CAP:3}
     lineage-cap: ${GUILD_LINEAGE_CAP:5}
-    # Interactions between today's visitors at these JST hours, at most three a day. fallback: template or skip when the AI fails.
+    # Interactions between today's visitors at these JST hours, twice in each hour, at most six a day. fallback: template or skip when the AI fails.
     interaction-hours: ${GUILD_INTERACTION_HOURS:20,21,22}
-    interaction-daily-max: ${GUILD_INTERACTION_DAILY_MAX:3}
+    interaction-daily-max: ${GUILD_INTERACTION_DAILY_MAX:6}
     interaction-fallback: ${GUILD_INTERACTION_FALLBACK:template}
     recent-pair-slots: ${GUILD_RECENT_PAIR_SLOTS:3}
+    # Provisional dungeon runs: 1-4 of the day's visitors leave at this JST time; the four stages come out this many minutes apart.
+    dungeon-departure: ${GUILD_DUNGEON_DEPARTURE:21:50}
+    dungeon-stage-minutes: ${GUILD_DUNGEON_STAGE_MINUTES:10}
     selection-weights:
       random: 3
       warm: 2

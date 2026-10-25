@@ -17,6 +17,7 @@ public class GuildController {
   private final GuildService guild;
   private final GuildChronicle chronicle;
   private final GuildProperties properties;
+  private final GuildDungeon dungeon;
 
   @GetMapping("/guild")
   public String room(Model model) {
@@ -51,6 +52,7 @@ public class GuildController {
     model.addAttribute("relations", chronicle.relations(id));
     model.addAttribute("history", guild.history(id));
     model.addAttribute("interactions", chronicle.list(new GuildChronicle.Filter(id, null, null, null, null), 0).stream().limit(8).toList());
+    model.addAttribute("expeditions", dungeon.recent(ZonedDateTime.now(GuildService.TOKYO), id, 5));
     return stage(model, "roster", "character", character.name());
   }
 
@@ -81,6 +83,27 @@ public class GuildController {
     return stage(model, "log", "entry", "交流の記録");
   }
 
+  /** The newest dungeon run, as far as it has come. */
+  @GetMapping("/guild/dungeon")
+  public String dungeon(Model model) {
+    var now = ZonedDateTime.now(GuildService.TOKYO);
+    return run(model, dungeon.latest(now), now);
+  }
+
+  @GetMapping("/guild/dungeon/{id}")
+  public String dungeonRun(Model model, @PathVariable long id) {
+    var now = ZonedDateTime.now(GuildService.TOKYO);
+    return run(model, dungeon.expedition(id, now), now);
+  }
+
+  private String run(Model model, GuildDungeon.Expedition expedition, ZonedDateTime now) {
+    model.addAttribute("expedition", expedition);
+    model.addAttribute("members", expedition == null ? java.util.List.of()
+        : expedition.members().stream().map(member -> guild.character(member.id())).toList());
+    model.addAttribute("runs", dungeon.recent(now, null, 10));
+    return stage(model, "dungeon", "dungeon", "ダンジョン");
+  }
+
   @GetMapping("/guild/pairs/{a}-{b}")
   public String pair(Model model, @PathVariable long a, @PathVariable long b) {
     if (a >= b) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
@@ -94,11 +117,27 @@ public class GuildController {
     return stage(model, "log", "pair", first.name() + "と" + second.name());
   }
 
+  /** How many sit on each floor (seats 6-9 are upstairs), and where the current talk is, for the floor buttons. */
+  public record Floors(long downstairs, long upstairs, boolean talkDown, boolean talkUp) {
+    static Floors of(GuildService.Room room, GuildChronicle.Scene scene) {
+      var visits = room.visits();
+      java.util.function.Predicate<GuildService.Visit> talking = visit -> scene != null && scene.lines().containsKey(visit.character().id());
+      return new Floors(visits.stream().filter(visit -> visit.seat() < 6).count(), visits.stream().filter(visit -> visit.seat() >= 6).count(),
+          visits.stream().anyMatch(visit -> visit.seat() < 6 && talking.test(visit)), visits.stream().anyMatch(visit -> visit.seat() >= 6 && talking.test(visit)));
+    }
+  }
+
   private String stage(Model model, String tab, String window, String title) {
     var now = ZonedDateTime.now(GuildService.TOKYO);
     var room = guild.room(now);
     model.addAttribute("room", room);
-    model.addAttribute("scene", chronicle.scene(now, room.date()));
+    var scene = chronicle.scene(now, room.date());
+    model.addAttribute("scene", scene);
+    model.addAttribute("floors", Floors.of(room, scene));
+    var todayRun = dungeon.day(room.date(), now);
+    model.addAttribute("todayRun", todayRun);
+    model.addAttribute("runMembers", todayRun == null ? java.util.List.of()
+        : todayRun.members().stream().map(member -> guild.character(member.id())).toList());
     model.addAttribute("tab", tab);
     model.addAttribute("window", window);
     model.addAttribute("windowTitle", title);

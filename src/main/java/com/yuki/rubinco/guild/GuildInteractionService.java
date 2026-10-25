@@ -18,10 +18,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Up to three interactions a day between residents in the tavern, at fixed JST hours. Code chooses who,
+ * Up to six interactions a day between residents in the tavern, twice in each of a few JST hours. Code chooses who,
  * which event card, the outcome, the relationship changes, threads, labels and any change of village,
  * faction or faith; the AI only writes the scene afterwards. Everything for one slot is saved in one
- * transaction, and a slot is never filled twice.
+ * transaction, and a slot is never filled twice. Residents who left for today's dungeon run take no part.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,7 +33,7 @@ public class GuildInteractionService {
   static final Map<String, String> SELECTIONS = ordered("random", "ランダム", "warm", "好感度の高い組", "cold", "好感度の低い組",
       "bond", "関係のある組", "thread", "火種のある組", "affiliation", "村・派閥・信仰の違う組");
   /** The most interactions a day, whatever the configuration says. */
-  static final int DAILY_CAP = 3;
+  static final int DAILY_CAP = 6;
   /** How long a change of village, faction or faith counts as recent for event cards. */
   private static final int RECENT_CHANGE_DAYS = 14;
   /** Labels code moves along by itself as the axes grow; the others need an event card. */
@@ -52,9 +52,15 @@ public class GuildInteractionService {
    * expelled from (null if none), kinds of change made to them in the last few days, and their history as text.
    */
   record Affiliation(String home, String village, String faction, String faith, String villageName, String factionName,
-                     String faithName, String factionVillage, String formerFaction, Set<String> recentChanges, List<String> history) {
+                     String faithName, String factionVillage, String formerFaction, Set<String> recentChanges, List<String> history,
+                     String homeName) {
     static final Affiliation NONE = new Affiliation("grantford", "grantford", GuildWorld.NONE, GuildWorld.NONE,
-        "グランフォード", "無所属", "無信仰", null, null, Set.of(), List.of());
+        "グランフォード", "無所属", "無信仰", null, null, Set.of(), List.of(), "グランフォード");
+
+    Affiliation(String home, String village, String faction, String faith, String villageName, String factionName,
+                String faithName, String factionVillage, String formerFaction, Set<String> recentChanges, List<String> history) {
+      this(home, village, faction, faith, villageName, factionName, faithName, factionVillage, formerFaction, recentChanges, history, villageName);
+    }
 
     boolean member() {
       return !faction.equals(GuildWorld.NONE);
@@ -133,9 +139,10 @@ public class GuildInteractionService {
     return hour < 11 ? "morning" : hour < 18 ? "afternoon" : "evening";
   }
 
+  /** Two slots an hour: "2026-10-25T20:00" for the first half, "2026-10-25T20:30" for the second. */
   public static String slot(ZonedDateTime now) {
     var local = now.withZoneSameInstant(GuildService.TOKYO);
-    return local.toLocalDate() + "T" + String.format("%02d", local.getHour());
+    return local.toLocalDate() + "T" + String.format("%02d", local.getHour()) + (local.getMinute() < 30 ? ":00" : ":30");
   }
 
   public List<Job> jobs() {
@@ -159,14 +166,18 @@ public class GuildInteractionService {
     if (today >= max) return record(slot, "SKIPPED", "今日の交流は上限（" + max + "件）に達しました。");
     List<Person> present = jdbc.query("""
         SELECT c.id, c.name, c.age, c.gender, c.occupation, c.personality, c.home_village, c.current_village, c.faction, c.faith,
-          v2.name, f.name, fi.name, f.village_key FROM T_GUILD_VISIT v
+          v2.name, f.name, fi.name, f.village_key, hv.name FROM T_GUILD_VISIT v
         JOIN M_GUILD_CHARACTER c ON c.id = v.character_id JOIN M_GUILD_VILLAGE v2 ON v2.village_key = c.current_village
+        JOIN M_GUILD_VILLAGE hv ON hv.village_key = c.home_village
         JOIN M_GUILD_FACTION f ON f.faction_key = c.faction JOIN M_GUILD_FAITH fi ON fi.faith_key = c.faith
-        WHERE v.visit_date = ? AND c.status = 'ALIVE' ORDER BY v.seat
+        WHERE v.visit_date = ? AND c.status = 'ALIVE' AND NOT EXISTS (SELECT 1 FROM T_GUILD_EXPEDITION_MEMBER m
+          JOIN T_GUILD_EXPEDITION e ON e.id = m.expedition_id WHERE m.character_id = c.id AND e.expedition_date = ? AND e.departed_at <= ?)
+        ORDER BY v.seat
         """, (rs, row) -> new Person(rs.getLong(1), rs.getString(2), (Integer) rs.getObject(3), rs.getString(4),
         rs.getString(5), rs.getString(6), affiliation(rs.getLong(1), rs.getString(7), rs.getString(8), rs.getString(9),
         rs.getString(10), rs.getString(11), rs.getString(12), GuildWorld.faithName(rs.getString(13), rs.getString(10), rs.getString(8)),
-        rs.getString(14), date)), date);
+        rs.getString(14), rs.getString(15), date)), date, date, local.toOffsetDateTime());
+    // Those who left for the dungeon today are gone for the night (GuildDungeon).
     if (present.size() < 2) return record(slot, "SKIPPED", "酒場にいる住人が2人未満でした。");
 
     List<Pair> pairs = new ArrayList<>();
@@ -308,7 +319,7 @@ public class GuildInteractionService {
   }
 
   private Affiliation affiliation(long id, String home, String village, String faction, String faith, String villageName,
-                                  String factionName, String faithName, String factionVillage, LocalDate date) {
+                                  String factionName, String faithName, String factionVillage, String homeName, LocalDate date) {
     var history = world.history(id);
     String former = history.stream().filter(change -> change.kind().equals("faction")).reduce((first, second) -> second)
         .filter(change -> Set.of("leave", "expel").contains(change.changeKind())).map(GuildWorld.Change::fromKey).orElse(null);
@@ -321,7 +332,7 @@ public class GuildInteractionService {
         .map(change -> change.day().getMonthValue() + "月" + change.day().getDayOfMonth() + "日 " + change.text() + "：" + change.reason())
         .toList();
     return new Affiliation(home, village, faction, faith, villageName, factionName, faithName, factionVillage, former, Set.copyOf(recent),
-        lines.subList(Math.max(0, lines.size() - 3), lines.size()));
+        lines.subList(Math.max(0, lines.size() - 3), lines.size()), homeName);
   }
 
   /** A change code makes to {a}: which column, the history kind, from and to (keys), and the text the writer sees. */
@@ -431,6 +442,10 @@ public class GuildInteractionService {
     if (when.ageGapMin() != null && (pair.a().age() == null || pair.b().age() == null
         || pair.a().age() - pair.b().age() < when.ageGapMin())) return false;
     if (when.memorial() && pair.deadName() == null) return false;
+    if (when.gender() != null && (pair.sameGender() == null || pair.sameGender() != when.gender().equals("same"))) return false;
+    if (when.smitten() && !pair.ab().smitten()) return false;
+    if (when.aHome() != null && !when.aHome().equals(pair.a().affiliation().home())) return false;
+    if (when.homes() != null && when.homes().equals("same") != pair.a().affiliation().home().equals(pair.b().affiliation().home())) return false;
     var a = pair.a().affiliation();
     var b = pair.b().affiliation();
     if (when.faction() != null && (when.faction().equals("same") != (a.member() && a.faction().equals(b.faction())))) return false;
@@ -572,11 +587,17 @@ public class GuildInteractionService {
   static String fill(String text, Pair pair) {
     var a = pair.a().affiliation();
     var b = pair.b().affiliation();
-    return text.replace("{a_faction}", a.factionName()).replace("{b_faction}", b.factionName())
+    return text.replace("{a_job}", job(pair.a())).replace("{b_job}", job(pair.b()))
+        .replace("{a_home}", a.homeName()).replace("{b_home}", b.homeName())
+        .replace("{a_faction}", a.factionName()).replace("{b_faction}", b.factionName())
         .replace("{a_faith}", a.faithName()).replace("{b_faith}", b.faithName())
         .replace("{a_village}", a.villageName()).replace("{b_village}", b.villageName())
         .replace("{a}", pair.a().name()).replace("{b}", pair.b().name())
         .replace("{dead}", pair.deadName() == null ? "亡き友" : pair.deadName());
+  }
+
+  private static String job(Person person) {
+    return person.occupation() == null ? "暮らし" : person.occupation();
   }
 
   private static Map<String, Integer> roll(GuildCards.Delta delta) {

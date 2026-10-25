@@ -21,13 +21,21 @@
   <form method="post" th:action="@{/guild/maintenance/visits}"><button type="submit">来店者を引き直す</button></form>
 </section>
 
-<section class="guild-panel" id="interactions"><h2>交流（1日最大3件）</h2>
-  <p th:text="${'毎日 ' + #strings.listJoin(interactionHours, '時・') + '時の3分（日本時間）に、今日の来店者のうち2人が交流します。1日の上限は' + interactionDailyMax + '件です。'}">毎日 9時・12時・15時・18時・21時の3分（日本時間）に交流します。</p>
+<section class="guild-panel" id="interactions"><h2>交流（1日最大6件）</h2>
+  <p th:text="${'毎日 ' + #strings.listJoin(interactionHours, '時・') + '時の3分と33分（日本時間）に、今日の来店者10人の中から2人が交流します。1日の上限は' + interactionDailyMax + '件です。'}">毎日 9時・12時・15時・18時・21時の3分（日本時間）に交流します。</p>
   <p>参加者・出来事・結果・関係の変化・村や派閥や信仰の変化はプログラムが決め、AIは場面の文章だけを書きます。AIに渡すのは、その二人と、二人に関わる村・派閥・信仰の設定だけです。同じ枠に2件以上は起きません。失敗した枠を後から埋めることはしません。枠以外の時間にボタンを押しても交流は起きません。</p>
   <p th:unless="${enabled}">現在、交流の自動実行は無効です（GUILD_ENABLED）。下のボタンからは実行できます。</p>
   <form method="post" th:action="@{/guild/maintenance/interaction}"><button type="submit" th:text="${'この時間（' + currentSlot + '）の交流を起こす'}">この時間の交流を起こす</button></form>
   <p th:if="${#lists.isEmpty(hourlyJobs)}">まだ実行記録はありません。</p>
   <ul class="guild-jobs"><li th:each="job : ${hourlyJobs}"><strong th:text="${job.slot + ' / ' + job.status}">2026-10-25T14 / SUCCEEDED</strong><p th:text="${job.message}"></p></li></ul>
+</section>
+
+<section class="guild-panel" id="dungeon"><h2>ダンジョン探索（仮）</h2>
+  <p th:text="${'毎日 ' + dungeonDeparture + '（日本時間）に、今日の来店者から1〜4人がダンジョンへ出発します。起・承・転・結の4段階が' + dungeonStageMinutes + '分ごとに公開され、結果は最後の段階と一緒に分かります。'}">毎日 21:50 に出発します。</p>
+  <p>誰が行くか、どのダンジョンで何を目指すか、各段階の出来事と結果は、出発の時点でプログラムがすべて決めます（文章は定型文）。出発した人はその日の交流に加わらず、酒場からいなくなります。戻ると酒場の席に戻ります。1日1回だけです。</p>
+  <form method="post" th:action="@{/guild/maintenance/dungeon}"><button type="submit">今日の探索をいますぐ出発させる</button></form>
+  <p th:if="${#lists.isEmpty(runs)}">まだ探索の記録はありません。</p>
+  <ul class="guild-jobs"><li th:each="run : ${runs}"><a th:href="@{/guild/dungeon/{id}(id=${run.id})}" th:text="${#temporals.format(run.date, 'yyyy年M月d日') + ' / ' + run.resultName()}">2026年10月25日 / 踏破</a><p th:text="${run.party + 'が' + run.dungeon + 'へ'}"></p></li></ul>
 </section>
 
 <section class="guild-panel" id="affiliations"><h2>村・派閥・信仰の内訳</h2>

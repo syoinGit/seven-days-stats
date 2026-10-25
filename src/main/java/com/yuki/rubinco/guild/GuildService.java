@@ -24,6 +24,7 @@ public class GuildService {
   private final GuildPeople people;
   private final GuildDossier dossier;
   private final GuildWorld affiliations;
+  private final GuildDungeon dungeon;
 
   /**
    * memoryLabel and memory are null for residents born before memories were recorded; lineage and look
@@ -69,7 +70,7 @@ public class GuildService {
   // The source key (it names the player and day) stays private; the memory label and lines are public.
   private static final String PUBLIC_COLUMNS = "c.id, c.born_on, c.game_id, c.name, c.introduction, c.origin, "
       + "c.personality, c.appearance, c.status, c.age, c.gender, c.occupation, s.memory_label, "
-      + "c.name_lineage, c.outfit, c.hair_style, c.hair_color, c.skin_color, c.cloth_color, c.cloth2_color, "
+      + "c.name_lineage, c.outfit, c.hair_style, c.hair_color, c.skin_color, c.cloth_color, c.cloth2_color, c.accessory, c.eye_color, "
       + "CASE WHEN s.memory_label IS NULL THEN NULL ELSE s.facts END AS memory, s.reading, "
       + "hv.name AS home_village_name, cv.name AS village_name, cv.village_key, fa.name AS faction_name, "
       + "fi.name AS faith_name, fi.faith_key";
@@ -83,7 +84,8 @@ public class GuildService {
         (Integer) rs.getObject("age"), rs.getString("gender"), rs.getString("occupation"),
         rs.getString("memory_label"), rs.getString("memory"), rs.getString("name_lineage"),
         GuildPeople.Look.of(rs.getString("outfit"), rs.getString("hair_style"), rs.getString("hair_color"),
-            rs.getString("skin_color"), rs.getString("cloth_color"), rs.getString("cloth2_color"), rs.getString("gender")),
+            rs.getString("skin_color"), rs.getString("cloth_color"), rs.getString("cloth2_color"), rs.getString("gender"),
+            rs.getString("accessory"), rs.getString("eye_color")),
         rs.getString("reading"), rs.getString("home_village_name"), rs.getString("village_name"), rs.getString("faction_name"),
         GuildWorld.faithName(rs.getString("faith_name"), rs.getString("faith_key"), rs.getString("village_key")));
   }
@@ -117,6 +119,11 @@ public class GuildService {
     List<Visit> visits = jdbc.query("SELECT " + PUBLIC_COLUMNS + ", v.seat, v." + phase + " AS line" + FROM
         + " JOIN T_GUILD_VISIT v ON c.id = v.character_id WHERE v.visit_date = ? AND c.status = 'ALIVE' ORDER BY v.seat",
         (rs, row) -> new Visit(character(rs), rs.getInt("seat"), rs.getString("line")), date);
+    // Out in the dungeon: not in the room. Back from it: in their seat, talking about it.
+    var presence = dungeon.presence(date, local);
+    visits = visits.stream().filter(visit -> !presence.containsKey(visit.character().id()) || presence.get(visit.character().id()) != null)
+        .map(visit -> presence.containsKey(visit.character().id())
+            ? new Visit(visit.character(), visit.seat(), presence.get(visit.character().id())) : visit).toList();
     return new Room(date, phase, visits);
   }
 
@@ -179,12 +186,12 @@ public class GuildService {
     }
     var look = people.look(draft.gender(), draft.occupation());
     jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,age,gender,occupation,"
-        + "name_lineage,outfit,hair_style,hair_color,skin_color,cloth_color,cloth2_color,home_village,current_village,faction,faith) "
-        + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        + "name_lineage,outfit,hair_style,hair_color,skin_color,cloth_color,cloth2_color,home_village,current_village,faction,faith,"
+        + "accessory,eye_color) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         today, source.get().game(), draft.name(), draft.introduction(), origin, draft.personality(),
         List.of("ember", "moss", "violet").get(java.util.concurrent.ThreadLocalRandom.current().nextInt(3)),
         draft.age(), draft.gender(), draft.occupation(), draft.lineage().name().toLowerCase(), look.outfit(), look.hair(),
-        look.hairColor(), look.skin(), look.cloth(), look.cloth2(), draft.village(), draft.village(), draft.faction(), draft.faith());
+        look.hairColor(), look.skin(), look.cloth(), look.cloth2(), draft.village(), draft.village(), draft.faction(), draft.faith(), look.accessory(), look.eye());
     // Writes are serialized by lock(), so the newest id is this resident.
     Long id = jdbc.queryForObject("SELECT MAX(id) FROM M_GUILD_CHARACTER", Long.class);
     jdbc.update("INSERT INTO T_GUILD_SOURCE (character_id,source_key,facts,memory_label,category,reading,world_facts) VALUES (?,?,?,?,?,?,?)",
@@ -226,7 +233,7 @@ public class GuildService {
 
   /**
    * Removes a resident with their visits, source, interactions (and what those interactions changed or
-   * started) and relationships. The source's memory may be used again.
+   * started), dungeon runs and relationships. The source's memory may be used again.
    */
   @Transactional
   public String delete(long id) {
@@ -240,6 +247,12 @@ public class GuildService {
       jdbc.update("DELETE FROM T_GUILD_THREAD WHERE origin_interaction_id = ? OR resolved_interaction_id = ?", interaction, interaction);
       jdbc.update("DELETE FROM T_GUILD_INTERACTION_PARTICIPANT WHERE interaction_id = ?", interaction);
       jdbc.update("DELETE FROM T_GUILD_INTERACTION WHERE id = ?", interaction);
+    }
+    // Dungeon runs they took part in go with them; their text names everyone in the party.
+    for (long expedition : jdbc.queryForList("SELECT expedition_id FROM T_GUILD_EXPEDITION_MEMBER WHERE character_id = ?", Long.class, id)) {
+      jdbc.update("DELETE FROM T_GUILD_EXPEDITION_STAGE WHERE expedition_id = ?", expedition);
+      jdbc.update("DELETE FROM T_GUILD_EXPEDITION_MEMBER WHERE expedition_id = ?", expedition);
+      jdbc.update("DELETE FROM T_GUILD_EXPEDITION WHERE id = ?", expedition);
     }
     jdbc.update("DELETE FROM T_GUILD_AFFILIATION_HISTORY WHERE character_id = ?", id);
     jdbc.update("DELETE FROM T_GUILD_RELATION_EVENT WHERE from_id = ? OR to_id = ?", id, id);
