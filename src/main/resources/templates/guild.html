@@ -13,7 +13,7 @@
     <h1 class="guild-plate"><small>THE UNATTENDED GUILD</small>無人の冒険者ギルド</h1>
     <p class="guild-clock" th:text="${#temporals.format(room.date, 'M月d日') + ' · ' + (room.phase == 'morning' ? '朝' : (room.phase == 'afternoon' ? '昼' : '夜'))}">10月25日 · 夜</p>
   </div>
-  <!-- The tavern is four places seen one at a time from inside (GuildTavern says who is where); the map picks the place.
+  <!-- The tavern is five places seen one at a time from inside (GuildTavern says who is where); the map picks the place.
        Or tonight's dungeon. The radios drive the CSS, so it works without JS. -->
   <input th:each="area : ${tavern.areas}" class="area-radio" type="radio" name="guild-view" th:id="${'guild-area-' + area.key}"
          th:checked="${area.key == tavern.current}" th:attr="aria-label=${area.name}">
@@ -28,24 +28,29 @@
         <th:block th:if="${area.key == 'counter'}"><span class="tv-window"></span><span class="tv-beam"></span><span class="tv-shelf"></span><span class="tv-lamp one"></span><span class="tv-lamp two"></span></th:block>
         <th:block th:if="${area.key == 'tables'}"><span class="tv-window"></span><span class="tv-window second"></span><span class="tv-beam"></span><span class="tv-lamp one"></span><span class="tv-lamp two"></span><span class="tv-walker"><i></i></span></th:block>
         <th:block th:if="${area.key == 'board'}"><span class="tv-candle"></span><span class="tv-candle right"></span></th:block>
+        <th:block th:if="${area.key == 'party'}"><span class="tv-chart"></span><span class="tv-shield"></span><span class="tv-sconce"></span><span class="tv-sconce right"></span></th:block>
         <th:block th:if="${area.key == 'hearth'}"><span class="tv-glow"></span><span class="tv-fireplace"><span class="tv-fire"><i></i><i></i><i></i></span><span class="tv-spark"></span><span class="tv-spark two"></span><span class="tv-spark three"></span></span><span class="tv-rug"></span><span class="tv-sleeper"><i></i></span><span class="tv-zz"></span></th:block>
       </div>
       <a th:if="${area.key == 'board'}" class="tv-cork" href="/guild/board" aria-label="依頼掲示板を開く"><i></i><i></i><i></i><i></i><i></i><i></i></a>
       <a th:each="seat : ${area.seats}" class="room-person"
-         th:with="visit=${seat.visit}, said=${scene != null ? scene.lines.get(seat.visit.character.id) : null}, talking=${scene != null and scene.lines.containsKey(seat.visit.character.id)}"
+         th:with="visit=${seat.visit}, said=${scene != null ? scene.lines.get(seat.visit.character.id) : null}, talking=${scene != null and scene.lines.containsKey(seat.visit.character.id)},
+                  line=${idleLines.get(seat.visit.character.id) != null ? idleLines.get(seat.visit.character.id) : seat.visit.line},
+                  turns=${talking ? scene.turnsOf(seat.visit.character.id) : null}"
          th:classappend="${'slot-' + seat.slot + ' ' + visit.character.appearance + (talking ? ' talking' : '')}"
-         th:href="@{/guild/characters/{id}(id=${visit.character.id})}" th:attr="aria-label=${visit.character.name + '：' + (said != null ? said : visit.line)}">
-        <span class="person-bubble" th:text="${said != null ? said : visit.line}"></span>
+         th:href="@{/guild/characters/{id}(id=${visit.character.id})}" th:attr="aria-label=${visit.character.name + '：' + (said != null ? said : line)}">
+        <span class="person-bubble"><th:block th:if="${turns == null or turns.isEmpty()}" th:text="${said != null ? said : line}"></th:block><span
+          th:each="turn : ${turns}" class="say" th:attr="data-turn=${turn.index}" th:text="${turn.text}"></span></span>
         <svg th:replace="~{fragments/guild :: sprite(${visit.character})}"></svg>
         <span class="person-name" th:text="${visit.character.name}"></span>
       </a>
       <div class="tv-front" aria-hidden="true">
-        <th:block th:if="${area.key == 'counter' or area.key == 'tables'}"><span th:each="seat : ${area.seats}" class="tv-mug" th:classappend="${'slot-' + seat.slot}"></span></th:block>
+        <th:block th:if="${area.key == 'counter' or area.key == 'tables' or area.key == 'party'}"><span th:each="seat : ${area.seats}" class="tv-mug" th:classappend="${'slot-' + seat.slot}"></span></th:block>
         <th:block th:if="${area.key == 'counter'}"><span class="tv-bar"></span><span class="tv-cat"><i></i></span></th:block>
         <th:block th:if="${area.key == 'tables'}"><span class="tv-table"></span><span class="tv-table second"></span></th:block>
         <th:block th:if="${area.key == 'hearth'}"><span class="tv-sofa"></span></th:block>
+        <th:block th:if="${area.key == 'party'}"><span class="tv-round"></span><span class="tv-loot" th:if="${area.count() > 0 and todayRun != null and todayRun.back() and todayRun.result != 'retreat'}"><i></i></span></th:block>
       </div>
-      <p class="tv-title"><b th:text="${area.name}">カウンター</b><th:block th:text="${area.count() == 0 ? '誰もいない' : area.count() + '人'}">3人</th:block></p>
+      <p class="tv-title"><b th:text="${area.name}">カウンター</b><th:block th:text="${area.count() > 0 ? area.count() + '人' : (area.key == 'party' ? 'ダンジョンから戻った仲間が座る' : '誰もいない')}">3人</th:block></p>
     </div>
     <div class="tv-light" aria-hidden="true"></div>
     <div class="tv-map" role="group" aria-label="酒場の見取り図">
@@ -90,5 +95,5 @@
   </th:block>
 </dialog>
 <nav th:replace="~{fragments/guild :: tabbar(${tab})}"></nav>
-<script defer src="/js/guild.js?v=3"></script>
+<script defer src="/js/guild.js?v=4"></script>
 </body></html>

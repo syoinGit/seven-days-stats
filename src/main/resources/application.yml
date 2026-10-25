@@ -35,7 +35,7 @@ app:
     recent-days: ${GUILD_RECENT_DAYS:30}
     recent-ratio: ${GUILD_RECENT_RATIO:0.5}
     public-url: ${GUILD_PUBLIC_URL:}
-    daily-limit: ${GUILD_DAILY_LIMIT:20}
+    daily-limit: ${GUILD_DAILY_LIMIT:5}
     # Among the last category-window residents, at most category-cap come from one kind of memory, and a
     # gender / occupation / name lineage that gender-cap / occupation-cap / lineage-cap of them have is not offered.
     category-window: ${GUILD_CATEGORY_WINDOW:10}

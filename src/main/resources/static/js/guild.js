@@ -108,3 +108,34 @@
     show();
   }
 })();
+
+// The tavern keeps moving while it is left open: the current talk plays line by line, one speaker's bubble
+// at a time, and now and then someone else in view says something to no one in particular.
+(() => {
+  const room = document.querySelector(".guild-room");
+  if (!room || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const says = [...room.querySelectorAll(".say")].sort((a, b) => a.dataset.turn - b.dataset.turn);
+  if (says.length > 1) {
+    room.classList.add("playing");
+    let turn = 0;
+    const play = () => {
+      says.forEach((say) => { say.hidden = say !== says[turn]; });
+      room.querySelectorAll(".speaking").forEach((person) => person.classList.remove("speaking"));
+      says[turn].closest(".room-person")?.classList.add("speaking");
+      const last = turn === says.length - 1;
+      turn = last ? 0 : turn + 1;
+      setTimeout(play, last ? 9000 : 4500);
+    };
+    play();
+  }
+  const murmur = () => {
+    const near = [...room.querySelectorAll(".room-person:not(.talking)")].filter((person) => person.offsetParent !== null);
+    if (near.length && !document.hidden) {
+      const person = near[Math.floor(Math.random() * near.length)];
+      person.classList.add("murmur");
+      setTimeout(() => person.classList.remove("murmur"), 4000);
+    }
+    setTimeout(murmur, 9000 + Math.random() * 8000);
+  };
+  setTimeout(murmur, 5000);
+})();

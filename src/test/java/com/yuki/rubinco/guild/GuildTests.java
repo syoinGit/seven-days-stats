@@ -44,6 +44,7 @@ class GuildTests {
   @Autowired GuildWorld world;
   @Autowired GuildProperties properties;
   @Autowired GuildDungeon dungeon;
+  @Autowired GuildVoice voices;
   @Autowired JdbcTemplate jdbc;
   @Autowired MockMvc mvc;
   @MockitoBean BedrockTextClient bedrock;
@@ -60,7 +61,7 @@ class GuildTests {
       List.of("dawnlight", "spirit", "none"), List.of());
 
   @BeforeEach void setup() {
-    for (String table : List.of("T_GUILD_EXPEDITION_STAGE", "T_GUILD_EXPEDITION_MEMBER", "T_GUILD_EXPEDITION", "T_GUILD_AFFILIATION_HISTORY", "T_GUILD_RELATION_EVENT", "T_GUILD_THREAD", "T_GUILD_INTERACTION_PARTICIPANT", "T_GUILD_INTERACTION",
+    for (String table : List.of("T_GUILD_RELATION_EVENT", "T_GUILD_EXPEDITION_STAGE", "T_GUILD_EXPEDITION_MEMBER", "T_GUILD_EXPEDITION", "T_GUILD_AFFILIATION_HISTORY", "T_GUILD_THREAD", "T_GUILD_INTERACTION_PARTICIPANT", "T_GUILD_INTERACTION",
         "T_GUILD_RELATION", "T_GUILD_BOND", "T_GUILD_HOURLY_JOB", "T_GUILD_SOURCE", "T_GUILD_VISIT", "T_GUILD_DAY", "T_GUILD_JOB", "M_GUILD_CHARACTER", "T_CK_SESSION", "M_CK_PLAYER")) {
       jdbc.update("DELETE FROM " + table);
     }
@@ -76,7 +77,7 @@ class GuildTests {
     jdbc.update("DELETE FROM T_WORLD_SNAPSHOT WHERE parser_version = 'guild-test'");
     reset(bedrock);
     when(bedrock.generate(anyString(), anyString(), anyInt(), anyFloat(), any())).thenReturn(DRAFT);
-    when(bedrock.generate(anyString(), anyString(), eq(700), anyFloat(), any())).thenReturn(SCENE);
+    when(bedrock.generate(anyString(), anyString(), eq(1100), anyFloat(), any())).thenReturn(SCENE);
   }
 
   static final String SCENE = """
@@ -246,7 +247,7 @@ class GuildTests {
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_RELATION WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)", rine, roan, roan, rine)).isEqualTo(2);
     assertThat(jdbc.queryForObject("SELECT label FROM T_GUILD_BOND", String.class)).isEqualTo("acquaintance");
     assertThat(jdbc.queryForObject("SELECT written_by FROM T_GUILD_INTERACTION", String.class)).isEqualTo("ai");
-    verify(bedrock, times(1)).generate(anyString(), argThat(input -> input.contains("リネ") && input.contains("ロアン")), eq(700), anyFloat(), any());
+    verify(bedrock, times(1)).generate(anyString(), argThat(input -> input.contains("リネ") && input.contains("ロアン")), eq(1100), anyFloat(), any());
   }
 
   /** Sixty days of every hour with five residents: the rules hold however the cards fall. */
@@ -321,17 +322,71 @@ class GuildTests {
     resident("ミラ", 25, "ALIVE", 2);
     assertThat(interactions.runHour(HOUR)).contains("すでに処理済み");
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isZero();
-    verify(bedrock, never()).generate(anyString(), anyString(), eq(700), anyFloat(), any());
+    verify(bedrock, never()).generate(anyString(), anyString(), eq(1100), anyFloat(), any());
   }
 
   @Test void aFailedWriterFallsBackToTheTemplateWithTheSameOutcome() {
     resident("リネ", 28, "ALIVE", 0);
     resident("ロアン", 30, "ALIVE", 1);
-    when(bedrock.generate(anyString(), anyString(), eq(700), anyFloat(), any())).thenThrow(new IllegalStateException("down"));
+    when(bedrock.generate(anyString(), anyString(), eq(1100), anyFloat(), any())).thenThrow(new IllegalStateException("down"));
     assertThat(interactions.runHour(HOUR)).doesNotContain("失敗");
     assertThat(jdbc.queryForObject("SELECT written_by FROM T_GUILD_INTERACTION", String.class)).isEqualTo("template");
     String body = jdbc.queryForObject("SELECT body FROM T_GUILD_INTERACTION", String.class);
     assertThat(body).isNotBlank().doesNotContain("{a}").doesNotContain("{b}");
+  }
+
+  /** A voice per resident from who they are; men and women, young and old, shy and blunt sound different, always the same. */
+  @Test void residentsTalkInTheirOwnVoice() {
+    assertThat(voices.of(1, 30, "女性", "冒険者", "明るく人懐っこい。", "none").key()).isEqualTo("cheerful_f");
+    assertThat(voices.of(1, 30, "男性", "冒険者", "明るく人懐っこい。", "none").key()).isEqualTo("cheerful_m");
+    assertThat(voices.of(2, 30, "男性", "鍛冶屋", "ぶっきらぼうで頑固。", "none").key()).isEqualTo("stern_m");
+    assertThat(voices.of(2, 30, "女性", "鍛冶屋", "ぶっきらぼうで頑固。", "none").key()).isEqualTo("brisk_f");
+    assertThat(voices.of(3, 24, "女性", "薬師", "内気で人見知り。", "none").first()).isEqualTo("わたし");
+    assertThat(voices.of(4, 72, "男性", "農家", "明るい。", "none").describe()).startsWith("一人称「わし」");
+    assertThat(voices.of(5, 12, "女性", "見習い", "元気。", "none").key()).isEqualTo("kid_f");
+    assertThat(voices.of(6, 35, "男性", "侍", "まっすぐ。", "tsukikage_samurai").key()).isEqualTo("samurai_m");
+    assertThat(voices.of(6, 35, "女性", "侍", "まっすぐ。", "月影武家衆").key()).isEqualTo("samurai_f");
+    assertThat(voices.of(7, 40, "男性", "商人", "抜け目ない。", "none").key()).isEqualTo("polite");
+    assertThat(voices.of(8, 28, "女性", "猟師", "一人称は「おいら」。気が強い。", "none").first()).isEqualTo("おいら");
+    // Without telling words: one of the everyday voices for their gender, fixed by id.
+    for (long id = 1; id <= 40; id++) {
+      assertThat(voices.of(id, 30, "女性", "農家", "ふつう。", "none").key()).endsWith("_f").isEqualTo(voices.of(id, 30, "女性", "農家", "ふつう。", "none").key());
+      assertThat(voices.of(id, 30, "男性", "農家", "ふつう。", "none").key()).endsWith("_m");
+    }
+    // Every idle line is short, plain text, and quoted when shown.
+    for (var voice : voices.voices().values()) {
+      for (String place : GuildVoice.PLACES) {
+        var character = new GuildService.Character(9, LocalDate.of(2026, 1, 1), "7dtd", "客", "", "", "", "moss", "ALIVE",
+            30, "女性", "農家", null, null, null, null, null, null, null, null, null);
+        assertThat(voices.idle(character, place, LocalDate.of(2026, 10, 25), "evening")).startsWith("「").endsWith("」").hasSizeLessThan(40)
+            .doesNotContain("<", ">", "@", "/");
+      }
+    }
+  }
+
+  /** At most five new residents a day, even when the setting asks for more. */
+  @Test void theDailyLimitStopsAtFive() {
+    var p = properties;
+    var asked = new GuildProperties(p.enabled(), p.recentDays(), p.recentRatio(), p.publicUrl(), 20, p.categoryWindow(), p.categoryCap(),
+        p.genderCap(), p.occupationCap(), p.lineageCap(), p.interactionHours(), p.interactionDailyMax(), p.selectionWeights(),
+        p.interactionFallback(), p.recentPairSlots(), p.dungeonDeparture(), p.dungeonStageMinutes());
+    assertThat(asked.dailyLimit()).isEqualTo(5);
+    assertThat(new GuildProperties(p.enabled(), p.recentDays(), p.recentRatio(), p.publicUrl(), 0, p.categoryWindow(), p.categoryCap(),
+        p.genderCap(), p.occupationCap(), p.lineageCap(), p.interactionHours(), p.interactionDailyMax(), p.selectionWeights(),
+        p.interactionFallback(), p.recentPairSlots(), p.dungeonDeparture(), p.dungeonStageMinutes()).dailyLimit()).isEqualTo(5);
+  }
+
+  /** The writer is told each one's voice; the tavern gets the whole talk, line by line, to play in turn. */
+  @Test void theWriterHearsTheVoicesAndTheTavernPlaysTheTalk() {
+    resident("リネ", 28, "ALIVE", 0);
+    resident("ロアン", 30, "ALIVE", 1);
+    interactions.runHour(HOUR);
+    verify(bedrock).generate(argThat(prompt -> prompt.contains("話し方") && prompt.contains("4〜8個")),
+        argThat(input -> input.contains("リネの話し方=一人称「") && input.contains("ロアンの話し方=一人称「")), eq(1100), anyFloat(), any());
+    var scene = chronicle.scene(HOUR.plusMinutes(5), HOUR.toLocalDate());
+    assertThat(scene.script()).extracting(GuildChronicle.Turn::text).containsExactly("「今日は冷えるね。」", "「火のそばに座ろう。」");
+    long rine = jdbc.queryForObject("SELECT id FROM M_GUILD_CHARACTER WHERE name = 'リネ'", Long.class);
+    assertThat(scene.turnsOf(rine)).singleElement().extracting(GuildChronicle.Turn::index).isEqualTo(0);
   }
 
   @Test void writerAcceptsOnlyParticipantsAndChangesCodeMade() {
@@ -380,7 +435,7 @@ class GuildTests {
     assertThat(service.runHour(HOUR.withHour(22))).contains("合う出来事がありません");
     // The writer saw both people's affiliations, only their parts of the world, and the change being made.
     verify(bedrock, atLeastOnce()).generate(anyString(), argThat(input -> input.contains("リネの所属=暮らす村 グランフォード")
-        && input.contains("派閥 白銀の騎士団：") && !input.contains("月影郷") && input.contains("この場面で起きる所属の変化=リネが")), eq(700), anyFloat(), any());
+        && input.contains("派閥 白銀の騎士団：") && !input.contains("月影郷") && input.contains("この場面で起きる所属の変化=リネが")), eq(1100), anyFloat(), any());
     mvc.perform(get("/guild/characters/" + rine)).andExpect(status().isOk())
         .andExpect(content().string(containsString("所属の履歴")))
         .andExpect(content().string(containsString("派閥：無所属 → 白銀の騎士団（加入）")))
@@ -452,7 +507,7 @@ class GuildTests {
     assertThat(jdbc.queryForMap("SELECT kind, a_id, summary FROM T_GUILD_THREAD")).containsEntry("KIND", "crush")
         .containsEntry("A_ID", rine).containsEntry("SUMMARY", "リネはロアンに片思いしている");
     verify(bedrock).generate(anyString(), argThat(input -> input.contains("二人は異性") && input.contains("好みのタイプで気になっている")
-        && input.contains("この場面で生まれること=リネはロアンに片思いしている")), eq(700), anyFloat(), any());
+        && input.contains("この場面で生まれること=リネはロアンに片思いしている")), eq(1100), anyFloat(), any());
     mvc.perform(get("/guild/characters/" + rine)).andExpect(status().isOk()).andExpect(content().string(containsString("気になっている")));
     mvc.perform(get("/guild/characters/" + roan)).andExpect(status().isOk()).andExpect(content().string(not(containsString("気になっている"))));
     // The log says who is who.
@@ -501,7 +556,9 @@ class GuildTests {
         .andExpect(content().string(containsString("for=\"guild-area-hearth\"")))
         .andExpect(content().string(containsString("tv-cork")))
         .andReturn().getResponse().getContentAsString();
-    // All ten are somewhere in the four places, once each, and the map shows a dot for each.
+    // No seat-number narration any more: each one says something of their own at their place.
+    assertThat(tavern).doesNotContain("奥の卓で杯を傾けている").contains("」</span>");
+    // All ten are somewhere in the five places, once each, and the map shows a dot for each.
     assertThat(tavern.split("class=\"room-person ", -1)).hasSize(11);
     String map = tavern.substring(tavern.indexOf("class=\"tv-map\""));
     assertThat(map.substring(0, map.indexOf("</div>")).split("<i></i>", -1)).hasSize(11);
@@ -516,7 +573,7 @@ class GuildTests {
       visits.add(new GuildService.Visit(character, (int) id - 1, "…"));
     }
     var date = LocalDate.of(2026, 10, 25);
-    var layout = GuildTavern.arrange(visits, List.of(List.of(4L, 7L), List.of(2L, 9L), List.of(4L, 1L), List.of(5L, 99L)), java.util.Set.of(4L, 7L), date, "evening");
+    var layout = GuildTavern.arrange(visits, List.of(List.of(4L, 7L), List.of(2L, 9L), List.of(4L, 1L), List.of(5L, 99L)), java.util.Set.of(4L, 7L), java.util.Set.of(), date, "evening");
     var tables = layout.area("tables").seats();
     assertThat(tables.stream().filter(seat -> seat.slot() < 3).map(seat -> seat.visit().character().id())).contains(4L, 7L);
     assertThat(tables.stream().filter(seat -> seat.slot() >= 3).map(seat -> seat.visit().character().id())).contains(2L, 9L);
@@ -525,9 +582,55 @@ class GuildTests {
     assertThat(layout.current()).isEqualTo("tables");
     assertThat(layout.area("tables").talk()).isTrue();
     // Same day and part of the day, same room; the order (and so the places) moves on with the day.
-    assertThat(GuildTavern.arrange(visits, List.of(), java.util.Set.of(), date, "evening"))
-        .isEqualTo(GuildTavern.arrange(visits, List.of(), java.util.Set.of(), date, "evening"));
-    assertThat(GuildTavern.arrange(List.of(), List.of(), java.util.Set.of(), date, "morning").current()).isEqualTo("counter");
+    assertThat(GuildTavern.arrange(visits, List.of(), java.util.Set.of(), java.util.Set.of(), date, "evening"))
+        .isEqualTo(GuildTavern.arrange(visits, List.of(), java.util.Set.of(), java.util.Set.of(), date, "evening"));
+    assertThat(GuildTavern.arrange(List.of(), List.of(), java.util.Set.of(), java.util.Set.of(), date, "morning").current()).isEqualTo("counter");
+    assertThat(layout.area("party").count()).isZero();
+    // Back from the dungeon: the party sits together at the round table, which the room opens on (no talk going on).
+    var back = GuildTavern.arrange(visits, List.of(List.of(3L, 6L)), java.util.Set.of(), java.util.Set.of(3L, 6L, 8L), date, "evening");
+    assertThat(back.area("party").seats().stream().map(seat -> seat.visit().character().id())).containsExactlyInAnyOrder(3L, 6L, 8L);
+    assertThat(back.area("tables").seats()).noneMatch(seat -> java.util.Set.of(3L, 6L, 8L).contains(seat.visit().character().id()));
+    assertThat(back.current()).isEqualTo("party");
+  }
+
+  /** Once a run is back, its party feel it both ways: closer after a success, mostly strained after a retreat. Once only. */
+  @Test void aDungeonRunChangesHowItsPartyFeelOnceBack() throws Exception {
+    List<Long> ids = new java.util.ArrayList<>();
+    for (int i = 0; i < 3; i++) ids.add(resident("同行" + (char) ('ア' + i * 2), 22 + i, "ALIVE", i));
+    var departure = HOUR.withHour(21).withMinute(50);
+    jdbc.update("INSERT INTO T_GUILD_EXPEDITION (expedition_date,dungeon_key,dungeon_name,goal,result,cards_version,departed_at,returned_at) "
+        + "VALUES (?,'old-mine','古い坑道','古い坑道で探し物をする','success','test',?,?)", HOUR.toLocalDate(), departure.toOffsetDateTime(),
+        departure.plusMinutes(40).toOffsetDateTime());
+    long id = jdbc.queryForObject("SELECT id FROM T_GUILD_EXPEDITION", Long.class);
+    for (int i = 0; i < ids.size(); i++) jdbc.update("INSERT INTO T_GUILD_EXPEDITION_MEMBER (expedition_id,character_id,position) VALUES (?,?,?)", id, ids.get(i), i);
+    assertThat(dungeon.settleDue(departure.plusMinutes(39))).isZero();
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_RELATION")).isZero();
+    assertThat(dungeon.settleDue(departure.plusMinutes(40))).isEqualTo(1);
+    assertThat(dungeon.settleDue(departure.plusMinutes(41))).isZero();
+    // Six directions among three, each warmer in trust; logged against the run, not an interaction.
+    assertThat(jdbc.queryForList("SELECT trust FROM T_GUILD_RELATION", Integer.class)).hasSize(6).allMatch(trust -> trust >= 5 && trust <= 9);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_RELATION_EVENT WHERE expedition_id = ? AND interaction_id IS NULL", id)).isEqualTo(6);
+    var bonds = dungeon.bonds(id);
+    assertThat(bonds).hasSize(3).allMatch(bond -> bond.feeling().equals("絆が深まった"));
+    assertThat(bonds.getFirst().numbers()).contains("同行ア→同行イ 信頼+");
+    mvc.perform(get("/guild/dungeon/" + id)).andExpect(status().isOk()).andExpect(content().string(containsString("仲間との関係")))
+        .andExpect(content().string(containsString("同行アと同行イ：絆が深まった")));
+    // Relation pages that list interaction changes still open.
+    mvc.perform(get("/guild/characters/" + ids.getFirst())).andExpect(status().isOk());
+
+    // A retreat the next day: trust falls or (sometimes) rises a little; wariness only ever grows.
+    jdbc.update("INSERT INTO T_GUILD_EXPEDITION (expedition_date,dungeon_key,dungeon_name,goal,result,cards_version,departed_at,returned_at) "
+        + "VALUES (?,'old-mine','古い坑道','古い坑道で探し物をする','retreat','test',?,?)", HOUR.toLocalDate().plusDays(1),
+        departure.plusDays(1).toOffsetDateTime(), departure.plusDays(1).plusMinutes(40).toOffsetDateTime());
+    long retreat = jdbc.queryForObject("SELECT id FROM T_GUILD_EXPEDITION WHERE result = 'retreat'", Long.class);
+    for (int i = 0; i < 2; i++) jdbc.update("INSERT INTO T_GUILD_EXPEDITION_MEMBER (expedition_id,character_id,position) VALUES (?,?,?)", retreat, ids.get(i), i);
+    assertThat(dungeon.settleDue(departure.plusDays(1).plusMinutes(45))).isEqualTo(1);
+    assertThat(jdbc.queryForList("SELECT trust_delta FROM T_GUILD_RELATION_EVENT WHERE expedition_id = ?", Integer.class, retreat))
+        .hasSize(2).allMatch(delta -> (delta >= -5 && delta <= -2) || (delta >= 2 && delta <= 4));
+    assertThat(jdbc.queryForList("SELECT wariness_delta FROM T_GUILD_RELATION_EVENT WHERE expedition_id = ?", Integer.class, retreat)).allMatch(delta -> delta >= 0);
+
+    assertThat(guild.delete(ids.getFirst())).contains("削除しました");
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_RELATION_EVENT")).isZero();
   }
 
   /** 21:50: a party leaves; its stages come out at 22:00, 22:10, 22:20 and 22:30, the result with the last. */
