@@ -10,7 +10,8 @@
 <section class="guild-panel"><h2>新しい住人を迎える</h2>
   <p th:text="${'今日迎えた住人: ' + bornToday + ' / ' + dailyLimit + ' 人'}">今日迎えた住人: 0 / 10 人</p>
   <p>ここから1日に<span th:text="${dailyLimit}">10</span>人まで追加できます（日本時間の21時の自動追加も含む）。21時の自動追加は、その日にまだ誰も迎えていないときだけ1人追加します。</p>
-  <p>住人は、ゲームの過去の1日からランダムに選んだ3時間の記録（最大10件）を「記憶」として生まれます。同じ記憶は2回使いません。</p>
+  <p>住人は、ゲームの過去の1日の3時間分の記録（最大10件）を「記憶」として生まれます。ゲーム → 記憶の種類（釣り・採掘など）→ 日と時間帯の順に均等に選ぶので、記録の多いゲームや種類に偏りません。同じ記憶は2回使いません。</p>
+  <p>性別・職業（記憶の種類から）・名前の系統・見た目はコードが決め、AIはその人の名前と人となりを書きます。</p>
   <p th:unless="${enabled}">現在、生成は無効です。サーバーの GUILD_ENABLED=true で有効にしてください。</p>
   <form method="post" th:action="@{/guild/maintenance/generate}"><button type="submit" th:disabled="${!enabled}">住人を1人追加 / 再試行</button></form>
 </section>
@@ -18,6 +19,16 @@
 <section class="guild-panel"><h2>今日の来店者</h2>
   <p>酒場に来る人（最大5人）は日ごとに決まります。新しく迎えた住人を今日の酒場に呼びたいときや、顔ぶれを変えたいときに引き直してください。</p>
   <form method="post" th:action="@{/guild/maintenance/visits}"><button type="submit">来店者を引き直す</button></form>
+</section>
+
+<section class="guild-panel" id="origins"><h2>記憶の内訳</h2>
+  <p th:text="${'直近' + categoryWindow + '人のうち、同じ種類の記憶から生まれるのは' + categoryCap + '人まで。上限に達した種類は、ほかの住人が増えるまで選ばれません。'}"></p>
+  <p th:if="${#lists.isEmpty(recentCategories)}">まだ住人はいません。</p>
+  <p th:unless="${#lists.isEmpty(recentCategories)}" th:text="${'直近の住人（新しい順）: ' + #strings.listJoin(recentCategories, '、')}"></p>
+  <table class="guild-origins" th:unless="${#lists.isEmpty(inventory)}"><thead><tr><th>ゲーム</th><th>記憶の種類</th><th>未使用の時間帯</th></tr></thead>
+    <tbody><tr th:each="row : ${inventory}"><td th:text="${row.gameName()}">Terraria</td><td th:text="${row.categoryName()}">釣り</td><td th:text="${row.unused}">12</td></tr></tbody></table>
+  <p th:if="${#lists.isEmpty(inventory)}">使える記録がまだありません。</p>
+  <p class="guild-footer">「未使用の時間帯」は、その種類の記録を含む3時間枠の数です。記録が実際にあるものだけを数えています。</p>
 </section>
 
 <section class="guild-panel" id="residents"><h2>住人（新しい順）</h2>

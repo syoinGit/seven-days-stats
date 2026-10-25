@@ -36,6 +36,16 @@ app:
     recent-ratio: ${GUILD_RECENT_RATIO:0.5}
     public-url: ${GUILD_PUBLIC_URL:}
     daily-limit: ${GUILD_DAILY_LIMIT:10}
+    female-ratio: ${GUILD_FEMALE_RATIO:0.5}
+    # Among the last category-window residents, at most category-cap come from one kind of memory.
+    category-window: ${GUILD_CATEGORY_WINDOW:10}
+    category-cap: ${GUILD_CATEGORY_CAP:3}
+    lineage-weights:
+      european: 4
+      japanese: 2
+      north: 1
+      desert: 1
+      steppe: 1
   platform:
     domain: ${DOMAIN:rubinco.link}
     portal-url: ${PORTAL_SITE_URL:https://portal.${app.platform.domain}}

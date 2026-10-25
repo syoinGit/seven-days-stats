@@ -29,26 +29,32 @@ import org.springframework.test.web.servlet.MockMvc;
     "spring.datasource.url=jdbc:h2:mem:guild;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000",
     "spring.datasource.driver-class-name=org.h2.Driver", "spring.jpa.hibernate.ddl-auto=validate",
     "spring.flyway.enabled=true", "app.sevendays.import.startup-enabled=false",
-    "app.guild.enabled=true", "app.guild.visit-initial-delay=1h", "app.guild.daily-limit=2"
+    "app.guild.enabled=true", "app.guild.visit-initial-delay=1h", "app.guild.daily-limit=2",
+    // Women only and European names only, so drafts and profiles are predictable.
+    "app.guild.female-ratio=1", "app.guild.lineage-weights.japanese=0", "app.guild.lineage-weights.north=0",
+    "app.guild.lineage-weights.desert=0", "app.guild.lineage-weights.steppe=0"
 })
 @AutoConfigureMockMvc
 class GuildTests {
   @Autowired GuildService guild;
   @Autowired GuildSourceService sources;
   @Autowired GuildCharacterGenerator generator;
+  @Autowired GuildPeople people;
   @Autowired JdbcTemplate jdbc;
   @Autowired MockMvc mvc;
   @MockitoBean BedrockTextClient bedrock;
   static final String DRAFT = """
-      {"name":"リネ","age":28,"gender":"女性","occupation":"道具職人","introduction":"旅の道具を直す職人。小さな店を持ちたい。",
-       "personality":"慎重な話し方。修理は得意だが道に迷う。節約家なのに本には目がない。","appearance":"moss"}
+      {"name":"リネ","age":28,"introduction":"旅の道具を直す職人。小さな店を持ちたい。",
+       "personality":"慎重な話し方。修理は得意だが道に迷う。節約家なのに本には目がない。"}
       """;
 
   @BeforeEach void setup() {
     for (String table : List.of("T_GUILD_SOURCE", "T_GUILD_VISIT", "T_GUILD_DAY", "T_GUILD_JOB", "M_GUILD_CHARACTER", "T_CK_SESSION", "M_CK_PLAYER")) {
       jdbc.update("DELETE FROM " + table);
     }
-    jdbc.update("DELETE FROM T_PLAYER_JOIN_TRANSACTION WHERE source_file = 'guild-test'");
+    for (String table : List.of("T_PLAYER_JOIN_TRANSACTION", "T_WORLD_EVENT_TRANSACTION", "T_ENTITY_KILL_TRANSACTION")) {
+      jdbc.update("DELETE FROM " + table + " WHERE source_file = 'guild-test'");
+    }
     jdbc.update("DELETE FROM T_WORLD_SNAPSHOT WHERE parser_version = 'guild-test'");
     reset(bedrock);
     when(bedrock.generate(anyString(), anyString(), anyInt(), anyFloat(), any())).thenReturn(DRAFT);
@@ -90,19 +96,23 @@ class GuildTests {
     }
     assertThat(guild.characters(0)).hasSize(1);
     verify(bedrock, times(1)).generate(anyString(), argThat(prompt -> !prompt.contains("PRIVATE_PLAYER_SECRET") && !prompt.contains("765611")), eq(900), anyFloat(), any());
-    assertThat(sources.choose(LocalDate.now(GuildService.TOKYO))).isEmpty();
+    assertThat(sources.choose(LocalDate.now(GuildService.TOKYO)).source()).isEmpty();
     var character = guild.characters(0).getFirst();
     mvc.perform(get("/guild/characters/" + character.id())).andExpect(status().isOk())
         .andExpect(content().string(containsString("リネ")))
-        .andExpect(content().string(containsString("28歳・女性・道具職人")))
+        .andExpect(content().string(org.hamcrest.Matchers.anyOf(containsString("28歳・女性・冒険者"),
+            containsString("28歳・女性・商人"), containsString("28歳・女性・猟師"))))
+        .andExpect(content().string(containsString("ヨーロッパ系の名")))
+        .andExpect(content().string(containsString("guild-people.svg?v=2#outfit-")))
         .andExpect(content().string(containsString("Core Keeper・")))
-        .andExpect(content().string(containsString("9時〜12時の記録から生まれました")))
+        .andExpect(content().string(containsString("9時〜12時の記録（探索）から生まれました")))
         .andExpect(content().string(containsString("10:00 誰かが洞窟へ降りてきた")))
         .andExpect(content().string(containsString("10:30 誰かが地上へ戻った")))
         .andExpect(content().string(not(containsString("PRIVATE_PLAYER_SECRET"))))
         .andExpect(content().string(not(containsString("765611"))))
         .andExpect(content().string(not(containsString("source_key"))));
-    mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("seat-0 moss")))
+    mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("seat-0 ")))
+        .andExpect(content().string(containsString("#outfit-")))
         .andExpect(content().string(containsString("class=\"guild-link active\"")))
         .andExpect(content().string(not(containsString("<dialog id=\"guild-window\" class=\"guild-window\" open"))));
   }
@@ -182,31 +192,116 @@ class GuildTests {
   @Test void memoriesComeFromPastDaysOnlyAndNeverNamePlayers() {
     var yesterday = LocalDate.now(GuildService.TOKYO).minusDays(1).atTime(21, 5).atZone(GuildService.TOKYO).toOffsetDateTime();
     jdbc.update("INSERT INTO T_PLAYER_JOIN_TRANSACTION (occurred_at,player_name,player_entity_id,platform_id,cross_platform_id,source_file,source_log_hash,created_at) VALUES (?,'PRIVATE_NAME',1,'PRIVATE_PLATFORM','PRIVATE_CROSS','guild-test','guild-test-hash',?)", yesterday, yesterday);
-    assertThat(sources.choose(LocalDate.now(GuildService.TOKYO))).hasValueSatisfying(source -> {
+    assertThat(sources.choose(LocalDate.now(GuildService.TOKYO)).source()).isEmpty();
+    worldEvent(yesterday.plusMinutes(1), "AIR_DROP", "air");
+    assertThat(sources.choose(LocalDate.now(GuildService.TOKYO)).source()).hasValueSatisfying(source -> {
       assertThat(source.game()).isEqualTo("7dtd");
-      assertThat(source.label()).startsWith("7 Days to Die・").endsWith("21時〜24時の記録");
-      assertThat(source.facts()).isEqualTo("21:05 誰かがこの地にやって来た");
+      assertThat(source.category()).isEqualTo("exploration");
+      assertThat(source.label()).startsWith("7 Days to Die・").endsWith("21時〜24時の記録（探索）");
+      assertThat(source.facts()).isEqualTo("21:05 誰かがこの地にやって来た\n21:06 補給物資が空から降ってきた");
       assertThat(source.key() + source.facts() + source.label()).doesNotContain("PRIVATE");
     });
-    jdbc.update("UPDATE T_PLAYER_JOIN_TRANSACTION SET occurred_at = ? WHERE source_file='guild-test'", OffsetDateTime.now());
-    assertThat(sources.choose(LocalDate.now(GuildService.TOKYO))).isEmpty();
+    jdbc.update("UPDATE T_WORLD_EVENT_TRANSACTION SET occurred_at = ? WHERE source_file='guild-test'", OffsetDateTime.now());
+    assertThat(sources.choose(LocalDate.now(GuildService.TOKYO)).source()).isEmpty();
   }
 
   @Test void tenRecordsAtMostAndInTimeOrder() {
     var day = LocalDate.now(GuildService.TOKYO).minusDays(3);
     for (int minute = 0; minute < 30; minute++) {
-      var at = day.atTime(13, minute).atZone(GuildService.TOKYO).toOffsetDateTime();
-      jdbc.update("INSERT INTO T_PLAYER_JOIN_TRANSACTION (occurred_at,player_name,player_entity_id,source_file,source_log_hash,created_at) VALUES (?,'PRIVATE_NAME',1,'guild-test',?,?)", at, "guild-test-" + minute, at);
+      worldEvent(day.atTime(13, minute).atZone(GuildService.TOKYO).toOffsetDateTime(), "AIR_DROP", "air-" + minute);
     }
-    var source = sources.choose(LocalDate.now(GuildService.TOKYO)).orElseThrow();
+    var source = sources.choose(LocalDate.now(GuildService.TOKYO)).source().orElseThrow();
     List<String> lines = source.facts().lines().toList();
     assertThat(lines).hasSize(10);
     assertThat(lines).isSortedAccordingTo(java.util.Comparator.comparing(line -> java.time.LocalTime.parse(line.split(" ")[0], java.time.format.DateTimeFormatter.ofPattern("H:mm"))));
-    assertThat(source.label()).endsWith("12時〜15時の記録");
+    assertThat(source.label()).endsWith("12時〜15時の記録（探索）");
+  }
+
+  private void worldEvent(OffsetDateTime at, String type, String hash) {
+    jdbc.update("INSERT INTO T_WORLD_EVENT_TRANSACTION (occurred_at,event_type,actor_player_name,source_file,source_log_hash,raw_line) "
+        + "VALUES (?,?,'PRIVATE_NAME','guild-test',?,'PRIVATE_RAW')", at, type, "guild-test-" + hash);
+  }
+
+  private void kill(OffsetDateTime at, String hash) {
+    jdbc.update("INSERT INTO T_ENTITY_KILL_TRANSACTION (occurred_at,player_name,player_entity_id,target_entity_type,target_entity_id,source_file,source_log_hash) "
+        + "VALUES (?,'PRIVATE_NAME',1,'zombieBoe',2,'guild-test',?)", at, "guild-test-" + hash);
+  }
+
+  @Test void bloodMoonFightsAreOneCategoryAndOtherFightsAnother() {
+    var moon = LocalDate.now(GuildService.TOKYO).minusDays(5).atTime(22, 0).atZone(GuildService.TOKYO).toOffsetDateTime();
+    var noon = LocalDate.now(GuildService.TOKYO).minusDays(4).atTime(13, 0).atZone(GuildService.TOKYO).toOffsetDateTime();
+    worldEvent(moon, "BLOOD_MOON", "moon");
+    kill(moon.plusMinutes(5), "moon-kill");
+    kill(noon, "noon-kill");
+    assertThat(sources.inventory(LocalDate.now(GuildService.TOKYO))).containsExactly(
+        new GuildSourceService.Inventory("7dtd", "bloodmoon", 1), new GuildSourceService.Inventory("7dtd", "combat", 1));
+  }
+
+  @Test void aCategoryAtItsCapIsLeftOutUntilOthersArrive() throws Exception {
+    // Three recent residents (the cap) were born from exploration memories.
+    for (int i = 1; i <= 3; i++) {
+      jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance) VALUES (?,'corekeeper',?,'紹介','出自','性格','moss')",
+          LocalDate.now(GuildService.TOKYO).minusDays(i), "テスト" + "アイウ".charAt(i - 1));
+      long id = jdbc.queryForObject("SELECT MAX(id) FROM M_GUILD_CHARACTER", Long.class);
+      jdbc.update("INSERT INTO T_GUILD_SOURCE (character_id,source_key,facts,memory_label,category) VALUES (?,?,'x','x','exploration')", id, "memory:test:" + i);
+    }
+    source();
+    var choice = sources.choose(LocalDate.now(GuildService.TOKYO));
+    assertThat(choice.source()).isEmpty();
+    assertThat(choice.skipped()).contains("探索").contains("偏り");
+    assertThat(guild.generateToday()).contains("偏り");
+    verifyNoInteractions(bedrock);
+    mvc.perform(get("/guild/maintenance").with(user("admin").roles("ADMIN"))).andExpect(status().isOk())
+        .andExpect(content().string(containsString("直近の住人（新しい順）: 探索、探索、探索")))
+        .andExpect(content().string(containsString("<td>Core Keeper</td><td>探索</td><td>1</td>")));
+    // A fight from another game is still welcome.
+    kill(LocalDate.now(GuildService.TOKYO).minusDays(2).atTime(13, 0).atZone(GuildService.TOKYO).toOffsetDateTime(), "other");
+    assertThat(sources.choose(LocalDate.now(GuildService.TOKYO)).source()).hasValueSatisfying(source ->
+        assertThat(source.category()).isEqualTo("combat"));
+  }
+
+  @Test void codeChoosesOccupationGenderAndLookFromTheMemory() {
+    for (int i = 0; i < 40; i++) {
+      var plan = people.plan("bloodmoon");
+      assertThat(plan.gender()).isEqualTo("女性");
+      assertThat(plan.occupation()).isIn("夜警", "騎士", "冒険者", "聖職者");
+      assertThat(plan.lineage()).isEqualTo(GuildPeople.Lineage.EUROPEAN);
+      // A woman knight wears the women's cut of plate; outfits without their own legs get a skirt.
+      if (plan.occupation().equals("騎士")) assertThat(plan.look().outfit()).isEqualTo("knight_f");
+      assertThat(plan.look().layers()).startsWith("body").contains("outfit-" + plan.look().outfit());
+      assertThat(plan.look().style()).matches("(--[a-z0-9]+:#[0-9a-f]{6};?)+");
+    }
+    assertThat(people.plan("fishing").occupation()).isIn("漁師", "料理人", "農家");
+    assertThat(GuildPeople.Look.of("knight", "short", "#000000", "#ffffff", "#123456", "#654321", "男性").layers())
+        .containsExactly("body", "outfit-knight", "hair-short", "hat-knight");
+    assertThat(GuildPeople.Look.of("cook", "bob", "#000000", "#ffffff", "#123456", "#654321", "女性").layers())
+        .containsExactly("body", "legs-skirt", "outfit-cook", "hair-bob", "hat-cook");
+    assertThat(GuildPeople.Look.of("cook", "bob", "red;background:url(x)", "#ffffff", "#123456", "#654321", "女性")).isNull();
+    assertThat(GuildPeople.Lineage.JAPANESE.fits("灯子")).isTrue();
+    assertThat(GuildPeople.Lineage.JAPANESE.fits("リネ")).isFalse();
+    assertThat(GuildPeople.Lineage.EUROPEAN.fits("リネ")).isTrue();
+    assertThat(GuildPeople.Lineage.EUROPEAN.fits("Rine")).isFalse();
+  }
+
+  @Test void aNameAlreadyTakenOrAPlayersNameIsNotSaved() {
+    sourceAt(1); sourceAt(10);
+    guild.generateToday();
+    assertThat(guild.generateToday()).contains("名前と重なりました");
+    assertThat(guild.characters(0)).hasSize(1);
+    jdbc.update("DELETE FROM T_GUILD_JOB");
+    jdbc.update("INSERT INTO M_PLAYER (player_key,platform,user_id,player_name) VALUES ('guild-test','test','guild-test','ミナトリネ')");
+    try {
+      when(bedrock.generate(anyString(), anyString(), anyInt(), anyFloat(), any())).thenReturn(DRAFT.replace("リネ", "ミナト"));
+      assertThat(guild.generateToday()).contains("名前と重なりました");
+    } finally {
+      jdbc.update("DELETE FROM M_PLAYER WHERE player_name = 'ミナトリネ'");
+    }
   }
 
   @Test void administratorsAddUpToTheDailyLimitRedrawVisitorsAndDelete() throws Exception {
     sourceAt(1); sourceAt(10); sourceAt(19);
+    when(bedrock.generate(anyString(), anyString(), anyInt(), anyFloat(), any()))
+        .thenReturn(DRAFT, DRAFT.replace("リネ", "ロアン"), DRAFT.replace("リネ", "エルダ"));
     var admin = user("admin").roles("ADMIN");
     mvc.perform(post("/guild/maintenance/generate").with(admin).with(csrf())).andExpect(status().is3xxRedirection());
     assertThat(guild.room(ZonedDateTime.now()).visits()).hasSize(1);
@@ -260,17 +355,18 @@ class GuildTests {
   @Test void claudeStyleOutputIsAccepted() {
     // A code fence, a lead-in sentence, short numbers, line breaks and an extra key are all fine.
     String fenced = "人物を作りました。\n```json\n" + DRAFT.replace("小さな店", "3年後に小さな店").replace("節約家", "\\n節約家")
-        .replace("\"appearance\"", "\"note\":\"x\",\"appearance\"") + "\n```";
-    var draft = generator.validate(fenced);
+        .replace("\"personality\"", "\"note\":\"x\",\"personality\"") + "\n```";
+    var draft = generator.validate(fenced, GuildPeople.Lineage.EUROPEAN);
     assertThat(draft.introduction()).contains("3年後に小さな店");
     assertThat(draft.personality()).contains("目がない").doesNotContain("\n");
-    assertThat(draft.appearance()).isEqualTo("moss");
+    assertThat(draft.age()).isEqualTo(28);
   }
 
   @Test void schemaRejectsUnsafeOrUnknownContent() {
-    for (String bad : List.of(DRAFT.replace("moss", "unknown"), DRAFT.replace("女性", "王女"), DRAFT.replace("28", "200"),
-        DRAFT.replace("\"age\":28,", ""), DRAFT.replace("リネ", "<script>"), DRAFT.replace("リネ", "https://secret"), DRAFT.replace("リネ", "76561123456"), DRAFT.replace("\"moss\"", "null"))) {
-      assertThatThrownBy(() -> generator.validate(bad)).isInstanceOf(RuntimeException.class);
+    for (String bad : List.of(DRAFT.replace("28", "200"), DRAFT.replace("\"age\":28,", ""), DRAFT.replace("リネ", "<script>"),
+        DRAFT.replace("リネ", "https://secret"), DRAFT.replace("リネ", "76561123456"), DRAFT.replace("リネ", "凛"),
+        DRAFT.replace("リネ", "リネリネリネリネリ"), DRAFT.replace("\"リネ\"", "null"))) {
+      assertThatThrownBy(() -> generator.validate(bad, GuildPeople.Lineage.EUROPEAN)).isInstanceOf(RuntimeException.class);
     }
   }
 }

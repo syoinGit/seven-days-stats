@@ -15,6 +15,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class GuildMaintenanceController {
   private final GuildService guild;
   private final GuildProperties properties;
+  private final GuildSourceService sources;
 
   @GetMapping("/guild/maintenance")
   public String index(Model model) {
@@ -23,6 +24,11 @@ public class GuildMaintenanceController {
     model.addAttribute("bornToday", guild.bornToday());
     model.addAttribute("dailyLimit", properties.dailyLimit());
     model.addAttribute("characters", guild.characters(0));
+    model.addAttribute("inventory", sources.inventory(java.time.LocalDate.now(GuildService.TOKYO)));
+    model.addAttribute("recentCategories", sources.recentCategories().stream()
+        .map(category -> category == null ? "（分類なし）" : GuildSourceService.CATEGORIES.getOrDefault(category, category)).toList());
+    model.addAttribute("categoryWindow", properties.categoryWindow());
+    model.addAttribute("categoryCap", properties.categoryCap());
     return "guild-maintenance";
   }
 
