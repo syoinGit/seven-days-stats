@@ -21,6 +21,14 @@
   <form method="post" th:action="@{/guild/maintenance/visits}"><button type="submit">来店者を引き直す</button></form>
 </section>
 
+<section class="guild-panel" id="interactions"><h2>毎時の交流</h2>
+  <p>毎時3分（日本時間）に、今日の来店者のうち2人が交流します。参加者・出来事・結果・関係の変化はプログラムが決め、AIは場面の文章だけを書きます。同じ時間に2件以上は起きません。失敗した時間を後から埋めることはしません。</p>
+  <p th:unless="${enabled}">現在、毎時の自動実行は無効です（GUILD_ENABLED）。下のボタンからは実行できます。</p>
+  <form method="post" th:action="@{/guild/maintenance/interaction}"><button type="submit" th:text="${'この時間（' + currentSlot + '）の交流を起こす'}">この時間の交流を起こす</button></form>
+  <p th:if="${#lists.isEmpty(hourlyJobs)}">まだ実行記録はありません。</p>
+  <ul class="guild-jobs"><li th:each="job : ${hourlyJobs}"><strong th:text="${job.slot + ' / ' + job.status}">2026-10-25T14 / SUCCEEDED</strong><p th:text="${job.message}"></p></li></ul>
+</section>
+
 <section class="guild-panel" id="origins"><h2>記憶の内訳</h2>
   <p th:text="${'直近' + categoryWindow + '人のうち、同じ種類の記憶から生まれるのは' + categoryCap + '人まで。上限に達した種類は、ほかの住人が増えるまで選ばれません。'}"></p>
   <p th:if="${#lists.isEmpty(recentCategories)}">まだ住人はいません。</p>

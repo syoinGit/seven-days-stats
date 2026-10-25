@@ -40,6 +40,9 @@ class GuildTests {
   @Autowired GuildSourceService sources;
   @Autowired GuildCharacterGenerator generator;
   @Autowired GuildPeople people;
+  @Autowired GuildInteractionService interactions;
+  @Autowired GuildInteractionWriter writer;
+  @Autowired GuildChronicle chronicle;
   @Autowired JdbcTemplate jdbc;
   @Autowired MockMvc mvc;
   @MockitoBean BedrockTextClient bedrock;
@@ -49,7 +52,8 @@ class GuildTests {
       """;
 
   @BeforeEach void setup() {
-    for (String table : List.of("T_GUILD_SOURCE", "T_GUILD_VISIT", "T_GUILD_DAY", "T_GUILD_JOB", "M_GUILD_CHARACTER", "T_CK_SESSION", "M_CK_PLAYER")) {
+    for (String table : List.of("T_GUILD_RELATION_EVENT", "T_GUILD_THREAD", "T_GUILD_INTERACTION_PARTICIPANT", "T_GUILD_INTERACTION",
+        "T_GUILD_RELATION", "T_GUILD_BOND", "T_GUILD_HOURLY_JOB", "T_GUILD_SOURCE", "T_GUILD_VISIT", "T_GUILD_DAY", "T_GUILD_JOB", "M_GUILD_CHARACTER", "T_CK_SESSION", "M_CK_PLAYER")) {
       jdbc.update("DELETE FROM " + table);
     }
     for (String table : List.of("T_PLAYER_JOIN_TRANSACTION", "T_WORLD_EVENT_TRANSACTION", "T_ENTITY_KILL_TRANSACTION")) {
@@ -58,6 +62,32 @@ class GuildTests {
     jdbc.update("DELETE FROM T_WORLD_SNAPSHOT WHERE parser_version = 'guild-test'");
     reset(bedrock);
     when(bedrock.generate(anyString(), anyString(), anyInt(), anyFloat(), any())).thenReturn(DRAFT);
+    when(bedrock.generate(anyString(), anyString(), eq(700), anyFloat(), any())).thenReturn(SCENE);
+  }
+
+  static final String SCENE = """
+      {"narration":"夕方の酒場。窓の外では雨が降っている。","lines":[{"speaker":"リネ","text":"今日は冷えるね。"},
+       {"speaker":"ロアン","text":"火のそばに座ろう。"}]}
+      """;
+  /** Today at 14:00 JST: the slot every interaction test runs in. */
+  static final ZonedDateTime HOUR = LocalDate.now(GuildService.TOKYO).atTime(14, 0).atZone(GuildService.TOKYO);
+
+  /** A resident sitting in today's tavern, inserted directly so interactions don't need births. */
+  private long resident(String name, int age, String status, int seat) {
+    jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,status,age,gender,occupation) "
+        + "VALUES (?,'core-keeper',?,'旅の者。','記録から。','穏やか。','moss',?,?,'女性','冒険者')",
+        LocalDate.now(GuildService.TOKYO).minusDays(100 + seat), name, status, age);
+    long id = jdbc.queryForObject("SELECT id FROM M_GUILD_CHARACTER WHERE name = ?", Long.class, name);
+    if (count("SELECT COUNT(*) FROM T_GUILD_DAY WHERE visit_date = ?", HOUR.toLocalDate()) == 0) {
+      jdbc.update("INSERT INTO T_GUILD_DAY (visit_date) VALUES (?)", HOUR.toLocalDate());
+    }
+    jdbc.update("INSERT INTO T_GUILD_VISIT (visit_date,character_id,seat,morning,afternoon,evening) VALUES (?,?,?,'おはよう','こんにちは','こんばんは')",
+        HOUR.toLocalDate(), id, seat);
+    return id;
+  }
+
+  private int count(String sql, Object... args) {
+    return jdbc.queryForObject(sql, Integer.class, args);
   }
 
   /** One Core Keeper session 70 days ago, 10:00-10:30 JST: exactly one memory (the 9-12 window). */
@@ -71,6 +101,158 @@ class GuildTests {
         "76561123456789" + hour, at, at);
     long id = jdbc.queryForObject("SELECT MAX(id) FROM M_CK_PLAYER", Long.class);
     jdbc.update("INSERT INTO T_CK_SESSION (ck_player_id,player_name,connected_at,disconnected_at) VALUES (?,'PRIVATE_PLAYER_SECRET',?,?)", id, at, at.plusMinutes(30));
+  }
+
+  @Test void anHourHoldsOneInteractionEvenWhenRunTwiceAtOnce() throws Exception {
+    long rine = resident("リネ", 28, "ALIVE", 0);
+    long roan = resident("ロアン", 30, "ALIVE", 1);
+    try (var executor = Executors.newFixedThreadPool(2)) {
+      var results = executor.invokeAll(List.<java.util.concurrent.Callable<String>>of(() -> interactions.runHour(HOUR), () -> interactions.runHour(HOUR)));
+      for (var result : results) assertThat(result.get()).isNotNull();
+    }
+    assertThat(interactions.runHour(HOUR.plusMinutes(30))).contains("すでに処理済み");
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isEqualTo(1);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_HOURLY_JOB WHERE status = 'SUCCEEDED'")).isEqualTo(1);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION_PARTICIPANT")).isEqualTo(2);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_RELATION WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)", rine, roan, roan, rine)).isEqualTo(2);
+    assertThat(jdbc.queryForObject("SELECT label FROM T_GUILD_BOND", String.class)).isEqualTo("acquaintance");
+    assertThat(jdbc.queryForObject("SELECT written_by FROM T_GUILD_INTERACTION", String.class)).isEqualTo("ai");
+    verify(bedrock, times(1)).generate(anyString(), argThat(input -> input.contains("リネ") && input.contains("ロアン")), eq(700), anyFloat(), any());
+  }
+
+  /** Sixty days of every hour with five residents: the rules hold however the cards fall. */
+  @Test void manyHoursKeepTheRules() {
+    List<Long> ids = List.of(resident("リネ", 28, "ALIVE", 0), resident("ロアン", 30, "ALIVE", 1), resident("ミラ", 45, "ALIVE", 2),
+        resident("ガルド", 19, "ALIVE", 3), resident("セナ", 16, "ALIVE", 4));
+    for (int day = 1; day <= 60; day++) {
+      var date = HOUR.toLocalDate().plusDays(day);
+      jdbc.update("INSERT INTO T_GUILD_DAY (visit_date) VALUES (?)", date);
+      for (int seat = 0; seat < ids.size(); seat++) {
+        jdbc.update("INSERT INTO T_GUILD_VISIT (visit_date,character_id,seat,morning,afternoon,evening) VALUES (?,?,?,'a','b','c')", date, ids.get(seat), seat);
+      }
+      if (day == 40) jdbc.update("UPDATE M_GUILD_CHARACTER SET status = 'DEAD' WHERE id = ?", ids.get(3));
+      for (int hour = 0; hour < 24; hour++) interactions.runHour(date.atTime(hour, 0).atZone(GuildService.TOKYO));
+    }
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_HOURLY_JOB")).isEqualTo(60 * 24);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isGreaterThan(60 * 20);
+    assertThat(count("SELECT COUNT(DISTINCT card_id) FROM T_GUILD_INTERACTION")).isGreaterThan(10);
+    assertThat(count("SELECT MAX(n) FROM (SELECT COUNT(*) n FROM T_GUILD_INTERACTION GROUP BY slot_key) t")).isEqualTo(1);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION i JOIN T_GUILD_INTERACTION_PARTICIPANT p ON p.interaction_id = i.id "
+        + "WHERE p.character_id = ? AND i.happened_at >= ?", ids.get(3), HOUR.toLocalDate().plusDays(40).atStartOfDay(GuildService.TOKYO).toOffsetDateTime())).isZero();
+    for (long id : ids) {
+      assertThat(count("SELECT COUNT(*) FROM T_GUILD_BOND WHERE (low_id = ? OR high_id = ?) AND label IN ('lover','spouse')", id, id)).isLessThanOrEqualTo(1);
+    }
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_BOND WHERE (low_id = ? OR high_id = ?) AND label IN ('lover','spouse')", ids.get(4), ids.get(4))).isZero();
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_RELATION WHERE trust NOT BETWEEN -100 AND 100 OR affinity NOT BETWEEN -100 AND 100 "
+        + "OR wariness NOT BETWEEN 0 AND 100 OR debt NOT BETWEEN 0 AND 100")).isZero();
+    String labels = String.join(",", jdbc.queryForList("SELECT label || ':' || COUNT(*) FROM T_GUILD_BOND GROUP BY label ORDER BY label", String.class));
+    String kinds = String.join(",", jdbc.queryForList("SELECT kind || ':' || COUNT(*) FROM T_GUILD_INTERACTION GROUP BY kind ORDER BY kind", String.class));
+    System.out.println("guild simulation labels=" + labels + " kinds=" + kinds);
+  }
+
+  @Test void theDeadAndAnEmptyTavernMakeNoInteraction() {
+    resident("リネ", 28, "ALIVE", 0);
+    resident("ロアン", 30, "DEAD", 1);
+    assertThat(interactions.runHour(HOUR)).contains("2人未満");
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isZero();
+    assertThat(interactions.jobs()).extracting(GuildInteractionService.Job::status).containsExactly("SKIPPED");
+    // A skipped hour stays skipped: it is not filled in later.
+    resident("ミラ", 25, "ALIVE", 2);
+    assertThat(interactions.runHour(HOUR)).contains("すでに処理済み");
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isZero();
+    verify(bedrock, never()).generate(anyString(), anyString(), eq(700), anyFloat(), any());
+  }
+
+  @Test void aFailedWriterFallsBackToTheTemplateWithTheSameOutcome() {
+    resident("リネ", 28, "ALIVE", 0);
+    resident("ロアン", 30, "ALIVE", 1);
+    when(bedrock.generate(anyString(), anyString(), eq(700), anyFloat(), any())).thenThrow(new IllegalStateException("down"));
+    assertThat(interactions.runHour(HOUR)).doesNotContain("失敗");
+    assertThat(jdbc.queryForObject("SELECT written_by FROM T_GUILD_INTERACTION", String.class)).isEqualTo("template");
+    String body = jdbc.queryForObject("SELECT body FROM T_GUILD_INTERACTION", String.class);
+    assertThat(body).isNotBlank().doesNotContain("{a}").doesNotContain("{b}");
+  }
+
+  @Test void writerAcceptsOnlyParticipantsAndChangesCodeMade() {
+    var a = new GuildInteractionService.Person(1, "リネ", 28, "女性", "冒険者", "穏やか");
+    var b = new GuildInteractionService.Person(2, "ロアン", 30, "男性", "鍛冶屋", "無口");
+    var scene = new GuildInteractionWriter.Scene("evening", "雑談", "二人は天気の話をした", a, b, "ふつう", "ふつう",
+        "知人", null, "", List.of(), null, null, null);
+    assertThat(writer.validate(SCENE, scene)).startsWith("夕方の酒場。").contains("リネ「今日は冷えるね。」");
+    assertThatThrownBy(() -> writer.validate(SCENE.replace("ロアン", "ガルド"), scene)).isInstanceOf(IllegalArgumentException.class);
+    String married = SCENE.replace("火のそばに座ろう。", "俺たち、結婚しよう。いや結婚した。夫婦になった。");
+    assertThatThrownBy(() -> writer.validate(married, scene)).hasMessageContaining("Unconfirmed");
+    var wedding = new GuildInteractionWriter.Scene("evening", "求婚", "二人は夫婦になった", a, b, "深い愛情", "深い愛情",
+        "恋人", "夫婦", "", List.of(), null, null, null);
+    assertThat(writer.validate(married, wedding)).contains("夫婦になった");
+    assertThatThrownBy(() -> writer.validate(SCENE.replace("今日は冷えるね。", "彼は亡くなったよ。"), scene)).hasMessageContaining("Unconfirmed");
+  }
+
+  @Test void onlyCodeRulesMoveLabelsAndPartnersAreExclusive() {
+    long rine = resident("リネ", 28, "ALIVE", 0);
+    long roan = resident("ロアン", 30, "ALIVE", 1);
+    long mira = resident("ミラ", 16, "ALIVE", 2);
+    var now = HOUR.toOffsetDateTime();
+    var warm = new GuildInteractionService.Rel(60, 80, 0, 0);
+    var a = new GuildInteractionService.Person(rine, "リネ", 28, "女性", null, "");
+    var b = new GuildInteractionService.Person(roan, "ロアン", 30, "男性", null, "");
+    var minor = new GuildInteractionService.Person(mira, "ミラ", 16, "女性", null, "");
+    var friends = new GuildInteractionService.Pair(a, b, warm, warm, "friend", now.minusDays(30), 5, 0, List.of(), null);
+    assertThat(interactions.label(friends, warm, warm, "lover", 6, 0, now)).isEqualTo("lover");
+    assertThat(interactions.label(friends, warm, warm, "spouse", 6, 0, now)).as("spouse needs lovers first").isEqualTo("friend");
+    assertThat(interactions.label(friends, warm, warm, null, 6, 0, now)).as("no attempt, no romance").isEqualTo("friend");
+    var withMinor = new GuildInteractionService.Pair(a, minor, warm, warm, "friend", now.minusDays(30), 5, 0, List.of(), null);
+    assertThat(interactions.label(withMinor, warm, warm, "lover", 6, 0, now)).isEqualTo("friend");
+    var newLovers = new GuildInteractionService.Pair(a, b, warm, warm, "lover", now.minusDays(2), 9, 0, List.of(), null);
+    assertThat(interactions.label(newLovers, warm, warm, "spouse", 10, 0, now)).as("a week first").isEqualTo("lover");
+    var lovers = new GuildInteractionService.Pair(a, b, warm, warm, "lover", now.minusDays(8), 9, 0, List.of(), null);
+    assertThat(interactions.label(lovers, warm, warm, "spouse", 10, 0, now)).isEqualTo("spouse");
+    var cold = new GuildInteractionService.Rel(0, -50, 70, 0);
+    assertThat(interactions.label(friends, cold, cold, null, 6, 0, now)).isEqualTo("acquaintance");
+    assertThat(interactions.label(friends, cold, cold, "rival", 6, 0, now)).isEqualTo("rival");
+    jdbc.update("INSERT INTO T_GUILD_BOND (low_id,high_id,label,since) VALUES (?,?,'lover',?)", Math.min(rine, mira), Math.max(rine, mira), now);
+    assertThat(interactions.label(friends, warm, warm, "lover", 6, 0, now)).as("one partner at a time").isEqualTo("friend");
+  }
+
+  @Test void theLogEntryAndPairPagesShowTheStoryWithoutPlayers() throws Exception {
+    source();
+    long rine = resident("リネ", 28, "ALIVE", 0);
+    long roan = resident("ロアン", 30, "ALIVE", 1);
+    interactions.runHour(HOUR);
+    long id = jdbc.queryForObject("SELECT id FROM T_GUILD_INTERACTION", Long.class);
+    String summary = jdbc.queryForObject("SELECT summary FROM T_GUILD_INTERACTION", String.class);
+    String pair = Math.min(rine, roan) + "-" + Math.max(rine, roan);
+    mvc.perform(get("/guild/log")).andExpect(status().isOk())
+        .andExpect(content().string(containsString(summary)))
+        .andExpect(content().string(containsString("/guild/pairs/" + pair)))
+        .andExpect(content().string(containsString("href=\"/guild/log\" aria-current=\"page\"")));
+    mvc.perform(get("/guild/log").param("character", String.valueOf(roan))).andExpect(status().isOk())
+        .andExpect(content().string(containsString("ロアン の交流")));
+    mvc.perform(get("/guild/log/" + id)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("夕方の酒場。")))
+        .andExpect(content().string(containsString("リネ「今日は冷えるね。」")))
+        .andExpect(content().string(containsString("知人になった")))
+        .andExpect(content().string(not(containsString("PRIVATE_PLAYER_SECRET"))));
+    mvc.perform(get("/guild/pairs/" + pair)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("の、出会いから今まで")))
+        .andExpect(content().string(containsString(summary)));
+    mvc.perform(get("/guild/pairs/" + Math.max(rine, roan) + "-" + Math.min(rine, roan))).andExpect(status().isNotFound());
+    mvc.perform(get("/guild/log/999999")).andExpect(status().isNotFound());
+    mvc.perform(get("/guild/characters/" + rine)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("この街での関係")))
+        .andExpect(content().string(containsString(summary)));
+    mvc.perform(get("/guild/board")).andExpect(status().isOk()).andExpect(content().string(containsString(summary)));
+    var scene = chronicle.scene(HOUR.plusMinutes(10), HOUR.toLocalDate());
+    assertThat(scene.interactionId()).isEqualTo(id);
+    assertThat(scene.lines().get(rine)).isEqualTo("「今日は冷えるね。」");
+    assertThat(chronicle.scene(HOUR.minusHours(1), HOUR.toLocalDate())).isNull();
+    mvc.perform(post("/guild/maintenance/interaction").with(user("member").roles("PLAYER")).with(csrf())).andExpect(status().isForbidden());
+    mvc.perform(post("/guild/maintenance/interaction").with(user("admin").roles("ADMIN"))).andExpect(status().isForbidden());
+    // Deleting a resident takes their interactions and relationships with them.
+    guild.delete(rine);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isZero();
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_RELATION")).isZero();
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_BOND")).isZero();
   }
 
   @Test void publicViewsAreReadOnlyAndAdminWritesNeedRoleAndCsrf() throws Exception {

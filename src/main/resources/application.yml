@@ -46,6 +46,17 @@ app:
       north: 1
       desert: 1
       steppe: 1
+    # Hourly interactions between today's visitors (JST). fallback: template or skip when the AI fails.
+    interaction-interval-hours: ${GUILD_INTERACTION_INTERVAL_HOURS:1}
+    interaction-daily-max: ${GUILD_INTERACTION_DAILY_MAX:24}
+    interaction-fallback: ${GUILD_INTERACTION_FALLBACK:template}
+    recent-pair-slots: ${GUILD_RECENT_PAIR_SLOTS:3}
+    selection-weights:
+      random: 3
+      warm: 2
+      cold: 1
+      bond: 2
+      thread: 2
   platform:
     domain: ${DOMAIN:rubinco.link}
     portal-url: ${PORTAL_SITE_URL:https://portal.${app.platform.domain}}

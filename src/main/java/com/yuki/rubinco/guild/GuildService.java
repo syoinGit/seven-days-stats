@@ -190,12 +190,26 @@ public class GuildService {
     return count == 0 ? "まだ住人がいないため、来店者はいません。" : "今日の来店者を引き直しました（" + count + "人）。";
   }
 
-  /** Removes a resident with their visits and source; the source's memory may be used again. */
+  /**
+   * Removes a resident with their visits, source, interactions (and what those interactions changed or
+   * started) and relationships. The source's memory may be used again.
+   */
   @Transactional
   public String delete(long id) {
     lock();
     List<String> names = jdbc.queryForList("SELECT name FROM M_GUILD_CHARACTER WHERE id = ?", String.class, id);
     if (names.isEmpty()) return "その住人は見つかりませんでした。";
+    List<Long> interactions = jdbc.queryForList("SELECT interaction_id FROM T_GUILD_INTERACTION_PARTICIPANT WHERE character_id = ?", Long.class, id);
+    for (long interaction : interactions) {
+      jdbc.update("DELETE FROM T_GUILD_RELATION_EVENT WHERE interaction_id = ?", interaction);
+      jdbc.update("DELETE FROM T_GUILD_THREAD WHERE origin_interaction_id = ? OR resolved_interaction_id = ?", interaction, interaction);
+      jdbc.update("DELETE FROM T_GUILD_INTERACTION_PARTICIPANT WHERE interaction_id = ?", interaction);
+      jdbc.update("DELETE FROM T_GUILD_INTERACTION WHERE id = ?", interaction);
+    }
+    jdbc.update("DELETE FROM T_GUILD_RELATION_EVENT WHERE from_id = ? OR to_id = ?", id, id);
+    jdbc.update("DELETE FROM T_GUILD_THREAD WHERE a_id = ? OR b_id = ?", id, id);
+    jdbc.update("DELETE FROM T_GUILD_RELATION WHERE from_id = ? OR to_id = ?", id, id);
+    jdbc.update("DELETE FROM T_GUILD_BOND WHERE low_id = ? OR high_id = ? OR lead_id = ?", id, id, id);
     jdbc.update("DELETE FROM T_GUILD_VISIT WHERE character_id = ?", id);
     jdbc.update("DELETE FROM T_GUILD_SOURCE WHERE character_id = ?", id);
     jdbc.update("DELETE FROM M_GUILD_CHARACTER WHERE id = ?", id);

@@ -21,15 +21,18 @@
     <div class="room-fireplace" aria-hidden="true"><div class="fire"></div></div>
     <div class="room-table table-one" aria-hidden="true"></div><div class="room-table table-two" aria-hidden="true"></div>
     <div class="room-rug" aria-hidden="true"></div><span class="room-door" aria-hidden="true">入口</span>
-    <a th:each="visit : ${room.visits}" class="room-person" th:classappend="${'seat-' + visit.seat + ' ' + visit.character.appearance}"
-       th:href="@{/guild/characters/{id}(id=${visit.character.id})}" th:attr="aria-label=${visit.character.name + '：' + visit.line}">
-      <span class="person-bubble" th:text="${visit.line}"></span>
+    <a th:each="visit : ${room.visits}" class="room-person"
+       th:with="said=${scene != null ? scene.lines.get(visit.character.id) : null}, talking=${scene != null and scene.lines.containsKey(visit.character.id)}"
+       th:classappend="${'seat-' + visit.seat + ' ' + visit.character.appearance + (talking ? ' talking' : '')}"
+       th:href="@{/guild/characters/{id}(id=${visit.character.id})}" th:attr="aria-label=${visit.character.name + '：' + (said != null ? said : visit.line)}">
+      <span class="person-bubble" th:text="${said != null ? said : visit.line}"></span>
       <svg th:replace="~{fragments/guild :: sprite(${visit.character})}"></svg>
       <span class="person-name" th:text="${visit.character.name}"></span>
     </a>
     <div class="room-empty" th:if="${#lists.isEmpty(room.visits)}"><strong>暖炉に火が入りました。</strong><p>まだ静かな酒場です。<br>最初の住人が訪れる日を待っています。</p></div>
   </section>
-  <p class="guild-caption">人物を選ぶと、その人の物語が開きます。</p>
+  <p class="guild-caption" th:if="${scene == null}">人物を選ぶと、その人の物語が開きます。</p>
+  <p class="guild-caption guild-now" th:if="${scene != null}">いまの酒場：<a th:href="@{/guild/log/{id}(id=${scene.interactionId})}" th:text="${scene.summary}">リネとロアンは天気の話をした</a></p>
 </main>
 <div class="guild-scrim" data-guild-scrim th:hidden="${window == null}"></div>
 <dialog id="guild-window" class="guild-window" th:open="${window != null}" aria-labelledby="guild-window-title">
@@ -39,5 +42,5 @@
   </th:block>
 </dialog>
 <nav th:replace="~{fragments/guild :: tabbar(${tab})}"></nav>
-<script defer src="/js/guild.js?v=1"></script>
+<script defer src="/js/guild.js?v=2"></script>
 </body></html>
