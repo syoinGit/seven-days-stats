@@ -23,26 +23,19 @@ public class GuildPeople {
   private final JdbcTemplate jdbc;
   private final GuildWorld world;
 
-  /** Occupation → outfit (men's cut). Several occupations may share an outfit; women wear the "_f" cut where one exists. */
+  /** Occupation → outfit. Several occupations may share an outfit. */
   static final Map<String, String> OUTFITS = Map.ofEntries(
       Map.entry("農家", "farmer"), Map.entry("夜警", "watch"), Map.entry("騎士", "knight"),
       Map.entry("職人", "crafter"), Map.entry("鉱夫", "crafter"), Map.entry("商人", "merchant"),
       Map.entry("聖職者", "cleric"), Map.entry("冒険者", "adventurer"), Map.entry("猟師", "hunter"),
       Map.entry("漁師", "hunter"), Map.entry("料理人", "cook"), Map.entry("鍛冶屋", "crafter"), Map.entry("大工", "crafter"),
       Map.entry("薬師", "cleric"), Map.entry("運び屋", "merchant"), Map.entry("護衛", "watch"),
-      Map.entry("侍", "samurai"), Map.entry("浪人", "ronin"), Map.entry("巫女", "miko_m"));
-  /** Outfits with a women's cut, and the cut's name. A woman shrine attendant wears the shrine maiden's dress. */
-  static final Map<String, String> WOMEN = Map.ofEntries(Map.entry("farmer", "farmer_f"), Map.entry("watch", "watch_f"),
-      Map.entry("knight", "knight_f"), Map.entry("crafter", "crafter_f"), Map.entry("merchant", "merchant_f"),
-      Map.entry("cleric", "cleric_f"), Map.entry("adventurer", "adventurer_f"), Map.entry("hunter", "hunter_f"),
-      Map.entry("cook", "cook_f"), Map.entry("samurai", "samurai_f"), Map.entry("ronin", "ronin_f"), Map.entry("miko_m", "miko"));
+      Map.entry("侍", "watch"), Map.entry("浪人", "adventurer"), Map.entry("巫女", "cleric"));
   static final List<String> GENDERS = List.of("女性", "男性");
   /** Outfits that dress the legs themselves; the rest wear trousers or a skirt by gender. */
-  private static final List<String> FULL_OUTFITS = List.of("farmer", "knight", "knight_f", "cleric", "cleric_f", "farmer_f", "merchant_f",
-      "cook_f", "samurai", "samurai_f", "ronin", "ronin_f", "miko", "miko_m");
+  private static final List<String> FULL_OUTFITS = List.of("farmer", "knight", "knight_f", "cleric");
   /** Outfits with headwear drawn over the hair. */
-  private static final List<String> HATS = List.of("farmer", "watch", "knight", "knight_f", "crafter", "crafter_f", "merchant", "hunter",
-      "cook", "cook_f", "cleric_f", "ronin", "miko_m");
+  private static final List<String> HATS = List.of("farmer", "watch", "knight", "knight_f", "crafter", "merchant", "hunter", "cook");
 
   /** Name lineages: how the AI is asked to name the person, and how the name is checked. */
   public enum Lineage {
@@ -82,61 +75,38 @@ public class GuildPeople {
     }
   }
 
-  /** Hair styles and accessories are split by gender; glasses suit anyone. "none" leaves the face bare. */
-  static final List<String> MALE_HAIR = List.of("short", "cropped", "spiky", "swept", "shaggy", "topknot", "tail");
-  static final List<String> FEMALE_HAIR = List.of("long", "bob", "tied", "braid", "twintail", "bun", "wavy", "hime");
-  static final List<String> MALE_ACCESSORIES = List.of("none", "none", "none", "beard", "mustache", "stubble", "eyepatch", "scar", "glasses");
-  static final List<String> FEMALE_ACCESSORIES = List.of("none", "none", "none", "ribbon", "flower", "earrings", "hairband", "glasses");
-  private static final List<String> HAIR_COLORS = List.of("#2b2224", "#4a2f25", "#6e4630", "#a0683a", "#d6a85a", "#e8d6b0", "#8c8c96", "#a0413c",
-      "#1d2238", "#c9c9d2", "#7a2e2e", "#d98c5f", "#f0e2b6", "#3b4f6b", "#5a3a6a");
-  private static final List<String> SKINS = List.of("#f3d2b3", "#e6b48e", "#d29a72", "#a8704c", "#7a4e36", "#fbe2cc", "#c48a62", "#5c3a28");
-  private static final List<String> CLOTHS = List.of("#7b5a8f", "#5f7d4a", "#4f6d8f", "#a0544a", "#8a6a3a", "#3f5f63", "#6b4a6e", "#7a7468",
-      "#2f5d50", "#b07a2f", "#6b2f3f", "#2e3a5f", "#8a8f3a", "#c06a8a", "#4a7a8c", "#9a4a2a");
-  private static final List<String> SECOND = List.of("#5a4a6a", "#4a5f3a", "#3a4f6a", "#7a3a3a", "#6a5a3a", "#3a4a4f",
-      "#2a2a3a", "#8a4a5a", "#3a6a5a", "#b0905a", "#5a2a4a");
-  private static final List<String> EYES = List.of("#2b2032", "#2b2032", "#3a5a8a", "#3f6b3a", "#6b4a2a", "#6a3a7a", "#8a6a2a");
-  private static final java.util.Set<String> ALL_OUTFITS = java.util.stream.Stream.concat(OUTFITS.values().stream(), WOMEN.values().stream())
-      .collect(Collectors.toUnmodifiableSet());
+  private static final List<String> MALE_HAIR = List.of("short", "short", "cropped", "cropped", "tied", "long");
+  private static final List<String> FEMALE_HAIR = List.of("long", "long", "bob", "bob", "tied", "tied", "short");
+  private static final List<String> HAIR_COLORS = List.of("#2b2224", "#4a2f25", "#6e4630", "#a0683a", "#d6a85a", "#e8d6b0", "#8c8c96", "#a0413c");
+  private static final List<String> SKINS = List.of("#f3d2b3", "#e6b48e", "#d29a72", "#a8704c", "#7a4e36");
+  private static final List<String> CLOTHS = List.of("#7b5a8f", "#5f7d4a", "#4f6d8f", "#a0544a", "#8a6a3a", "#3f5f63", "#6b4a6e", "#7a7468");
+  private static final List<String> SECOND = List.of("#5a4a6a", "#4a5f3a", "#3a4f6a", "#7a3a3a", "#6a5a3a", "#3a4a4f");
 
-  /**
-   * The pixel parts of one person. Colours are always from the palettes above. face follows gender (null when
-   * unknown); accessory and eye are null for residents born before V60.
-   */
-  public record Look(String outfit, String hair, String hairColor, String skin, String cloth, String cloth2, String legs,
-                     String face, String accessory, String eye) {
+  /** The pixel parts of one person. Colours are always from the palettes above. */
+  public record Look(String outfit, String hair, String hairColor, String skin, String cloth, String cloth2, String legs) {
     /** Symbol ids in /img/guild-people.svg, drawn bottom to top. */
     public List<String> layers() {
       List<String> layers = new ArrayList<>(List.of("body"));
-      if (face != null) layers.add("face-" + face);
       if (legs != null) layers.add("legs-" + legs);
       layers.add("outfit-" + outfit);
       layers.add("hair-" + hair);
-      if (accessory != null && !accessory.equals("none")) layers.add("acc-" + accessory);
       if (HATS.contains(outfit)) layers.add("hat-" + outfit);
       return layers;
     }
 
     public String style() {
-      return "--skin:" + skin + ";--hair:" + hairColor + ";--cloth:" + cloth + ";--cloth2:" + cloth2 + (eye == null ? "" : ";--eye:" + eye);
-    }
-
-    static Look of(String outfit, String hair, String hairColor, String skin, String cloth, String cloth2, String gender) {
-      return of(outfit, hair, hairColor, skin, cloth, cloth2, gender, null, null);
+      return "--skin:" + skin + ";--hair:" + hairColor + ";--cloth:" + cloth + ";--cloth2:" + cloth2;
     }
 
     /** Null unless every part is a known one; old or edited rows fall back to the plain resident. */
-    static Look of(String outfit, String hair, String hairColor, String skin, String cloth, String cloth2, String gender,
-                   String accessory, String eye) {
-      if (outfit == null || !ALL_OUTFITS.contains(outfit)) return null;
-      if (!MALE_HAIR.contains(hair) && !FEMALE_HAIR.contains(hair)) return null;
-      if (accessory != null && !MALE_ACCESSORIES.contains(accessory) && !FEMALE_ACCESSORIES.contains(accessory)) return null;
+    static Look of(String outfit, String hair, String hairColor, String skin, String cloth, String cloth2, String gender) {
+      if (outfit == null || !OUTFITS.containsValue(outfit) && !outfit.equals("knight_f")) return null;
+      if (!List.of("short", "cropped", "tied", "long", "bob").contains(hair)) return null;
       for (String color : new String[] {hairColor, skin, cloth, cloth2}) {
         if (color == null || !color.matches("#[0-9a-f]{6}")) return null;
       }
-      if (eye != null && !eye.matches("#[0-9a-f]{6}")) return null;
       String legs = FULL_OUTFITS.contains(outfit) ? null : "女性".equals(gender) ? "skirt" : "pants";
-      String face = "女性".equals(gender) ? "f" : "男性".equals(gender) ? "m" : null;
-      return new Look(outfit, hair, hairColor, skin, cloth, cloth2, legs, face, accessory, eye);
+      return new Look(outfit, hair, hairColor, skin, cloth, cloth2, legs);
     }
   }
 
@@ -186,14 +156,10 @@ public class GuildPeople {
 
   /** The pixel parts for a gender and occupation; hair and colours are drawn from the palettes. */
   public Look look(String gender, String occupation) {
-    boolean woman = gender.equals("女性");
     String outfit = OUTFITS.get(occupation);
-    if (woman) outfit = WOMEN.getOrDefault(outfit, outfit);
-    // A topknot goes with Tsukikage's swords; elsewhere it is rare.
-    List<String> hair = woman ? FEMALE_HAIR : outfit.equals("samurai") || outfit.equals("ronin") ? List.of("topknot", "topknot", "tail", "shaggy")
-        : MALE_HAIR.stream().filter(style -> !style.equals("topknot")).toList();
-    return Look.of(outfit, any(hair), any(HAIR_COLORS), any(SKINS), any(CLOTHS), any(SECOND), gender,
-        any(woman ? FEMALE_ACCESSORIES : MALE_ACCESSORIES), any(EYES));
+    if (outfit.equals("knight") && gender.equals("女性")) outfit = "knight_f";
+    return Look.of(outfit, any(gender.equals("女性") ? FEMALE_HAIR : MALE_HAIR), any(HAIR_COLORS), any(SKINS),
+        any(CLOTHS), any(SECOND), gender);
   }
 
   private static String any(List<String> values) {

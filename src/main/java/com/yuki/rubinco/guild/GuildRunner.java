@@ -19,8 +19,8 @@ public class GuildRunner {
     catch (RuntimeException exception) { log.error("Guild birth transaction failed ({})", exception.getClass().getSimpleName()); }
   }
 
-  /** A few minutes past each hour and half hour, after the day's visitors are in place; only the configured hours act. */
-  @Scheduled(cron = "0 3,33 * * * *", zone = "Asia/Tokyo")
+  /** A few minutes past each hour, after the day's visitors are in place. */
+  @Scheduled(cron = "0 3 * * * *", zone = "Asia/Tokyo")
   public void interaction() {
     try { interactions.runHour(java.time.ZonedDateTime.now(GuildService.TOKYO)); }
     catch (RuntimeException exception) { log.error("Guild interaction transaction failed ({})", exception.getClass().getSimpleName()); }

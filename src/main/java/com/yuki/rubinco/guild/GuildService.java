@@ -69,7 +69,7 @@ public class GuildService {
   // The source key (it names the player and day) stays private; the memory label and lines are public.
   private static final String PUBLIC_COLUMNS = "c.id, c.born_on, c.game_id, c.name, c.introduction, c.origin, "
       + "c.personality, c.appearance, c.status, c.age, c.gender, c.occupation, s.memory_label, "
-      + "c.name_lineage, c.outfit, c.hair_style, c.hair_color, c.skin_color, c.cloth_color, c.cloth2_color, c.accessory, c.eye_color, "
+      + "c.name_lineage, c.outfit, c.hair_style, c.hair_color, c.skin_color, c.cloth_color, c.cloth2_color, "
       + "CASE WHEN s.memory_label IS NULL THEN NULL ELSE s.facts END AS memory, s.reading, "
       + "hv.name AS home_village_name, cv.name AS village_name, cv.village_key, fa.name AS faction_name, "
       + "fi.name AS faith_name, fi.faith_key";
@@ -83,8 +83,7 @@ public class GuildService {
         (Integer) rs.getObject("age"), rs.getString("gender"), rs.getString("occupation"),
         rs.getString("memory_label"), rs.getString("memory"), rs.getString("name_lineage"),
         GuildPeople.Look.of(rs.getString("outfit"), rs.getString("hair_style"), rs.getString("hair_color"),
-            rs.getString("skin_color"), rs.getString("cloth_color"), rs.getString("cloth2_color"), rs.getString("gender"),
-            rs.getString("accessory"), rs.getString("eye_color")),
+            rs.getString("skin_color"), rs.getString("cloth_color"), rs.getString("cloth2_color"), rs.getString("gender")),
         rs.getString("reading"), rs.getString("home_village_name"), rs.getString("village_name"), rs.getString("faction_name"),
         GuildWorld.faithName(rs.getString("faith_name"), rs.getString("faith_key"), rs.getString("village_key")));
   }
@@ -180,12 +179,12 @@ public class GuildService {
     }
     var look = people.look(draft.gender(), draft.occupation());
     jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,age,gender,occupation,"
-        + "name_lineage,outfit,hair_style,hair_color,skin_color,cloth_color,cloth2_color,home_village,current_village,faction,faith,"
-        + "accessory,eye_color) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        + "name_lineage,outfit,hair_style,hair_color,skin_color,cloth_color,cloth2_color,home_village,current_village,faction,faith) "
+        + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         today, source.get().game(), draft.name(), draft.introduction(), origin, draft.personality(),
         List.of("ember", "moss", "violet").get(java.util.concurrent.ThreadLocalRandom.current().nextInt(3)),
         draft.age(), draft.gender(), draft.occupation(), draft.lineage().name().toLowerCase(), look.outfit(), look.hair(),
-        look.hairColor(), look.skin(), look.cloth(), look.cloth2(), draft.village(), draft.village(), draft.faction(), draft.faith(), look.accessory(), look.eye());
+        look.hairColor(), look.skin(), look.cloth(), look.cloth2(), draft.village(), draft.village(), draft.faction(), draft.faith());
     // Writes are serialized by lock(), so the newest id is this resident.
     Long id = jdbc.queryForObject("SELECT MAX(id) FROM M_GUILD_CHARACTER", Long.class);
     jdbc.update("INSERT INTO T_GUILD_SOURCE (character_id,source_key,facts,memory_label,category,reading,world_facts) VALUES (?,?,?,?,?,?,?)",
