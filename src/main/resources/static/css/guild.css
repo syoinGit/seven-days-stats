@@ -92,7 +92,7 @@
 .guild-room.afternoon{--sky:linear-gradient(#e7b77a,#f2d9a2)}
 .guild-room.evening{--sky:radial-gradient(circle at 70% 28%,#f4ecc8 0 6px,transparent 7px),radial-gradient(circle at 25% 60%,#fff9 0 1px,transparent 2px),radial-gradient(circle at 45% 20%,#fff9 0 1px,transparent 2px),linear-gradient(#1b2246,#3a2f5c)}
 .tv-area{display:none;position:absolute;inset:0}
-#guild-area-counter:checked~.guild-room .tv-counter,#guild-area-tables:checked~.guild-room .tv-tables,#guild-area-board:checked~.guild-room .tv-board,#guild-area-hearth:checked~.guild-room .tv-hearth{display:block}
+#guild-area-counter:checked~.guild-room .tv-counter,#guild-area-tables:checked~.guild-room .tv-tables,#guild-area-board:checked~.guild-room .tv-board,#guild-area-hearth:checked~.guild-room .tv-hearth,#guild-area-party:checked~.guild-room .tv-party{display:block}
 .tv-back{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 43px,#3f2c3655 44px 47px),repeating-linear-gradient(90deg,#543a40 0 85px,#50353e 85px 170px)}
 .tv-back::before{content:"";position:absolute;left:0;right:0;bottom:64px;height:84px;background:repeating-linear-gradient(90deg,#3f2c32 0 40px,#3a2830 40px 44px);border-top:6px solid #6c4c45}
 .tv-back::after{content:"";position:absolute;left:0;right:0;bottom:0;height:64px;background:repeating-linear-gradient(90deg,#5a3c32 0 120px,#523629 120px 240px);border-top:6px solid #2a1d22;box-shadow:inset 0 18px 24px #0007}
@@ -116,6 +116,12 @@
 .tv-area .room-person.talking{animation:none}
 .tv-area .room-person:is(.talking,:hover,:focus){z-index:2}
 .tv-area .person-bubble{left:50%;translate:-50% 0}
+.guild-room:not(.playing) .say+.say,.say[hidden]{display:none}
+.guild-room.playing .room-person.talking:not(.speaking,:hover,:focus) .person-bubble{display:none}
+.room-person.murmur{z-index:2}.room-person.murmur .person-bubble{display:block;width:150px;font-size:11px;padding:8px 10px;animation:tv-pop .25s ease-out}
+.room-person.speaking .person-bubble{animation:tv-pop .25s ease-out}
+@keyframes tv-pop{from{opacity:0;transform:translateY(4px)}}
+.guild-voice{color:#c6b8c7!important;font-size:13px!important}
 .tv-area .room-person:is(.slot-0,.slot-3) .person-bubble{left:auto;right:0;translate:none}
 .tv-area .room-person:is(.slot-1,.slot-4) .person-bubble{left:0;translate:none}
 @keyframes tv-mill{0%,38%{translate:0}46%,72%{translate:16px 0}80%,100%{translate:0}}
@@ -210,22 +216,43 @@
 .tv-hearth .room-person{bottom:66px}
 .tv-hearth .room-person.slot-0{left:62%}.tv-hearth .room-person.slot-1{left:76%}.tv-hearth .room-person.slot-2{left:90%}
 
+/* Round table: where tonight's dungeon party sits once back. A chart of the dungeons, a shield on crossed swords,
+   two sconces; the loot on the table glints after a success. */
+.tv-chart{position:absolute;left:50%;top:40px;width:min(30%,260px);height:150px;translate:-50% 0;background:radial-gradient(circle at 30% 40%,#a8323a 0 4px,transparent 5px),radial-gradient(circle at 64% 62%,#a8323a 0 4px,transparent 5px),radial-gradient(circle at 78% 30%,#a8323a 0 4px,transparent 5px),linear-gradient(115deg,transparent 30%,#8a6a4a 30% 31%,transparent 31% 62%,#8a6a4a 62% 63%,transparent 63%),#d9c49a;border:8px solid #6c4c45;box-shadow:0 0 0 3px #352737,5px 6px 0 #1d1725}
+.tv-shield{position:absolute;left:calc(50% - min(15%,130px) - 110px);top:66px;width:56px;height:66px;background:linear-gradient(90deg,#7a3a4a 50%,#3a4a6a 50%);border:5px solid #b4a881;border-radius:4px 4px 28px 28px}
+.tv-shield::before,.tv-shield::after{content:"";position:absolute;left:24px;top:-26px;width:6px;height:118px;background:#c9c2b0;border-bottom:14px solid #6a4b45;rotate:40deg;z-index:-1}
+.tv-shield::after{rotate:-40deg}
+.tv-sconce{position:absolute;left:12%;top:120px;width:10px;height:26px;background:#5a3c32}
+.tv-sconce.right{left:auto;right:12%}
+.tv-sconce::before{content:"";position:absolute;left:-3px;top:-16px;width:16px;height:18px;background:#ffb35c;clip-path:polygon(50% 0,100% 60%,80% 100%,20% 100%,0 60%);animation:firelight 1.2s steps(2) infinite}
+.tv-sconce::after{content:"";position:absolute;left:-60px;top:-70px;width:130px;height:130px;background:radial-gradient(circle,#ffb35c33,transparent 70%)}
+.tv-party .room-person{bottom:84px}
+.tv-party .room-person.slot-0{left:26%}.tv-party .room-person.slot-1{left:42%}.tv-party .room-person.slot-2{left:58%}.tv-party .room-person.slot-3{left:74%}
+.tv-round{position:absolute;left:50%;bottom:40px;width:min(70%,640px);height:72px;translate:-50% 0;background:linear-gradient(#a8744f 0 18px,#382735 18px 24px,#8b624b 24px);border-radius:50% 50% 12px 12px/40% 40% 12px 12px;box-shadow:0 10px #3d2a34}
+.tv-party .tv-mug{bottom:104px}
+.tv-party .tv-mug.slot-0{left:calc(26% + 26px)}.tv-party .tv-mug.slot-1{left:calc(42% + 26px)}.tv-party .tv-mug.slot-2{left:calc(58% + 26px)}.tv-party .tv-mug.slot-3{left:calc(74% + 26px)}
+.tv-loot{position:absolute;z-index:1;left:50%;bottom:104px;width:46px;height:30px;translate:-50% 0;background:linear-gradient(#8a5a3a 0 10px,#d9a94a 10px 14px,#6a4430 14px);border:3px solid #352737}
+.tv-loot i{position:absolute;left:4px;top:-12px;width:30px;height:12px;background:radial-gradient(circle at 20% 70%,#ffe08a 0 3px,transparent 4px),radial-gradient(circle at 55% 40%,#ffd04a 0 4px,transparent 5px),radial-gradient(circle at 85% 75%,#fff2b0 0 3px,transparent 4px)}
+.tv-loot::after{content:"";position:absolute;left:30px;top:-18px;width:8px;height:8px;background:#fff6c8;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);animation:tv-glint 2.4s steps(1) infinite}
+@keyframes tv-glint{0%,60%{opacity:0}62%,80%{opacity:1}82%,100%{opacity:0}}
+
 /* The map: four places as a floor plan; a dot per resident, a light where someone is talking. */
-.tv-map{position:absolute;right:12px;top:12px;z-index:8;display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"board hearth" "tables counter";gap:4px;width:204px;padding:20px 6px 6px;background:#1a1320e8;border:2px solid #89634b;box-shadow:3px 3px 0 #0006}
+.tv-map{position:absolute;right:12px;top:12px;z-index:8;display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"board hearth" "tables counter" "party party";gap:4px;width:204px;padding:20px 6px 6px;background:#1a1320e8;border:2px solid #89634b;box-shadow:3px 3px 0 #0006}
 .tv-map::before{content:"見取り図";position:absolute;left:8px;top:3px;color:#a991a3;font-size:10px;letter-spacing:.1em}
 .tv-zone{display:flex;flex-direction:column;gap:4px;min-height:42px;padding:5px 6px;background:#2a2031;border:2px solid #493348;color:#bfa5ad;font-size:11px;cursor:pointer;user-select:none}
 .tv-zone b{font-weight:600;white-space:nowrap}
 .tv-zone:hover{color:#f0d8c2;border-color:#745165}
-.z-counter{grid-area:counter}.z-tables{grid-area:tables}.z-board{grid-area:board}.z-hearth{grid-area:hearth}
+.z-counter{grid-area:counter}.z-tables{grid-area:tables}.z-board{grid-area:board}.z-hearth{grid-area:hearth}.z-party{grid-area:party}
+.tv-zone.z-party{min-height:0;flex-direction:row;align-items:center;justify-content:space-between}
 .tv-dots{display:flex;flex-wrap:wrap;gap:3px}.tv-dots i{width:6px;height:6px;background:currentColor}
 .tv-zone.talk b::after{content:"";display:inline-block;width:6px;height:6px;margin-left:5px;vertical-align:middle;background:#ffd27a;box-shadow:0 0 6px #ffd27a;animation:pop-live 1.6s steps(2) infinite}
-#guild-area-counter:checked~.guild-room .z-counter,#guild-area-tables:checked~.guild-room .z-tables,#guild-area-board:checked~.guild-room .z-board,#guild-area-hearth:checked~.guild-room .z-hearth{background:#3a2738;border-color:#89634b;color:#ffe0a8}
-#guild-area-counter:focus-visible~.guild-room .z-counter,#guild-area-tables:focus-visible~.guild-room .z-tables,#guild-area-board:focus-visible~.guild-room .z-board,#guild-area-hearth:focus-visible~.guild-room .z-hearth{outline:3px solid #ebbe92;outline-offset:1px}
+#guild-area-counter:checked~.guild-room .z-counter,#guild-area-tables:checked~.guild-room .z-tables,#guild-area-board:checked~.guild-room .z-board,#guild-area-hearth:checked~.guild-room .z-hearth,#guild-area-party:checked~.guild-room .z-party{background:#3a2738;border-color:#89634b;color:#ffe0a8}
+#guild-area-counter:focus-visible~.guild-room .z-counter,#guild-area-tables:focus-visible~.guild-room .z-tables,#guild-area-board:focus-visible~.guild-room .z-board,#guild-area-hearth:focus-visible~.guild-room .z-hearth,#guild-area-party:focus-visible~.guild-room .z-party{outline:3px solid #ebbe92;outline-offset:1px}
 
-@media(prefers-reduced-motion:reduce){.tv-area .room-person,.tv-mug::before,.tv-mug::after,.tv-lamp::after,.tv-beam,.tv-cat i::before,.tv-cat::after,.tv-walker,.tv-walker::before,.tv-walker::after,.tv-cork i,.tv-candle::before,.tv-fire i,.tv-fire::after,.tv-spark,.tv-glow,.tv-sleeper,.tv-zz::before,.tv-zz::after,.tv-zone.talk b::after{animation:none}.tv-walker{display:none}}
+@media(prefers-reduced-motion:reduce){.tv-area .room-person,.tv-mug::before,.tv-mug::after,.tv-lamp::after,.tv-beam,.tv-cat i::before,.tv-cat::after,.tv-walker,.tv-walker::before,.tv-walker::after,.tv-cork i,.tv-candle::before,.tv-fire i,.tv-fire::after,.tv-spark,.tv-glow,.tv-sleeper,.tv-zz::before,.tv-zz::after,.tv-zone.talk b::after,.tv-sconce::before,.tv-loot::after,.room-person .person-bubble{animation:none}.tv-walker{display:none}}
 @media(max-width:650px){
 .guild-room{height:400px}
-.tv-map{left:6px;right:6px;top:6px;width:auto;gap:3px;padding:4px}
+.tv-map{left:6px;right:6px;top:6px;width:auto;grid-template-columns:repeat(3,1fr);grid-template-areas:"counter tables board" "hearth party party";gap:3px;padding:4px}
 .tv-map::before{display:none}
 .tv-zone{min-height:0;flex-direction:row;align-items:center;justify-content:space-between;gap:6px;padding:3px 6px;font-size:10px}
 .tv-dots i{width:4px;height:4px}
@@ -254,7 +281,10 @@
 .tv-cork i{width:36px;height:44px}
 .tv-cork i:nth-child(5){width:30px}
 .tv-cork i:nth-child(6){top:56px;width:58px;height:34px}
-.tv-area .room-person.talking:not(:hover,:focus) .person-bubble{display:none}
+.tv-area .room-person.talking:not(:hover,:focus,.speaking) .person-bubble{display:none}
+.room-person.murmur .person-bubble,.room-person.talking .person-bubble{width:120px;font-size:10px}
+.tv-area .room-person.slot-0 .person-bubble{left:0;right:auto;translate:none}
+.tv-area :is(.tv-counter .slot-2,.tv-board .slot-2,.tv-hearth .slot-2,.tv-tables .slot-5,.tv-party .slot-3) .person-bubble{left:auto;right:0;translate:none}
 .tv-area .room-person.talking .person-name::after{content:" …";color:#ffd27a}
 .tv-candle{display:none}
 .tv-board .room-person{bottom:16px}
@@ -263,4 +293,12 @@
 .tv-sofa{left:50%;height:54px;bottom:24px}
 .tv-hearth .room-person{bottom:54px}
 .tv-hearth .room-person.slot-0{left:58%}.tv-hearth .room-person.slot-1{left:73%}.tv-hearth .room-person.slot-2{left:87%}
+.tv-chart{top:130px;width:44%;height:96px;border-width:5px}
+.tv-shield,.tv-sconce{display:none}
+.tv-round{width:88%;height:56px;bottom:34px}
+.tv-party .room-person{bottom:66px}
+.tv-party .room-person.slot-0{left:14%}.tv-party .room-person.slot-1{left:38%}.tv-party .room-person.slot-2{left:62%}.tv-party .room-person.slot-3{left:86%}
+.tv-party .tv-mug{bottom:82px}
+.tv-party .tv-mug.slot-0{left:calc(14% + 14px)}.tv-party .tv-mug.slot-1{left:calc(38% + 14px)}.tv-party .tv-mug.slot-2{left:calc(62% + 14px)}.tv-party .tv-mug.slot-3{left:calc(86% + 14px)}
+.tv-loot{bottom:84px;left:50%}
 }

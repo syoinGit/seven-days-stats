@@ -104,7 +104,19 @@ public class GuildChronicle {
   }
 
   /** The tavern's current scene: who is talking and what each one says. */
-  public record Scene(long interactionId, String summary, Map<Long, String> lines) { }
+  public record Scene(long interactionId, String summary, Map<Long, String> lines, List<Turn> script) {
+    public Scene(long interactionId, String summary, Map<Long, String> lines) {
+      this(interactionId, summary, lines, List.of());
+    }
+
+    /** This speaker's lines, each with its place in the whole talk (the tavern plays them in turn). */
+    public List<Turn> turnsOf(long speaker) {
+      return script.stream().filter(turn -> turn.speaker() == speaker).toList();
+    }
+  }
+
+  /** One line of the current talk: who says it, in what order. */
+  public record Turn(int index, long speaker, String text) { }
 
   public static String pairPath(long a, long b) {
     return "/guild/pairs/" + Math.min(a, b) + "-" + Math.max(a, b);
@@ -213,7 +225,16 @@ public class GuildChronicle {
     }
     // A scene written from the template has no lines: the first participant carries the summary.
     if (lines.values().stream().allMatch(java.util.Objects::isNull)) lines.put(entry.get().people().getFirst().id(), entry.get().summary());
-    return new Scene(entry.get().id(), entry.get().summary(), lines);
+    List<Turn> script = new ArrayList<>();
+    for (String line : entry.get().lines()) {
+      for (Ref person : entry.get().people()) {
+        if (line.startsWith(person.name() + "「")) {
+          script.add(new Turn(script.size(), person.id(), line.substring(person.name().length())));
+          break;
+        }
+      }
+    }
+    return new Scene(entry.get().id(), entry.get().summary(), lines, List.copyOf(script));
   }
 
   /** Who talked with whom today, newest first, so the tavern can seat each party together. */

@@ -250,6 +250,7 @@ public class GuildService {
     }
     // Dungeon runs they took part in go with them; their text names everyone in the party.
     for (long expedition : jdbc.queryForList("SELECT expedition_id FROM T_GUILD_EXPEDITION_MEMBER WHERE character_id = ?", Long.class, id)) {
+      jdbc.update("DELETE FROM T_GUILD_RELATION_EVENT WHERE expedition_id = ?", expedition);
       jdbc.update("DELETE FROM T_GUILD_EXPEDITION_STAGE WHERE expedition_id = ?", expedition);
       jdbc.update("DELETE FROM T_GUILD_EXPEDITION_MEMBER WHERE expedition_id = ?", expedition);
       jdbc.update("DELETE FROM T_GUILD_EXPEDITION WHERE id = ?", expedition);

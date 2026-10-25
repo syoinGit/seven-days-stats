@@ -110,13 +110,33 @@ public class GuildDungeon {
     }
   }
 
+  /** How a run left two of its party: each one's change in trust and fondness toward the other. */
+  public record Bond(String a, String b, int trustAb, int trustBa, int affinityAb, int affinityBa) {
+    public String feeling() {
+      if (trustAb > 0 && trustBa > 0) return "絆が深まった";
+      if (trustAb < 0 && trustBa < 0) return "気まずさが残った";
+      return "受け止め方が分かれた";
+    }
+
+    public String numbers() {
+      return a + "→" + b + " 信頼" + signed(trustAb) + (affinityAb != 0 ? "・好感" + signed(affinityAb) : "")
+          + " ／ " + b + "→" + a + " 信頼" + signed(trustBa) + (affinityBa != 0 ? "・好感" + signed(affinityBa) : "");
+    }
+
+    private static String signed(int value) {
+      return value > 0 ? "+" + value : String.valueOf(value);
+    }
+  }
+
   private final JdbcTemplate jdbc;
   private final GuildProperties properties;
   private final Deck deck;
+  private final GuildInteractionService interactions;
 
-  public GuildDungeon(JdbcTemplate jdbc, GuildProperties properties) {
+  public GuildDungeon(JdbcTemplate jdbc, GuildProperties properties, GuildInteractionService interactions) {
     this.jdbc = jdbc;
     this.properties = properties;
+    this.interactions = interactions;
     this.deck = load(new ClassPathResource("guild/dungeon-cards.yml"));
   }
 
@@ -131,6 +151,49 @@ public class GuildDungeon {
     LocalTime at = properties.dungeonDeparture();
     if (time.isBefore(at) || !time.isBefore(at.plusMinutes(4L * properties.dungeonStageMinutes()))) return "出発の時間帯ではありません。";
     return depart(now);
+  }
+
+  /** What the run did to its party, pair by pair in party order; empty until it is back and settled. */
+  public List<Bond> bonds(long expedition) {
+    Map<Long, Integer> order = new java.util.HashMap<>();
+    Map<Long, String> names = new java.util.HashMap<>();
+    jdbc.query("SELECT m.character_id, m.position, c.name FROM T_GUILD_EXPEDITION_MEMBER m JOIN M_GUILD_CHARACTER c ON c.id = m.character_id "
+        + "WHERE m.expedition_id = ?", (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+          order.put(rs.getLong(1), rs.getInt(2));
+          names.put(rs.getLong(1), rs.getString(3));
+        }, expedition);
+    Map<String, int[]> deltas = new java.util.HashMap<>();
+    jdbc.query("SELECT from_id, to_id, trust_delta, affinity_delta FROM T_GUILD_RELATION_EVENT WHERE expedition_id = ?",
+        (org.springframework.jdbc.core.RowCallbackHandler) rs -> deltas.put(rs.getLong(1) + ">" + rs.getLong(2), new int[] {rs.getInt(3), rs.getInt(4)}), expedition);
+    List<Long> party = order.keySet().stream().sorted(java.util.Comparator.comparing(order::get)).toList();
+    List<Bond> bonds = new ArrayList<>();
+    for (int i = 0; i < party.size(); i++) {
+      for (int j = i + 1; j < party.size(); j++) {
+        int[] ab = deltas.get(party.get(i) + ">" + party.get(j));
+        int[] ba = deltas.get(party.get(j) + ">" + party.get(i));
+        if (ab == null && ba == null) continue;
+        ab = ab == null ? new int[2] : ab;
+        ba = ba == null ? new int[2] : ba;
+        bonds.add(new Bond(names.get(party.get(i)), names.get(party.get(j)), ab[0], ba[0], ab[1], ba[1]));
+      }
+    }
+    return bonds;
+  }
+
+  /** Runs that are back and not yet settled change how their party feel about each other (once each). */
+  @Transactional
+  public int settleDue(ZonedDateTime now) {
+    var at = now.toOffsetDateTime();
+    jdbc.queryForObject("SELECT id FROM T_GUILD_LOCK WHERE id = 1 FOR UPDATE", Integer.class);
+    List<Object[]> due = jdbc.query("SELECT id, result, dungeon_name FROM T_GUILD_EXPEDITION WHERE settled_at IS NULL AND returned_at <= ? ORDER BY id",
+        (rs, row) -> new Object[] {rs.getLong(1), rs.getString(2), rs.getString(3)}, at);
+    for (Object[] run : due) {
+      long id = (Long) run[0];
+      interactions.expedition(id, jdbc.queryForList("SELECT character_id FROM T_GUILD_EXPEDITION_MEMBER WHERE expedition_id = ? ORDER BY position",
+          Long.class, id), (String) run[1], (String) run[2]);
+      jdbc.update("UPDATE T_GUILD_EXPEDITION SET settled_at = ? WHERE id = ?", at, id);
+    }
+    return due.size();
   }
 
   /** Sends today's party now (once a day). Returns what happened for logs and the maintenance page. */

@@ -1,0 +1,91 @@
+# How residents talk. GuildVoice picks one voice per resident from who they are (age, gender, faction,
+# words in their personality, occupation) and keeps it: the same resident always sounds the same.
+# voices: first = first-person pronoun, endings = typical sentence endings, manner = how they talk.
+#   The interaction writer is told these, so men and women, the young and the old, the shy and the blunt sound different.
+# idle: what someone says to no one in particular, per voice group and tavern place (counter, tables, board, hearth).
+#   Shown in their bubble when they are not in the current talk. Any time of day; no names, no first person
+#   where the group mixes genders.
+version: "2026-10-25-voices-a"
+voices:
+  kid_m:      {group: kid,        first: ぼく,       endings: "〜だよ！・〜なんだ",          manner: 子どもらしく素直で、思ったことをすぐ口にする}
+  kid_f:      {group: kid,        first: あたし,     endings: "〜だよ！・〜なの",            manner: 子どもらしく素直で、よく笑う}
+  elder_m:    {group: elder_m,    first: わし,       endings: "〜じゃ・〜のう",              manner: ゆっくりと、昔話を交えて話す}
+  elder_f:    {group: elder_f,    first: あたし,     endings: "〜だねえ・〜さね",            manner: 世話焼きで、相手を子ども扱いしがち}
+  samurai_m:  {group: samurai,    first: それがし,   endings: "〜である・〜でござる",        manner: 堅く古風で、礼を重んじる}
+  samurai_f:  {group: samurai,    first: わたくし,   endings: "〜である・〜でございます",    manner: 凛として古風、言葉を選ぶ}
+  polite:     {group: polite,     first: 私,         endings: "〜です・〜ます・〜でしょうか", manner: 誰にでも丁寧語で、角を立てない}
+  cheerful_f: {group: cheerful_f, first: わたし,     endings: "〜だよ・〜なの・〜ね！",      manner: 明るく弾む話し方で、話題をころころ変える}
+  gentle_f:   {group: gentle_f,   first: 私,         endings: "〜ですね・〜かしら・〜わ",    manner: おっとりと柔らかく、相手を気づかう}
+  brisk_f:    {group: brisk_f,    first: あたし,     endings: "〜だろ・〜さ・〜じゃないか",  manner: さばさばして遠慮がなく、言い切る}
+  shy_f:      {group: shy,        first: わたし,     endings: "〜です……・〜かも……",        manner: 言いよどみが多く、小声で控えめ}
+  cheerful_m: {group: cheerful_m, first: 俺,         endings: "〜だぜ・〜だろ・〜じゃん",    manner: 調子がよく、冗談を混ぜる}
+  gentle_m:   {group: gentle_m,   first: 僕,         endings: "〜だね・〜かな・〜よ",        manner: 穏やかで、相手の話をよく聞く}
+  stern_m:    {group: stern_m,    first: 俺,         endings: "〜だ・〜だな・〜しろ",        manner: ぶっきらぼうで口数が少ない}
+  shy_m:      {group: shy,        first: 僕,         endings: "〜です……・〜かな……",        manner: 言いよどみが多く、自信なさげ}
+  neutral:    {group: neutral,    first: 私,         endings: "〜だ・〜だね",                manner: 落ち着いた話し方}
+idle:
+  kid:
+    counter: ["ねえ、ミルクもう一杯もらってもいい？", "背伸びしないとカウンターに届かないや！"]
+    tables: ["このいす、足がぶらぶらするんだ。", "スープ、ふーふーしてから飲むんだよ！"]
+    board: ["この依頼、子どもでも受けられるかなあ。", "字がむずかしくて半分しか読めないや。"]
+    hearth: ["火の粉がぱちぱち跳ねてる！", "あったかくて、まぶたが重くなってきた……"]
+  elder_m:
+    counter: ["若い頃は、この酒を三杯あおっても平気じゃったがのう。", "店番がおらんでも、この店は回っとるのう。"]
+    tables: ["この卓の傷は、わしが若い頃につけたもんじゃ。", "近頃の若いのは、よう食うのう。"]
+    board: ["この依頼、昔はわしが真っ先に取ったもんじゃ。", "字が小さくて読めんのう。誰か読んでくれんか。"]
+    hearth: ["火の番は年寄りの仕事じゃ。", "膝が冷えるでな、ここが一番じゃ。"]
+  elder_f:
+    counter: ["あんた、ちゃんと食べてるのかい。顔色が悪いねえ。", "この店の煮込みは、昔から味が変わらないねえ。"]
+    tables: ["ほら、袖にパンくずがついてるよ。", "若い子がにぎやかなのは、いいことさね。"]
+    board: ["危ない依頼ばかりだねえ。無茶するんじゃないよ。", "薬草摘みの依頼なら、あたしでも出来そうさね。"]
+    hearth: ["火にあたると、腰の痛みがましになるねえ。", "編み物のつづきでもしようかね。"]
+  samurai:
+    counter: ["この酒、故郷の酒には及ばぬが、悪くない。", "一杯だけいただこう。明日も早い。"]
+    tables: ["食事の作法は、どこの土地でも心を映すものだ。", "箸がないのは、少々不便であるな。"]
+    board: ["魔物討伐か。腕が鳴る。", "人助けの依頼とあらば、引き受けぬ理由はない。"]
+    hearth: ["刀の手入れには、火の明かりがちょうどよい。", "静かな火は、心を落ち着かせる。"]
+  polite:
+    counter: ["すみません、お水を一杯いただけますか。", "帳面をつけるのに、ここが一番落ち着きます。"]
+    tables: ["お隣、よろしいでしょうか。", "このパン、どちらの村の小麦なのでしょう。"]
+    board: ["報酬の欄を、もう一度よく読んでおきましょう。", "急ぎの依頼が増えていますね。"]
+    hearth: ["暖かいですね。少し休ませていただきます。", "この火を見ていると、故郷を思い出します。"]
+  cheerful_f:
+    counter: ["ねえねえ、今日のおすすめって何かな？", "甘いのが飲みたい気分なの！"]
+    tables: ["このスープ、おいしすぎてびっくりだよ！", "聞いて聞いて、今日いいことあったの！"]
+    board: ["わあ、新しい依頼がいっぱい！ どれにしようかな！", "この依頼、だれか一緒に行かない？"]
+    hearth: ["あったか〜い。ここから動けないよ〜。", "火の粉って、お星さまみたいだね！"]
+  gentle_f:
+    counter: ["温かいお茶をいただこうかしら。", "今日もみなさん、お疲れさまでした。"]
+    tables: ["お料理、冷めないうちにいただきましょう。", "あら、その髪飾り、素敵ですわね。"]
+    board: ["迷子の猫探し……見つかるといいのですけれど。", "無理のない依頼を選びましょうね。"]
+    hearth: ["火のはぜる音って、落ち着きますわね。", "少しだけ、うとうとしてもいいかしら。"]
+  brisk_f:
+    counter: ["一杯ちょうだい。濃いめでね。", "ったく、今日はよく働いたよ。"]
+    tables: ["ほら、さっさと食べな。冷めちまうだろ。", "その肉、食べないならあたしがもらうよ。"]
+    board: ["しけた依頼ばっかりじゃないか。", "報酬は悪くないね。乗った。"]
+    hearth: ["ちょっと詰めな。あたしも火にあたりたいんだ。", "濡れたマント、ここで乾かさせてもらうよ。"]
+  shy:
+    counter: ["あの……お、お水を……", "ここ、端っこなら……落ち着きます……"]
+    tables: ["あ、相席……でも、大丈夫です……", "お、おいしい……です……"]
+    board: ["こ、この依頼なら……できるかも……", "人の多い依頼は……ちょっと……"]
+    hearth: ["火のそば……ほっとします……", "だ、だれも見てないですよね……？"]
+  cheerful_m:
+    counter: ["よっしゃ、今夜は一杯おごっちゃうぜ！", "おーい、つまみ追加で頼むわ！"]
+    tables: ["この肉、最高じゃん！ おかわり！", "なあなあ、俺の武勇伝聞きたくない？"]
+    board: ["でっけえ魔物退治、ないかな！", "この依頼、楽勝っしょ！"]
+    hearth: ["ふい〜、生き返るぜ。", "火を見てると、なんか語りたくなるよな！"]
+  gentle_m:
+    counter: ["温かいミルクをもらおうかな。", "今日はどんな一日だった？"]
+    tables: ["ゆっくり食べるといいよ。だれも急かさないから。", "このシチュー、ほっとする味だね。"]
+    board: ["困ってる人の依頼から片づけたいな。", "荷運びなら手伝えるかもしれない。"]
+    hearth: ["火の番、代わろうか。", "静かな夜だね。"]
+  stern_m:
+    counter: ["……酒だ。", "騒がしいのは好かん。"]
+    tables: ["飯は黙って食え。", "……悪くない味だ。"]
+    board: ["報酬に見合わん依頼ばかりだな。", "魔物退治か。俺が行く。"]
+    hearth: ["……火が弱い。薪をくべろ。", "少し休む。起こすな。"]
+  neutral:
+    counter: ["一杯もらおう。今日は長い一日だった。", "この店は落ち着くね。"]
+    tables: ["パンがまだ温かい。", "となりの卓、にぎやかだな。"]
+    board: ["新しい依頼が増えているね。", "この報酬なら考えてもいい。"]
+    hearth: ["火にあたると、疲れが抜けていく。", "薪の匂いがいい。"]

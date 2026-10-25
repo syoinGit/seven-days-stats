@@ -37,6 +37,7 @@
     <dt>信仰</dt><dd th:text="${character.faith}">無信仰</dd>
   </dl>
   <h3>人となり</h3><p th:text="${character.personality}"></p>
+  <p class="guild-voice" th:if="${voice != null}" th:text="${'話し方：' + voice.describe()}">話し方：一人称「あたし」・語尾「〜だろ・〜さ」・さばさばして遠慮がない</p>
   <th:block th:unless="${#lists.isEmpty(history)}"><h3>所属の履歴</h3>
     <ol class="guild-memory"><li th:each="change : ${history}" th:text="${#temporals.format(change.day(), 'yyyy年M月d日') + ' ' + change.text() + ' — ' + change.reason}">2026年10月1日 派閥：無所属 → 白銀の騎士団（加入）</li></ol></th:block>
   <h3>生まれた記憶</h3>
@@ -164,11 +165,14 @@
       </li>
     </ol>
     <p class="guild-dungeon-result" th:if="${expedition.back()}" th:text="${'結果：' + expedition.resultName()}">結果：踏破</p>
+    <th:block th:unless="${#lists.isEmpty(bonds)}"><h3>仲間との関係</h3>
+      <ul class="guild-changes"><li th:each="bond : ${bonds}"><strong th:text="${bond.a + 'と' + bond.b + '：' + bond.feeling()}">リネとロアン：絆が深まった</strong>
+        <small th:text="${bond.numbers()}">リネ→ロアン 信頼+6・好感+4</small></li></ul></th:block>
     <p th:unless="${expedition.back()}">探索中です。進み具合は10分ほどごとに届きます。</p>
   </th:block>
   <th:block th:unless="${#lists.isEmpty(runs)}"><h3>これまでの探索</h3>
     <ul class="guild-entries"><li th:each="run : ${runs}" th:insert="~{fragments/guild-windows :: runRow(${run})}"></li></ul></th:block>
-  <p class="guild-footer">（仮の機能）誰が行くか・何が起きるか・結果はプログラムが決め、定型文で記録しています。ダンジョンに出かけた人は、その夜の酒場の交流には加わりません。</p>
+  <p class="guild-footer">（仮の機能）誰が行くか・何が起きるか・結果はプログラムが決め、定型文で記録しています。ダンジョンに出かけた人は、その夜の酒場の交流には加わりません。戻ると、踏破なら仲間との信頼と好感が上がり、撤退ならたいてい気まずさが残ります（まれに、生き延びたことで絆が深まります）。</p>
 </th:block>
 
 <th:block th:fragment="pair">

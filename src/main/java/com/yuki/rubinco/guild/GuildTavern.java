@@ -10,16 +10,19 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Where today's visitors are in the tavern. The room is four places seen one at a time: the counter, the tables,
- * the quest board and the hearth. Residents who talked today share a table (the newest talk at the first table);
- * everyone else spreads over the four places in an order that changes with the part of the day.
+ * Where today's visitors are in the tavern. The room is five places seen one at a time: the counter, the tables,
+ * the quest board, the hearth and the round table where tonight's dungeon party sits once back. Residents who talked
+ * today share a table (the newest talk at the first table); everyone else spreads over the first four places in an
+ * order that changes with the part of the day.
  * Nothing is stored: the same day, phase and talks always give the same room.
  */
 public final class GuildTavern {
-  public static final List<String> KEYS = List.of("counter", "tables", "board", "hearth");
-  private static final Map<String, String> NAMES = Map.of("counter", "カウンター", "tables", "テーブル席", "board", "依頼掲示板", "hearth", "暖炉");
-  // The tables hold two parties of three (slots 0-2 and 3-5); fifteen places for at most ten visitors.
-  private static final Map<String, Integer> CAPACITY = Map.of("counter", 3, "tables", 6, "board", 3, "hearth", 3);
+  public static final List<String> KEYS = List.of("counter", "tables", "board", "hearth", "party");
+  private static final List<String> SPREAD = KEYS.subList(0, 4);
+  private static final Map<String, String> NAMES = Map.of("counter", "カウンター", "tables", "テーブル席", "board", "依頼掲示板", "hearth", "暖炉",
+      "party", "円卓");
+  // The tables hold two parties of three (slots 0-2 and 3-5); fifteen places besides the round table for at most ten visitors.
+  private static final Map<String, Integer> CAPACITY = Map.of("counter", 3, "tables", 6, "board", 3, "hearth", 3, "party", GuildDungeon.PARTY_MAX);
 
   public record Seat(GuildService.Visit visit, int slot) { }
 
@@ -37,13 +40,20 @@ public final class GuildTavern {
 
   private GuildTavern() { }
 
-  /** groups: today's talks, newest first, as participant ids. talking: who speaks in the current scene. */
-  public static Layout arrange(List<GuildService.Visit> visits, List<List<Long>> groups, Set<Long> talking, LocalDate date, String phase) {
+  /**
+   * groups: today's talks, newest first, as participant ids. talking: who speaks in the current scene.
+   * returned: tonight's dungeon party once back; they sit together at the round table.
+   */
+  public static Layout arrange(List<GuildService.Visit> visits, List<List<Long>> groups, Set<Long> talking, Set<Long> returned,
+                               LocalDate date, String phase) {
     Map<Long, GuildService.Visit> present = new LinkedHashMap<>();
     visits.forEach(visit -> present.put(visit.character().id(), visit));
     Map<String, GuildService.Visit[]> places = new LinkedHashMap<>();
     KEYS.forEach(key -> places.put(key, new GuildService.Visit[CAPACITY.get(key)]));
     Set<Long> placed = new HashSet<>();
+    for (var visit : present.values()) {
+      if (returned.contains(visit.character().id()) && put(places.get("party"), visit)) placed.add(visit.character().id());
+    }
     int table = 0;
     for (List<Long> group : groups) {
       if (table == 2) break;
@@ -56,9 +66,9 @@ public final class GuildTavern {
     var rest = present.values().stream().filter(visit -> !placed.contains(visit.character().id()))
         .sorted(Comparator.comparingLong(visit -> mix(visit.character().id(), date, phase))).toList();
     for (var visit : rest) {
-      int start = (int) Math.floorMod(mix(visit.character().id(), date, phase + "/place"), (long) KEYS.size());
-      for (int i = 0; i < KEYS.size(); i++) {
-        if (put(places.get(KEYS.get((start + i) % KEYS.size())), visit)) break;
+      int start = (int) Math.floorMod(mix(visit.character().id(), date, phase + "/place"), (long) SPREAD.size());
+      for (int i = 0; i < SPREAD.size(); i++) {
+        if (put(places.get(SPREAD.get((start + i) % SPREAD.size())), visit)) break;
       }
     }
     List<Area> areas = new ArrayList<>();
@@ -68,8 +78,10 @@ public final class GuildTavern {
       for (int slot = 0; slot < slots.length; slot++) if (slots[slot] != null) seats.add(new Seat(slots[slot], slot));
       areas.add(new Area(key, NAMES.get(key), List.copyOf(seats), seats.stream().anyMatch(seat -> talking.contains(seat.visit().character().id()))));
     }
+    // Open where the talk is, else where the party has just come back, else the counter.
     String current = areas.stream().filter(Area::talk).map(Area::key).findFirst()
-        .orElse(areas.getFirst().count() > 0 ? "counter" : areas.stream().filter(area -> area.count() > 0).map(Area::key).findFirst().orElse("counter"));
+        .orElse(areas.getLast().count() > 0 ? "party" : areas.getFirst().count() > 0 ? "counter"
+            : areas.stream().filter(area -> area.count() > 0).map(Area::key).findFirst().orElse("counter"));
     return new Layout(List.copyOf(areas), current);
   }
 

@@ -20,11 +20,13 @@ public record GuildProperties(boolean enabled, int recentDays, double recentRati
                               java.util.List<Integer> interactionHours, int interactionDailyMax, Map<String, Integer> selectionWeights,
                               String interactionFallback, int recentPairSlots,
                               java.time.LocalTime dungeonDeparture, int dungeonStageMinutes) {
+  static final int DAILY_LIMIT_MAX = 5;
   static final Set<String> SELECTIONS = Set.of("random", "warm", "cold", "bond", "thread", "affiliation");
 
   public GuildProperties {
     recentDays = recentDays <= 0 ? 30 : Math.min(recentDays, 3650);
-    dailyLimit = dailyLimit <= 0 ? 20 : Math.min(dailyLimit, 50);
+    // At most five new residents a day, whatever GUILD_DAILY_LIMIT says.
+    dailyLimit = dailyLimit <= 0 ? DAILY_LIMIT_MAX : Math.min(dailyLimit, DAILY_LIMIT_MAX);
     categoryWindow = categoryWindow <= 0 ? 10 : Math.min(categoryWindow, 100);
     categoryCap = categoryCap <= 0 ? 3 : Math.min(categoryCap, categoryWindow);
     genderCap = genderCap <= 0 ? 7 : Math.min(genderCap, categoryWindow);

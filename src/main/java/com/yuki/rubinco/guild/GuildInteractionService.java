@@ -535,13 +535,69 @@ public class GuildInteractionService {
         Integer.class, id, id) > 0;
   }
 
-  private void save(long interaction, long from, long to, Rel rel, Map<String, Integer> delta, String reason) {
+  /**
+   * A dungeon run is back: every two members feel it, both ways. A clean success brings them closer, a partial one a
+   * little; a retreat usually leaves some blame and unease, but now and then surviving it together is what binds them.
+   * Different genders warm the same reserved way as in the tavern (attraction). Runs under the caller's guild lock.
+   */
+  void expedition(long expedition, List<Long> members, String result, String dungeon) {
+    if (members.size() < 2) return;
+    Map<Long, Person> people = new LinkedHashMap<>();
+    for (long id : members) {
+      jdbc.query("SELECT id, name, age, gender, occupation, personality FROM M_GUILD_CHARACTER WHERE id = ?",
+          (rs, row) -> new Person(rs.getLong(1), rs.getString(2), (Integer) rs.getObject(3), rs.getString(4), rs.getString(5), rs.getString(6)), id)
+          .forEach(person -> people.put(person.id(), person));
+    }
+    var random = ThreadLocalRandom.current();
+    for (Person from : people.values()) {
+      for (Person to : people.values()) {
+        if (from.id() == to.id()) continue;
+        Rel rel = rel(from, to);
+        Map<String, Integer> delta = new LinkedHashMap<>();
+        String reason;
+        switch (result) {
+          case "success" -> {
+            delta.put("trust", 5 + random.nextInt(5));
+            delta.put("affinity", 3 + random.nextInt(4));
+            reason = dungeon + "を共に踏破した";
+          }
+          case "partial" -> {
+            delta.put("trust", 2 + random.nextInt(4));
+            delta.put("affinity", 1 + random.nextInt(3));
+            reason = dungeon + "で背中を預け合った";
+          }
+          default -> {
+            if (random.nextInt(100) < 35) {
+              delta.put("trust", 2 + random.nextInt(3));
+              reason = dungeon + "からの撤退を共に生き延びた";
+            } else {
+              delta.put("trust", -(2 + random.nextInt(4)));
+              delta.put("wariness", 2 + random.nextInt(4));
+              reason = dungeon + "から撤退し、気まずさが残った";
+            }
+          }
+        }
+        delta = attraction(delta, new Pair(from, to, rel, Rel.NONE, null, null, 0, 0, List.of(), null), rel);
+        store(from.id(), to.id(), rel.plus(delta));
+        if (delta.values().stream().allMatch(value -> value == 0)) continue;
+        jdbc.update("INSERT INTO T_GUILD_RELATION_EVENT (expedition_id,from_id,to_id,change_kind,trust_delta,affinity_delta,"
+            + "wariness_delta,debt_delta,reason) VALUES (?,?,?,'axes',?,?,?,0,?)", expedition, from.id(), to.id(),
+            delta.getOrDefault("trust", 0), delta.getOrDefault("affinity", 0), delta.getOrDefault("wariness", 0), shorten(reason));
+      }
+    }
+  }
+
+  private void store(long from, long to, Rel rel) {
     int updated = jdbc.update("UPDATE T_GUILD_RELATION SET trust = ?, affinity = ?, wariness = ?, debt = ?, updated_at = CURRENT_TIMESTAMP "
         + "WHERE from_id = ? AND to_id = ?", rel.trust(), rel.affinity(), rel.wariness(), rel.debt(), from, to);
     if (updated == 0) {
       jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten) VALUES (?,?,?,?,?,?,?)",
           from, to, rel.trust(), rel.affinity(), rel.wariness(), rel.debt(), rel.smitten());
     }
+  }
+
+  private void save(long interaction, long from, long to, Rel rel, Map<String, Integer> delta, String reason) {
+    store(from, to, rel);
     if (delta.values().stream().allMatch(value -> value == 0)) return;
     jdbc.update("INSERT INTO T_GUILD_RELATION_EVENT (interaction_id,from_id,to_id,change_kind,trust_delta,affinity_delta,"
         + "wariness_delta,debt_delta,reason) VALUES (?,?,?,'axes',?,?,?,?,?)", interaction, from, to,
