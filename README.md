@@ -46,10 +46,10 @@ WATCHPOINT turns collected server logs into a mechanical, wasteland-themed activ
 - Shows online players' activity statuses (活動中, ごはん中, AFK, 外出, 就寝中, ソロ探索中) from the web or in-game commands such as `!飯`, `!afk`, and `!ソロ`.
 - Infers exploration when an online player remains within 20 metres for at least three minutes; otherwise the automatic status remains moving/online, while manual statuses take precedence.
 - Sends status changes back to the game through the optional Telnet command client; offline players remain read-only and show their last known location.
-- Mixes player posts and Bedrock-generated WATCHPOINT observations into the adventure timeline; daily journals live in the right sidebar so the central feed stays focused.
-- Publishes typed WATCHPOINT posts (`NORMAL`, survivor/server analysis, and a short daily summary); only `NORMAL` is broadcast to the in-game chat.
+- Mixes player posts and Bedrock-generated WATCHPOINT observations into the adventure timeline.
+- The AI murmurs once an hour (`AI_MURMUR_INTERVAL`) across every game, about one server picked at random among those online with someone connected (7DTD from its log, Core Keeper from its chest changes and connections; Terraria is not included). Nobody connected anywhere: no murmur. A 7DTD murmur is also broadcast to the in-game chat. The survivor/server analysis and daily summary post types are no longer scheduled.
 - Uses one AI voice on every site: WATCHPOINT, someone who can look at many game statistics and posts light, throwaway comments. Its personality lives in the AI agent master (the retired Survivor Karen / Mark NPCs are disabled and their posts hidden). AI posts are generated only while that game's server is online. WATCHPOINT maintains a bounded rolling observation memory (up to 8 items / 1,000 characters) and deterministic alertness, curiosity, empathy, tension, and hope gauges; every successful state change is auditable in memory history.
-- Uses compact aggregate-only payloads for analysis posts, caps scheduled paid timeline generation at 3 posts per JST day by default, and skips empty observation windows.
+- Uses compact aggregate-only payloads and skips empty observation windows (the turn passes to another connected server).
 - Keeps all game, player, and AI history in the database, renders only the latest 12 timeline items initially, and progressively reveals older items while scrolling.
 - Replaces the single like action with lightweight game-oriented emoji reactions.
 - Uses a public landing page, then requires authentication for the dashboard and all data pages.

@@ -5,10 +5,6 @@ import com.yuki.rubinco.watchpoint.ai.config.AiAnalysisProperties;
 import com.yuki.rubinco.watchpoint.ai.entity.AiPostType;
 import com.yuki.rubinco.watchpoint.ingest.SevenDaysTelnetCommandClient;
 import com.yuki.rubinco.watchpoint.readmodel.WatchpointAiObservationService;
-import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,7 +27,11 @@ public class WatchpointAiPublishingService {
   private final WatchpointAiStateService stateService;
   private final ServerActivityGate gate;
 
-  public PublishResult publishIfDue() {
+  /**
+   * The 7DTD turn of the AI's murmur (AiMurmurService decides when and whether 7DTD speaks): one ordinary post from the
+   * last window of the server log, or nothing when the window has no activity.
+   */
+  public PublishResult publishMurmur() {
     if (!properties.enabled()) {
       return new PublishResult(PublishStatus.DISABLED, null);
     }
@@ -39,31 +39,11 @@ public class WatchpointAiPublishingService {
     if (!gate.aiAllowed(GAME_ID)) {
       return new PublishResult(PublishStatus.SERVER_STOPPED, null);
     }
-    OffsetDateTime threshold = OffsetDateTime.now(ZoneOffset.UTC)
-        .minus(properties.scheduleInterval());
-    boolean recentlyPublished = aiCommentService.latestBySourceType(SOURCE_TYPE)
-        .map(comment -> !comment.publishedAt().isBefore(threshold))
-        .orElse(false);
-    if (recentlyPublished) {
-      return new PublishResult(PublishStatus.NOT_DUE, null);
-    }
-    OffsetDateTime dayStart = startOfToday();
-    long todayCount = aiCommentService.generatedTimelineCountSince(dayStart);
-    if (todayCount >= properties.maxPostsPerDay()) {
-      return new PublishResult(PublishStatus.DAILY_LIMIT, null);
-    }
-    AiPostType postType = nextPostType(todayCount, dayStart);
-    WatchpointAiObservationService.AnalysisRequest request = postType == AiPostType.NORMAL
-        ? observationService.buildRequest()
-        : observationService.buildRequest(postType, (int) todayCount);
+    WatchpointAiObservationService.AnalysisRequest request = observationService.buildRequest();
     if (!hasActivity(request)) {
       return new PublishResult(PublishStatus.NO_ACTIVITY, null);
     }
-    if (postType == AiPostType.PLAYER_ANALYSIS
-        && request.observation().survivors().isEmpty()) {
-      return new PublishResult(PublishStatus.NO_ACTIVITY, null);
-    }
-    return publishSafely(request, postType);
+    return publishSafely(request, AiPostType.NORMAL);
   }
 
   public PublishResult publishNow() {
@@ -124,23 +104,6 @@ public class WatchpointAiPublishingService {
     }
   }
 
-  private AiPostType nextPostType(long todayCount, OffsetDateTime dayStart) {
-    int localHour = OffsetDateTime.now(ZoneId.of("Asia/Tokyo")).getHour();
-    if (localHour >= 23 && !aiCommentService.hasPostTypeSince(AiPostType.DAILY_SUMMARY, dayStart)) {
-      return AiPostType.DAILY_SUMMARY;
-    }
-    if (todayCount > 0 && todayCount % 3 == 2) {
-      return (todayCount / 3) % 2 == 0
-          ? AiPostType.PLAYER_ANALYSIS : AiPostType.SERVER_ANALYSIS;
-    }
-    return AiPostType.NORMAL;
-  }
-
-  private OffsetDateTime startOfToday() {
-    ZoneId tokyo = ZoneId.of("Asia/Tokyo");
-    return LocalDate.now(tokyo).atStartOfDay(tokyo).toOffsetDateTime();
-  }
-
   private boolean hasActivity(WatchpointAiObservationService.AnalysisRequest request) {
     var observation = request.observation();
     if (observation == null) {
@@ -159,9 +122,7 @@ public class WatchpointAiPublishingService {
 
   public enum PublishStatus {
     PUBLISHED,
-    NOT_DUE,
     NO_ACTIVITY,
-    DAILY_LIMIT,
     FAILED,
     DISABLED,
     SERVER_STOPPED

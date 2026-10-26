@@ -4,6 +4,7 @@ import com.yuki.rubinco.watchpoint.ai.AiCommentService;
 import com.yuki.rubinco.watchpoint.ai.WatchpointAiPublishingService;
 import com.yuki.rubinco.watchpoint.ai.config.AiAnalysisProperties;
 import com.yuki.rubinco.watchpoint.readmodel.WatchpointAiObservationService;
+import com.yuki.rubinco.worldprogress.ai.WorldAiProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
@@ -23,6 +24,7 @@ public class AiAnalysisMaintenanceController {
   private final WatchpointAiPublishingService publishingService;
   private final AiCommentService aiCommentService;
   private final ObjectMapper objectMapper;
+  private final WorldAiProperties murmur;
 
   @GetMapping("/maintenance/ai-analysis/test")
   public String testPage(Model model) {
@@ -30,7 +32,8 @@ public class AiAnalysisMaintenanceController {
     model.addAttribute("awsRegion", properties.awsRegion());
     model.addAttribute("modelId", properties.modelId());
     model.addAttribute("windowMinutes", properties.windowMinutes());
-    model.addAttribute("scheduleMinutes", properties.scheduleInterval().toMinutes());
+    // The AI murmurs once per this interval across every game (AiMurmurService), not on its own schedule.
+    model.addAttribute("scheduleMinutes", murmur.interval().toMinutes());
     model.addAttribute("latestComment",
         aiCommentService.latestBySourceType(WatchpointAiPublishingService.SOURCE_TYPE).orElse(null));
     try {

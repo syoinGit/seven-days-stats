@@ -121,9 +121,9 @@ supported; add only values that differ for your deployment.
 | `POSTGRES_PORT` | `5432`; shared by the application JDBC URL and Compose host port. `SPRING_DATASOURCE_URL` can override the entire URL. |
 | `SERVER_PORT` | Production: `8082`; local: `8080`. Local URLs follow the selected port. |
 | `SEVEN_DAYS_TELNET_ENABLED` | Production: `true`; local: `false`. |
-| `WATCHPOINT_AI_ENABLED` | `false`; enables Bedrock observations and manual diary generation. |
-| `WORLD_AI_ENABLED` | `false`; enables AI comments on the Octarine / Luminite statistics (same Bedrock model and IAM as Watchpoint AI). |
-| `WORLD_AI_INTERVAL` | `3h` (minimum `30m`); one post per world per interval while its server is online. |
+| `WATCHPOINT_AI_ENABLED` | `false`; lets 7DTD take part in the AI murmur. |
+| `WORLD_AI_ENABLED` | `false`; lets Core Keeper (Octarine) take part in the AI murmur (same Bedrock model and IAM as Watchpoint AI). |
+| `AI_MURMUR_INTERVAL` | `1h` (minimum `30m`); one murmur per interval across every game, from a server online with someone connected. Replaces `WORLD_AI_INTERVAL`. |
 
 Scheduled imports for every site (7DTD data/log/telnet, Luminite, Octarine) pause while the
 portal reports the game server as stopped, after one catch-up import right after it stops.

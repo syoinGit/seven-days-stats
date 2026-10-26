@@ -29,7 +29,8 @@ class AiAnalysisMaintenanceControllerTests {
     publishingService = mock(WatchpointAiPublishingService.class);
     aiCommentService = mock(AiCommentService.class);
     controller = new AiAnalysisMaintenanceController(
-        properties, observationService, publishingService, aiCommentService, new ObjectMapper());
+        properties, observationService, publishingService, aiCommentService, new ObjectMapper(),
+        new com.yuki.rubinco.worldprogress.ai.WorldAiProperties(false, java.time.Duration.ofHours(1), 300));
   }
 
   @Test

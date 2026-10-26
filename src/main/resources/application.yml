@@ -187,12 +187,9 @@ app:
     max-events: 60
     system-prompt-resource: classpath:prompts/watchpoint-system-prompt.txt
     max-output-tokens: 240
-    schedule-interval: 30m
-    initial-delay: 60s
-    max-posts-per-day: 3
-  # AI comments on the Octarine (Core Keeper) statistics. Uses the app.ai model; posts only while
-  # the game's server is online.
+  # The AI's murmur (AiMurmurService): once per interval across every game, about one server picked at random among
+  # those online with someone connected (7DTD when app.ai is enabled, Core Keeper when world-ai is). Nobody on: none.
   world-ai:
     enabled: false
-    interval: ${WORLD_AI_INTERVAL:3h}
+    interval: ${AI_MURMUR_INTERVAL:1h}
     max-output-tokens: 300
