@@ -68,7 +68,7 @@ public class WorldAiPublishingService {
       String system = agents.personalityPrompt(AiAgentProfileService.WATCHPOINT) + "\n\n"
           + SYSTEM_PROMPT.formatted(site.gameTitle(), MAX_BODY);
       String body = clean(bedrock.generate(system, "事実:\n" + facts.get(),
-          properties.maxOutputTokens(), 0.8f));
+          properties.maxOutputTokens()));
       save(site, body);
       log.info("World AI post published. gameId={}", gameId);
       return new Result(gameId, Status.PUBLISHED);

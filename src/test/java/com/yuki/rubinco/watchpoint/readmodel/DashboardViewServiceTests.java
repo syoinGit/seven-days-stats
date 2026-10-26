@@ -55,21 +55,6 @@ class DashboardViewServiceTests {
   }
 
   @Test
-  void latestManualAiCommentOverridesGeneratedDashboardComment() {
-    OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-    jdbcTemplate.update("""
-        insert into t_ai_comment (diary_date, title, body, published_at, source_type)
-        values ('2026-08-02', '荒野通信', '今日は病院探索が進みました。', ?, 'MANUAL_BETA')
-        """, now);
-
-    DashboardViewService.AiComment comment = dashboardViewService.dashboard().aiComment();
-
-    assertThat(comment.title()).isEqualTo("荒野通信");
-    assertThat(comment.body()).isEqualTo("今日は病院探索が進みました。");
-    assertThat(comment.diaryDate()).isEqualTo(LocalDate.of(2026, 8, 2));
-  }
-
-  @Test
   void worldTimeShowsLatestObservationAndAddsOnlyOneTimelineEntryPerDay() {
     OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
     jdbcTemplate.update("""
@@ -810,13 +795,6 @@ class DashboardViewServiceTests {
     assertThat(formatter.format("KILL", "DDD烈火王テムジン", "討伐した", null, null))
         .contains("DDD烈火王テムジン")
         .contains("討伐した");
-  }
-
-  @Test
-  void dashboardOmitsDailyDiaryCardWhenNoDiaryIsPublished() {
-    DashboardViewService.DashboardView dashboard = dashboardViewService.dashboard();
-
-    assertThat(dashboard.aiComment()).isNull();
   }
 
   @Test

@@ -48,9 +48,6 @@ class DashboardControllerTests {
   private DashboardController controller;
 
   @Autowired
-  private DiaryController diaryController;
-
-  @Autowired
   private PlayerInteractionController interactionController;
 
   @MockitoBean
@@ -113,11 +110,6 @@ class DashboardControllerTests {
         + Files.readString(Path.of("src/main/resources/templates/kill-detail.html"))
         + Files.readString(Path.of("src/main/resources/templates/vehicle-detail.html"));
     template += Files.readString(Path.of("src/main/resources/templates/exploration-detail.html"));
-    template += Files.readString(Path.of("src/main/resources/templates/diary-maintenance.html"));
-    template += Files.readString(Path.of("src/main/resources/templates/diary-generation-data.html"));
-    template += Files.readString(Path.of("src/main/resources/templates/diary-editor.html"));
-    template += Files.readString(Path.of("src/main/resources/templates/diaries.html"));
-    template += Files.readString(Path.of("src/main/resources/templates/diary-detail.html"));
 
     assertThat(template)
         .doesNotContain("Steam_")
@@ -209,57 +201,15 @@ class DashboardControllerTests {
   }
 
   @Test
-  void diaryMaintenanceRoutesReturnTheirViews() {
-    LocalDate date = LocalDate.of(2026, 8, 2);
-    ConcurrentModel listModel = new ConcurrentModel();
-    ConcurrentModel dataModel = new ConcurrentModel();
-    ConcurrentModel editorModel = new ConcurrentModel();
-
-    assertThat(diaryController.diaryMaintenance(listModel)).isEqualTo("diary-maintenance");
-    assertThat(diaryController.diaryGenerationData(date, dataModel)).isEqualTo("diary-generation-data");
-    assertThat(diaryController.diaryEditor(date, editorModel)).isEqualTo("diary-editor");
-    assertThat(listModel).containsKey("days");
-    assertThat(dataModel).containsKeys("packet", "aiEnabled");
-    assertThat(editorModel).containsKey("packet");
-  }
-
-  @Test
-  void adminNavigationIncludesDiaryMaintenanceAndNoRemovedNpcTests() throws Exception {
+  void navigationHasNoDiaryAndNoRemovedNpcTests() throws Exception {
     String navigation = Files.readString(
         Path.of("src/main/resources/templates/fragments/navigation.html"));
     String bedrockTest = Files.readString(
         Path.of("src/main/resources/templates/ai-analysis-test.html"));
 
     assertThat(navigation)
-        .contains("@{/maintenance/diaries}", "日誌メンテ", "diary-maintenance")
-        .doesNotContain("survivor-mark", "Markテスト");
+        .doesNotContain("/diaries", "冒険日記", "日誌メンテ", "survivor-mark", "Markテスト");
     assertThat(bedrockTest).doesNotContain("karen", "Karen");
-  }
-
-  @Test
-  void publicDiaryListReturnsDatabaseBackedView() {
-    ConcurrentModel model = new ConcurrentModel();
-
-    assertThat(diaryController.diaries(model)).isEqualTo("diaries");
-    assertThat(model).containsKey("diaries");
-  }
-  @Test
-  void extractedDiaryRoutesKeepAuthenticationModelAndAdminProtection() throws Exception {
-    var account = new M_WebAccount();
-    account.setLoginId("diary-route-admin");
-    account.setPasswordHash("unused-test-hash");
-    account.setRole("ADMIN");
-    accounts.save(account);
-    var admin = user("diary-route-admin").roles("ADMIN");
-    for (String path : List.of("/diaries", "/maintenance/diaries", "/maintenance/diaries/2026-10-16")) {
-      mockMvc.perform(get(path).with(admin))
-          .andExpect(status().isOk())
-          .andExpect(model().attribute("loggedIn", true))
-          .andExpect(model().attributeExists("portalUrl"));
-    }
-    mockMvc.perform(get("/maintenance/diaries")
-            .with(user("member").roles("PLAYER")))
-        .andExpect(status().isForbidden());
   }
 
   @Test

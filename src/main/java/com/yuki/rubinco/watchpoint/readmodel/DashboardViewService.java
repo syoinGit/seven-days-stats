@@ -62,8 +62,7 @@ public class DashboardViewService {
         vehicleStatuses,
         serverState,
         worldTime,
-        latestBloodMoon(worldTime),
-        dailyDiary());
+        latestBloodMoon(worldTime));
   }
 
   private List<PlayerStatus> playerStatuses() {
@@ -1376,14 +1375,6 @@ public class DashboardViewService {
     return rows.isEmpty() ? new WorldTimeStatus("", null, "--:--") : rows.getFirst();
   }
 
-  private AiComment dailyDiary() {
-    return aiCommentService.latestDiary()
-        .map(comment -> new AiComment(
-            comment.title(), DiaryViewService.excerpt(comment.body(), 150), comment.diaryDate(),
-            displayTimeFormatter.format(comment.publishedAt()), comment.sourceType()))
-        .orElse(null);
-  }
-
   private Integer integer(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
     int value = rs.getInt(column);
     return rs.wasNull() ? null : value;
@@ -1426,13 +1417,8 @@ public class DashboardViewService {
       List<VehicleStatus> vehicleStatuses,
       ServerState serverState,
       WorldTimeStatus worldTime,
-      BloodMoonStatus bloodMoon,
-      AiComment aiComment
+      BloodMoonStatus bloodMoon
   ) {
-  }
-
-  public record AiComment(
-      String title, String body, LocalDate diaryDate, String publishedAt, String sourceType) {
   }
 
   public record WorldTimeStatus(String observedAt, Integer day, String time) {

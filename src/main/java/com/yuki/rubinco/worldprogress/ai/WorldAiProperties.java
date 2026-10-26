@@ -3,7 +3,7 @@ package com.yuki.rubinco.worldprogress.ai;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/** AI posts for the world statistics sites (Octarine, Luminite). Uses the app.ai Bedrock model. */
+/** AI posts for the world statistics site (Octarine / Core Keeper only). Uses the app.ai Bedrock model. */
 @ConfigurationProperties(prefix = "app.world-ai")
 public record WorldAiProperties(boolean enabled, Duration interval, int maxOutputTokens) {
   public WorldAiProperties {

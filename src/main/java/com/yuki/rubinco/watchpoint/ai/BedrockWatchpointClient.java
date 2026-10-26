@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
-/** Invokes Bedrock Converse and validates its structured WATCHPOINT response. */
+/** Invokes Bedrock (InvokeModel) and validates its structured WATCHPOINT response. */
 @Service
 @RequiredArgsConstructor
 public class BedrockWatchpointClient {
@@ -37,7 +37,7 @@ public class BedrockWatchpointClient {
         + "\n\n"
         + requestJson;
     String responseText = textClient.generate(analysisRequest.systemPrompt(),
-        requestInstruction, properties.maxOutputTokens(), 0.6f);
+        requestInstruction, properties.maxOutputTokens());
     GeneratedPost generated = deserialize(responseText);
     validate(generated, analysisRequest);
     return new GeneratedPost(generated.body().strip(), List.copyOf(generated.evidenceKeys()));

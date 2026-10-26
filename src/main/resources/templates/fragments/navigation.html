@@ -7,9 +7,7 @@
     <a th:href="@{/kills}" th:classappend="${activePage == 'rankings'} ? 'active'">冒険者ランキング</a>
     <a th:href="@{/vehicles}" th:classappend="${activePage == 'vehicles'} ? 'active'">乗り物ランキング</a>
     <a th:href="@{/exploration}" th:classappend="${activePage == 'exploration'} ? 'active'">探索済みPOI</a>
-    <a th:href="@{/diaries}" th:classappend="${activePage == 'diaries'} ? 'active'">冒険日記</a>
     <a th:if="${currentAdmin}" th:href="${portalUrl + '/maintenance/accounts'}" th:classappend="${activePage == 'maintenance'} ? 'active'">ユーザー連携</a>
-    <a th:if="${currentAdmin}" th:href="@{/maintenance/diaries}" th:classappend="${activePage == 'diary-maintenance'} ? 'active'">日誌メンテ</a>
     <a th:if="${currentAdmin}" th:href="@{/maintenance/ai-analysis/test}" th:classappend="${activePage == 'ai-test'} ? 'active'">Bedrockテスト</a>
   </div>
   <a class="server-nav" th:classappend="${activePage == 'server'} ? 'active'" th:href="@{/server}">サーバー情報</a>

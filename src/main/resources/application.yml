@@ -44,8 +44,8 @@ app:
     occupation-cap: ${GUILD_OCCUPATION_CAP:3}
     lineage-cap: ${GUILD_LINEAGE_CAP:5}
     # Interactions between today's visitors at these JST hours, twice in each hour, at most six a day. fallback: template or skip when the AI fails.
-    interaction-hours: ${GUILD_INTERACTION_HOURS:20,21,22}
-    interaction-daily-max: ${GUILD_INTERACTION_DAILY_MAX:6}
+    interaction-hours: ${GUILD_INTERACTION_HOURS:18,19,20,21,22,23}
+    interaction-daily-max: ${GUILD_INTERACTION_DAILY_MAX:12}
     interaction-fallback: ${GUILD_INTERACTION_FALLBACK:template}
     recent-pair-slots: ${GUILD_RECENT_PAIR_SLOTS:3}
     # Provisional dungeon runs: 1-4 of the day's visitors leave at this JST time; the four stages come out this many minutes apart.
@@ -182,7 +182,7 @@ app:
   ai:
     enabled: false
     aws-region: ap-northeast-1
-    model-id: jp.anthropic.claude-haiku-4-5-20251001-v1:0
+    model-id: anthropic.claude-haiku-5-5
     window-minutes: 30
     max-events: 60
     system-prompt-resource: classpath:prompts/watchpoint-system-prompt.txt
@@ -190,7 +190,7 @@ app:
     schedule-interval: 30m
     initial-delay: 60s
     max-posts-per-day: 3
-  # AI comments on the Octarine / Luminite statistics. Uses the app.ai model; posts only while
+  # AI comments on the Octarine (Core Keeper) statistics. Uses the app.ai model; posts only while
   # the game's server is online.
   world-ai:
     enabled: false

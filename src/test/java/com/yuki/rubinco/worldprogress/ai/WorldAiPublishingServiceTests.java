@@ -3,7 +3,6 @@ package com.yuki.rubinco.worldprogress.ai;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
@@ -49,7 +48,7 @@ class WorldAiPublishingServiceTests {
     doReturn(false).when(gate).aiAllowed("corekeeper");
     assertThat(service(true).publishIfDue(site).status())
         .isEqualTo(WorldAiPublishingService.Status.SERVER_STOPPED);
-    verify(bedrock, never()).generate(anyString(), anyString(), anyInt(), anyFloat());
+    verify(bedrock, never()).generate(anyString(), anyString(), anyInt());
 
     doReturn(true).when(gate).aiAllowed("corekeeper");
     T_TimelinePost recent = new T_TimelinePost();
@@ -64,7 +63,7 @@ class WorldAiPublishingServiceTests {
     doReturn(Optional.of(world)).when(worlds).findFirstByGameIdAndActiveTrue("corekeeper");
     doReturn("統計を覗ける人").when(agents).personalityPrompt("WATCHPOINT");
     doReturn("「宝箱がにぎやかになってきたかも。」").when(bedrock)
-        .generate(anyString(), anyString(), anyInt(), anyFloat());
+        .generate(anyString(), anyString(), anyInt());
     assertThat(service(true).publishIfDue(site).status()).isEqualTo(WorldAiPublishingService.Status.PUBLISHED);
     ArgumentCaptor<T_TimelinePost> saved = ArgumentCaptor.forClass(T_TimelinePost.class);
     verify(timeline).save(saved.capture());
@@ -74,7 +73,7 @@ class WorldAiPublishingServiceTests {
     // One voice on every site: the same character and personality as the 7DTD posts.
     assertThat(saved.getValue().getActorName()).isEqualTo("WATCHPOINT");
     ArgumentCaptor<String> system = ArgumentCaptor.forClass(String.class);
-    verify(bedrock).generate(system.capture(), anyString(), anyInt(), anyFloat());
+    verify(bedrock).generate(system.capture(), anyString(), anyInt());
     assertThat(system.getValue()).startsWith("統計を覗ける人").contains("Core Keeper", "120文字以内");
   }
 
@@ -90,7 +89,7 @@ class WorldAiPublishingServiceTests {
   void aFailedGenerationIsReportedAndNothingIsSaved() {
     doReturn(true).when(gate).aiAllowed("corekeeper");
     doReturn(Optional.empty()).when(timeline).findTopByGameIdAndPostTypeOrderByPublishedAtDesc(any(), any());
-    doReturn("").when(bedrock).generate(anyString(), anyString(), anyInt(), anyFloat());
+    doReturn("").when(bedrock).generate(anyString(), anyString(), anyInt());
     assertThat(service(true).publishIfDue(site).status()).isEqualTo(WorldAiPublishingService.Status.FAILED);
     verify(timeline, never()).save(any());
   }

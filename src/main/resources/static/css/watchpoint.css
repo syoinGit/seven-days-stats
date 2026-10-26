@@ -91,10 +91,7 @@
 .watchpoint-body .pilot-info .pilot-vitals { color:#bfbdc6; font-family:inherit; }
 .watchpoint-body .pilot > b { font-family:inherit; font-size:11px; }
 .watchpoint-body .pilot-list .empty { padding:18px; font-size:12px; }
-.watchpoint-body .diary-side-card { border-color:var(--rb-line); background:var(--rb-surface); }
-.watchpoint-body .diary-side-card h3 { margin:12px 0 0; font-size:14px; }
-.watchpoint-body .diary-side-card > p { display:-webkit-box; overflow:hidden; margin:8px 0 12px; color:#c9c7cf; font-size:12px; line-height:1.75; -webkit-box-orient:vertical; -webkit-line-clamp:4; }
-.watchpoint-body .diary-side-card > span, .watchpoint-body .server-summary > small { font-size:12px; font-weight:700; }
+.watchpoint-body .server-summary > small { font-size:12px; font-weight:700; }
 .watchpoint-body .server-summary div span { font-size:12px; }
 .watchpoint-body .server-summary div b { font-family:inherit; font-size:12px; }
 .watchpoint-body .module-head .pixel-status { font-size:11px; }
@@ -133,10 +130,6 @@
 .watchpoint-body .poi-cards article > p { font-size:11px; }
 .watchpoint-body .vehicle-card > header { font-family:inherit; font-size:11px; }
 .watchpoint-body .vehicle-card > small { font-family:inherit; font-size:11px; }
-.watchpoint-body .diary-public-card > header, .watchpoint-body .diary-public-detail > header { font-family:inherit; font-size:12px; letter-spacing:0; }
-.watchpoint-body .diary-public-card footer small, .watchpoint-body .diary-public-detail footer small { font-family:inherit; font-size:11px; }
-.watchpoint-body .diary-public-detail { background:var(--rb-surface); }
-.watchpoint-body .diary-tag-list span { border:0; border-radius:999px; background:var(--rb-surface-2); font-size:11px; }
 .watchpoint-body .health-summary { border-left:1px solid var(--rb-line); box-shadow:inset 3px 0 0 var(--muted); }
 .watchpoint-body.watchpoint-body .health-stable .health-summary { box-shadow:inset 3px 0 0 var(--good); }
 .watchpoint-body.watchpoint-body .health-watch .health-summary { box-shadow:inset 3px 0 0 var(--signal); }

@@ -272,4 +272,4 @@ Web アプリは Docker を直接触らず、`rubinco-game-control logs corekeep
 
 `WORLD_AI_ENABLED=true` で有効（既定は無効）。`WORLD_AI_INTERVAL`（既定3時間、最短30分）ごとに、
 公開ページと同じ統計（達成済みの進捗・ラベル付きチェストの中身とチェストごとの変化・接続中の人とプレイ時間）を Bedrock（`app.ai` のモデル）に渡して
-1件投稿する。未達の項目とボス名は渡さない。サーバー停止中とワールド非公開のあいだは投稿しない。
+1件投稿する。未達の項目とボス名は渡さない。統計コメントは Core Keeper（Octarine）だけで、Terraria（Luminite）では投稿しない。サーバー停止中とワールド非公開のあいだは投稿しない。
