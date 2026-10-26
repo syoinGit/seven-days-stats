@@ -80,7 +80,7 @@ class GuildTests {
     jdbc.update("DELETE FROM T_WORLD_SNAPSHOT WHERE parser_version = 'guild-test'");
     reset(bedrock);
     when(bedrock.generate(anyString(), anyString(), anyInt(), any())).thenReturn(DRAFT);
-    when(bedrock.generate(anyString(), anyString(), eq(1100), any())).thenReturn(SCENE);
+    when(bedrock.generate(anyString(), anyString(), eq(GuildInteractionWriter.MAX_TOKENS), any())).thenReturn(SCENE);
   }
 
   static final String SCENE = """
@@ -250,14 +250,14 @@ class GuildTests {
       var results = executor.invokeAll(List.<java.util.concurrent.Callable<String>>of(() -> interactions.runHour(HOUR), () -> interactions.runHour(HOUR)));
       for (var result : results) assertThat(result.get()).isNotNull();
     }
-    assertThat(interactions.runHour(HOUR.plusMinutes(20))).contains("すでに処理済み");
+    assertThat(interactions.runHour(HOUR.plusMinutes(10))).contains("すでに処理済み");
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isEqualTo(1);
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_HOURLY_JOB WHERE status = 'SUCCEEDED'")).isEqualTo(1);
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION_PARTICIPANT")).isEqualTo(2);
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_RELATION WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)", rine, roan, roan, rine)).isEqualTo(2);
     assertThat(jdbc.queryForObject("SELECT label FROM T_GUILD_BOND", String.class)).isEqualTo("acquaintance");
     assertThat(jdbc.queryForObject("SELECT written_by FROM T_GUILD_INTERACTION", String.class)).isEqualTo("ai");
-    verify(bedrock, times(1)).generate(anyString(), argThat(input -> input.contains("リネ") && input.contains("ロアン")), eq(1100), any());
+    verify(bedrock, times(1)).generate(anyString(), argThat(input -> input.contains("リネ") && input.contains("ロアン")), eq(GuildInteractionWriter.MAX_TOKENS), any());
   }
 
   /** Sixty days of every hour with five residents: the rules hold however the cards fall. */
@@ -278,17 +278,18 @@ class GuildTests {
       }
       if (day == 40) jdbc.update("UPDATE M_GUILD_CHARACTER SET status = 'DEAD' WHERE id = ?", ids.get(3));
       for (int hour = 0; hour < 24; hour++) {
-        interactions.runHour(date.atTime(hour, 3).atZone(GuildService.TOKYO));
-        interactions.runHour(date.atTime(hour, 33).atZone(GuildService.TOKYO));
+        for (int minute : new int[] {3, 18, 33, 48}) interactions.runHour(date.atTime(hour, minute).atZone(GuildService.TOKYO));
       }
     }
-    // Two slots in each of the six evening hours; at most twelve interactions a day.
-    assertThat(count("SELECT COUNT(*) FROM T_GUILD_HOURLY_JOB")).isEqualTo(60 * 12);
+    // While the server is up (20:00-23:30): a slot each quarter hour from 20:00 to 23:15, fourteen a day; at most twelve interactions.
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_HOURLY_JOB")).isEqualTo(60 * 14);
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isGreaterThan(60 * 11);
     assertThat(jdbc.queryForList("SELECT DISTINCT SUBSTRING(slot_key, 14, 3) FROM T_GUILD_HOURLY_JOB ORDER BY 1", String.class))
-        .containsExactly(":00", ":30");
+        .containsExactly(":00", ":15", ":30", ":45");
     assertThat(jdbc.queryForList("SELECT DISTINCT SUBSTRING(slot_key, 12, 2) FROM T_GUILD_HOURLY_JOB ORDER BY 1", String.class))
-        .containsExactly("18", "19", "20", "21", "22", "23");
+        .containsExactly("20", "21", "22", "23");
+    assertThat(jdbc.queryForList("SELECT DISTINCT SUBSTRING(slot_key, 12, 5) FROM T_GUILD_HOURLY_JOB WHERE slot_key LIKE '%T23:%' ORDER BY 1", String.class))
+        .containsExactly("23:00", "23:15");
     assertThat(count("SELECT MAX(n) FROM (SELECT COUNT(*) n FROM T_GUILD_INTERACTION GROUP BY SUBSTRING(slot_key, 1, 10)) t")).isLessThanOrEqualTo(12);
     // Every change an event made is in the history, and the last one is where the resident is now.
     for (long id : ids) {
@@ -332,13 +333,13 @@ class GuildTests {
     resident("ミラ", 25, "ALIVE", 2);
     assertThat(interactions.runHour(HOUR)).contains("すでに処理済み");
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isZero();
-    verify(bedrock, never()).generate(anyString(), anyString(), eq(1100), any());
+    verify(bedrock, never()).generate(anyString(), anyString(), eq(GuildInteractionWriter.MAX_TOKENS), any());
   }
 
   @Test void aFailedWriterFallsBackToTheTemplateWithTheSameOutcome() {
     resident("リネ", 28, "ALIVE", 0);
     resident("ロアン", 30, "ALIVE", 1);
-    when(bedrock.generate(anyString(), anyString(), eq(1100), any())).thenThrow(new IllegalStateException("down"));
+    when(bedrock.generate(anyString(), anyString(), eq(GuildInteractionWriter.MAX_TOKENS), any())).thenThrow(new IllegalStateException("down"));
     assertThat(interactions.runHour(HOUR)).doesNotContain("失敗");
     assertThat(jdbc.queryForObject("SELECT written_by FROM T_GUILD_INTERACTION", String.class)).isEqualTo("template");
     String body = jdbc.queryForObject("SELECT body FROM T_GUILD_INTERACTION", String.class);
@@ -378,11 +379,11 @@ class GuildTests {
   @Test void theDailyLimitStopsAtFive() {
     var p = properties;
     var asked = new GuildProperties(p.enabled(), p.recentDays(), p.recentRatio(), p.publicUrl(), 20, p.categoryWindow(), p.categoryCap(),
-        p.genderCap(), p.occupationCap(), p.lineageCap(), p.interactionHours(), p.interactionDailyMax(), p.selectionWeights(),
+        p.genderCap(), p.occupationCap(), p.lineageCap(), p.interactionHours(), p.interactionEnd(), p.interactionDailyMax(), p.selectionWeights(),
         p.interactionFallback(), p.recentPairSlots(), p.dungeonDeparture(), p.dungeonStageMinutes());
     assertThat(asked.dailyLimit()).isEqualTo(5);
     assertThat(new GuildProperties(p.enabled(), p.recentDays(), p.recentRatio(), p.publicUrl(), 0, p.categoryWindow(), p.categoryCap(),
-        p.genderCap(), p.occupationCap(), p.lineageCap(), p.interactionHours(), p.interactionDailyMax(), p.selectionWeights(),
+        p.genderCap(), p.occupationCap(), p.lineageCap(), p.interactionHours(), p.interactionEnd(), p.interactionDailyMax(), p.selectionWeights(),
         p.interactionFallback(), p.recentPairSlots(), p.dungeonDeparture(), p.dungeonStageMinutes()).dailyLimit()).isEqualTo(5);
   }
 
@@ -392,7 +393,7 @@ class GuildTests {
     resident("ロアン", 30, "ALIVE", 1);
     interactions.runHour(HOUR);
     verify(bedrock).generate(argThat(prompt -> prompt.contains("話し方") && prompt.contains("4〜8個")),
-        argThat(input -> input.contains("リネの話し方=一人称「") && input.contains("ロアンの話し方=一人称「")), eq(1100), any());
+        argThat(input -> input.contains("リネの話し方=一人称「") && input.contains("ロアンの話し方=一人称「")), eq(GuildInteractionWriter.MAX_TOKENS), any());
     var scene = chronicle.scene(HOUR.plusMinutes(5), HOUR.toLocalDate());
     assertThat(scene.script()).extracting(GuildChronicle.Turn::text).containsExactly("「今日は冷えるね。」", "「火のそばに座ろう。」");
     long rine = jdbc.queryForObject("SELECT id FROM M_GUILD_CHARACTER WHERE name = 'リネ'", Long.class);
@@ -471,25 +472,50 @@ class GuildTests {
     assertThat(writer.validate(SCENE, scene)).startsWith("夕方の酒場。").contains("リネ「今日は冷えるね。」");
     assertThatThrownBy(() -> writer.validate(SCENE.replace("ロアン", "ガルド"), scene)).isInstanceOf(IllegalArgumentException.class);
     String married = SCENE.replace("火のそばに座ろう。", "俺たち、結婚しよう。いや結婚した。夫婦になった。");
-    assertThatThrownBy(() -> writer.validate(married, scene)).hasMessageContaining("Unconfirmed");
+    assertThatThrownBy(() -> writer.validate(married, scene)).hasMessageContaining("決まっていない変化");
     var wedding = new GuildInteractionWriter.Scene("evening", "求婚", "二人は夫婦になった", a, b, "深い愛情", "深い愛情",
         "恋人", "夫婦", "", List.of(), null, null, null);
     assertThat(writer.validate(married, wedding)).contains("夫婦になった");
-    assertThatThrownBy(() -> writer.validate(SCENE.replace("今日は冷えるね。", "彼は亡くなったよ。"), scene)).hasMessageContaining("Unconfirmed");
+    assertThatThrownBy(() -> writer.validate(SCENE.replace("今日は冷えるね。", "彼は亡くなったよ。"), scene)).hasMessageContaining("決まっていない変化");
     // Joining a faction or a conversion only when code made it here, or when one of them went through it before.
     String joined = SCENE.replace("今日は冷えるね。", "騎士団への加入、おめでとう。");
-    assertThatThrownBy(() -> writer.validate(joined, scene)).hasMessageContaining("Unconfirmed");
+    assertThatThrownBy(() -> writer.validate(joined, scene)).hasMessageContaining("決まっていない変化");
     var invite = new GuildInteractionWriter.Scene("evening", "勧誘", "リネは白銀の騎士団に加わった", a, b, "ふつう", "ふつう",
         "知人", null, "", List.of(), null, null, null, "派閥 白銀の騎士団：正義と名誉を重んじる騎士団。",
         "リネが白銀の騎士団に加わる（加入）", "join");
     assertThat(writer.validate(joined, invite)).contains("加入");
-    assertThatThrownBy(() -> writer.validate(SCENE.replace("今日は冷えるね。", "改宗したんだ。"), invite)).hasMessageContaining("Unconfirmed");
+    assertThatThrownBy(() -> writer.validate(SCENE.replace("今日は冷えるね。", "改宗したんだ。"), invite)).hasMessageContaining("決まっていない変化");
     var convert = new GuildInteractionService.Affiliation("grantford", "grantford", "none", "dawnlight", "グランフォード", "無所属", "暁光教",
         null, null, java.util.Set.of("convert"), List.of("10月1日 信仰：無信仰 → 暁光教（改宗）：ロアンに導かれた"));
     var changed = new GuildInteractionService.Person(1, "リネ", 28, "女性", "冒険者", "穏やか", convert);
     var later = new GuildInteractionWriter.Scene("evening", "雑談", "二人は天気の話をした", changed, b, "ふつう", "ふつう",
         "知人", null, "", List.of(), null, null, null);
     assertThat(writer.validate(SCENE.replace("今日は冷えるね。", "改宗して半月になる。"), later)).contains("改宗");
+    // What the model often does is fine: a note on the name, a line a little over 60 characters, 殺風景 (not killing).
+    String loose = SCENE.replace("\"speaker\":\"リネ\"", "\"speaker\":\"リネ（28歳）\"")
+        .replace("火のそばに座ろう。", "火のそばに座ろう。".repeat(9)).replace("今日は冷えるね。", "殺風景な夜だね。");
+    assertThat(writer.validate(loose, scene)).contains("リネ「殺風景な夜だね。」").contains("ロアン「火のそばに座ろう。火のそば");
+    assertThatThrownBy(() -> writer.validate(SCENE.replace("今日は冷えるね。", "あいつを殺してやる。"), scene)).hasMessageContaining("決まっていない変化");
+    assertThatThrownBy(() -> writer.validate(SCENE.replace("\"speaker\":\"リネ\"", "\"speaker\":\"リネア\""),
+        new GuildInteractionWriter.Scene("evening", "雑談", "二人は天気の話をした", a, new GuildInteractionService.Person(3, "リネア", 30, "男性", "鍛冶屋", "無口"),
+            "ふつう", "ふつう", "知人", null, "", List.of(), null, null, null))).hasMessageContaining("二人以外");
+    // The reason a reply was refused says what was wrong, never the reply itself.
+    assertThatThrownBy(() -> writer.validate("{\"narration\":\"夜。\",\"lines\":[", scene)).hasMessage("JSONとして読めない");
+    assertThatThrownBy(() -> writer.validate(SCENE.replace("今日は冷えるね。", "冷".repeat(120)), scene)).hasMessage("せりふが長すぎる");
+  }
+
+  /** A refused reply is asked for once more; when that fails too, the fixed scene is kept and the maintenance page says why. */
+  @Test void aRefusedSceneIsAskedForAgainAndTheReasonIsKept() {
+    resident("リネ", 28, "ALIVE", 0);
+    resident("ロアン", 30, "ALIVE", 1);
+    when(bedrock.generate(anyString(), anyString(), eq(GuildInteractionWriter.MAX_TOKENS), any())).thenReturn("{\"narration\":", SCENE);
+    interactions.runHour(HOUR);
+    assertThat(jdbc.queryForObject("SELECT written_by FROM T_GUILD_INTERACTION", String.class)).isEqualTo("ai");
+    when(bedrock.generate(anyString(), anyString(), eq(GuildInteractionWriter.MAX_TOKENS), any())).thenReturn(SCENE.replace("ロアン", "ガルド"));
+    interactions.runHour(HOUR.withHour(21));
+    assertThat(jdbc.queryForObject("SELECT written_by FROM T_GUILD_INTERACTION WHERE slot_key LIKE '%T21:00'", String.class)).isEqualTo("template");
+    assertThat(interactions.jobs().getFirst().message()).contains("定型文（AIの応答を不採用：二人以外が話している）");
+    verify(bedrock, times(4)).generate(anyString(), anyString(), eq(GuildInteractionWriter.MAX_TOKENS), any());
   }
 
   /** Event cards that change a faction and a faith: code applies both, keeps the history and shows it. */
@@ -509,7 +535,7 @@ class GuildTests {
     assertThat(service.runHour(HOUR.withHour(22))).contains("合う出来事がありません");
     // The writer saw both people's affiliations, only their parts of the world, and the change being made.
     verify(bedrock, atLeastOnce()).generate(anyString(), argThat(input -> input.contains("リネの所属=暮らす村 グランフォード")
-        && input.contains("派閥 白銀の騎士団：") && !input.contains("月影郷") && input.contains("この場面で起きる所属の変化=リネが")), eq(1100), any());
+        && input.contains("派閥 白銀の騎士団：") && !input.contains("月影郷") && input.contains("この場面で起きる所属の変化=リネが")), eq(GuildInteractionWriter.MAX_TOKENS), any());
     mvc.perform(get("/guild/characters/" + rine)).andExpect(status().isOk())
         .andExpect(content().string(containsString("所属の履歴")))
         .andExpect(content().string(containsString("派閥：無所属 → 白銀の騎士団（加入）")))
@@ -520,7 +546,7 @@ class GuildTests {
         .andExpect(content().string(containsString("リネ ／ 派閥：無所属 → 白銀の騎士団（加入）")));
     mvc.perform(get("/guild/maintenance").with(user("admin").roles("ADMIN"))).andExpect(status().isOk())
         .andExpect(content().string(containsString("村・派閥・信仰の内訳")))
-        .andExpect(content().string(containsString("毎日 18時・19時・20時・21時・22時・23時")));
+        .andExpect(content().string(containsString("毎日 20:00〜23:30（日本時間）の15分ごと")));
     guild.delete(rine);
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_AFFILIATION_HISTORY")).isZero();
   }
@@ -581,7 +607,7 @@ class GuildTests {
     assertThat(jdbc.queryForMap("SELECT kind, a_id, summary FROM T_GUILD_THREAD")).containsEntry("KIND", "crush")
         .containsEntry("A_ID", rine).containsEntry("SUMMARY", "リネはロアンに片思いしている");
     verify(bedrock).generate(anyString(), argThat(input -> input.contains("二人は異性") && input.contains("好みのタイプで気になっている")
-        && input.contains("この場面で生まれること=リネはロアンに片思いしている")), eq(1100), any());
+        && input.contains("この場面で生まれること=リネはロアンに片思いしている")), eq(GuildInteractionWriter.MAX_TOKENS), any());
     mvc.perform(get("/guild/characters/" + rine)).andExpect(status().isOk()).andExpect(content().string(containsString("気になっている")));
     mvc.perform(get("/guild/characters/" + roan)).andExpect(status().isOk()).andExpect(content().string(not(containsString("気になっている"))));
     // The log says who is who.
@@ -680,28 +706,31 @@ class GuildTests {
         .andExpect(content().string(containsString("無人の冒険者ギルド（10人）")));
   }
 
-  /** The first slot of each hour always happens at the guild; the second at any place where two or more are in. */
+  /** The first slot of each hour always happens at the guild; the other three at any place where two or more are in. */
   @Test void theGuildTalksEveryHourAndTheSecondSlotGoesAnywhere() {
     long rine = resident("リネ", 28, "ALIVE", 0);
     long roan = resident("ロアン", 30, "ALIVE", 1);
     long mira = resident("ミラ", 45, "ALIVE", 10);
     long gald = resident("ガルド", 19, "ALIVE", 11);
     jdbc.update("UPDATE T_GUILD_VISIT SET place = 'grantford' WHERE character_id IN (?, ?)", mira, gald);
-    for (int hour = 18; hour < 24; hour++) interactions.runHour(HOUR.withHour(hour).withMinute(3));
+    for (int hour = 20; hour < 24; hour++) interactions.runHour(HOUR.withHour(hour).withMinute(3));
     assertThat(jdbc.queryForList("SELECT DISTINCT place FROM T_GUILD_INTERACTION", String.class)).containsExactly("guild");
     assertThat(jdbc.queryForList("SELECT DISTINCT p.character_id FROM T_GUILD_INTERACTION_PARTICIPANT p", Long.class))
         .containsExactlyInAnyOrder(rine, roan);
-    for (int hour = 18; hour < 21; hour++) interactions.runHour(HOUR.withHour(hour).withMinute(33));
-    // With one left at the guild, the second slot can only go to Grantford.
+    for (int hour = 20; hour < 23; hour++) interactions.runHour(HOUR.withHour(hour).withMinute(18));
+    // With one left at the guild, the other slots can only go to Grantford.
     jdbc.update("UPDATE M_GUILD_CHARACTER SET status = 'DEAD' WHERE id = ?", roan);
-    for (int hour = 21; hour < 24; hour++) interactions.runHour(HOUR.withHour(hour).withMinute(33));
+    for (int hour = 20; hour < 23; hour++) interactions.runHour(HOUR.withHour(hour).withMinute(33));
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION WHERE place = 'grantford'")).isGreaterThanOrEqualTo(3);
     // Each talk happens among those at its place only.
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION i JOIN T_GUILD_INTERACTION_PARTICIPANT p ON p.interaction_id = i.id "
         + "JOIN T_GUILD_VISIT v ON v.character_id = p.character_id AND v.visit_date = ? WHERE v.place <> i.place", HOUR.toLocalDate())).isZero();
-    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isEqualTo(12);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isEqualTo(10);
+    // Past the end of the evening (the server stops at 23:30), nothing happens.
+    assertThat(interactions.runHour(HOUR.withHour(23).withMinute(33))).contains("枠ではありません");
+    assertThat(interactions.runHour(HOUR.withHour(19).withMinute(48))).contains("枠ではありません");
     // A nation's talk is written as happening in that nation's tavern.
-    verify(bedrock, atLeastOnce()).generate(anyString(), argThat(input -> input.contains("場所=樫の盾亭（グランフォード）")), eq(1100), any());
+    verify(bedrock, atLeastOnce()).generate(anyString(), argThat(input -> input.contains("場所=樫の盾亭（グランフォード）")), eq(GuildInteractionWriter.MAX_TOKENS), any());
   }
 
   /**

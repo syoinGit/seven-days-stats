@@ -44,7 +44,9 @@ app:
     occupation-cap: ${GUILD_OCCUPATION_CAP:3}
     lineage-cap: ${GUILD_LINEAGE_CAP:5}
     # Interactions between today's visitors at these JST hours, twice in each hour, at most six a day. fallback: template or skip when the AI fails.
-    interaction-hours: ${GUILD_INTERACTION_HOURS:18,19,20,21,22,23}
+    # The server is up 20:00-23:30 JST: a slot every quarter hour from 20:00, the last one over by the end (23:15).
+    interaction-hours: ${GUILD_INTERACTION_HOURS:20,21,22,23}
+    interaction-end: ${GUILD_INTERACTION_END:23:30}
     interaction-daily-max: ${GUILD_INTERACTION_DAILY_MAX:12}
     interaction-fallback: ${GUILD_INTERACTION_FALLBACK:template}
     recent-pair-slots: ${GUILD_RECENT_PAIR_SLOTS:3}

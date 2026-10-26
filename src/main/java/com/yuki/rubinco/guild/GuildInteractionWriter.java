@@ -5,7 +5,6 @@ import com.yuki.rubinco.watchpoint.ai.JsonObjectResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
@@ -19,6 +18,14 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 @RequiredArgsConstructor
 public class GuildInteractionWriter {
+  // Japanese runs close to a token a character: eight lines with a narration in JSON need well over 1100 tokens at times,
+  // and a cut-off reply is not valid JSON.
+  static final int MAX_TOKENS = 2000;
+  // The prompt asks for 140 and 60 characters; the model often runs a little over, which is fine to keep.
+  static final int NARRATION_LIMIT = 220;
+  static final int LINE_LIMIT = 100;
+  static final int LINES_MAX = 10;
+
   private final BedrockTextClient bedrock;
   private final ObjectMapper mapper;
   private final GuildVoice voices;
@@ -45,11 +52,19 @@ public class GuildInteractionWriter {
     }
   }
 
+  /** Why an output was refused, in a few words; never the output itself. */
+  static class Refused extends IllegalArgumentException {
+    Refused(String reason) {
+      super(reason);
+    }
+  }
+
   public static class WritingException extends RuntimeException {
     private final boolean call;
 
+    /** The message is the refusal's reason, or the failure's class name (never text from the model or the request). */
     WritingException(boolean call, RuntimeException cause) {
-      super(cause.getClass().getSimpleName(), cause);
+      super(cause instanceof Refused ? cause.getMessage() : cause.getClass().getSimpleName(), cause);
       this.call = call;
     }
 
@@ -58,8 +73,16 @@ public class GuildInteractionWriter {
     }
   }
 
-  /** "narration\n名前「せりふ」\n…", ready to save. */
+  /** "narration\n名前「せりふ」\n…", ready to save. An output that doesn't hold is asked for once more. */
   public String write(Scene scene) {
+    try {
+      return once(scene);
+    } catch (WritingException first) {
+      return once(scene);
+    }
+  }
+
+  private String once(Scene scene) {
     String result;
     try {
       result = bedrock.generate("""
@@ -77,7 +100,7 @@ public class GuildInteractionWriter {
           二人の違いが掛け合いになるようにし、最後のせりふで結果に着地させる。
           JSONオブジェクトのみ返す。キーは narration（情景、140文字以内）, lines（4〜8個の配列。各要素は
           speaker=二人のどちらかの名前、text=せりふ60文字以内）。URL・記号 < > / @ は使わない。
-          """, input(scene), 1100, Duration.ofSeconds(45));
+          """, input(scene), MAX_TOKENS, Duration.ofSeconds(60));
     } catch (RuntimeException failure) {
       throw new WritingException(true, failure);
     }
@@ -125,18 +148,22 @@ public class GuildInteractionWriter {
   }
 
   String validate(String json, Scene scene) {
-    if (json == null || json.length() > 5000) throw new IllegalArgumentException("Invalid interaction output");
-    var root = mapper.readTree(JsonObjectResponse.extract(json));
-    if (!root.isObject()) throw new IllegalArgumentException("Invalid interaction schema");
-    String narration = text(root.get("narration"), 180);
+    if (json == null || json.length() > 8000) throw new Refused("応答が長すぎる");
+    JsonNode root;
+    try {
+      root = mapper.readTree(JsonObjectResponse.extract(json));
+    } catch (RuntimeException broken) {
+      throw new Refused("JSONとして読めない");
+    }
+    if (!root.isObject()) throw new Refused("JSONオブジェクトでない");
+    String narration = text(root.get("narration"), NARRATION_LIMIT, "情景");
     JsonNode lines = root.get("lines");
-    if (lines == null || !lines.isArray() || lines.size() < 2 || lines.size() > 8) throw new IllegalArgumentException("Invalid lines");
-    Set<String> speakers = Set.of(scene.a().name(), scene.b().name());
+    if (lines == null || !lines.isArray() || lines.size() < 2 || lines.size() > LINES_MAX) throw new Refused("せりふの数が合わない");
     List<String> out = new ArrayList<>(List.of(narration));
     for (JsonNode line : lines) {
-      String speaker = text(line.get("speaker"), 16);
-      if (!speakers.contains(speaker)) throw new IllegalArgumentException("Unknown speaker");
-      out.add(speaker + "「" + text(line.get("text"), 70).replaceAll("^「|」$", "") + "」");
+      if (line == null || !line.isObject()) throw new Refused("せりふの形が違う");
+      String speaker = speaker(text(line.get("speaker"), 30, "話者"), scene);
+      out.add(speaker + "「" + text(line.get("text"), LINE_LIMIT, "せりふ").replaceAll("^「|」$", "") + "」");
     }
     String body = String.join("\n", out);
     unclaimed(body, scene);
@@ -150,13 +177,26 @@ public class GuildInteractionWriter {
     check(body, "(恋人にな|付き合うことにな|付き合い始め|交際を始め)", after.equals("恋人"));
     check(body, "(宿敵にな|絶交|縁を切)", after.equals("宿敵"));
     check(body, "(弟子入りが決ま|弟子にな|師匠にな)", after.equals("師弟"));
-    check(body, "(死ん|亡くな|息を引き取|殺)", scene.dead() != null && !body.matches("(?s).*殺.*"));
+    // Killing is never written; 殺風景 or 相殺 are not killing.
+    check(body, "(殺さ|殺し|殺す|殺せ|殺され|殺め|殺害)", false);
+    check(body, "(死ん|亡くな|息を引き取)", scene.dead() != null);
     // Affiliation changes: allowed when code makes one in this scene, or when one of them went through it before.
     check(body, "(加入|入団)", changed(scene, "join"));
     check(body, "(脱退|退団)", changed(scene, "leave"));
     check(body, "(追放|破門|除名)", changed(scene, "expel"));
     check(body, "(改宗|宗旨替え|入信|信仰を改め)", changed(scene, "convert"));
     check(body, "(移り住|移住|引っ越)", changed(scene, "move"));
+  }
+
+  /** One of the two, also when the model adds a note to the name ("リネ（28歳）", "リネさん"). */
+  private static String speaker(String said, Scene scene) {
+    String name = said.replaceAll("[\\s　]", "");
+    // The exact name first, then the longer name, so "リネア" is never taken for "リネ".
+    var known = java.util.stream.Stream.of(scene.a().name(), scene.b().name())
+        .sorted(java.util.Comparator.comparingInt(String::length).reversed()).toList();
+    for (String one : known) if (name.equals(one.replaceAll("[\\s　]", ""))) return one;
+    for (String one : known) if (name.startsWith(one.replaceAll("[\\s　]", ""))) return one;
+    throw new Refused("二人以外が話している");
   }
 
   private static boolean changed(Scene scene, String kind) {
@@ -166,15 +206,15 @@ public class GuildInteractionWriter {
   }
 
   private static void check(String body, String pattern, boolean allowed) {
-    if (!allowed && body.matches("(?s).*" + pattern + ".*")) throw new IllegalArgumentException("Unconfirmed change in scene");
+    if (!allowed && body.matches("(?s).*" + pattern + ".*")) throw new Refused("決まっていない変化を書いている");
   }
 
-  private static String text(JsonNode node, int limit) {
-    if (node == null || !node.isString()) throw new IllegalArgumentException("Invalid interaction field");
+  private static String text(JsonNode node, int limit, String what) {
+    if (node == null || !node.isString()) throw new Refused(what + "がない");
     String text = node.asString().replaceAll("\\s*\\R\\s*", "").strip();
-    if (text.isEmpty() || text.length() > limit || text.matches("(?s).*([<>@\\\\\\p{Cntrl}]|https?:|[0-9０-９]{5,}).*")) {
-      throw new IllegalArgumentException("Invalid interaction text");
-    }
+    if (text.isEmpty()) throw new Refused(what + "が空");
+    if (text.length() > limit) throw new Refused(what + "が長すぎる");
+    if (text.matches("(?s).*([<>@\\\\\\p{Cntrl}]|https?:|[0-9０-９]{5,}).*")) throw new Refused(what + "に使えない文字");
     return text;
   }
 }

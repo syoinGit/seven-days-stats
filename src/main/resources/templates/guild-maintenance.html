@@ -21,8 +21,9 @@
   <form method="post" th:action="@{/guild/maintenance/visits}"><button type="submit">来店者を引き直す</button></form>
 </section>
 
-<section class="guild-panel" id="interactions"><h2>交流（1日最大6件）</h2>
-  <p th:text="${'毎日 ' + #strings.listJoin(interactionHours, '時・') + '時の3分と33分（日本時間）に、今日の来店者10人の中から2人が交流します。1日の上限は' + interactionDailyMax + '件です。'}">毎日 9時・12時・15時・18時・21時の3分（日本時間）に交流します。</p>
+<section class="guild-panel" id="interactions"><h2 th:text="${'交流（1日最大' + interactionDailyMax + '件）'}">交流（1日最大12件）</h2>
+  <p th:text="${'毎日 ' + interactionHours.get(0) + ':00〜' + #temporals.format(interactionEnd, 'HH:mm') + '（日本時間）の15分ごと（各枠の3分過ぎに実行、終了時刻までに終わる枠だけ）に、同じ場所にいる今日の来店者から2人が交流します。毎時0分の枠は必ず無人のギルド、ほかの枠は2人以上いる場所からランダムです。1日の上限は' + interactionDailyMax + '件です。サーバーの稼働時間（20:00〜23:30）に合わせています。'}">毎日 20:00〜23:30（日本時間）の15分ごとに交流します。</p>
+  <p>AIの応答が条件に合わないときは1回だけ頼み直し、それでもだめなら定型文で保存します。定型文になった枠は、下の実行記録に理由（「定型文（AIの応答を不採用：せりふが長すぎる）」など）が出ます。</p>
   <p>参加者・出来事・結果・関係の変化・村や派閥や信仰の変化はプログラムが決め、AIは場面の文章だけを書きます。AIに渡すのは、その二人と、二人に関わる村・派閥・信仰の設定だけです。同じ枠に2件以上は起きません。失敗した枠を後から埋めることはしません。枠以外の時間にボタンを押しても交流は起きません。</p>
   <p th:unless="${enabled}">現在、交流の自動実行は無効です（GUILD_ENABLED）。下のボタンからは実行できます。</p>
   <form method="post" th:action="@{/guild/maintenance/interaction}"><button type="submit" th:text="${'この時間（' + currentSlot + '）の交流を起こす'}">この時間の交流を起こす</button></form>
@@ -31,7 +32,7 @@
 </section>
 
 <section class="guild-panel" id="dungeon"><h2>ダンジョン探索（仮）</h2>
-  <p th:text="${'毎日 ' + dungeonDeparture + '（日本時間）に、今日の来店者から1〜4人がダンジョンへ出発します。起・承・転・結の4段階が' + dungeonStageMinutes + '分ごとに公開され、結果は最後の段階と一緒に分かります。'}">毎日 21:50 に出発します。</p>
+  <p th:text="${'毎日 ' + #temporals.format(dungeonDeparture, 'HH:mm') + '（日本時間）に、今日の来店者から1〜4人がダンジョンへ出発します。起・承・転・結の4段階が' + dungeonStageMinutes + '分ごとに公開され、結果は最後の段階と一緒に分かります。'}">毎日 21:50 に出発します。</p>
   <p>誰が行くか、どのダンジョンで何を目指すか、各段階の出来事と結果は、出発の時点でプログラムがすべて決めます。文章は出発直後にAIがその筋どおりに書き直します（失敗したときはカードの定型文のまま）。出発した人はその日の交流に加わらず、酒場からいなくなります。戻ると酒場の席に戻ります。1日1回だけです。</p>
   <form method="post" th:action="@{/guild/maintenance/dungeon}"><button type="submit">今日の探索をいますぐ出発させる</button></form>
   <p th:if="${#lists.isEmpty(runs)}">まだ探索の記録はありません。</p>
