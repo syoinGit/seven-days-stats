@@ -64,7 +64,9 @@ public class GuildInteractionWriter {
 
     /** The message is the refusal's reason, or the failure's class name (never text from the model or the request). */
     WritingException(boolean call, RuntimeException cause) {
-      super(cause instanceof Refused ? cause.getMessage() : cause.getClass().getSimpleName(), cause);
+      super(cause instanceof Refused ? cause.getMessage()
+          : cause instanceof com.yuki.rubinco.watchpoint.ai.AiCallBudget.ExceededException ? "AI呼び出しの上限に達した"
+          : cause.getClass().getSimpleName(), cause);
       this.call = call;
     }
 

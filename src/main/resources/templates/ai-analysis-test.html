@@ -22,6 +22,18 @@
     <article><span>SCHEDULE</span><strong th:text="${scheduleMinutes + ' min'}">30 min</strong></article>
   </section>
 
+  <article class="panel">
+    <div class="panel-head"><h2>今日のAI呼び出し（全機能）</h2><small>日本時間・上限に達すると呼び出さない</small></div>
+    <section class="diary-metrics">
+      <article><span>CALLS / DAY</span><strong th:text="${aiUsage.calls + ' / ' + aiUsage.limits.dailyCalls}">3 / 50</strong></article>
+      <article><span>CALLS / HOUR</span><strong th:text="${aiUsage.hourCalls + ' / ' + aiUsage.limits.hourlyCalls}">1 / 20</strong></article>
+      <article><span>INPUT TOKENS</span><strong th:text="${aiUsage.inputTokens + ' / ' + aiUsage.limits.dailyInputTokens}">4000 / 250000</strong></article>
+      <article><span>OUTPUT TOKENS</span><strong th:text="${aiUsage.outputTokens + ' / ' + aiUsage.limits.dailyOutputTokens}">1200 / 80000</strong></article>
+      <article><span>REFUSED</span><strong th:text="${aiUsage.refused}">0</strong></article>
+    </section>
+    <p th:text="${'1回の出力は最大' + aiUsage.limits.maxTokensPerCall + 'トークン。上限は環境変数 AI_BUDGET_* で下げられます（上げられる上限にも天井があります）。'}">1回の出力は最大2000トークン。</p>
+  </article>
+
   <article class="panel ai-test-action">
     <div class="panel-head"><h2>Bedrockへ送信</h2><small th:text="${modelId}">model</small></div>
     <div><p>この操作は実際にBedrockを呼び出し、成功するとDBへ1件保存します。</p><form method="post" th:action="@{/maintenance/ai-analysis/test}"><button type="submit" th:disabled="${!bedrockEnabled}">観測データから今すぐつぶやく</button></form></div>
