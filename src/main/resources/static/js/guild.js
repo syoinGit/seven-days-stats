@@ -20,6 +20,8 @@
     document.body.classList.add("guild-window-open");
     dialog.querySelector(".guild-window-body")?.scrollTo(0, 0);
     dialog.querySelector("[data-guild-close]")?.focus({ preventScroll: true });
+    // Window content may be new: let parts that live inside windows set themselves up.
+    document.dispatchEvent(new Event("guild-window"));
   }
 
   function hide() {
@@ -312,4 +314,75 @@
   open.addEventListener("click", begin);
   open.hidden = false;
   badge();
+})();
+
+// Talking with a resident (in their window): the first line and three answers. One talk with each resident a day;
+// "talked today", the answer and the reply, and which answers were picked before stay in this browser only.
+(() => {
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+  const get = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } };
+  const put = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private window: not remembered */ } };
+
+  function setUp(box) {
+    if (box.dataset.ready) return;
+    box.dataset.ready = "1";
+    const talkId = box.dataset.talkId;
+    const dayKey = "guild-talk-day-" + box.dataset.characterId;
+    const seenKey = "guild-talk-seen-" + talkId;
+    const choices = box.querySelector("[data-talk-choices]");
+    const buttons = [...box.querySelectorAll("[data-talk-choice]")];
+    const reply = box.querySelector("[data-talk-reply]");
+    const note = box.querySelector("[data-talk-note]");
+    const done = (choice, text) => {
+      buttons.forEach((button) => {
+        button.disabled = true;
+        button.classList.toggle("chosen", button.dataset.talkChoice === String(choice));
+      });
+      reply.textContent = text;
+      reply.hidden = false;
+      note.textContent = "今日はもう話しました。また明日、別の返事もできます。";
+      note.hidden = false;
+    };
+    choices.hidden = false;
+    const day = get(dayKey);
+    if (day && day.date === today && day.talk === talkId) {
+      done(day.choice, day.reply);
+      return;
+    }
+    const seen = get(seenKey) || [];
+    buttons.forEach((button) => {
+      if (seen.includes(Number(button.dataset.talkChoice))) {
+        button.classList.add("seen");
+        button.title = "前に選んだ返事";
+      }
+    });
+    if (day && day.date === today) {
+      // Talked with them today already, about an older talk: the new one waits until tomorrow.
+      buttons.forEach((button) => { button.disabled = true; });
+      note.textContent = "今日はもう話しました。また明日。";
+      note.hidden = false;
+      return;
+    }
+    note.hidden = true;
+    buttons.forEach((button) => button.addEventListener("click", async () => {
+      const choice = Number(button.dataset.talkChoice);
+      buttons.forEach((other) => { other.disabled = true; });
+      try {
+        const response = await fetch("/guild/talks/" + talkId + "/choices/" + choice, { headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error(String(response.status));
+        const text = (await response.json()).reply;
+        put(dayKey, { date: today, talk: talkId, choice, reply: text });
+        put(seenKey, [...new Set([...seen, choice])]);
+        done(choice, text);
+      } catch {
+        buttons.forEach((other) => { other.disabled = false; });
+        note.textContent = "返事を読み込めませんでした。もう一度選んでください。";
+        note.hidden = false;
+      }
+    }));
+  }
+
+  const scan = () => document.querySelectorAll("[data-talk]").forEach(setUp);
+  document.addEventListener("guild-window", scan);
+  scan();
 })();

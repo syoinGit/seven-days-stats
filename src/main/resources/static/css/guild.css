@@ -427,3 +427,19 @@
 .town-tsukikage .tw-window{width:70px;height:70px}.town-tsukikage .tw-deco.one{width:80px;height:70px}
 .town-grantford .tw-deco:is(.one,.two){width:36px;height:96px}
 }
+
+/* Talking with a resident: their line, three answers as buttons, then their reply. A small bubble on the name tag in the tavern. */
+.guild-talk{margin:14px 0;padding:12px 14px;background:#221a28;border:2px solid #6c4c45;box-shadow:3px 4px #0d0a12}
+.guild-talk h3{margin-top:0}
+.guild-talk-line,.guild-talk-reply{position:relative;margin:0 0 10px;padding:10px 12px;background:#f3e6cf;color:#3a2a2a;border:3px solid #574045;font-size:14px;line-height:1.6}
+.guild-talk-reply{margin:10px 0 6px;background:#e9dcc4}
+.guild-talk-choices{display:flex;flex-direction:column;gap:6px}
+.guild-talk-choices button{text-align:left;padding:7px 12px;background:#3a2738;border:2px solid #89634b;color:#ffe0a8;font:inherit;font-size:13px;cursor:pointer}
+.guild-talk-choices button::before{content:"▸ ";color:#c28f9b}
+.guild-talk-choices button:hover:not(:disabled){background:#4a3048}
+.guild-talk-choices button:focus-visible{outline:3px solid #ebbe92;outline-offset:1px}
+.guild-talk-choices button:disabled{cursor:default;opacity:.5}
+.guild-talk-choices button.chosen{opacity:1;border-color:#e3b448}
+.guild-talk-choices button.seen::after{content:"（前に選んだ）";margin-left:6px;color:#a991a3;font-size:11px}
+.guild-talk-note{margin:6px 0 0;color:#a991a3;font-size:12px}
+.person-name.can-talk::after{content:"";display:inline-block;width:8px;height:6px;margin-left:4px;background:#ffe0a8;border-radius:2px;box-shadow:0 0 0 1px #574045;vertical-align:middle}

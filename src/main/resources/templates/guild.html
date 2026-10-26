@@ -46,11 +46,11 @@
                   line=${idleLines.get(seat.visit.character.id) != null ? idleLines.get(seat.visit.character.id) : seat.visit.line},
                   turns=${talking ? scene.turnsOf(seat.visit.character.id) : null}"
          th:classappend="${'slot-' + seat.slot + ' ' + visit.character.appearance + (talking ? ' talking' : '')}"
-         th:href="@{/guild/characters/{id}(id=${visit.character.id})}" th:attr="aria-label=${visit.character.name + '：' + (said != null ? said : line)}">
+         th:href="@{/guild/characters/{id}(id=${visit.character.id})}" th:attr="aria-label=${visit.character.name + (talkers.contains(visit.character.id) ? '（話せます）' : '') + '：' + (said != null ? said : line)}">
         <span class="person-bubble"><th:block th:if="${turns == null or turns.isEmpty()}" th:text="${said != null ? said : line}"></th:block><span
           th:each="turn : ${turns}" class="say" th:attr="data-turn=${turn.index}" th:text="${turn.text}"></span></span>
         <svg th:replace="~{fragments/guild :: sprite(${visit.character})}"></svg>
-        <span class="person-name" th:text="${visit.character.name}"></span>
+        <span class="person-name" th:classappend="${talkers.contains(visit.character.id) ? 'can-talk' : ''}" th:text="${visit.character.name}"></span>
       </a>
       <div class="tv-front" aria-hidden="true">
         <th:block th:if="${area.key == 'counter' or area.key == 'tables' or area.key == 'party'}"><span th:each="seat : ${area.seats}" class="tv-mug" th:classappend="${'slot-' + seat.slot}"></span></th:block>
@@ -104,11 +104,11 @@
                 line=${idleLines.get(seat.visit.character.id) != null ? idleLines.get(seat.visit.character.id) : seat.visit.line},
                 turns=${talking ? scene.turnsOf(seat.visit.character.id) : null}"
        th:classappend="${'slot-' + seat.slot + ' ' + visit.character.appearance + (talking ? ' talking' : '')}"
-       th:href="@{/guild/characters/{id}(id=${visit.character.id})}" th:attr="aria-label=${visit.character.name + '：' + (said != null ? said : line)}">
+       th:href="@{/guild/characters/{id}(id=${visit.character.id})}" th:attr="aria-label=${visit.character.name + (talkers.contains(visit.character.id) ? '（話せます）' : '') + '：' + (said != null ? said : line)}">
       <span class="person-bubble"><th:block th:if="${turns == null or turns.isEmpty()}" th:text="${said != null ? said : line}"></th:block><span
         th:each="turn : ${turns}" class="say" th:attr="data-turn=${turn.index}" th:text="${turn.text}"></span></span>
       <svg th:replace="~{fragments/guild :: sprite(${visit.character})}"></svg>
-      <span class="person-name" th:text="${visit.character.name}"></span>
+      <span class="person-name" th:classappend="${talkers.contains(visit.character.id) ? 'can-talk' : ''}" th:text="${visit.character.name}"></span>
     </a>
     <div class="town-front" aria-hidden="true"><span class="tw-table"></span><span th:each="seat : ${townSeats}" class="tv-mug" th:classappend="${'slot-' + seat.slot}"></span></div>
     <div class="tv-light" aria-hidden="true"></div>
@@ -142,5 +142,5 @@
   <button type="button" class="sb-close" aria-label="閉じる">×</button>
 </dialog>
 <nav th:replace="~{fragments/guild :: tabbar(${tab})}"></nav>
-<script defer src="/js/guild.js?v=6"></script>
+<script defer src="/js/guild.js?v=7"></script>
 </body></html>

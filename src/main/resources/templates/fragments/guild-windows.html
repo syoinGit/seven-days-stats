@@ -40,6 +40,16 @@
     <dt>所属派閥</dt><dd th:text="${character.faction}">無所属</dd>
     <dt>信仰</dt><dd th:text="${character.faith}">無信仰</dd>
   </dl>
+  <!-- Talking with them: the first line and three answers; JS fetches the reply and keeps "talked today" in this browser. -->
+  <section class="guild-talk" th:if="${talk != null}" data-talk th:attr="data-talk-id=${talk.id}, data-character-id=${character.id}">
+    <h3 th:text="${character.name + 'と話す'}">リネと話す</h3>
+    <p class="guild-talk-line" th:text="${talk.opening}">いい夜ですね。</p>
+    <div class="guild-talk-choices" data-talk-choices hidden>
+      <button type="button" th:each="label, it : ${talk.labels}" th:attr="data-talk-choice=${it.index}" th:text="${label}">そうですね</button>
+    </div>
+    <p class="guild-talk-reply" data-talk-reply hidden></p>
+    <p class="guild-talk-note" data-talk-note>返事を選ぶにはJavaScriptが必要です。</p>
+  </section>
   <h3>人となり</h3><p th:text="${character.personality}"></p>
   <p class="guild-voice" th:if="${voice != null}" th:text="${'話し方：' + voice.describe()}">話し方：一人称「あたし」・語尾「〜だろ・〜さ」・さばさばして遠慮がない</p>
   <th:block th:unless="${#lists.isEmpty(history)}"><h3>所属の履歴</h3>
