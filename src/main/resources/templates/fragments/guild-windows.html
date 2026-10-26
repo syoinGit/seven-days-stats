@@ -3,14 +3,17 @@
 
 <th:block th:fragment="visitors">
   <p class="guild-window-lead" th:text="${#temporals.format(room.date, 'yyyy年M月d日') + ' に立ち寄った人たち'}">2026年10月25日 に立ち寄った人たち</p>
-  <p th:if="${#lists.isEmpty(room.visits)}">席はまだ空いています。</p>
-  <ul class="guild-list">
-    <li th:each="visit : ${room.visits}"><a class="guild-row" th:href="@{/guild/characters/{id}(id=${visit.character.id})}">
-      <svg th:replace="~{fragments/guild :: sprite(${visit.character})}"></svg>
-      <span><strong th:text="${visit.character.name}">リネ</strong><small th:if="${!visit.character.profile().isEmpty()}" th:text="${visit.character.profile()}">28歳・女性・道具職人</small><span class="guild-line" th:text="${visit.line}">「今日は静かだね」</span></span>
-    </a></li>
-  </ul>
-  <p class="guild-footer">来店者は日ごとに決まり、朝・昼・夜で過ごし方が変わります。</p>
+  <th:block th:each="here : ${rooms}">
+    <h3 th:text="${here.place.title() + '（' + #lists.size(here.visits) + '人）'}">無人の冒険者ギルド（10人）</h3>
+    <p th:if="${#lists.isEmpty(here.visits)}">席はまだ空いています。</p>
+    <ul class="guild-list">
+      <li th:each="visit : ${here.visits}"><a class="guild-row" th:href="@{/guild/characters/{id}(id=${visit.character.id})}">
+        <svg th:replace="~{fragments/guild :: sprite(${visit.character})}"></svg>
+        <span><strong th:text="${visit.character.name}">リネ</strong><small th:if="${!visit.character.profile().isEmpty()}" th:text="${visit.character.profile()}">28歳・女性・道具職人</small><span class="guild-line" th:text="${visit.line}">「今日は静かだね」</span></span>
+      </a></li>
+    </ul>
+  </th:block>
+  <p class="guild-footer">来店者は日ごとに決まり、朝・昼・夜で過ごし方が変わります。真ん中の無人の冒険者ギルドには3つの国から10人、それぞれの国の酒場にはその国で暮らす5人が来ます。</p>
 </th:block>
 
 <th:block th:fragment="roster">
@@ -33,6 +36,7 @@
   <dl class="guild-affiliation">
     <dt>出身地</dt><dd th:text="${character.homeVillage}">グランフォード</dd>
     <dt>現在地</dt><dd th:text="${character.village}">グランフォード</dd>
+    <th:block th:if="${todayPlace != null}"><dt>今日いる場所</dt><dd><a th:href="${todayPlace.guild() ? '/guild' : '/guild/towns/' + todayPlace.key}" th:text="${todayPlace.title()}">樫の盾亭（グランフォード）</a></dd></th:block>
     <dt>所属派閥</dt><dd th:text="${character.faction}">無所属</dd>
     <dt>信仰</dt><dd th:text="${character.faith}">無信仰</dd>
   </dl>
@@ -76,14 +80,14 @@
     <p th:if="${#lists.isEmpty(recent)}">酒場はまだ静かです。住人が顔をそろえると、出来事がここに貼り出されます。</p>
     <ul class="board-entries" th:unless="${#lists.isEmpty(recent)}"><li th:each="entry : ${recent}">
       <a th:href="@{/guild/log/{id}(id=${entry.id})}" th:text="${entry.summary}">リネとロアンは天気の話をした</a>
-      <small th:text="${#temporals.format(entry.at, 'M月d日 H時') + '・' + entry.kind}">10月25日 14時・雑談</small></li></ul>
+      <small th:text="${#temporals.format(entry.at, 'M月d日 H時') + '・' + entry.kind + '・' + entry.placeName()}">10月25日 14時・雑談・無人の冒険者ギルド</small></li></ul>
     <a href="/guild/log">交流の記録をすべて見る →</a> <a href="/guild/characters">住人名簿へ →</a></section>
   <p class="guild-footer">ここに暮らすのは創作の人物です。元のゲームのプレイヤー本人や、実際の出来事を表すものではありません。</p>
 </th:block>
 <!-- One line of the interaction log. -->
 <th:block th:fragment="entryRow(entry)">
   <a class="guild-entry" th:href="@{/guild/log/{id}(id=${entry.id})}">
-    <small th:text="${#temporals.format(entry.at, 'M月d日 H時') + '・' + entry.kind}">10月25日 14時・雑談</small>
+    <small th:text="${#temporals.format(entry.at, 'M月d日 H時') + '・' + entry.kind + '・' + entry.placeName()}">10月25日 14時・雑談・無人の冒険者ギルド</small>
     <span th:text="${entry.summary}">リネとロアンは天気の話をした</span>
     <small class="guild-cast" th:text="${#strings.listJoin(entry.people.![described()], ' × ')}">リネ（28歳・女性・冒険者） × ロアン（30歳・男性・鍛冶屋）</small>
   </a>
@@ -114,7 +118,7 @@
 </th:block>
 
 <th:block th:fragment="entry">
-  <p class="guild-window-lead"><small th:text="${#temporals.format(detail.entry.at, 'yyyy年M月d日 H時') + '・' + detail.entry.kind + '・選ばれ方: ' + detail.entry.selectionName()}">2026年10月25日 14時・雑談</small></p>
+  <p class="guild-window-lead"><small th:text="${#temporals.format(detail.entry.at, 'yyyy年M月d日 H時') + '・' + detail.entry.placeName() + '・' + detail.entry.kind + '・選ばれ方: ' + detail.entry.selectionName()}">2026年10月25日 14時・無人の冒険者ギルド・雑談</small></p>
   <h3 th:text="${detail.entry.summary}">リネとロアンは天気の話をした</h3>
   <ul class="guild-cast-list"><li th:each="person : ${detail.entry.people}"><strong th:text="${person.name}">リネ</strong><small th:text="${person.profile}">28歳・女性・冒険者・グランフォード</small></li></ul>
   <div class="guild-dialogue"><p th:each="line : ${detail.entry.lines()}" th:text="${line}">窓の外は雨だった。</p></div>

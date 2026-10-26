@@ -85,6 +85,25 @@ public final class GuildTavern {
     return new Layout(List.copyOf(areas), current);
   }
 
+  /**
+   * A nation's tavern: one room with five seats around one long table. Who talks now sits in the middle two seats,
+   * the others fill the rest in seat order.
+   */
+  public static List<Seat> town(List<GuildService.Visit> visits, Set<Long> talking) {
+    var slots = new GuildService.Visit[5];
+    int[] middle = {1, 2};
+    int next = 0;
+    for (var visit : visits) {
+      if (next < middle.length && talking.contains(visit.character().id())) slots[middle[next++]] = visit;
+    }
+    for (var visit : visits) {
+      if (java.util.Arrays.stream(slots).noneMatch(visit::equals)) put(slots, visit);
+    }
+    List<Seat> seats = new ArrayList<>();
+    for (int slot = 0; slot < slots.length; slot++) if (slots[slot] != null) seats.add(new Seat(slots[slot], slot));
+    return List.copyOf(seats);
+  }
+
   private static boolean put(GuildService.Visit[] slots, GuildService.Visit visit) {
     for (int slot = 0; slot < slots.length; slot++) {
       if (slots[slot] == null) {

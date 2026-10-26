@@ -139,6 +139,23 @@ public class GuildInteractionService {
     return hour < 11 ? "morning" : hour < 18 ? "afternoon" : "evening";
   }
 
+  /** Today's living visitors at one place, without those who left for the dungeon (GuildDungeon), in seat order. */
+  private List<Person> present(LocalDate date, ZonedDateTime local, GuildPlaces.Place place) {
+    return jdbc.query("""
+        SELECT c.id, c.name, c.age, c.gender, c.occupation, c.personality, c.home_village, c.current_village, c.faction, c.faith,
+          v2.name, f.name, fi.name, f.village_key, hv.name FROM T_GUILD_VISIT v
+        JOIN M_GUILD_CHARACTER c ON c.id = v.character_id JOIN M_GUILD_VILLAGE v2 ON v2.village_key = c.current_village
+        JOIN M_GUILD_VILLAGE hv ON hv.village_key = c.home_village
+        JOIN M_GUILD_FACTION f ON f.faction_key = c.faction JOIN M_GUILD_FAITH fi ON fi.faith_key = c.faith
+        WHERE v.visit_date = ? AND v.place = ? AND c.status = 'ALIVE' AND NOT EXISTS (SELECT 1 FROM T_GUILD_EXPEDITION_MEMBER m
+          JOIN T_GUILD_EXPEDITION e ON e.id = m.expedition_id WHERE m.character_id = c.id AND e.expedition_date = ? AND e.departed_at <= ?)
+        ORDER BY v.seat
+        """, (rs, row) -> new Person(rs.getLong(1), rs.getString(2), (Integer) rs.getObject(3), rs.getString(4),
+        rs.getString(5), rs.getString(6), affiliation(rs.getLong(1), rs.getString(7), rs.getString(8), rs.getString(9),
+        rs.getString(10), rs.getString(11), rs.getString(12), GuildWorld.faithName(rs.getString(13), rs.getString(10), rs.getString(8)),
+        rs.getString(14), rs.getString(15), date)), date, place.key(), date, local.toOffsetDateTime());
+  }
+
   /** Two slots an hour: "2026-10-25T20:00" for the first half, "2026-10-25T20:30" for the second. */
   public static String slot(ZonedDateTime now) {
     var local = now.withZoneSameInstant(GuildService.TOKYO);
@@ -164,21 +181,21 @@ public class GuildInteractionService {
     int today = jdbc.queryForObject("SELECT COUNT(*) FROM T_GUILD_INTERACTION WHERE slot_key LIKE ?", Integer.class, date + "T%");
     int max = Math.min(properties.interactionDailyMax(), DAILY_CAP);
     if (today >= max) return record(slot, "SKIPPED", "今日の交流は上限（" + max + "件）に達しました。");
-    List<Person> present = jdbc.query("""
-        SELECT c.id, c.name, c.age, c.gender, c.occupation, c.personality, c.home_village, c.current_village, c.faction, c.faith,
-          v2.name, f.name, fi.name, f.village_key, hv.name FROM T_GUILD_VISIT v
-        JOIN M_GUILD_CHARACTER c ON c.id = v.character_id JOIN M_GUILD_VILLAGE v2 ON v2.village_key = c.current_village
-        JOIN M_GUILD_VILLAGE hv ON hv.village_key = c.home_village
-        JOIN M_GUILD_FACTION f ON f.faction_key = c.faction JOIN M_GUILD_FAITH fi ON fi.faith_key = c.faith
-        WHERE v.visit_date = ? AND c.status = 'ALIVE' AND NOT EXISTS (SELECT 1 FROM T_GUILD_EXPEDITION_MEMBER m
-          JOIN T_GUILD_EXPEDITION e ON e.id = m.expedition_id WHERE m.character_id = c.id AND e.expedition_date = ? AND e.departed_at <= ?)
-        ORDER BY v.seat
-        """, (rs, row) -> new Person(rs.getLong(1), rs.getString(2), (Integer) rs.getObject(3), rs.getString(4),
-        rs.getString(5), rs.getString(6), affiliation(rs.getLong(1), rs.getString(7), rs.getString(8), rs.getString(9),
-        rs.getString(10), rs.getString(11), rs.getString(12), GuildWorld.faithName(rs.getString(13), rs.getString(10), rs.getString(8)),
-        rs.getString(14), rs.getString(15), date)), date, date, local.toOffsetDateTime());
-    // Those who left for the dungeon today are gone for the night (GuildDungeon).
-    if (present.size() < 2) return record(slot, "SKIPPED", "酒場にいる住人が2人未満でした。");
+    // The first slot of each hour is always at the guild; the second at any place where two or more are in.
+    GuildPlaces.Place place = GuildPlaces.CENTER;
+    List<Person> present = present(date, local, place);
+    if (!slot.endsWith(":00")) {
+      Map<GuildPlaces.Place, List<Person>> open = new LinkedHashMap<>();
+      for (GuildPlaces.Place candidate : GuildPlaces.ALL) {
+        List<Person> here = candidate.guild() ? present : present(date, local, candidate);
+        if (here.size() >= 2) open.put(candidate, here);
+      }
+      if (!open.isEmpty()) {
+        place = List.copyOf(open.keySet()).get(ThreadLocalRandom.current().nextInt(open.size()));
+        present = open.get(place);
+      }
+    }
+    if (present.size() < 2) return record(slot, "SKIPPED", place.guild() ? "酒場にいる住人が2人未満でした。" : place.name() + "にいる住人が2人未満でした。");
 
     List<Pair> pairs = new ArrayList<>();
     for (int i = 0; i < present.size(); i++) {
@@ -237,7 +254,7 @@ public class GuildInteractionService {
         after.equals(before) ? null : LABELS.get(after), changes(abDelta, pair.a().name(), pair.b().name())
         + changes(baDelta, pair.b().name(), pair.a().name()), pair.threads().stream().map(OpenThread::summary).limit(3).toList(),
         opened, resolved == null ? null : resolved.summary(), pair.deadName(), world.describe(keys),
-        change == null ? null : change.text(), change == null ? null : change.kind());
+        change == null ? null : change.text(), change == null ? null : change.kind(), place.title());
     String body;
     String writtenBy;
     try {
@@ -253,9 +270,9 @@ public class GuildInteractionService {
       writtenBy = "template";
     }
 
-    jdbc.update("INSERT INTO T_GUILD_INTERACTION (slot_key,happened_at,card_id,cards_version,kind,selection,outcome,summary,body,written_by) "
-        + "VALUES (?,?,?,?,?,?,?,?,?,?)", slot, local.toOffsetDateTime(), card.id(), cards.version(), card.kind(), selection,
-        outcome.id(), summary, body, writtenBy);
+    jdbc.update("INSERT INTO T_GUILD_INTERACTION (slot_key,happened_at,card_id,cards_version,kind,selection,outcome,summary,body,written_by,place) "
+        + "VALUES (?,?,?,?,?,?,?,?,?,?,?)", slot, local.toOffsetDateTime(), card.id(), cards.version(), card.kind(), selection,
+        outcome.id(), summary, body, writtenBy, place.key());
     long id = jdbc.queryForObject("SELECT id FROM T_GUILD_INTERACTION WHERE slot_key = ?", Long.class, slot);
     jdbc.update("INSERT INTO T_GUILD_INTERACTION_PARTICIPANT (interaction_id,character_id,position) VALUES (?,?,0)", id, pair.a().id());
     jdbc.update("INSERT INTO T_GUILD_INTERACTION_PARTICIPANT (interaction_id,character_id,position) VALUES (?,?,1)", id, pair.b().id());

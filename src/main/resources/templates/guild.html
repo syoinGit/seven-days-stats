@@ -1,18 +1,26 @@
 <!doctype html>
 <html lang="ja" xmlns:th="http://www.thymeleaf.org">
 <head>
-<th:block th:replace="~{fragments/guild :: meta(${windowTitle != null ? windowTitle : '無人の冒険者ギルド'})}"></th:block>
+<th:block th:replace="~{fragments/guild :: meta(${windowTitle != null ? windowTitle : place.title()})}"></th:block>
 <link rel="icon" type="image/png" sizes="64x64" href="/img/site-icon-64.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png">
 </head>
-<!-- The tavern is the one screen; every other page of the guild is a window drawn over it (fragments/guild-windows.html). -->
-<body class="portal-body guild-body" th:classappend="${window != null} ? 'guild-window-open'">
+<!-- The place (the guild, or a nation's tavern) is the one screen; every other page of the guild is a window drawn over it
+     (fragments/guild-windows.html). guild.js closes windows back to this place. -->
+<body class="portal-body guild-body" th:classappend="${window != null} ? 'guild-window-open'"
+      th:attr="data-place-url=${place.guild() ? '/guild' : '/guild/towns/' + place.key}, data-place-title=${place.title() + ' | Rubinco'}">
 <header th:replace="~{fragments/header :: appHeader('guild', 'portal-topbar')}"></header>
 <main class="guild-stage">
   <div class="guild-hud">
-    <h1 class="guild-plate"><small>THE UNATTENDED GUILD</small>無人の冒険者ギルド</h1>
+    <h1 class="guild-plate"><small th:text="${place.guild() ? 'THE UNATTENDED GUILD' : place.nationName + 'の酒場'}">THE UNATTENDED GUILD</small><th:block th:text="${place.name}">無人の冒険者ギルド</th:block></h1>
     <p class="guild-clock" th:text="${#temporals.format(room.date, 'M月d日') + ' · ' + (room.phase == 'morning' ? '朝' : (room.phase == 'afternoon' ? '昼' : '夜'))}">10月25日 · 夜</p>
   </div>
+  <!-- The world: three nations with a tavern each, and the unattended guild in the middle. Plain links, so it works without JS. -->
+  <nav class="guild-places" aria-label="酒場の場所">
+    <a th:each="here : ${places}" th:href="${here.guild() ? '/guild' : '/guild/towns/' + here.key}" th:classappend="${'gp-' + here.key}"
+       th:attr="aria-current=${here.key == place.key} ? 'page'"><b th:text="${here.guild() ? '中央' : here.nationName}">中央</b><th:block th:text="${here.name}">無人の冒険者ギルド</th:block></a>
+  </nav>
+  <th:block th:if="${place.guild()}">
   <!-- The tavern is five places seen one at a time from inside (GuildTavern says who is where); the map picks the place.
        Or tonight's dungeon. The radios drive the CSS, so it works without JS. -->
   <input th:each="area : ${tavern.areas}" class="area-radio" type="radio" name="guild-view" th:id="${'guild-area-' + area.key}"
@@ -85,8 +93,31 @@
       </div>
     </th:block>
   </section>
+  </th:block>
+  <!-- A nation's tavern: one room in that nation's style with five seats along a long table (GuildTavern.town). -->
+  <section th:if="${!place.guild()}" class="guild-room town-room" th:classappend="${'town-' + place.key + ' ' + room.phase}"
+           th:attr="aria-label=${place.title() + '。人物を選ぶと紹介を読めます。'}">
+    <div class="town-back" aria-hidden="true"><span class="tw-window"></span><span class="tw-deco one"></span><span class="tw-deco two"></span>
+      <span class="tw-deco three"></span><span class="tw-lamp one"></span><span class="tw-lamp two"></span><span class="tw-lamp three"></span></div>
+    <a th:each="seat : ${townSeats}" class="room-person"
+       th:with="visit=${seat.visit}, said=${scene != null ? scene.lines.get(seat.visit.character.id) : null}, talking=${scene != null and scene.lines.containsKey(seat.visit.character.id)},
+                line=${idleLines.get(seat.visit.character.id) != null ? idleLines.get(seat.visit.character.id) : seat.visit.line},
+                turns=${talking ? scene.turnsOf(seat.visit.character.id) : null}"
+       th:classappend="${'slot-' + seat.slot + ' ' + visit.character.appearance + (talking ? ' talking' : '')}"
+       th:href="@{/guild/characters/{id}(id=${visit.character.id})}" th:attr="aria-label=${visit.character.name + '：' + (said != null ? said : line)}">
+      <span class="person-bubble"><th:block th:if="${turns == null or turns.isEmpty()}" th:text="${said != null ? said : line}"></th:block><span
+        th:each="turn : ${turns}" class="say" th:attr="data-turn=${turn.index}" th:text="${turn.text}"></span></span>
+      <svg th:replace="~{fragments/guild :: sprite(${visit.character})}"></svg>
+      <span class="person-name" th:text="${visit.character.name}"></span>
+    </a>
+    <div class="town-front" aria-hidden="true"><span class="tw-table"></span><span th:each="seat : ${townSeats}" class="tv-mug" th:classappend="${'slot-' + seat.slot}"></span></div>
+    <div class="tv-light" aria-hidden="true"></div>
+    <p class="tv-title"><b th:text="${place.name}">樫の盾亭</b><th:block th:text="${#lists.isEmpty(room.visits) ? '誰もいない' : #lists.size(room.visits) + '人'}">5人</th:block></p>
+    <div class="room-empty" th:if="${#lists.isEmpty(room.visits)}"><strong th:text="${place.name + 'は静かです。'}">樫の盾亭は静かです。</strong>
+      <p th:text="${place.nationName + 'で暮らす住人が増えると、ここにも人が集まります。'}">グランフォードで暮らす住人が増えると、ここにも人が集まります。</p></div>
+  </section>
   <p class="guild-caption" th:if="${scene == null}">人物を選ぶと、その人の物語が開きます。</p>
-  <p class="guild-caption guild-now" th:if="${scene != null}">いまの酒場：<a th:href="@{/guild/log/{id}(id=${scene.interactionId})}" th:text="${scene.summary}">リネとロアンは天気の話をした</a></p>
+  <p class="guild-caption guild-now" th:if="${scene != null}"><th:block th:text="${place.guild() ? 'いまの酒場：' : 'いまの' + place.name + '：'}">いまの酒場：</th:block><a th:href="@{/guild/log/{id}(id=${scene.interactionId})}" th:text="${scene.summary}">リネとロアンは天気の話をした</a></p>
 </main>
 <div class="guild-scrim" data-guild-scrim th:hidden="${window == null}"></div>
 <dialog id="guild-window" class="guild-window" th:open="${window != null}" aria-labelledby="guild-window-title">
@@ -111,5 +142,5 @@
   <button type="button" class="sb-close" aria-label="閉じる">×</button>
 </dialog>
 <nav th:replace="~{fragments/guild :: tabbar(${tab})}"></nav>
-<script defer src="/js/guild.js?v=5"></script>
+<script defer src="/js/guild.js?v=6"></script>
 </body></html>

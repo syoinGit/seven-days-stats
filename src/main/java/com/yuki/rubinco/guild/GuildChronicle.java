@@ -33,8 +33,15 @@ public class GuildChronicle {
     }
   }
 
+  /** place: where it happened ("guild" or a nation's key). */
   public record Entry(long id, OffsetDateTime at, String kind, String selection, String summary, String body,
-                      String writtenBy, List<Ref> people) {
+                      String writtenBy, String place, List<Ref> people) {
+    /** "樫の盾亭（グランフォード）", or the guild's name. */
+    public String placeName() {
+      var known = GuildPlaces.of(place);
+      return known == null ? GuildPlaces.CENTER.title() : known.title();
+    }
+
     public List<String> lines() {
       return body.lines().toList();
     }
@@ -122,7 +129,7 @@ public class GuildChronicle {
     return "/guild/pairs/" + Math.min(a, b) + "-" + Math.max(a, b);
   }
 
-  private static final String ENTRY = "SELECT i.id, i.happened_at, i.kind, i.selection, i.summary, i.body, i.written_by FROM T_GUILD_INTERACTION i";
+  private static final String ENTRY = "SELECT i.id, i.happened_at, i.kind, i.selection, i.summary, i.body, i.written_by, i.place FROM T_GUILD_INTERACTION i";
 
   public List<Entry> list(Filter filter, int page) {
     StringBuilder sql = new StringBuilder(ENTRY + " WHERE 1 = 1");
@@ -206,6 +213,11 @@ public class GuildChronicle {
 
   /** The latest interaction in the current part of the day, if both are in today's tavern. */
   public Scene scene(ZonedDateTime now, LocalDate visitDate) {
+    return scene(now, visitDate, GuildPlaces.CENTER);
+  }
+
+  /** The newest talk at this place in the current part of the day, if any. */
+  public Scene scene(ZonedDateTime now, LocalDate visitDate, GuildPlaces.Place place) {
     var local = now.withZoneSameInstant(GuildService.TOKYO);
     String phase = GuildInteractionService.phase(local.getHour());
     int from = switch (phase) {
@@ -214,8 +226,8 @@ public class GuildChronicle {
       default -> 18;
     };
     var start = local.toLocalDate().atTime(from, 0).atZone(GuildService.TOKYO).toOffsetDateTime();
-    var entry = entries(ENTRY + " WHERE i.happened_at >= ? AND i.happened_at <= ? ORDER BY i.happened_at DESC, i.id DESC LIMIT 1",
-        start, local.toOffsetDateTime()).stream().findFirst();
+    var entry = entries(ENTRY + " WHERE i.happened_at >= ? AND i.happened_at <= ? AND i.place = ? ORDER BY i.happened_at DESC, i.id DESC LIMIT 1",
+        start, local.toOffsetDateTime(), place.key()).stream().findFirst();
     if (entry.isEmpty() || !local.toLocalDate().equals(visitDate)) return null;
     Map<Long, String> lines = new LinkedHashMap<>();
     for (Ref person : entry.get().people()) {
@@ -239,13 +251,18 @@ public class GuildChronicle {
 
   /** Who talked with whom today, newest first, so the tavern can seat each party together. */
   public List<List<Long>> groups(ZonedDateTime now, LocalDate visitDate) {
+    return groups(now, visitDate, GuildPlaces.CENTER);
+  }
+
+  /** Today's talks at this place so far, newest first, as participant ids. */
+  public List<List<Long>> groups(ZonedDateTime now, LocalDate visitDate, GuildPlaces.Place place) {
     var local = now.withZoneSameInstant(GuildService.TOKYO);
     if (!local.toLocalDate().equals(visitDate)) return List.of();
     Map<Long, List<Long>> groups = new LinkedHashMap<>();
     jdbc.query("SELECT p.interaction_id, p.character_id FROM T_GUILD_INTERACTION_PARTICIPANT p JOIN T_GUILD_INTERACTION i ON i.id = p.interaction_id"
-            + " WHERE i.happened_at >= ? AND i.happened_at <= ? ORDER BY i.happened_at DESC, i.id DESC, p.position",
+            + " WHERE i.happened_at >= ? AND i.happened_at <= ? AND i.place = ? ORDER BY i.happened_at DESC, i.id DESC, p.position",
         (org.springframework.jdbc.core.RowCallbackHandler) rs -> groups.computeIfAbsent(rs.getLong(1), id -> new ArrayList<>()).add(rs.getLong(2)),
-        visitDate.atStartOfDay(GuildService.TOKYO).toOffsetDateTime(), local.toOffsetDateTime());
+        visitDate.atStartOfDay(GuildService.TOKYO).toOffsetDateTime(), local.toOffsetDateTime(), place.key());
     return List.copyOf(groups.values());
   }
 
@@ -262,7 +279,7 @@ public class GuildChronicle {
 
   private List<Entry> entries(String sql, Object... args) {
     List<Entry> entries = jdbc.query(sql, (rs, row) -> new Entry(rs.getLong(1), rs.getObject(2, OffsetDateTime.class), rs.getString(3),
-        rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), new ArrayList<>()), args);
+        rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8), new ArrayList<>()), args);
     for (Entry entry : entries) {
       entry.people().addAll(jdbc.query("SELECT c.id, c.name, c.status, c.age, c.gender, c.occupation, v.name, f.name, f.faction_key "
           + "FROM T_GUILD_INTERACTION_PARTICIPANT p JOIN M_GUILD_CHARACTER c ON c.id = p.character_id "

@@ -64,7 +64,12 @@ public class GuildService {
     }
   }
   public record Visit(Character character, int seat, String line) { }
-  public record Room(LocalDate date, String phase, List<Visit> visits) { }
+  /** One place's visitors for the day. */
+  public record Room(LocalDate date, String phase, List<Visit> visits, GuildPlaces.Place place) {
+    public Room(LocalDate date, String phase, List<Visit> visits) {
+      this(date, phase, visits, GuildPlaces.CENTER);
+    }
+  }
   public record Job(LocalDate date, String status, int attempts, String message) { }
 
   // The source key (it names the player and day) stays private; the memory label and lines are public.
@@ -110,21 +115,39 @@ public class GuildService {
             new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND));
   }
 
+  /** The unattended guild today. */
   public Room room(ZonedDateTime now) {
+    return room(now, GuildPlaces.CENTER);
+  }
+
+  /** One place today: who came and what they are doing in this part of the day. */
+  public Room room(ZonedDateTime now, GuildPlaces.Place place) {
     var local = now.withZoneSameInstant(TOKYO);
     String phase = local.getHour() < 11 ? "morning" : local.getHour() < 18 ? "afternoon" : "evening";
     // Keep the last established scene readable after downtime, clearly labelled with its date.
     LocalDate date = jdbc.queryForObject("SELECT MAX(visit_date) FROM T_GUILD_DAY WHERE visit_date <= ?", LocalDate.class, local.toLocalDate());
-    if (date == null) return new Room(local.toLocalDate(), phase, List.of());
+    if (date == null) return new Room(local.toLocalDate(), phase, List.of(), place);
     List<Visit> visits = jdbc.query("SELECT " + PUBLIC_COLUMNS + ", v.seat, v." + phase + " AS line" + FROM
-        + " JOIN T_GUILD_VISIT v ON c.id = v.character_id WHERE v.visit_date = ? AND c.status = 'ALIVE' ORDER BY v.seat",
-        (rs, row) -> new Visit(character(rs), rs.getInt("seat"), rs.getString("line")), date);
+        + " JOIN T_GUILD_VISIT v ON c.id = v.character_id WHERE v.visit_date = ? AND v.place = ? AND c.status = 'ALIVE' ORDER BY v.seat",
+        (rs, row) -> new Visit(character(rs), rs.getInt("seat"), rs.getString("line")), date, place.key());
+    if (!place.guild()) return new Room(date, phase, visits, place);
     // Out in the dungeon: not in the room. Back from it: in their seat, talking about it.
     var presence = dungeon.presence(date, local);
     visits = visits.stream().filter(visit -> !presence.containsKey(visit.character().id()) || presence.get(visit.character().id()) != null)
         .map(visit -> presence.containsKey(visit.character().id())
             ? new Visit(visit.character(), visit.seat(), presence.get(visit.character().id())) : visit).toList();
-    return new Room(date, phase, visits);
+    return new Room(date, phase, visits, place);
+  }
+
+  /** Every place today, the guild first. */
+  public List<Room> rooms(ZonedDateTime now) {
+    return GuildPlaces.ALL.stream().map(place -> room(now, place)).toList();
+  }
+
+  /** Where a resident is today, or null when they are not out. */
+  public GuildPlaces.Place placeToday(long id) {
+    return jdbc.queryForList("SELECT place FROM T_GUILD_VISIT WHERE visit_date = ? AND character_id = ?", String.class,
+        LocalDate.now(TOKYO), id).stream().findFirst().map(GuildPlaces::of).orElse(null);
   }
 
   /** What the AI read about the world for each resident, by resident id. Administrators only. */
@@ -277,28 +300,39 @@ public class GuildService {
     ensureVisits(LocalDate.now(TOKYO));
   }
 
+  /**
+   * Today's visitors: ten for the guild from every resident (newest and longest away first), then five for each
+   * nation's tavern from those who live there and are not at the guild. A resident is in one place a day.
+   */
   private void ensureVisits(LocalDate today) {
     if (jdbc.queryForObject("SELECT COUNT(*) FROM T_GUILD_DAY WHERE visit_date = ?", Integer.class, today) > 0) return;
-    List<Long> ids = jdbc.queryForList("""
-        SELECT c.id FROM M_GUILD_CHARACTER c LEFT JOIN T_GUILD_VISIT v ON c.id = v.character_id
-        WHERE c.status = 'ALIVE' GROUP BY c.id, c.born_on
-        ORDER BY CASE WHEN c.born_on >= ? THEN 0 ELSE 1 END,
-          COALESCE(MAX(v.visit_date), DATE '1970-01-01'), RANDOM() LIMIT 10
-        """, Long.class, today.minusDays(1));
-    // An empty database should welcome its very first birth immediately.
-    if (ids.isEmpty()) return;
-    jdbc.update("INSERT INTO T_GUILD_DAY VALUES (?)", today);
-    for (int seat = 0; seat < ids.size(); seat++) {
-      jdbc.update("INSERT INTO T_GUILD_VISIT (visit_date,character_id,seat,morning,afternoon,evening) VALUES (?,?,?,?,?,?)",
-          today, ids.get(seat), seat, MORNING[seat], AFTERNOON[seat], EVENING[seat]);
+    java.util.Map<GuildPlaces.Place, List<Long>> picked = new java.util.LinkedHashMap<>();
+    List<Long> taken = new java.util.ArrayList<>();
+    for (GuildPlaces.Place place : GuildPlaces.ALL) {
+      List<Object> args = new java.util.ArrayList<>();
+      String where = "c.status = 'ALIVE'";
+      if (!place.guild()) {
+        where += " AND c.current_village = ?";
+        args.add(place.nation());
+      }
+      // Ids come from the database, never from a request.
+      if (!taken.isEmpty()) where += " AND c.id NOT IN (" + String.join(",", taken.stream().map(String::valueOf).toList()) + ")";
+      args.add(today.minusDays(1));
+      List<Long> ids = jdbc.queryForList("SELECT c.id FROM M_GUILD_CHARACTER c LEFT JOIN T_GUILD_VISIT v ON c.id = v.character_id WHERE "
+          + where + " GROUP BY c.id, c.born_on ORDER BY CASE WHEN c.born_on >= ? THEN 0 ELSE 1 END, "
+          + "COALESCE(MAX(v.visit_date), DATE '1970-01-01'), RANDOM() LIMIT " + place.seats(), Long.class, args.toArray());
+      picked.put(place, ids);
+      taken.addAll(ids);
     }
+    // An empty database should welcome its very first birth immediately.
+    if (taken.isEmpty()) return;
+    jdbc.update("INSERT INTO T_GUILD_DAY VALUES (?)", today);
+    picked.forEach((place, ids) -> {
+      for (int i = 0; i < ids.size(); i++) {
+        int seat = place.base() + i;
+        jdbc.update("INSERT INTO T_GUILD_VISIT (visit_date,character_id,seat,place,morning,afternoon,evening) VALUES (?,?,?,?,?,?,?)",
+            today, ids.get(i), seat, place.key(), place.line(seat, "morning"), place.line(seat, "afternoon"), place.line(seat, "evening"));
+      }
+    });
   }
-
-  // One line per seat (ten seats).
-  private static final String[] MORNING = {"窓辺で朝のパンを食べている。", "暖炉のそばで旅装を整えている。", "卓の上で今日の予定を考えている。", "静かに手を合わせている。", "入り口で靴の泥を落としている。",
-      "奥の卓で地図を広げている。", "湯気の立つ茶をすすっている。", "掲示板の前で背伸びをしている。", "眠そうに目をこすっている。", "暖炉に薪をくべている。"};
-  private static final String[] AFTERNOON = {"卓で道具の手入れをしている。", "掲示板の依頼を眺めている。", "昼食のスープをゆっくり味わっている。", "記録棚で本をめくっている。", "カウンターで休憩している。",
-      "奥の卓で手紙を書いている。", "窓辺でうたた寝をしている。", "隣の卓の話に耳を傾けている。", "パンを半分に割っている。", "荷物の中身を数えている。"};
-  private static final String[] EVENING = {"暖炉を眺めながら温かい飲み物を飲んでいる。", "カウンターで夕食を待っている。", "卓で明日の支度をしている。", "本を閉じ、静かに休んでいる。", "窓の外に灯る明かりを眺めている。",
-      "奥の卓で杯を傾けている。", "今日の出来事を思い返している。", "小さく鼻歌を歌っている。", "煮込みのおかわりを頼んでいる。", "ろうそくの火を見つめている。"};
 }
