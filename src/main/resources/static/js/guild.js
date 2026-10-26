@@ -5,7 +5,7 @@
   const scrim = document.querySelector("[data-guild-scrim]");
   const tabbar = document.querySelector("[data-guild-tabbar]");
   if (!dialog || !scrim || !tabbar) return;
-  const WINDOW = /^\/guild\/(visitors|board|characters(\/\d+)?|log(\/\d+)?|pairs\/\d+-\d+|dungeon(\/\d+)?)$/;
+  const WINDOW = /^\/guild\/(characters\/\d+|log(\/\d+)?|pairs\/\d+-\d+|dungeon(\/\d+)?)$/;
   // The place under the windows: the guild, or a nation's tavern.
   const HOME = document.body.dataset.placeUrl || "/guild";
   const TAVERN_TITLE = document.body.dataset.placeTitle || "無人の冒険者ギルド | Rubinco";
@@ -151,7 +151,7 @@
   const board = document.getElementById("guild-signboard");
   if (!open || !board || typeof board.showModal !== "function") return;
   const KEY = "guild-signboard-day";
-  const SHEET = "/img/guild-signboard.svg?v=1#mire-";
+  const SHEET = "/img/guild-signboard.svg?v=2#mire-";
   const OPEN_EYES = new Set(["normal", "think", "surprise", "shy", "sad"]);
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const face = board.querySelector(".sb-face");
@@ -316,9 +316,11 @@
   badge();
 })();
 
-// GuildAdv: reads a conversation one line at a time, visual-novel style. The speakers' figures stand at the sides (the
-// one talking lit, the other dimmed), and a message box at the bottom types each line out. A click, Enter or Space shows
-// the whole line, then goes on. Used for scenes between residents and for talking with a resident.
+// GuildAdv: reads a conversation one line at a time, visual-novel style, as if from a seat at the counter of the place it
+// happens in (each place has its own backdrop). The speakers' figures stand behind the counter at the sides (the one
+// talking lit, the other dimmed), and a message box at the bottom types each line out. Narration is not boxed: it drifts
+// in over a mist, like a monologue. A click, Enter or Space shows the whole line, then goes on. Used for scenes between
+// residents and for talking with a resident.
 const GuildAdv = (() => {
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   let dialog = null;
@@ -329,13 +331,19 @@ const GuildAdv = (() => {
     dialog = document.createElement("dialog");
     dialog.className = "adv-player";
     dialog.setAttribute("aria-label", "会話");
-    dialog.innerHTML = '<div class="adv-stage"><div class="adv-figure left"></div><div class="adv-figure right"></div></div>'
+    dialog.innerHTML = '<div class="adv-bg" aria-hidden="true"><span class="ab-wall"></span><span class="ab-deco"></span>'
+      + '<span class="ab-lamp one"></span><span class="ab-lamp two"></span><span class="ab-lamp three"></span></div>'
+      + '<div class="adv-stage"><div class="adv-figure left"></div><div class="adv-figure right"></div></div>'
+      + '<div class="adv-counter" aria-hidden="true"><span class="ab-glass"></span></div>'
+      + '<div class="adv-mist" aria-hidden="true"></div><p class="adv-mono" aria-live="polite"></p>'
       + '<div class="adv-box" aria-live="polite"><span class="adv-name"></span><p class="adv-text"></p><div class="adv-choices"></div>'
       + '<span class="adv-next" aria-hidden="true">▼</span></div><button type="button" class="adv-close" aria-label="会話を閉じる">×</button>';
     document.body.append(dialog);
     const box = dialog.querySelector(".adv-box");
     box.tabIndex = 0;
     box.addEventListener("click", () => advance?.());
+    dialog.querySelector(".adv-mono").addEventListener("click", () => advance?.());
+    dialog.querySelector(".adv-mist").addEventListener("click", () => advance?.());
     dialog.addEventListener("keydown", (event) => {
       if ((event.key === "Enter" || event.key === " ") && !event.target.closest("button")) {
         event.preventDefault();
@@ -346,10 +354,13 @@ const GuildAdv = (() => {
     dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
   }
 
-  /** figures: { left: svg, right: svg } (cloned), either may be missing. */
-  function open(figures) {
+  const PLACES = ["guild", "grantford", "elmwood", "tsukikage"];
+
+  /** figures: { left: svg, right: svg } (cloned), either may be missing; place: whose counter we sit at. */
+  function open(figures, place = "guild") {
     if (!dialog) build();
     opener = document.activeElement;
+    dialog.className = "adv-player adv-bg-" + (PLACES.includes(place) ? place : "guild");
     for (const side of ["left", "right"]) {
       const slot = dialog.querySelector(".adv-figure." + side);
       slot.replaceChildren();
@@ -367,10 +378,36 @@ const GuildAdv = (() => {
     if (opener && document.contains(opener)) opener.focus({ preventScroll: true });
   }
 
-  /** One line. side: "left", "right" or null (narration, or the visitor). Resolves once read; rejects if closed. */
-  function say({ side = null, name = "", text, kind = "" }) {
+  /** Narration: the box gives way to a mist, and the text surfaces in it. Resolves once read; rejects if closed. */
+  function muse(text) {
     return new Promise((resolve, reject) => {
       if (!dialog?.open) { reject(new Error("closed")); return; }
+      dialog.querySelectorAll(".adv-figure").forEach((figure) => figure.classList.remove("active"));
+      const mono = dialog.querySelector(".adv-mono");
+      mono.classList.remove("shown", "now");
+      mono.textContent = text;
+      dialog.classList.add("misty");
+      void mono.offsetWidth;
+      mono.classList.add("shown");
+      let ready = still;
+      const timer = still ? null : setTimeout(() => { ready = true; }, 1400);
+      const closed = () => { clearTimeout(timer); reject(new Error("closed")); };
+      dialog.addEventListener("close", closed, { once: true });
+      advance = () => {
+        if (!ready) { clearTimeout(timer); ready = true; mono.classList.add("now"); return; }
+        dialog.removeEventListener("close", closed);
+        advance = null;
+        resolve();
+      };
+    });
+  }
+
+  /** One line. side: "left", "right" or null (narration, or the visitor). Resolves once read; rejects if closed. */
+  function say({ side = null, name = "", text, kind = "" }) {
+    if (side === null && !kind) return muse(text);
+    return new Promise((resolve, reject) => {
+      if (!dialog?.open) { reject(new Error("closed")); return; }
+      dialog.classList.remove("misty");
       dialog.querySelectorAll(".adv-figure").forEach((figure) => {
         const speaking = side !== null && figure.classList.contains(side);
         figure.classList.toggle("active", speaking);
@@ -403,6 +440,7 @@ const GuildAdv = (() => {
   function choose(labels, seen = []) {
     return new Promise((resolve, reject) => {
       if (!dialog?.open) { reject(new Error("closed")); return; }
+      dialog.classList.remove("misty");
       dialog.querySelectorAll(".adv-figure").forEach((figure) => figure.classList.remove("active"));
       const box = dialog.querySelector(".adv-box");
       box.className = "adv-box choosing";
@@ -437,7 +475,7 @@ const GuildAdv = (() => {
   return { open, close, say, choose };
 })();
 
-// A scene between residents (the log's entry window): "ADV風に読む" plays it line by line.
+// A scene between residents (the log's entry window): "会話を聞く" plays it line by line, overheard from the counter.
 (() => {
   function setUp(scene) {
     if (scene.dataset.ready) return;
@@ -448,12 +486,14 @@ const GuildAdv = (() => {
     start.addEventListener("click", async () => {
       const figures = {};
       scene.querySelectorAll("[data-adv-figures] [data-side]").forEach((slot) => { figures[slot.dataset.side] = slot.querySelector("svg"); });
-      GuildAdv.open(figures);
+      GuildAdv.open(figures, scene.dataset.place);
       try {
+        await GuildAdv.say({ text: (scene.dataset.placeName || "酒場") + "のカウンター。グラスを傾けていると、近くの席から話し声が聞こえてきた。" });
         for (const line of scene.querySelectorAll("[data-adv-line]")) {
           if (line.classList.contains("adv-narration")) await GuildAdv.say({ text: line.textContent });
           else await GuildAdv.say({ side: line.dataset.side, name: line.dataset.name, text: line.querySelector(".adv-bubble p").textContent });
         }
+        await GuildAdv.say({ text: "……話し声は、やがて酒場のざわめきに溶けていった。" });
         GuildAdv.close();
       } catch { /* closed midway */ }
     });
@@ -484,6 +524,11 @@ const GuildAdv = (() => {
     const log = box.querySelector("[data-talk-log]");
     const note = box.querySelector("[data-talk-note]");
     const start = box.querySelector("[data-talk-start]");
+    const place = box.dataset.place;
+    // How the talk begins: where we sit, and who turns to us.
+    const settings = { guild: "カウンターの隣の席で", grantford: "燭台の灯りの下、長卓の向かいで", elmwood: "苔の灯りに照らされた卓の隣で",
+      tsukikage: "提灯の明かりの下、低い卓の隣で" };
+    const intro = (box.dataset.placeName || "酒場") + "。" + (settings[place] || settings.guild) + "、" + name + "がこちらに気づいた。";
 
     // What was said today, under the first line: the visitor's answer on the right, their reply on the left.
     const written = (label, reply) => {
@@ -506,8 +551,9 @@ const GuildAdv = (() => {
 
     start.addEventListener("click", async () => {
       const again = get(dayKey);
-      GuildAdv.open({ left: figure });
+      GuildAdv.open({ left: figure }, place);
       try {
+        await GuildAdv.say({ text: intro });
         if (again && again.date === today) {
           if (again.talk === talkId) {
             await GuildAdv.say({ side: "left", name, text: opening });

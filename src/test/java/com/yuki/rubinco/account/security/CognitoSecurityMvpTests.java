@@ -61,7 +61,7 @@ class CognitoSecurityMvpTests {
   @Test
   void guildIsPublicButGenerationRequiresAdminSessionAndCsrf() throws Exception {
     mockMvc.perform(get("/guild")).andExpect(status().isOk());
-    mockMvc.perform(get("/guild/characters")).andExpect(status().isOk());
+    mockMvc.perform(get("/guild/log")).andExpect(status().isOk());
     mockMvc.perform(get("/guild/maintenance").with(user("member").roles("MEMBER")))
         .andExpect(status().isForbidden());
     mockMvc.perform(post("/guild/maintenance/generate").with(user("admin").roles("ADMIN")))

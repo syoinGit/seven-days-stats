@@ -15,32 +15,43 @@
     <h1 class="guild-plate"><small th:text="${place.guild() ? 'THE UNATTENDED GUILD' : place.nationName + 'の酒場'}">THE UNATTENDED GUILD</small><th:block th:text="${place.name}">無人の冒険者ギルド</th:block></h1>
     <p class="guild-clock" th:text="${#temporals.format(room.date, 'M月d日') + ' · ' + (room.phase == 'morning' ? '朝' : (room.phase == 'afternoon' ? '昼' : '夜'))}">10月25日 · 夜</p>
   </div>
-  <!-- The world: three nations with a tavern each, and the unattended guild in the middle. Plain links, so it works without JS. -->
-  <nav class="guild-places" aria-label="酒場の場所">
-    <a th:each="here : ${places}" th:href="${here.guild() ? '/guild' : '/guild/towns/' + here.key}" th:classappend="${'gp-' + here.key}"
-       th:attr="aria-current=${here.key == place.key} ? 'page'"><b th:text="${here.guild() ? '中央' : here.nationName}">中央</b><th:block th:text="${here.name}">無人の冒険者ギルド</th:block></a>
-  </nav>
+  <!-- The tavern's five places are seen one at a time from inside (GuildTavern says who is where), or tonight's dungeon.
+       The radios drive the CSS, so it works without JS; they come before the bar and the room so `:checked ~` reaches both. -->
   <th:block th:if="${place.guild()}">
-  <!-- The tavern is five places seen one at a time from inside (GuildTavern says who is where); the map picks the place.
-       Or tonight's dungeon. The radios drive the CSS, so it works without JS. -->
   <input th:each="area : ${tavern.areas}" class="area-radio" type="radio" name="guild-view" th:id="${'guild-area-' + area.key}"
          th:checked="${area.key == tavern.current}" th:attr="aria-label=${area.name}">
   <input class="area-radio" type="radio" name="guild-view" id="guild-view-dungeon" aria-label="ダンジョン">
-  <div class="guild-controls">
-    <label class="guild-back" th:for="${'guild-area-' + tavern.current}">酒場に戻る</label>
-    <button type="button" class="guild-sign-button" data-signboard-open hidden><svg viewBox="5 1 22 20" aria-hidden="true"><use href="/img/guild-signboard.svg?v=1#mire"></use><use href="/img/guild-signboard.svg?v=1#mire-smile"></use></svg>看板娘と話す<span class="pop-live" data-signboard-new>今日</span></button>
-    <label class="guild-dungeon-button" for="guild-view-dungeon"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=3#tab-dungeon"></use></svg>ダンジョン<span th:if="${todayRun != null and !todayRun.back()}" class="pop-live">探索中</span></label>
+  </th:block>
+  <!-- One bar for going anywhere: the three nations' taverns and the guild (plain links), and inside the guild its five
+       places, Mire on the sign and tonight's dungeon. -->
+  <div class="guild-bar">
+    <nav class="guild-places" aria-label="酒場の場所">
+      <a th:each="here : ${places}" th:href="${here.guild() ? '/guild' : '/guild/towns/' + here.key}" th:classappend="${'gp-' + here.key}"
+         th:attr="aria-current=${here.key == place.key} ? 'page'"><b th:text="${here.guild() ? '中央' : here.nationName}">中央</b><th:block th:text="${here.name}">無人の冒険者ギルド</th:block></a>
+    </nav>
+    <div class="guild-controls" th:if="${place.guild()}">
+      <div class="tv-map" role="group" aria-label="店内の場所">
+        <label th:each="area : ${tavern.areas}" class="tv-zone" th:for="${'guild-area-' + area.key}" th:classappend="${'z-' + area.key + (area.talk ? ' talk' : '')}"
+               th:title="${area.talk ? area.name + '（会話中）' : area.name}">
+          <b th:text="${area.name}">カウンター</b><span class="tv-dots"><i th:each="seat : ${area.seats}"></i></span>
+        </label>
+      </div>
+      <div class="guild-extras">
+        <button type="button" class="guild-sign-button" data-signboard-open hidden><svg viewBox="10 2 44 40" aria-hidden="true"><use href="/img/guild-signboard.svg?v=2#mire"></use><use href="/img/guild-signboard.svg?v=2#mire-smile"></use></svg>看板娘と話す<span class="pop-live" data-signboard-new>今日</span></button>
+        <label class="guild-dungeon-button" for="guild-view-dungeon"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=3#tab-dungeon"></use></svg>ダンジョン<span th:if="${todayRun != null and !todayRun.back()}" class="pop-live">探索中</span></label>
+      </div>
+    </div>
   </div>
-  <section class="guild-room" th:classappend="${room.phase}" aria-label="ギルド兼酒場。見取り図で場所を選べます。人物を選ぶと紹介を読めます。">
+  <th:block th:if="${place.guild()}">
+  <section class="guild-room" th:classappend="${room.phase}" aria-label="ギルド兼酒場。上の欄で場所を選べます。人物を選ぶと紹介を読めます。">
     <div th:each="area : ${tavern.areas}" class="tv-area" th:classappend="${'tv-' + area.key}">
       <div class="tv-back" aria-hidden="true">
         <th:block th:if="${area.key == 'counter'}"><span class="tv-window"></span><span class="tv-beam"></span><span class="tv-shelf"></span><span class="tv-lamp one"></span><span class="tv-lamp two"></span></th:block>
         <th:block th:if="${area.key == 'tables'}"><span class="tv-window"></span><span class="tv-window second"></span><span class="tv-beam"></span><span class="tv-lamp one"></span><span class="tv-lamp two"></span><span class="tv-walker"><i></i></span></th:block>
-        <th:block th:if="${area.key == 'board'}"><span class="tv-candle"></span><span class="tv-candle right"></span></th:block>
+        <th:block th:if="${area.key == 'board'}"><span class="tv-candle"></span><span class="tv-candle right"></span><span class="tv-cork"><i></i><i></i><i></i><i></i><i></i><i></i></span></th:block>
         <th:block th:if="${area.key == 'party'}"><span class="tv-chart"></span><span class="tv-shield"></span><span class="tv-sconce"></span><span class="tv-sconce right"></span></th:block>
         <th:block th:if="${area.key == 'hearth'}"><span class="tv-glow"></span><span class="tv-fireplace"><span class="tv-fire"><i></i><i></i><i></i></span><span class="tv-spark"></span><span class="tv-spark two"></span><span class="tv-spark three"></span></span><span class="tv-rug"></span><span class="tv-sleeper"><i></i></span><span class="tv-zz"></span></th:block>
       </div>
-      <a th:if="${area.key == 'board'}" class="tv-cork" href="/guild/board" aria-label="依頼掲示板を開く"><i></i><i></i><i></i><i></i><i></i><i></i></a>
       <a th:each="seat : ${area.seats}" class="room-person"
          th:with="visit=${seat.visit}, said=${scene != null ? scene.lines.get(seat.visit.character.id) : null}, talking=${scene != null and scene.lines.containsKey(seat.visit.character.id)},
                   line=${idleLines.get(seat.visit.character.id) != null ? idleLines.get(seat.visit.character.id) : seat.visit.line},
@@ -63,12 +74,6 @@
       <p class="tv-title"><b th:text="${area.name}">カウンター</b><th:block th:text="${area.count() > 0 ? area.count() + '人' : (area.key == 'party' ? 'ダンジョンから戻った仲間が座る' : '誰もいない')}">3人</th:block></p>
     </div>
     <div class="tv-light" aria-hidden="true"></div>
-    <div class="tv-map" role="group" aria-label="酒場の見取り図">
-      <label th:each="area : ${tavern.areas}" class="tv-zone" th:for="${'guild-area-' + area.key}" th:classappend="${'z-' + area.key + (area.talk ? ' talk' : '')}"
-             th:title="${area.talk ? area.name + '（会話中）' : area.name}">
-        <b th:text="${area.name}">カウンター</b><span class="tv-dots"><i th:each="seat : ${area.seats}"></i></span>
-      </label>
-    </div>
     <div class="room-empty" th:if="${#lists.isEmpty(room.visits)}"><strong>暖炉に火が入りました。</strong><p>まだ静かな酒場です。<br>最初の住人が訪れる日を待っています。</p></div>
   </section>
   <!-- Tonight's dungeon run, as if watched from inside: the dungeon, the party walking, what they are doing, the latest stage. -->
@@ -132,7 +137,7 @@
 <dialog id="guild-signboard" class="signboard" aria-labelledby="signboard-name">
   <div class="sb-scene" aria-hidden="true">
     <span class="sb-shelf"></span><span class="sb-shelf low"></span><span class="sb-lamp"></span>
-    <svg class="sb-mire" viewBox="0 0 32 38"><use href="/img/guild-signboard.svg?v=1#mire"></use><use class="sb-face" href="/img/guild-signboard.svg?v=1#mire-normal"></use><use class="sb-blink" href="/img/guild-signboard.svg?v=1#mire-blink"></use></svg>
+    <svg class="sb-mire" viewBox="0 0 64 76"><use href="/img/guild-signboard.svg?v=2#mire"></use><use class="sb-face" href="/img/guild-signboard.svg?v=2#mire-normal"></use><use class="sb-blink" href="/img/guild-signboard.svg?v=2#mire-blink"></use></svg>
     <span class="sb-counter"><i></i></span>
   </div>
   <div class="sb-box">
@@ -144,5 +149,5 @@
   <button type="button" class="sb-close" aria-label="閉じる">×</button>
 </dialog>
 <nav th:replace="~{fragments/guild :: tabbar(${tab})}"></nav>
-<script defer src="/js/guild.js?v=8"></script>
+<script defer src="/js/guild.js?v=9"></script>
 </body></html>

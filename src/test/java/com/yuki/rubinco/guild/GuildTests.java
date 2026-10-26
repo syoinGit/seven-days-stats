@@ -481,7 +481,7 @@ class GuildTests {
     mvc.perform(get("/guild")).andExpect(status().isOk())
         .andExpect(content().string(containsString("data-signboard-open")))
         .andExpect(content().string(containsString("id=\"guild-signboard\"")))
-        .andExpect(content().string(containsString("guild-signboard.svg?v=1#mire-normal")));
+        .andExpect(content().string(containsString("guild-signboard.svg?v=2#mire-normal")));
   }
 
   @Test void writerAcceptsOnlyParticipantsAndChangesCodeMade() {
@@ -731,9 +731,6 @@ class GuildTests {
     assertThat(town).doesNotContain("guild-view-dungeon").doesNotContain("tv-map");
     mvc.perform(get("/guild/towns/atlantis")).andExpect(status().isNotFound());
     mvc.perform(get("/guild/towns/guild")).andExpect(status().isNotFound());
-    mvc.perform(get("/guild/visitors")).andExpect(status().isOk())
-        .andExpect(content().string(containsString("樫の盾亭（グランフォード）（5人）")))
-        .andExpect(content().string(containsString("無人の冒険者ギルド（10人）")));
   }
 
   /** The first slot of each hour always happens at the guild; the other three at any place where two or more are in. */
@@ -789,6 +786,8 @@ class GuildTests {
         .andExpect(content().string(containsString("リネに話しかける")))
         .andExpect(content().string(containsString("今夜は少し塩が強い")))
         .andExpect(content().string(containsString("data-talk-choice=\"2\"")))
+        // Read at the counter of the place where the talk was written.
+        .andExpect(content().string(containsString("data-place=\"" + talk.place() + "\" data-place-name=\"" + talk.placeName() + "\"")))
         .andReturn().getResponse().getContentAsString();
     // The replies are not in the page: each comes when its answer is picked.
     assertThat(page).doesNotContain("おかわり、頼んじゃいましょうか");
@@ -1040,7 +1039,7 @@ class GuildTests {
     for (int i = 0; i < 3; i++) resident("探索" + (char) ('ア' + i * 2), 25 + i, "ALIVE", i);
     mvc.perform(get("/guild/dungeon")).andExpect(status().isOk()).andExpect(content().string(containsString("まだ誰もダンジョンへ向かっていません")));
     mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("今夜の探索はまだです")))
-        .andExpect(content().string(containsString("guild-back")));
+        .andExpect(content().string(containsString("guild-dungeon-button")));
     dungeon.depart(ZonedDateTime.now(GuildService.TOKYO));
     long id = jdbc.queryForObject("SELECT id FROM T_GUILD_EXPEDITION", Long.class);
     List<Long> party = jdbc.queryForList("SELECT character_id FROM T_GUILD_EXPEDITION_MEMBER", Long.class);
@@ -1128,7 +1127,8 @@ class GuildTests {
     String pair = Math.min(rine, roan) + "-" + Math.max(rine, roan);
     mvc.perform(get("/guild/log")).andExpect(status().isOk())
         .andExpect(content().string(containsString(summary)))
-        .andExpect(content().string(containsString("/guild/pairs/" + pair)))
+        .andExpect(content().string(containsString("class=\"bookcase\"")))
+        .andExpect(content().string(containsString("class=\"book spine-")))
         .andExpect(content().string(containsString("href=\"/guild/log\" aria-current=\"page\"")));
     mvc.perform(get("/guild/log").param("character", String.valueOf(roan))).andExpect(status().isOk())
         .andExpect(content().string(containsString("ロアン の交流")));
@@ -1139,6 +1139,13 @@ class GuildTests {
         .andExpect(content().string(containsString("data-side=\"right\" data-name=\"ロアン\"")))
         .andExpect(content().string(containsString("<p>今日は冷えるね。</p>")))
         .andExpect(content().string(containsString("data-adv-start")))
+        .andExpect(content().string(containsString("/guild/pairs/" + pair)))
+        // The window opens on the monologue before anyone speaks, over the place it happened; the bubbles are folded below.
+        .andExpect(content().string(containsString("<p class=\"adv-mono\">夕方の酒場。窓の外では雨が降っている。</p>")))
+        .andExpect(content().string(containsString("adv-bg-guild")))
+        .andExpect(content().string(containsString("data-place=\"guild\"")))
+        .andExpect(content().string(containsString("会話を聞く")))
+        .andExpect(content().string(containsString("<details class=\"adv-transcript\">")))
         .andExpect(content().string(containsString("知人になった")))
         .andExpect(content().string(not(containsString("PRIVATE_PLAYER_SECRET"))));
     mvc.perform(get("/guild/pairs/" + pair)).andExpect(status().isOk())
@@ -1149,7 +1156,6 @@ class GuildTests {
     mvc.perform(get("/guild/characters/" + rine)).andExpect(status().isOk())
         .andExpect(content().string(containsString("この街での関係")))
         .andExpect(content().string(containsString(summary)));
-    mvc.perform(get("/guild/board")).andExpect(status().isOk()).andExpect(content().string(containsString(summary)));
     var scene = chronicle.scene(HOUR.plusMinutes(10), HOUR.toLocalDate());
     assertThat(scene.interactionId()).isEqualTo(id);
     assertThat(scene.lines().get(rine)).isEqualTo("「今日は冷えるね。」");
@@ -1164,7 +1170,7 @@ class GuildTests {
   }
 
   @Test void publicViewsAreReadOnlyAndAdminWritesNeedRoleAndCsrf() throws Exception {
-    for (String path : List.of("/guild", "/guild/visitors", "/guild/board", "/guild/characters", "/guild/towns/grantford")) {
+    for (String path : List.of("/guild", "/guild/log", "/guild/dungeon", "/guild/towns/grantford")) {
       mvc.perform(get(path)).andExpect(status().isOk());
     }
     mvc.perform(get("/guild/maintenance")).andExpect(status().is3xxRedirection());
@@ -1217,18 +1223,19 @@ class GuildTests {
     guild.generateToday();
     guild.refreshVisits();
     var character = guild.characters(0).getFirst();
-    mvc.perform(get("/guild/visitors")).andExpect(status().isOk())
+    mvc.perform(get("/guild/log")).andExpect(status().isOk())
         .andExpect(content().string(containsString("guild-room")))
         .andExpect(content().string(containsString("open=\"open\"")))
-        .andExpect(content().string(containsString("今日の来店者")))
-        .andExpect(content().string(containsString("/guild/characters/" + character.id())))
-        .andExpect(content().string(containsString("href=\"/guild/visitors\" aria-current=\"page\"")));
-    mvc.perform(get("/guild/board")).andExpect(status().isOk())
-        .andExpect(content().string(containsString("いちばん新しい住人")))
-        .andExpect(content().string(containsString("リネ")));
+        .andExpect(content().string(containsString("href=\"/guild/log\" aria-current=\"page\"")));
+    // A resident's window opens from the tavern itself; there is no roster to list everyone.
     mvc.perform(get("/guild/characters/" + character.id())).andExpect(status().isOk())
         .andExpect(content().string(containsString("<title>リネ | Rubinco</title>")))
-        .andExpect(content().string(containsString("href=\"/guild/characters\" aria-current=\"page\"")));
+        .andExpect(content().string(containsString("href=\"/guild\" aria-current=\"page\"")));
+    // The tabs are the tavern, the dungeon and the log; the visitors, roster and board windows are gone.
+    for (String gone : List.of("/guild/visitors", "/guild/board", "/guild/characters")) {
+      mvc.perform(get(gone).with(user("admin").roles("ADMIN"))).andExpect(status().isNotFound());
+      mvc.perform(get("/guild")).andExpect(content().string(not(containsString("href=\"" + gone + "\""))));
+    }
     mvc.perform(get("/guild")).andExpect(status().isOk())
         .andExpect(content().string(not(containsString("/guild/maintenance\"><svg"))));
   }
@@ -1474,7 +1481,7 @@ class GuildTests {
     var root = java.nio.file.Path.of("target/guild-preview");
     java.nio.file.Files.createDirectories(root.resolve("guild/characters"));
     java.nio.file.Files.createDirectories(root.resolve("towns"));
-    for (String path : List.of("/guild", "/guild/characters", "/guild/visitors", "/guild/board", "/guild/towns/grantford", "/guild/towns/elmwood",
+    for (String path : List.of("/guild", "/guild/log", "/guild/dungeon", "/guild/towns/grantford", "/guild/towns/elmwood",
         "/guild/towns/tsukikage")) {
       var response = mvc.perform(get(path)).andExpect(status().isOk()).andReturn().getResponse();
       String html = response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8).replace("<main class=", "<p style=\"text-align:center;color:#f0d8c2\">表示確認用サンプル・実プレイ由来ではありません</p><main class=");
