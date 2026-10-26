@@ -42,8 +42,19 @@ public class GuildChronicle {
       return known == null ? GuildPlaces.CENTER.title() : known.title();
     }
 
+    /** The place's key, the guild's when unknown: which counter the scene is heard from. */
+    public String placeKey() {
+      var known = GuildPlaces.of(place);
+      return known == null ? GuildPlaces.CENTER.key() : known.key();
+    }
+
     public List<String> lines() {
       return body.lines().toList();
+    }
+
+    /** The narration before anyone speaks, the scene's opening monologue (empty when it starts with a line). */
+    public List<String> prelude() {
+      return script().stream().takeWhile(Line::narration).map(Line::text).filter(text -> !text.isEmpty()).toList();
     }
 
     /**
@@ -63,6 +74,11 @@ public class GuildChronicle {
       return List.copyOf(out);
     }
 
+    /** The colour of the entry's spine on the shelf (0–5), the same for every scene of one kind. */
+    public int spine() {
+      return Math.floorMod(kind == null ? 0 : kind.hashCode(), 6);
+    }
+
     public String selectionName() {
       return GuildInteractionService.SELECTIONS.getOrDefault(selection, selection);
     }
@@ -71,6 +87,18 @@ public class GuildChronicle {
     public String pairPath() {
       return people.size() < 2 ? null : GuildChronicle.pairPath(people.get(0).id(), people.get(1).id());
     }
+  }
+
+  /** One shelf of the log's bookcase: the scenes of one day (Tokyo), newest first as listed. */
+  public record Shelf(LocalDate day, List<Entry> books) { }
+
+  /** Puts listed entries on shelves by day, keeping their order. */
+  public static List<Shelf> shelves(List<Entry> entries) {
+    Map<LocalDate, List<Entry>> days = new LinkedHashMap<>();
+    for (var entry : entries) {
+      days.computeIfAbsent(entry.at().atZoneSameInstant(GuildService.TOKYO).toLocalDate(), day -> new ArrayList<>()).add(entry);
+    }
+    return days.entrySet().stream().map(day -> new Shelf(day.getKey(), List.copyOf(day.getValue()))).toList();
   }
 
   /** One line of a scene: speech (speakerId, name, side 0 or 1) or narration (side -1). */
@@ -180,10 +208,6 @@ public class GuildChronicle {
     }
     sql.append(" ORDER BY i.happened_at DESC, i.id DESC LIMIT ").append(PAGE).append(" OFFSET ").append(Math.max(0, page) * PAGE);
     return entries(sql.toString(), args.toArray());
-  }
-
-  public List<Entry> recent(int count) {
-    return entries(ENTRY + " ORDER BY i.happened_at DESC, i.id DESC LIMIT " + Math.max(1, Math.min(count, 50)));
   }
 
   public List<String> kinds() {

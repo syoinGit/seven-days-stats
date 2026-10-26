@@ -139,11 +139,6 @@ public class GuildService {
     return new Room(date, phase, visits, place);
   }
 
-  /** Every place today, the guild first. */
-  public List<Room> rooms(ZonedDateTime now) {
-    return GuildPlaces.ALL.stream().map(place -> room(now, place)).toList();
-  }
-
   /** Where a resident is today, or null when they are not out. */
   public GuildPlaces.Place placeToday(long id) {
     return jdbc.queryForList("SELECT place FROM T_GUILD_VISIT WHERE visit_date = ? AND character_id = ?", String.class,

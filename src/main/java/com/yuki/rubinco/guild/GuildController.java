@@ -56,27 +56,6 @@ public class GuildController {
     return java.util.Map.of("reply", reply);
   }
 
-  @GetMapping("/guild/visitors")
-  public String visitors(Model model) {
-    model.addAttribute("rooms", guild.rooms(ZonedDateTime.now(GuildService.TOKYO)));
-    return stage(model, "visitors", "visitors", "今日の来店者");
-  }
-
-  @GetMapping("/guild/board")
-  public String board(Model model) {
-    model.addAttribute("newcomers", guild.characters(0).stream().limit(1).toList());
-    model.addAttribute("recent", chronicle.recent(5));
-    return stage(model, "board", "board", "依頼掲示板");
-  }
-
-  @GetMapping("/guild/characters")
-  public String characters(Model model, @RequestParam(defaultValue = "0") int page) {
-    int safePage = Math.max(0, Math.min(page, 10000));
-    model.addAttribute("characters", guild.characters(safePage));
-    model.addAttribute("page", safePage);
-    return stage(model, "roster", "roster", "住人名簿");
-  }
-
   @GetMapping("/guild/characters/{id}")
   public String character(Model model, @PathVariable long id) {
     var character = guild.character(id);
@@ -88,7 +67,7 @@ public class GuildController {
     model.addAttribute("expeditions", dungeon.recent(ZonedDateTime.now(GuildService.TOKYO), id, 5));
     model.addAttribute("todayPlace", character.status().equals("ALIVE") ? guild.placeToday(id) : null);
     model.addAttribute("talk", talks.latest(id));
-    return stage(model, "roster", "character", character.name());
+    return stage(model, "tavern", "character", character.name());
   }
 
   /** The interaction log, filtered by resident, pair ("3-8"), kind or the pair's current label. */
@@ -102,7 +81,9 @@ public class GuildController {
     String safeLabel = label == null || !GuildInteractionService.LABELS.containsKey(label) ? null : label;
     var filter = new GuildChronicle.Filter(character, ids == null ? null : ids[0], ids == null ? null : ids[1], safeKind, safeLabel);
     int safePage = Math.max(0, Math.min(page, 10000));
-    model.addAttribute("entries", chronicle.list(filter, safePage));
+    var entries = chronicle.list(filter, safePage);
+    model.addAttribute("entries", entries);
+    model.addAttribute("shelves", GuildChronicle.shelves(entries));
     model.addAttribute("filter", filter);
     model.addAttribute("kinds", chronicle.kinds());
     model.addAttribute("labels", GuildInteractionService.LABELS);
