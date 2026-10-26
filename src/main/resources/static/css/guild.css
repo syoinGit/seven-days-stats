@@ -428,18 +428,71 @@
 .town-grantford .tw-deco:is(.one,.two){width:36px;height:96px}
 }
 
-/* Talking with a resident: their line, three answers as buttons, then their reply. A small bubble on the name tag in the tavern. */
-.guild-talk{margin:14px 0;padding:12px 14px;background:#221a28;border:2px solid #6c4c45;box-shadow:3px 4px #0d0a12}
-.guild-talk h3{margin-top:0}
-.guild-talk-line,.guild-talk-reply{position:relative;margin:0 0 10px;padding:10px 12px;background:#f3e6cf;color:#3a2a2a;border:3px solid #574045;font-size:14px;line-height:1.6}
-.guild-talk-reply{margin:10px 0 6px;background:#e9dcc4}
-.guild-talk-choices{display:flex;flex-direction:column;gap:6px}
-.guild-talk-choices button{text-align:left;padding:7px 12px;background:#3a2738;border:2px solid #89634b;color:#ffe0a8;font:inherit;font-size:13px;cursor:pointer}
-.guild-talk-choices button::before{content:"▸ ";color:#c28f9b}
-.guild-talk-choices button:hover:not(:disabled){background:#4a3048}
-.guild-talk-choices button:focus-visible{outline:3px solid #ebbe92;outline-offset:1px}
-.guild-talk-choices button:disabled{cursor:default;opacity:.5}
-.guild-talk-choices button.chosen{opacity:1;border-color:#e3b448}
-.guild-talk-choices button.seen::after{content:"（前に選んだ）";margin-left:6px;color:#a991a3;font-size:11px}
-.guild-talk-note{margin:6px 0 0;color:#a991a3;font-size:12px}
-.person-name.can-talk::after{content:"";display:inline-block;width:8px;height:6px;margin-left:4px;background:#ffe0a8;border-radius:2px;box-shadow:0 0 0 1px #574045;vertical-align:middle}
+/* Conversations as speech bubbles beside each speaker's figure (scenes between residents, and talking with one).
+   Japanese breaks at phrase boundaries where the browser can (word-break: auto-phrase), never mid-word otherwise. */
+.adv-log{display:flex;flex-direction:column;gap:12px;margin:18px 0;padding:14px;background:#221a28;border:3px double #a27d8c}
+.adv-start,.guild-talk-start{align-self:flex-end;display:inline-flex;align-items:center;gap:8px;padding:6px 14px;background:#3a2738;border:2px solid #89634b;color:#ffe0a8;font:inherit;font-size:13px;cursor:pointer;box-shadow:3px 3px #0d0a12}
+.adv-start:hover,.guild-talk-start:hover{background:#4a3048}
+.adv-start:focus-visible,.guild-talk-start:focus-visible{outline:3px solid #ebbe92;outline-offset:2px}
+.adv-narration{margin:0;padding:8px 12px;color:#d9c8cf;font-size:13px;line-height:1.8;text-align:center;font-style:italic;border-top:1px dashed #5a4552;border-bottom:1px dashed #5a4552}
+.adv-say{display:flex;align-items:flex-end;gap:10px}
+.adv-say.right{flex-direction:row-reverse}
+.adv-say>.guild-sprite{flex:none;width:48px;height:72px;filter:drop-shadow(2px 3px 0 #0d0a12)}
+.adv-bubble{position:relative;max-width:min(78%,520px);padding:9px 14px 10px;background:#f3e6cf;color:#3a2a2a;border:3px solid #574045;box-shadow:3px 3px #0d0a12}
+.adv-bubble::after{content:"";position:absolute;bottom:10px;left:-11px;width:10px;height:12px;background:#574045;clip-path:polygon(100% 0,0 50%,100% 100%)}
+.adv-say.right .adv-bubble{background:#e7dcf0}
+.adv-say.right .adv-bubble::after{left:auto;right:-11px;clip-path:polygon(0 0,100% 50%,0 100%)}
+.adv-say.you .adv-bubble{background:#dbe7d4}
+.adv-bubble b{display:block;margin-bottom:2px;font-size:11px;color:#7a4f5c;letter-spacing:.06em}
+.adv-bubble p,.adv-narration,.adv-text{word-break:auto-phrase;line-break:strict;overflow-wrap:anywhere;text-wrap:pretty}
+.adv-bubble p{margin:0;font-size:14px;line-height:1.75}
+.guild-talk{margin:14px 0 6px}
+.guild-talk .adv-log{margin:8px 0 4px}
+.guild-talk-note{margin:4px 0 0;color:#a991a3;font-size:12px}
+.talk-icon,.person-talkable{display:inline-flex;align-items:center;justify-content:center;gap:2px;width:22px;height:15px;background:#fff8e8;border:2px solid #574045;border-radius:3px;position:relative}
+.talk-icon::after,.person-talkable::after{content:"";position:absolute;left:3px;bottom:-6px;width:6px;height:5px;background:#574045;clip-path:polygon(0 0,100% 0,0 100%)}
+.talk-icon i,.person-talkable i{width:3px;height:3px;background:#574045}
+/* In the tavern: a small speech bubble over the head of everyone who can be talked to. */
+.person-talkable{position:absolute;z-index:3;top:18px;right:-6px;width:24px;height:16px;animation:talk-bob 2.4s ease-in-out infinite;box-shadow:2px 2px #0d0a12}
+.tv-area .person-talkable,.town-room .person-talkable{top:22px}
+.person-talkable i{animation:talk-dot 1.2s steps(1) infinite}.person-talkable i:nth-child(2){animation-delay:.3s}.person-talkable i:nth-child(3){animation-delay:.6s}
+@keyframes talk-bob{50%{translate:0 -3px}}
+@keyframes talk-dot{0%,100%{opacity:1}50%{opacity:.3}}
+.room-person.talking .person-talkable,.room-person.murmur .person-talkable,.room-person:hover .person-talkable{opacity:.35}
+
+/* GuildAdv: the conversation read one line at a time over the page. */
+.adv-player{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:0;border:0;background:transparent;color:#f0d8c2}
+.adv-player::backdrop{background:#0b0812d0}
+.adv-stage{position:absolute;left:0;right:0;bottom:170px;top:40px;max-width:900px;margin:0 auto;pointer-events:none}
+.adv-figure{position:absolute;bottom:0;transition:filter .2s,opacity .2s,translate .2s}
+.adv-figure.left{left:8%}.adv-figure.right{right:8%}
+.adv-figure .guild-sprite{width:clamp(120px,22vw,200px);height:auto;aspect-ratio:2/3;filter:drop-shadow(4px 6px 0 #0d0a12)}
+.adv-figure.right .guild-sprite{transform:scaleX(-1)}
+.adv-figure.dim{filter:brightness(.45) saturate(.6)}
+.adv-figure.active{translate:0 -6px}
+.adv-box{position:absolute;left:50%;bottom:20px;translate:-50% 0;width:min(900px,calc(100% - 32px));min-height:130px;box-sizing:border-box;padding:26px 22px 18px;background:#1a1320f2;border:4px solid #89634b;box-shadow:0 0 0 2px #0d0a12,5px 6px #0d0a12;cursor:pointer}
+.adv-box:focus-visible{outline:3px solid #ebbe92;outline-offset:2px}
+.adv-name{position:absolute;top:-16px;left:18px;padding:3px 14px;background:#3a2738;border:3px solid #89634b;color:#ffe0a8;font-size:13px;letter-spacing:.08em}
+.adv-box.right .adv-name{left:auto;right:18px}
+.adv-box.you .adv-name{left:auto;right:18px;background:#2f3a2c;border-color:#6f8a5e;color:#e3f3d2}
+.adv-box.you .adv-text{text-align:right}
+.adv-box.narration .adv-text{color:#cdbcc4;font-style:italic;text-align:center}
+.adv-text{margin:0;font-size:clamp(15px,2.2vw,18px);line-height:1.85;min-height:3.6em}
+.adv-next{position:absolute;right:16px;bottom:8px;color:#ebbe92;font-size:12px;animation:sb-next .8s steps(2) infinite}
+.adv-box.choosing{cursor:default}
+.adv-box.choosing .adv-text{display:none}
+.adv-choices{display:flex;flex-direction:column;gap:8px}
+.adv-choices button{text-align:left;padding:9px 14px;background:#2f3a2c;border:2px solid #6f8a5e;color:#e3f3d2;font:inherit;font-size:15px;cursor:pointer;word-break:auto-phrase;text-wrap:pretty}
+.adv-choices button:hover,.adv-choices button:focus-visible{background:#3f5039;outline:none;border-color:#c9e6a8}
+.adv-choices button.seen::after{content:"（前に話した）";margin-left:8px;color:#a9c495;font-size:12px}
+.adv-close{position:absolute;top:12px;right:14px;width:40px;height:40px;background:#3a2738;border:2px solid #89634b;color:#ffe0a8;font-size:20px;cursor:pointer}
+.adv-close:focus-visible{outline:3px solid #ebbe92}
+@media(max-width:650px){
+.adv-say>.guild-sprite{width:36px;height:54px}
+.adv-bubble{max-width:82%;padding:8px 11px}
+.adv-bubble p{font-size:13px}
+.adv-stage{bottom:190px}
+.adv-figure.left{left:2%}.adv-figure.right{right:2%}
+.adv-box{min-height:150px;padding:24px 14px 16px}
+}
+@media(prefers-reduced-motion:reduce){.person-talkable,.person-talkable i,.adv-next{animation:none}.adv-figure{transition:none}}

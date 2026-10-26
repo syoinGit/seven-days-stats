@@ -316,8 +316,156 @@
   badge();
 })();
 
-// Talking with a resident (in their window): the first line and three answers. One talk with each resident a day;
-// "talked today", the answer and the reply, and which answers were picked before stay in this browser only.
+// GuildAdv: reads a conversation one line at a time, visual-novel style. The speakers' figures stand at the sides (the
+// one talking lit, the other dimmed), and a message box at the bottom types each line out. A click, Enter or Space shows
+// the whole line, then goes on. Used for scenes between residents and for talking with a resident.
+const GuildAdv = (() => {
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let dialog = null;
+  let opener = null;
+  let advance = null;
+
+  function build() {
+    dialog = document.createElement("dialog");
+    dialog.className = "adv-player";
+    dialog.setAttribute("aria-label", "会話");
+    dialog.innerHTML = '<div class="adv-stage"><div class="adv-figure left"></div><div class="adv-figure right"></div></div>'
+      + '<div class="adv-box" aria-live="polite"><span class="adv-name"></span><p class="adv-text"></p><div class="adv-choices"></div>'
+      + '<span class="adv-next" aria-hidden="true">▼</span></div><button type="button" class="adv-close" aria-label="会話を閉じる">×</button>';
+    document.body.append(dialog);
+    const box = dialog.querySelector(".adv-box");
+    box.tabIndex = 0;
+    box.addEventListener("click", () => advance?.());
+    dialog.addEventListener("keydown", (event) => {
+      if ((event.key === "Enter" || event.key === " ") && !event.target.closest("button")) {
+        event.preventDefault();
+        advance?.();
+      }
+    });
+    dialog.querySelector(".adv-close").addEventListener("click", close);
+    dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
+  }
+
+  /** figures: { left: svg, right: svg } (cloned), either may be missing. */
+  function open(figures) {
+    if (!dialog) build();
+    opener = document.activeElement;
+    for (const side of ["left", "right"]) {
+      const slot = dialog.querySelector(".adv-figure." + side);
+      slot.replaceChildren();
+      slot.classList.remove("active", "dim");
+      if (figures[side]) slot.append(figures[side].cloneNode(true));
+    }
+    dialog.querySelector(".adv-choices").replaceChildren();
+    dialog.showModal();
+    dialog.querySelector(".adv-box").focus?.();
+  }
+
+  function close() {
+    advance = null;
+    if (dialog?.open) dialog.close();
+    if (opener && document.contains(opener)) opener.focus({ preventScroll: true });
+  }
+
+  /** One line. side: "left", "right" or null (narration, or the visitor). Resolves once read; rejects if closed. */
+  function say({ side = null, name = "", text, kind = "" }) {
+    return new Promise((resolve, reject) => {
+      if (!dialog?.open) { reject(new Error("closed")); return; }
+      dialog.querySelectorAll(".adv-figure").forEach((figure) => {
+        const speaking = side !== null && figure.classList.contains(side);
+        figure.classList.toggle("active", speaking);
+        figure.classList.toggle("dim", side !== null && !speaking && figure.childElementCount > 0);
+      });
+      const box = dialog.querySelector(".adv-box");
+      box.className = "adv-box" + (kind ? " " + kind : side ? " " + side : " narration");
+      dialog.querySelector(".adv-name").textContent = name;
+      dialog.querySelector(".adv-name").hidden = !name;
+      const out = dialog.querySelector(".adv-text");
+      const next = dialog.querySelector(".adv-next");
+      let shown = still ? text.length : 0;
+      let timer = null;
+      const render = () => { out.textContent = text.slice(0, shown); next.hidden = shown < text.length; };
+      const finish = () => { clearInterval(timer); shown = text.length; render(); };
+      render();
+      if (shown < text.length) timer = setInterval(() => { shown++; render(); if (shown >= text.length) clearInterval(timer); }, 35);
+      const closed = () => { clearInterval(timer); reject(new Error("closed")); };
+      dialog.addEventListener("close", closed, { once: true });
+      advance = () => {
+        if (shown < text.length) { finish(); return; }
+        dialog.removeEventListener("close", closed);
+        advance = null;
+        resolve();
+      };
+    });
+  }
+
+  /** The visitor's answers, as lines they could say; resolves with the index picked. seen: indexes picked before. */
+  function choose(labels, seen = []) {
+    return new Promise((resolve, reject) => {
+      if (!dialog?.open) { reject(new Error("closed")); return; }
+      dialog.querySelectorAll(".adv-figure").forEach((figure) => figure.classList.remove("active"));
+      const box = dialog.querySelector(".adv-box");
+      box.className = "adv-box choosing";
+      dialog.querySelector(".adv-name").textContent = "あなた";
+      dialog.querySelector(".adv-name").hidden = false;
+      dialog.querySelector(".adv-text").textContent = "";
+      dialog.querySelector(".adv-next").hidden = true;
+      const list = dialog.querySelector(".adv-choices");
+      list.replaceChildren(...labels.map((label, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = "「" + label + "」";
+        if (seen.includes(index)) {
+          button.classList.add("seen");
+          button.title = "前に話したこと";
+        }
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          list.replaceChildren();
+          dialog.removeEventListener("close", closed);
+          resolve(index);
+        });
+        return button;
+      }));
+      const closed = () => reject(new Error("closed"));
+      dialog.addEventListener("close", closed, { once: true });
+      advance = null;
+      list.querySelector("button")?.focus();
+    });
+  }
+
+  return { open, close, say, choose };
+})();
+
+// A scene between residents (the log's entry window): "ADV風に読む" plays it line by line.
+(() => {
+  function setUp(scene) {
+    if (scene.dataset.ready) return;
+    scene.dataset.ready = "1";
+    const start = scene.querySelector("[data-adv-start]");
+    if (!start) return;
+    start.hidden = false;
+    start.addEventListener("click", async () => {
+      const figures = {};
+      scene.querySelectorAll("[data-adv-figures] [data-side]").forEach((slot) => { figures[slot.dataset.side] = slot.querySelector("svg"); });
+      GuildAdv.open(figures);
+      try {
+        for (const line of scene.querySelectorAll("[data-adv-line]")) {
+          if (line.classList.contains("adv-narration")) await GuildAdv.say({ text: line.textContent });
+          else await GuildAdv.say({ side: line.dataset.side, name: line.dataset.name, text: line.querySelector(".adv-bubble p").textContent });
+        }
+        GuildAdv.close();
+      } catch { /* closed midway */ }
+    });
+  }
+  const scan = () => document.querySelectorAll("[data-adv-scene]").forEach(setUp);
+  document.addEventListener("guild-window", scan);
+  scan();
+})();
+
+// Talking with a resident (in their window), as a conversation: they speak first, the visitor answers in their own
+// words (one of three), and they reply. One talk with each resident a day; "talked today", the answer and the reply,
+// and which answers were picked before stay in this browser only.
 (() => {
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
   const get = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } };
@@ -327,59 +475,73 @@
     if (box.dataset.ready) return;
     box.dataset.ready = "1";
     const talkId = box.dataset.talkId;
+    const name = box.dataset.name;
     const dayKey = "guild-talk-day-" + box.dataset.characterId;
     const seenKey = "guild-talk-seen-" + talkId;
-    const choices = box.querySelector("[data-talk-choices]");
-    const buttons = [...box.querySelectorAll("[data-talk-choice]")];
-    const reply = box.querySelector("[data-talk-reply]");
+    const opening = box.querySelector("[data-talk-opening]").textContent;
+    const labels = [...box.querySelectorAll("[data-talk-labels] li")].map((item) => item.textContent);
+    const figure = box.querySelector(".adv-say svg");
+    const log = box.querySelector("[data-talk-log]");
     const note = box.querySelector("[data-talk-note]");
-    const done = (choice, text) => {
-      buttons.forEach((button) => {
-        button.disabled = true;
-        button.classList.toggle("chosen", button.dataset.talkChoice === String(choice));
-      });
-      reply.textContent = text;
-      reply.hidden = false;
-      note.textContent = "今日はもう話しました。また明日、別の返事もできます。";
-      note.hidden = false;
+    const start = box.querySelector("[data-talk-start]");
+
+    // What was said today, under the first line: the visitor's answer on the right, their reply on the left.
+    const written = (label, reply) => {
+      log.querySelectorAll(".adv-say:not(:first-child)").forEach((line) => line.remove());
+      const mine = document.createElement("div");
+      mine.className = "adv-say right you";
+      mine.innerHTML = '<div class="adv-bubble"><b>あなた</b><p></p></div>';
+      mine.querySelector("p").textContent = label;
+      const theirs = log.firstElementChild.cloneNode(true);
+      theirs.querySelector("p").removeAttribute("data-talk-opening");
+      theirs.querySelector("p").textContent = reply;
+      log.append(mine, theirs);
     };
-    choices.hidden = false;
     const day = get(dayKey);
-    if (day && day.date === today && day.talk === talkId) {
-      done(day.choice, day.reply);
-      return;
-    }
-    const seen = get(seenKey) || [];
-    buttons.forEach((button) => {
-      if (seen.includes(Number(button.dataset.talkChoice))) {
-        button.classList.add("seen");
-        button.title = "前に選んだ返事";
-      }
-    });
-    if (day && day.date === today) {
-      // Talked with them today already, about an older talk: the new one waits until tomorrow.
-      buttons.forEach((button) => { button.disabled = true; });
-      note.textContent = "今日はもう話しました。また明日。";
-      note.hidden = false;
-      return;
-    }
-    note.hidden = true;
-    buttons.forEach((button) => button.addEventListener("click", async () => {
-      const choice = Number(button.dataset.talkChoice);
-      buttons.forEach((other) => { other.disabled = true; });
+    const doneToday = day && day.date === today;
+    if (doneToday && day.talk === talkId) written(day.label, day.reply);
+    note.textContent = doneToday ? name + "とは今日もう話しました。また明日。" : "";
+    note.hidden = !doneToday;
+    start.hidden = false;
+
+    start.addEventListener("click", async () => {
+      const again = get(dayKey);
+      GuildAdv.open({ left: figure });
       try {
-        const response = await fetch("/guild/talks/" + talkId + "/choices/" + choice, { headers: { Accept: "application/json" } });
-        if (!response.ok) throw new Error(String(response.status));
-        const text = (await response.json()).reply;
-        put(dayKey, { date: today, talk: talkId, choice, reply: text });
+        if (again && again.date === today) {
+          if (again.talk === talkId) {
+            await GuildAdv.say({ side: "left", name, text: opening });
+            await GuildAdv.say({ name: "あなた", text: again.label, kind: "you" });
+            await GuildAdv.say({ side: "left", name, text: again.reply });
+          }
+          await GuildAdv.say({ text: name + "とは今日もう話した。また明日、話しかけてみよう。" });
+          GuildAdv.close();
+          return;
+        }
+        await GuildAdv.say({ side: "left", name, text: opening });
+        const seen = get(seenKey) || [];
+        const choice = await GuildAdv.choose(labels, seen);
+        await GuildAdv.say({ name: "あなた", text: labels[choice], kind: "you" });
+        let reply;
+        try {
+          const response = await fetch("/guild/talks/" + talkId + "/choices/" + choice, { headers: { Accept: "application/json" } });
+          if (!response.ok) throw new Error(String(response.status));
+          reply = (await response.json()).reply;
+        } catch {
+          await GuildAdv.say({ text: "……声がうまく届かなかったようだ。少し待って、もう一度話しかけてみよう。" });
+          GuildAdv.close();
+          return;
+        }
+        put(dayKey, { date: today, talk: talkId, choice, label: labels[choice], reply });
         put(seenKey, [...new Set([...seen, choice])]);
-        done(choice, text);
-      } catch {
-        buttons.forEach((other) => { other.disabled = false; });
-        note.textContent = "返事を読み込めませんでした。もう一度選んでください。";
+        written(labels[choice], reply);
+        note.textContent = name + "とは今日もう話しました。また明日。";
         note.hidden = false;
-      }
-    }));
+        await GuildAdv.say({ side: "left", name, text: reply });
+        await GuildAdv.say({ text: "また明日、話しかけてみよう。" });
+        GuildAdv.close();
+      } catch { /* closed midway: what was decided is already kept */ }
+    });
   }
 
   const scan = () => document.querySelectorAll("[data-talk]").forEach(setUp);
