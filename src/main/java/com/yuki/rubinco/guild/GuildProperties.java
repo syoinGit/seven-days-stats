@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * from memories of one category. genderCap / occupationCap / lineageCap: a gender, occupation or name
  * lineage that this many of the last categoryWindow residents already have is not offered to the AI.
  * Interactions: one at each of interactionHours (JST), two in each (on the hour and the half hour), at most interactionDailyMax a
- * day (never more than six). selectionWeights: how participants are chosen (random, warm, cold, bond, thread, affiliation). interactionFallback: "template" saves a fixed scene when the AI fails, "skip" gives the hour up.
+ * day (never more than twelve). selectionWeights: how participants are chosen (random, warm, cold, bond, thread, affiliation). interactionFallback: "template" saves a fixed scene when the AI fails, "skip" gives the hour up.
  * recentPairSlots: a pair seen in the last this-many interactions is drawn less often.
  * dungeonDeparture / dungeonStageMinutes: when (JST) the day's party leaves for a dungeon, and how many minutes apart its
  * four stages come out; the run must end the same day.
@@ -32,12 +32,12 @@ public record GuildProperties(boolean enabled, int recentDays, double recentRati
     genderCap = genderCap <= 0 ? 7 : Math.min(genderCap, categoryWindow);
     occupationCap = occupationCap <= 0 ? 3 : Math.min(occupationCap, categoryWindow);
     lineageCap = lineageCap <= 0 ? 5 : Math.min(lineageCap, categoryWindow);
-    interactionHours = interactionHours == null || interactionHours.isEmpty() ? java.util.List.of(20, 21, 22)
+    interactionHours = interactionHours == null || interactionHours.isEmpty() ? java.util.List.of(18, 19, 20, 21, 22, 23)
         : interactionHours.stream().distinct().sorted().toList();
     if (interactionHours.stream().anyMatch(hour -> hour == null || hour < 0 || hour > 23)) {
       throw new IllegalArgumentException("guild interaction-hours must be 0..23");
     }
-    interactionDailyMax = interactionDailyMax <= 0 ? 6 : Math.min(interactionDailyMax, GuildInteractionService.DAILY_CAP);
+    interactionDailyMax = interactionDailyMax <= 0 ? 12 : Math.min(interactionDailyMax, GuildInteractionService.DAILY_CAP);
     selectionWeights = selectionWeights == null || selectionWeights.isEmpty()
         ? Map.of("random", 3, "warm", 2, "cold", 1, "bond", 2, "thread", 2, "affiliation", 2) : Map.copyOf(selectionWeights);
     if (!SELECTIONS.containsAll(selectionWeights.keySet())) throw new IllegalArgumentException("guild selection-weights: unknown key");

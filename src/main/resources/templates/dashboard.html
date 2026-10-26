@@ -94,17 +94,6 @@
       </div>
     </section>
 
-    <a class="side-module diary-side-card" th:if="${dashboard.aiComment != null}"
-       th:href="@{/diaries/{date}(date=${dashboard.aiComment.diaryDate})}">
-      <div class="module-head"><h2>冒険日記</h2><small th:text="${dashboard.aiComment.diaryDate}">date</small></div>
-      <h3 th:text="${dashboard.aiComment.title}">日記タイトル</h3>
-      <p th:text="${dashboard.aiComment.body}">日記本文</p>
-      <span>日記を読む →</span>
-    </a>
-    <a class="side-module diary-side-card empty-diary" th:if="${dashboard.aiComment == null}" th:href="@{/diaries}">
-      <div class="module-head"><h2>冒険日記</h2></div><p>公開された日記はまだありません。</p><span>日記一覧へ →</span>
-    </a>
-
     <a class="side-module server-summary" th:href="@{/server}">
       <div class="module-head"><h2>サーバー</h2></div>
       <div><span>FPS</span><b th:text="${dashboard.serverState.fps ?: '-'}">-</b></div>

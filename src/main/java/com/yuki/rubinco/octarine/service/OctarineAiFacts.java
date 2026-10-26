@@ -30,6 +30,12 @@ public class OctarineAiFacts implements WorldAiFacts {
   }
 
   @Override
+  public int onlineCount() {
+    return sessions.onlineCount();
+  }
+
+  /** What changed lately (chests, connections) comes first, then how things stand. */
+  @Override
   public Optional<String> facts() {
     var context = octarine.context(false).filter(OctarineQueryService.Context::hasData);
     if (context.isEmpty()) return Optional.empty();
@@ -37,6 +43,12 @@ public class OctarineAiFacts implements WorldAiFacts {
     var overview = progress.overview(gameId(), false, importProperties.staleAfter());
     List<String> lines = new ArrayList<>();
     lines.add("ゲーム: Core Keeper（地下を掘って進む協力サバイバル）");
+    var activity = octarine.activity(ctx, 5);
+    if (!activity.isEmpty()) {
+      lines.add("最近のチェストの変化:");
+      activity.forEach(item -> lines.add("- " + item.atLabel() + " " + String.join(" / ", item.details())));
+    }
+    sessions.aiFacts().ifPresent(lines::add);
     octarine.highlights(ctx, overview.achievedCount())
         .forEach(stat -> lines.add(stat.label() + ": " + stat.value() + "（" + stat.note() + "）"));
     if (!overview.items().isEmpty()) {
@@ -55,12 +67,6 @@ public class OctarineAiFacts implements WorldAiFacts {
           + String.join("、", chest.items().stream().limit(5)
               .map(item -> (item.name() + " " + item.amountLabel()).strip()).toList())));
     }
-    var activity = octarine.activity(ctx, 3);
-    if (!activity.isEmpty()) {
-      lines.add("最近のチェストの変化:");
-      activity.forEach(item -> lines.add("- " + item.atLabel() + " " + String.join(" / ", item.details())));
-    }
-    sessions.aiFacts().ifPresent(lines::add);
     lines.add("注意: 数えているのは、ゲーム内でラベルを付けたチェストの中身だけ。変化は10分ごとの差し引き。"
         + "アイテムの数は素材なら個数、装備なら耐久値。保存データの記録で、誰が何をしたかは分からない。"
         + "プレイ時間はサーバーのログの接続・切断から数えたもの。");

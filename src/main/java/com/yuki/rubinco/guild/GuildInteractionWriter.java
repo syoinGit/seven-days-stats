@@ -68,7 +68,7 @@ public class GuildInteractionWriter {
           二人の違いが掛け合いになるようにし、最後のせりふで結果に着地させる。
           JSONオブジェクトのみ返す。キーは narration（情景、140文字以内）, lines（4〜8個の配列。各要素は
           speaker=二人のどちらかの名前、text=せりふ60文字以内）。URL・記号 < > / @ は使わない。
-          """, input(scene), 1100, 0.85f, Duration.ofSeconds(45));
+          """, input(scene), 1100, Duration.ofSeconds(45));
     } catch (RuntimeException failure) {
       throw new WritingException(true, failure);
     }

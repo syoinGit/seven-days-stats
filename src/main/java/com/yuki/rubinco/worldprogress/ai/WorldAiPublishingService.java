@@ -1,6 +1,5 @@
 package com.yuki.rubinco.worldprogress.ai;
 
-import com.yuki.rubinco.portal.service.ServerActivityGate;
 import com.yuki.rubinco.timeline.entity.T_TimelinePost;
 import com.yuki.rubinco.timeline.repository.T_TimelinePostRepository;
 import com.yuki.rubinco.watchpoint.ai.AiAgentProfileService;
@@ -9,14 +8,14 @@ import com.yuki.rubinco.worldprogress.repository.M_GameWorldRepository;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * Posts a short AI comment about a world's statistics at a fixed interval, only while that
- * game's server is online. The facts come from the site's own read models; the prompt forbids
- * guessing and forbids hinting at progress that has not been achieved.
+ * Writes the AI's murmur about a world site when AiMurmurService picks it. The facts come from the site's own read
+ * models, recent changes and connections first; the prompt forbids guessing and hinting at progress not achieved.
  */
 @Service
 @RequiredArgsConstructor
@@ -27,9 +26,11 @@ public class WorldAiPublishingService {
   /** Every AI post on every site speaks as the same character. */
   public static final String ACTOR_NAME = AiAgentProfileService.WATCHPOINT;
   static final String SYSTEM_PROMPT = """
-      今回はゲーム「%s」のサーバーを見ています。渡された「事実」だけを使い、SNSに流すような気の抜けたつぶやきを
-      日本語で1〜2文、%d文字以内で1つだけ書いてください。
-      - くだけたタメ口で、しょうもない感想や軽いツッコミで構わない。役に立つ必要はない。
+      今回はゲーム「%s」のサーバーを見ています。渡された「事実」だけを使い、そこで過ごす人たちを見て思ったことを
+      日本語で1〜2文、%d文字以内のつぶやきにして1つだけ書いてください。
+      - 最近の変化（チェストの出し入れ、誰かの接続やプレイ時間）があればそこから一つ拾う。なければ今の蔵の様子から拾う。
+      - 人間のふるまいへの素朴な興味として、「〜なのですね」「〜でしょうか」「少し、不思議です」のような静かな独り言で言う。
+      - 穏やかで落ち着いた丁寧語（です・ます）。感情は控えめに。機械的な口調や芝居がかった言い回しは避ける。役に立つ必要はない。
       - 数字に触れるなら事実にある値を1つまで、そのまま使う。
       - 事実にない数値・名前・出来事を作らない。推測は「〜かも」と分かる形に留める。
       - まだ達成していない進捗、ボス、残りの数、次に何をすべきかには触れない（ネタバレ禁止）。
@@ -40,41 +41,56 @@ public class WorldAiPublishingService {
 
   private final WorldAiProperties properties;
   private final List<WorldAiFacts> sites;
-  private final ServerActivityGate gate;
   private final BedrockTextClient bedrock;
   private final AiAgentProfileService agents;
   private final T_TimelinePostRepository timeline;
   private final M_GameWorldRepository worlds;
 
-  public enum Status { PUBLISHED, DISABLED, SERVER_STOPPED, NOT_DUE, NO_DATA, FAILED }
+  /** One murmur source per site, for AiMurmurService. */
+  List<AiMurmurSource> sources() {
+    return sites.stream().<AiMurmurSource>map(site -> new AiMurmurSource() {
+      @Override
+      public String gameId() {
+        return site.gameId();
+      }
 
-  public record Result(String gameId, Status status) { }
+      @Override
+      public boolean enabled() {
+        return properties.enabled();
+      }
 
-  public List<Result> publishDue() {
-    return sites.stream().map(this::publishIfDue).toList();
+      @Override
+      public int onlineCount() {
+        return site.onlineCount();
+      }
+
+      @Override
+      public Optional<OffsetDateTime> lastPublished() {
+        return timeline.findTopByGameIdAndPostTypeOrderByPublishedAtDesc(site.gameId(), POST_TYPE).map(T_TimelinePost::getPublishedAt);
+      }
+
+      @Override
+      public Outcome murmur() {
+        return publish(site);
+      }
+    }).toList();
   }
 
-  Result publishIfDue(WorldAiFacts site) {
+  AiMurmurSource.Outcome publish(WorldAiFacts site) {
     String gameId = site.gameId();
-    if (!properties.enabled()) return new Result(gameId, Status.DISABLED);
-    if (!gate.aiAllowed(gameId)) return new Result(gameId, Status.SERVER_STOPPED);
-    OffsetDateTime threshold = OffsetDateTime.now(ZoneOffset.UTC).minus(properties.interval());
-    boolean recent = timeline.findTopByGameIdAndPostTypeOrderByPublishedAtDesc(gameId, POST_TYPE)
-        .map(post -> post.getPublishedAt().isAfter(threshold)).orElse(false);
-    if (recent) return new Result(gameId, Status.NOT_DUE);
     var facts = site.facts();
-    if (facts.isEmpty()) return new Result(gameId, Status.NO_DATA);
+    if (facts.isEmpty()) return AiMurmurSource.Outcome.NO_DATA;
     try {
       String system = agents.personalityPrompt(AiAgentProfileService.WATCHPOINT) + "\n\n"
           + SYSTEM_PROMPT.formatted(site.gameTitle(), MAX_BODY);
       String body = clean(bedrock.generate(system, "事実:\n" + facts.get(),
-          properties.maxOutputTokens(), 0.8f));
+          properties.maxOutputTokens()));
       save(site, body);
       log.info("World AI post published. gameId={}", gameId);
-      return new Result(gameId, Status.PUBLISHED);
+      return AiMurmurSource.Outcome.PUBLISHED;
     } catch (RuntimeException exception) {
       log.error("World AI post failed; the next check will retry. gameId={}", gameId, exception);
-      return new Result(gameId, Status.FAILED);
+      return AiMurmurSource.Outcome.FAILED;
     }
   }
 

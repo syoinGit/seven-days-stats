@@ -63,7 +63,7 @@ public class GuildCharacterGenerator {
         JSONオブジェクトのみ返す。キーは次の順：reading（記録のどこから、どんな人物を思い描いたか。120文字以内）,
         gender, occupation, lineage, village, faction, faith, name, age(12〜80の整数), introduction(180文字以内), personality(180文字以内)。
         URL・記号 < > / @ は使わない。
-        """, input(source, world, options), 1200, 0.9f, java.time.Duration.ofSeconds(45));
+        """, input(source, world, options), 1200, java.time.Duration.ofSeconds(45));
     } catch (RuntimeException failure) {
       throw new GenerationException(true, failure);
     }

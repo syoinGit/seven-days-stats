@@ -27,11 +27,14 @@ public class GuildRunner {
     catch (RuntimeException exception) { log.error("Guild interaction transaction failed ({})", exception.getClass().getSimpleName()); }
   }
 
-  /** Every minute; the party leaves once, between the departure time and the end of its run, and is settled once back. */
+  /** Every minute; the party leaves once, between the departure time and the end of its run, is retold by the AI, and is settled once back. */
   @Scheduled(cron = "30 * * * * *", zone = "Asia/Tokyo")
   public void dungeon() {
     try { dungeon.departIfDue(java.time.ZonedDateTime.now(GuildService.TOKYO)); }
     catch (RuntimeException exception) { log.error("Guild dungeon transaction failed ({})", exception.getClass().getSimpleName()); }
+    // Right after leaving, the AI retells the run (once; outside the departure's transaction and lock).
+    try { dungeon.retellDue(java.time.ZonedDateTime.now(GuildService.TOKYO)); }
+    catch (RuntimeException exception) { log.error("Guild dungeon retelling failed ({})", exception.getClass().getSimpleName()); }
     try { dungeon.settleDue(java.time.ZonedDateTime.now(GuildService.TOKYO)); }
     catch (RuntimeException exception) { log.error("Guild dungeon settle failed ({})", exception.getClass().getSimpleName()); }
   }

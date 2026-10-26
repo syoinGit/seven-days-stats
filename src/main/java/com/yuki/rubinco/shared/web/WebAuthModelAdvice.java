@@ -15,7 +15,6 @@ import com.yuki.rubinco.portal.service.GamePortalService;
 import com.yuki.rubinco.portal.web.PortalController;
 import com.yuki.rubinco.watchpoint.web.AiAnalysisMaintenanceController;
 import com.yuki.rubinco.watchpoint.web.DashboardController;
-import com.yuki.rubinco.watchpoint.web.DiaryController;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -27,7 +26,6 @@ import org.springframework.web.bind.annotation.ModelAttribute;
     com.yuki.rubinco.guild.GuildController.class,
     com.yuki.rubinco.guild.GuildMaintenanceController.class,
     DashboardController.class,
-    DiaryController.class,
     PortalController.class,
     LuminiteController.class,
     LuminiteMaintenanceController.class,

@@ -15,7 +15,6 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class WatchpointAiPublishingServiceTests {
@@ -107,31 +106,11 @@ class WatchpointAiPublishingServiceTests {
     WatchpointAiPublishingService.PublishResult result =
         new WatchpointAiPublishingService(
             properties(false), observations, bedrock, comments, telnet, state(), gate(true))
-            .publishIfDue();
+            .publishMurmur();
 
     assertThat(result.status()).isEqualTo(WatchpointAiPublishingService.PublishStatus.DISABLED);
     verify(observations, never()).buildRequest();
     verify(bedrock, never()).generate(org.mockito.ArgumentMatchers.any());
-  }
-
-  @Test
-  void skipsGenerationWhenRecentlyPublished() {
-    WatchpointAiObservationService observations = mock(WatchpointAiObservationService.class);
-    BedrockWatchpointClient bedrock = mock(BedrockWatchpointClient.class);
-    AiCommentService comments = mock(AiCommentService.class);
-    SevenDaysTelnetCommandClient telnet = mock(SevenDaysTelnetCommandClient.class);
-    when(comments.latestBySourceType("AWS_BEDROCK")).thenReturn(Optional.of(
-        new AiCommentService.AiCommentEntry(10L, null, "WATCHPOINT観測記録", "本文",
-            OffsetDateTime.now(ZoneOffset.UTC), "AWS_BEDROCK", null, List.of())));
-
-    WatchpointAiPublishingService.PublishResult result =
-        new WatchpointAiPublishingService(
-            properties(true), observations, bedrock, comments, telnet, state(), gate(true))
-            .publishIfDue();
-
-    assertThat(result.status()).isEqualTo(WatchpointAiPublishingService.PublishStatus.NOT_DUE);
-    verify(bedrock, never()).generate(org.mockito.ArgumentMatchers.any());
-    verify(telnet, never()).broadcast(org.mockito.ArgumentMatchers.any());
   }
 
   @Test
@@ -142,16 +121,14 @@ class WatchpointAiPublishingServiceTests {
     SevenDaysTelnetCommandClient telnet = mock(SevenDaysTelnetCommandClient.class);
     var request = mock(WatchpointAiObservationService.AnalysisRequest.class);
     var observation = mock(WatchpointAiObservationService.Observation.class);
-    // From 23:00 JST the service asks for the daily summary through the other overload; stub both so the test holds at any hour.
     when(observations.buildRequest()).thenReturn(request);
-    when(observations.buildRequest(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(request);
     when(request.observation()).thenReturn(observation);
     when(observation.currentTotals()).thenReturn(new WatchpointAiObservationService.ActivityTotals(
         0, 0, 0, 0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO));
     when(observation.events()).thenReturn(List.of());
 
     var result = new WatchpointAiPublishingService(
-        properties(true), observations, bedrock, comments, telnet, state(), gate(true)).publishIfDue();
+        properties(true), observations, bedrock, comments, telnet, state(), gate(true)).publishMurmur();
 
     assertThat(result.status()).isEqualTo(WatchpointAiPublishingService.PublishStatus.NO_ACTIVITY);
     verify(bedrock, never()).generate(org.mockito.ArgumentMatchers.any());
@@ -177,7 +154,7 @@ class WatchpointAiPublishingServiceTests {
     var service = new WatchpointAiPublishingService(properties(true), observations, bedrock,
         mock(AiCommentService.class), mock(SevenDaysTelnetCommandClient.class), state(), gate(false));
 
-    assertThat(service.publishIfDue().status())
+    assertThat(service.publishMurmur().status())
         .isEqualTo(WatchpointAiPublishingService.PublishStatus.SERVER_STOPPED);
     assertThat(service.publishNow().status())
         .isEqualTo(WatchpointAiPublishingService.PublishStatus.SERVER_STOPPED);

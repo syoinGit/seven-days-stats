@@ -8,7 +8,7 @@
 #   {count:村や派閥や信仰の名前} (living residents there).
 # Each day opens with one opener (by date), then offers three topics (by date) from the menu, then says goodbye.
 # A node ends with choices (label -> next node) or with next: a node, or "menu" to go back to the topics.
-version: "2026-10-25-signboard-a"
+version: "2026-10-26-signboard-b"
 name: ミレ
 role: 看板娘
 openers:
@@ -207,7 +207,7 @@ nodes:
       - {label: おすすめの見方は？, next: tavern-watch}
   tavern-talk:
     lines:
-      - {normal: "夜の8時から10時ごろ、来てる人のうち二人がおしゃべりするの。話した二人は同じテーブルに座るよ。"}
+      - {normal: "夕方6時から夜の11時すぎまで、来てる人のうち二人がおしゃべりするの。話した二人は同じテーブルに座るよ。"}
       - {think: "話すたびに、二人の仲は少しずつ変わっていく。友達になったり、恋人になったり、ときには宿敵になったり。"}
       - {smile: "下の「記録」に、これまでの会話が全部残ってる。二人の物語を通して読むのもおすすめ。"}
     next: menu

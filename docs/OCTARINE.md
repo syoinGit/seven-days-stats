@@ -270,6 +270,8 @@ Web アプリは Docker を直接触らず、`rubinco-game-control logs corekeep
 
 ## AI のつぶやき
 
-`WORLD_AI_ENABLED=true` で有効（既定は無効）。`WORLD_AI_INTERVAL`（既定3時間、最短30分）ごとに、
-公開ページと同じ統計（達成済みの進捗・ラベル付きチェストの中身とチェストごとの変化・接続中の人とプレイ時間）を Bedrock（`app.ai` のモデル）に渡して
-1件投稿する。未達の項目とボス名は渡さない。サーバー停止中とワールド非公開のあいだは投稿しない。
+`WORLD_AI_ENABLED=true` で有効（既定は無効）。AIのつぶやきは全ゲーム合わせて `AI_MURMUR_INTERVAL`（既定1時間、最短30分）に1回で、
+稼働中かつ接続中のプレイヤーがいるサーバー（7DTD と Core Keeper）からランダムに1つ選ぶ（`AiMurmurService`）。誰も接続していなければつぶやかない。
+Core Keeper の接続中の人数はサーバーログ（`COREKEEPER_LOG_STREAM_ENABLED=true`）から数えるため、ログ取得が無効だと Core Keeper は選ばれない。
+Core Keeper が選ばれたら、最近のチェストの変化と接続・プレイ時間を先頭に、公開ページと同じ統計（達成済みの進捗・ラベル付きチェストの中身）を Bedrock（`app.ai` のモデル）に渡し、
+人間に興味がある AI として、穏やかな丁寧語の独り言を1件投稿する（人格は V65 の `M_AI_AGENT`）。未達の項目とボス名は渡さない。Terraria（Luminite）は対象外。サーバー停止中とワールド非公開のあいだは投稿しない。

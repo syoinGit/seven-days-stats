@@ -12,7 +12,6 @@ import com.yuki.rubinco.timeline.repository.T_TimelinePostRepository;
 import com.yuki.rubinco.watchpoint.ai.entity.AiPostType;
 import com.yuki.rubinco.watchpoint.persistence.entity.M_Player;
 import com.yuki.rubinco.watchpoint.persistence.repository.M_PlayerRepository;
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.EnumMap;
 import java.util.List;
@@ -179,18 +178,6 @@ public class TimelinePostService {
       save(timelineType, "WATCHPOINT", targetPlayerId, actor, body, "", "", "",
           "AI_COMMENT", commentId, sourceHash, 100, publishedAt);
     }
-  }
-
-  @Transactional
-  public void publishDiary(Long commentId, LocalDate diaryDate, OffsetDateTime publishedAt,
-      String title) {
-    if (commentId == null || diaryDate == null) return;
-    String sourceHash = "DIARY:" + commentId + ":" + publishedAt.toInstant();
-    save(TimelinePostType.DIARY, "ARCHIVE", null,
-        TimelinePostType.DIARY.systemActorName().orElse("冒険記録局"),
-        diaryDate + " の冒険日記「" + displayName(title) + "」を記録しました。",
-        "", "/diaries/" + diaryDate, "日記を読む", "AI_DIARY", commentId, sourceHash, 100,
-        publishedAt);
   }
 
   @Transactional(readOnly = true)

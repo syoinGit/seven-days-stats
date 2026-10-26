@@ -5,20 +5,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** Checks often; the service posts once per interval per site and only while the server runs. */
+/** Checks often; the AI murmurs once per interval, about one server where someone is connected. */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class WorldAiPublishingRunner {
-  private final WorldAiPublishingService publishingService;
+  private final AiMurmurService murmurs;
 
   @Scheduled(initialDelayString = "${app.world-ai.initial-delay:5m}",
       fixedDelayString = "${app.world-ai.check-interval:10m}")
   public void publish() {
     try {
-      publishingService.publishDue();
+      murmurs.publishDue();
     } catch (RuntimeException exception) {
-      log.error("World AI publishing failed.", exception);
+      log.error("AI murmur failed.", exception);
     }
   }
 }

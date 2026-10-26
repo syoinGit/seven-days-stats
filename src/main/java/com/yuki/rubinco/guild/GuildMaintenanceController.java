@@ -67,7 +67,9 @@ public class GuildMaintenanceController {
   /** Sends today's party now instead of at the departure time; still once a day. */
   @PostMapping("/guild/maintenance/dungeon")
   public String dungeon(RedirectAttributes redirect) {
-    redirect.addFlashAttribute("notice", dungeon.depart(java.time.ZonedDateTime.now(GuildService.TOKYO)));
+    String notice = dungeon.depart(java.time.ZonedDateTime.now(GuildService.TOKYO));
+    if (dungeon.retellDue(java.time.ZonedDateTime.now(GuildService.TOKYO))) notice += "（物語はAIが書きました）";
+    redirect.addFlashAttribute("notice", notice);
     return "redirect:/guild/maintenance#dungeon";
   }
 

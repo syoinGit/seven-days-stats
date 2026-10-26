@@ -31,9 +31,11 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
  * the dungeon, the goal, one card for each stage (起承転結) and the result. The stages become readable
  * one every stageMinutes and the result only with the last; nothing unrevealed leaves this class.
  * Members are out of the tavern (and its interactions) for the rest of the day; once back they sit
- * in the tavern again with a line about the run.
+ * in the tavern again with a line about the run. Right after leaving, the AI may retell the four stages
+ * (GuildDungeonWriter) before the first comes out; the card text stays when it can't.
  */
 @Service
+@lombok.extern.slf4j.Slf4j
 public class GuildDungeon {
   static final List<String> STAGES = List.of("ki", "sho", "ten", "ketsu");
   static final Map<String, String> STAGE_NAMES = Map.of("ki", "起", "sho", "承", "ten", "転", "ketsu", "結");
@@ -132,11 +134,15 @@ public class GuildDungeon {
   private final GuildProperties properties;
   private final Deck deck;
   private final GuildInteractionService interactions;
+  private final GuildDungeonWriter writer;
+  /** Runs the AI has been asked to retell once already (kept in memory: a failure is not retried every minute). */
+  private final Set<String> told = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
-  public GuildDungeon(JdbcTemplate jdbc, GuildProperties properties, GuildInteractionService interactions) {
+  public GuildDungeon(JdbcTemplate jdbc, GuildProperties properties, GuildInteractionService interactions, GuildDungeonWriter writer) {
     this.jdbc = jdbc;
     this.properties = properties;
     this.interactions = interactions;
+    this.writer = writer;
     this.deck = load(new ClassPathResource("guild/dungeon-cards.yml"));
   }
 
@@ -231,6 +237,65 @@ public class GuildDungeon {
     }
     return party(party.stream().map(Member::name).toList()) + "が" + run.dungeon().name() + "へ向かいました（"
         + departed.plusMinutes(4L * minutes).toLocalTime() + "ごろ戻ります）。";
+  }
+
+  /**
+   * Has the AI retell a run that has left but shows nothing yet (once per run). The call happens outside any
+   * transaction and lock; the stages are replaced only if none has come out meanwhile. Returns whether it did.
+   */
+  public boolean retellDue(ZonedDateTime now) {
+    OffsetDateTime at = now.toOffsetDateTime();
+    // A run whose first stage is still at least two minutes away, so the text is in place before anyone can read it.
+    var due = jdbc.query("""
+        SELECT e.id, e.departed_at FROM T_GUILD_EXPEDITION e WHERE e.departed_at <= ?
+        AND NOT EXISTS (SELECT 1 FROM T_GUILD_EXPEDITION_STAGE s WHERE s.expedition_id = e.id AND (s.reveal_at <= ? OR s.written_by = 'ai'))
+        ORDER BY e.departed_at DESC LIMIT 1
+        """, rs -> rs.next() ? new Object[] {rs.getLong(1), rs.getObject(2, OffsetDateTime.class).toInstant()} : null, at, at.plusMinutes(2));
+    if (due == null || !told.add(due[0] + "@" + due[1])) return false;
+    long id = (Long) due[0];
+    GuildDungeonWriter.Run run = story(id);
+    List<String> bodies;
+    try {
+      bodies = writer.write(run);
+    } catch (GuildDungeonWriter.WritingException failure) {
+      log.warn("Guild dungeon writing failed ({}, {})", failure.call() ? "bedrock call" : "invalid output", failure.getMessage());
+      return false;
+    }
+    return replace(id, bodies, at);
+  }
+
+  /** One statement, so all four change or none: none if a stage has come out (allowing a minute for the call). */
+  private boolean replace(long id, List<String> bodies, OffsetDateTime at) {
+    return jdbc.update("""
+        UPDATE T_GUILD_EXPEDITION_STAGE SET written_by = 'ai',
+          body = CASE stage WHEN 1 THEN ? WHEN 2 THEN ? WHEN 3 THEN ? WHEN 4 THEN ? ELSE body END
+        WHERE expedition_id = ?
+        AND NOT EXISTS (SELECT 1 FROM T_GUILD_EXPEDITION_STAGE s WHERE s.expedition_id = ? AND s.reveal_at <= ?)
+        """, bodies.get(0), bodies.get(1), bodies.get(2), bodies.get(3), id, id, at.plusMinutes(1)) > 0;
+  }
+
+  /** What the writer may know about a run: the dungeon, the party, each stage's outline and hero, the result. */
+  private GuildDungeonWriter.Run story(long id) {
+    var head = jdbc.queryForMap("SELECT dungeon_key, dungeon_name, goal, result FROM T_GUILD_EXPEDITION WHERE id = ?", id);
+    Dungeon dungeon = deck.dungeons().stream().filter(d -> d.id().equals(head.get("DUNGEON_KEY"))).findFirst()
+        .orElse(new Dungeon((String) head.get("DUNGEON_KEY"), (String) head.get("DUNGEON_NAME"), "none", "", "", ""));
+    List<GuildDungeonWriter.Member> party = jdbc.query("""
+        SELECT c.name, c.age, c.gender, c.occupation, c.personality FROM T_GUILD_EXPEDITION_MEMBER m
+        JOIN M_GUILD_CHARACTER c ON c.id = m.character_id WHERE m.expedition_id = ? ORDER BY m.position
+        """, (rs, row) -> new GuildDungeonWriter.Member(rs.getString(1), (Integer) rs.getObject(2), rs.getString(3), rs.getString(4),
+        rs.getString(5)), id);
+    List<GuildDungeonWriter.Stage> stages = jdbc.query("""
+        SELECT s.stage, c.name, s.body, s.doing FROM T_GUILD_EXPEDITION_STAGE s JOIN M_GUILD_CHARACTER c ON c.id = s.hero_id
+        WHERE s.expedition_id = ? ORDER BY s.stage
+        """, (rs, row) -> new GuildDungeonWriter.Stage(STAGE_NAMES.get(STAGES.get(rs.getInt(1) - 1)), rs.getString(2), rs.getString(3),
+        rs.getString(4)), id);
+    List<String> others = jdbc.queryForList("SELECT name FROM M_GUILD_CHARACTER WHERE id NOT IN "
+        + "(SELECT character_id FROM T_GUILD_EXPEDITION_MEMBER WHERE expedition_id = ?)", String.class, id);
+    var names = party.stream().map(GuildDungeonWriter.Member::name).toList();
+    // A resident whose name is inside a member's ("リネ" in "リネット") can't be told apart; leave those out of the check.
+    others = others.stream().filter(name -> names.stream().noneMatch(member -> member.contains(name))).toList();
+    return new GuildDungeonWriter.Run(dungeon.name(), dungeon.look(), dungeon.monster(), dungeon.treasure(), (String) head.get("GOAL"),
+        (String) head.get("RESULT"), party, stages, others);
   }
 
   record Drawn(Card card, Member hero, String body, boolean countered) { }

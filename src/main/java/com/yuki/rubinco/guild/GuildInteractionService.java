@@ -33,7 +33,7 @@ public class GuildInteractionService {
   static final Map<String, String> SELECTIONS = ordered("random", "ランダム", "warm", "好感度の高い組", "cold", "好感度の低い組",
       "bond", "関係のある組", "thread", "火種のある組", "affiliation", "村・派閥・信仰の違う組");
   /** The most interactions a day, whatever the configuration says. */
-  static final int DAILY_CAP = 6;
+  static final int DAILY_CAP = 12;
   /** How long a change of village, faction or faith counts as recent for event cards. */
   private static final int RECENT_CHANGE_DAYS = 14;
   /** Labels code moves along by itself as the axes grow; the others need an event card. */

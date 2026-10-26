@@ -20,11 +20,6 @@ public class AiCommentService {
   private final T_AiCommentRepository repository;
   private final TimelinePostService timelinePostService;
 
-  public Optional<AiCommentEntry> latestDiary() {
-    return repository.findTopByDiaryDateIsNotNullOrderByDiaryDateDescPublishedAtDesc()
-        .map(this::toEntry);
-  }
-
   public Optional<AiCommentEntry> latestComment() {
     return repository.findTopByOrderByPublishedAtDesc().map(this::toEntry);
   }
@@ -38,37 +33,6 @@ public class AiCommentService {
         .limit(Math.max(0, Math.min(limit, 20)))
         .map(this::toEntry)
         .toList();
-  }
-
-  public List<AiCommentEntry> diaries() {
-    return repository.findTop100ByDiaryDateIsNotNullOrderByDiaryDateDescPublishedAtDesc().stream()
-        .map(this::toEntry)
-        .toList();
-  }
-
-  public Optional<AiCommentEntry> findByDiaryDate(LocalDate diaryDate) {
-    return repository.findByDiaryDate(diaryDate).map(this::toEntry);
-  }
-
-  @Transactional
-  public AiCommentEntry publish(LocalDate diaryDate, String title, String body) {
-    String normalizedTitle = normalize(title);
-    String normalizedBody = normalize(body);
-    if (normalizedTitle.isBlank() || normalizedTitle.length() > 120) {
-      throw new IllegalArgumentException("タイトルは1〜120文字で入力してください。");
-    }
-    if (normalizedBody.isBlank() || normalizedBody.length() > 4000) {
-      throw new IllegalArgumentException("本文は1〜4000文字で入力してください。");
-    }
-    T_AiComment comment = diaryDate == null
-        ? new T_AiComment()
-        : repository.findByDiaryDate(diaryDate).orElseGet(T_AiComment::new);
-    comment.setTitle(normalizedTitle);
-    comment.setBody(normalizedBody);
-    comment.setDiaryDate(diaryDate);
-    comment.setPublishedAt(OffsetDateTime.now(ZoneOffset.UTC));
-    comment.setSourceType("MANUAL_BETA");
-    return publishToTimeline(repository.save(comment));
   }
 
   @Transactional
@@ -110,61 +74,14 @@ public class AiCommentService {
     return repository.existsByPostTypeAndPublishedAtGreaterThanEqual(postType.name(), from);
   }
 
-  @Transactional
-  public AiCommentEntry publishGeneratedDiary(
-      LocalDate diaryDate,
-      String title,
-      String summary,
-      List<String> tags,
-      String body) {
-    if (diaryDate == null) {
-      throw new IllegalArgumentException("日記の日付が必要です。");
-    }
-    String normalizedTitle = normalize(title);
-    String normalizedSummary = normalize(summary);
-    String normalizedBody = normalize(body);
-    String normalizedTags = tags == null ? "" : tags.stream()
-        .map(this::normalize)
-        .filter(tag -> !tag.isBlank())
-        .distinct()
-        .limit(8)
-        .collect(java.util.stream.Collectors.joining(","));
-    if (normalizedTitle.isBlank() || normalizedTitle.length() > 120) {
-      throw new IllegalArgumentException("タイトルは1〜120文字で指定してください。");
-    }
-    if (normalizedSummary.isBlank() || normalizedSummary.length() > 500) {
-      throw new IllegalArgumentException("要約は1〜500文字で指定してください。");
-    }
-    if (normalizedTags.isBlank() || normalizedTags.length() > 500) {
-      throw new IllegalArgumentException("タグを1つ以上指定してください。");
-    }
-    if (normalizedBody.isBlank() || normalizedBody.length() > 4000) {
-      throw new IllegalArgumentException("本文は1〜4000文字で指定してください。");
-    }
-    T_AiComment comment = repository.findByDiaryDate(diaryDate).orElseGet(T_AiComment::new);
-    comment.setDiaryDate(diaryDate);
-    comment.setTitle(normalizedTitle);
-    comment.setSummary(normalizedSummary);
-    comment.setTags(normalizedTags);
-    comment.setBody(normalizedBody);
-    comment.setPublishedAt(OffsetDateTime.now(ZoneOffset.UTC));
-    comment.setSourceType("AWS_BEDROCK_DIARY");
-    comment.setAiGenerated(true);
-    return publishToTimeline(repository.save(comment));
-  }
-
   private String normalize(String value) {
     return value == null ? "" : value.strip();
   }
 
   private AiCommentEntry publishToTimeline(T_AiComment comment) {
     AiCommentEntry entry = toEntry(comment);
-    if (entry.diaryDate() == null) {
-      timelinePostService.publishWatchpoint(entry.id(), entry.targetPlayerId(), entry.publishedAt(),
-          entry.body(), entry.postType());
-    } else {
-      timelinePostService.publishDiary(entry.id(), entry.diaryDate(), entry.publishedAt(), entry.title());
-    }
+    timelinePostService.publishWatchpoint(entry.id(), entry.targetPlayerId(), entry.publishedAt(),
+        entry.body(), entry.postType());
     return entry;
   }
 

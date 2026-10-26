@@ -18,12 +18,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
-import software.amazon.awssdk.services.bedrockruntime.model.ContentBlock;
-import software.amazon.awssdk.services.bedrockruntime.model.ConversationRole;
-import software.amazon.awssdk.services.bedrockruntime.model.ConverseOutput;
-import software.amazon.awssdk.services.bedrockruntime.model.ConverseRequest;
-import software.amazon.awssdk.services.bedrockruntime.model.ConverseResponse;
-import software.amazon.awssdk.services.bedrockruntime.model.Message;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelRequest;
+import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelResponse;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,25 +42,39 @@ class BedrockWatchpointClientTests {
   }
 
   @Test
-  void invokesConverseAndAcceptsGroundedJson() {
-    when(runtimeClient.converse(any(ConverseRequest.class))).thenReturn(response(
+  void invokesTheModelAndAcceptsGroundedJson() {
+    when(runtimeClient.invokeModel(any(InvokeModelRequest.class))).thenReturn(response(
         "{\"body\":\"探索範囲が少し広がりました。\",\"evidenceKeys\":[\"event-001\"]}"));
 
     BedrockWatchpointClient.GeneratedPost generated = client.generate(request());
 
     assertThat(generated.body()).isEqualTo("探索範囲が少し広がりました。");
     assertThat(generated.evidenceKeys()).containsExactly("event-001");
-    ArgumentCaptor<ConverseRequest> captor = ArgumentCaptor.forClass(ConverseRequest.class);
-    verify(runtimeClient).converse(captor.capture());
-    assertThat(captor.getValue().modelId())
-        .isEqualTo("jp.anthropic.claude-haiku-4-5-20251001-v1:0");
-    assertThat(captor.getValue().system().getFirst().text()).isEqualTo("WATCHPOINT system");
-    assertThat(captor.getValue().messages().getFirst().role()).isEqualTo(ConversationRole.USER);
+    ArgumentCaptor<InvokeModelRequest> captor = ArgumentCaptor.forClass(InvokeModelRequest.class);
+    verify(runtimeClient).invokeModel(captor.capture());
+    assertThat(captor.getValue().modelId()).isEqualTo("jp.anthropic.claude-haiku-4-5-20251001-v1:0");
+    JsonNode body = sent(captor.getValue());
+    assertThat(body.path("anthropic_version").asString()).isEqualTo("bedrock-2023-05-31");
+    assertThat(body.path("system").asString()).isEqualTo("WATCHPOINT system");
+    assertThat(body.path("messages").get(0).path("role").asString()).isEqualTo("user");
+    assertThat(body.path("max_tokens").asInt()).isEqualTo(400);
+    // No sampling parameters (Haiku 5.5 rejects them); thinking is off for short text.
+    assertThat(body.has("temperature")).isFalse();
+    assertThat(body.has("top_p")).isFalse();
+    assertThat(body.path("thinking").path("type").asString()).isEqualTo("disabled");
+  }
+
+  @Test
+  void aRefusalIsNotPublished() {
+    when(runtimeClient.invokeModel(any(InvokeModelRequest.class))).thenReturn(InvokeModelResponse.builder()
+        .body(SdkBytes.fromUtf8String("{\"stop_reason\":\"refusal\",\"content\":[{\"type\":\"text\",\"text\":\"{}\"}]}")).build());
+
+    assertThatThrownBy(() -> client.generate(request())).hasMessageContaining("refusal");
   }
 
   @Test
   void rejectsUnknownEvidenceKey() {
-    when(runtimeClient.converse(any(ConverseRequest.class))).thenReturn(response(
+    when(runtimeClient.invokeModel(any(InvokeModelRequest.class))).thenReturn(response(
         "{\"body\":\"存在しない観測です。\",\"evidenceKeys\":[\"event-999\"]}"));
 
     assertThatThrownBy(() -> client.generate(request()))
@@ -72,7 +84,7 @@ class BedrockWatchpointClientTests {
 
   @Test
   void acceptsJsonWrappedInMarkdownCodeFence() {
-    when(runtimeClient.converse(any(ConverseRequest.class))).thenReturn(response("""
+    when(runtimeClient.invokeModel(any(InvokeModelRequest.class))).thenReturn(response("""
         ```json
         {"body":"生存者の活動を観測しました。","evidenceKeys":["current-totals"]}
         ```
@@ -86,7 +98,7 @@ class BedrockWatchpointClientTests {
 
   @Test
   void acceptsIntroductoryTextAndBracesInsideJsonString() {
-    when(runtimeClient.converse(any(ConverseRequest.class))).thenReturn(response(
+    when(runtimeClient.invokeModel(any(InvokeModelRequest.class))).thenReturn(response(
         "生成結果です。\n{\"body\":\"観測範囲は {静か} でした。\",\"evidenceKeys\":[\"world-context\"]}"));
 
     BedrockWatchpointClient.GeneratedPost generated = client.generate(request());
@@ -96,26 +108,30 @@ class BedrockWatchpointClientTests {
 
   @Test
   void sendsExplicitJsonOnlyInstruction() {
-    when(runtimeClient.converse(any(ConverseRequest.class))).thenReturn(response(
+    when(runtimeClient.invokeModel(any(InvokeModelRequest.class))).thenReturn(response(
         "{\"body\":\"観測しました。\",\"evidenceKeys\":[\"current-totals\"]}"));
 
     client.generate(request());
 
-    ArgumentCaptor<ConverseRequest> captor = ArgumentCaptor.forClass(ConverseRequest.class);
-    verify(runtimeClient).converse(captor.capture());
-    String userMessage = captor.getValue().messages().getFirst().content().getFirst().text();
+    ArgumentCaptor<InvokeModelRequest> captor = ArgumentCaptor.forClass(InvokeModelRequest.class);
+    verify(runtimeClient).invokeModel(captor.capture());
+    String userMessage = sent(captor.getValue()).path("messages").get(0).path("content").asString();
     assertThat(userMessage).contains("JSONオブジェクトだけ");
     assertThat(userMessage).contains("80文字以内");
     assertThat(userMessage).contains("\"body\"");
   }
 
-  private ConverseResponse response(String text) {
-    return ConverseResponse.builder()
-        .output(ConverseOutput.fromMessage(Message.builder()
-            .role(ConversationRole.ASSISTANT)
-            .content(ContentBlock.fromText(text))
-            .build()))
-        .build();
+  private InvokeModelResponse response(String text) {
+    var reply = new ObjectMapper().createObjectNode();
+    reply.put("stop_reason", "end_turn");
+    var block = reply.putArray("content").addObject();
+    block.put("type", "text");
+    block.put("text", text);
+    return InvokeModelResponse.builder().body(SdkBytes.fromUtf8String(reply.toString())).build();
+  }
+
+  private static JsonNode sent(InvokeModelRequest request) {
+    return new ObjectMapper().readTree(request.body().asUtf8String());
   }
 
   private WatchpointAiObservationService.AnalysisRequest request() {

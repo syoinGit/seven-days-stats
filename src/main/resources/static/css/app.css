@@ -284,10 +284,6 @@ select:focus-visible, summary:focus-visible {
 .side-module, .panel, .player-card, .metric-card, .leader-card, .vehicle-card { border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow); }
 .side-module { display: block; margin-bottom: 15px; padding: 15px; text-decoration: none; }
 .side-module h2 { margin: 5px 0 0; font-size: 15px; }
-.diary-side-card { border-color: rgb(214 164 59 / 34%); background: linear-gradient(145deg, rgb(214 164 59 / 10%), var(--panel)); }
-.diary-side-card > small { display: block; margin-top: 10px; color: var(--muted); font: 8px monospace; }
-.diary-side-card > p:not(.module-code) { display: -webkit-box; overflow: hidden; margin: 12px 0; color: #bdc1bc; font-size: 10px; line-height: 1.7; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
-.diary-side-card > span { color: var(--signal); font-size: 9px; font-weight: 900; }
 .blood-alert { position: relative; overflow: hidden; border-color: rgb(199 78 60 / 54%); }
 .blood-alert::after { position: absolute; top: -35px; right: -22px; width: 90px; height: 90px; border: 1px solid rgb(199 78 60 / 36%); border-radius: 50%; content: ""; }
 .blood-alert .module-code { color: var(--danger); }
@@ -372,26 +368,6 @@ select:focus-visible, summary:focus-visible {
 .form-actions button:hover { filter: brightness(1.12); }
 .editor-disabled { margin: 20px; padding: 16px; border: 1px dashed var(--danger); color: var(--muted); font-size: 12px; line-height: 1.7; }
 .editor-disabled code { color: var(--signal); }
-.diary-archive { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.diary-public-card { display: flex; flex-direction: column; min-height: 250px; padding: 20px; }
-.diary-public-card > header, .diary-public-detail > header { display: flex; justify-content: space-between; color: var(--signal); font-family: monospace; font-size: 9px; letter-spacing: .08em; }
-.diary-public-card h2 { margin: 20px 0 12px; font-size: 19px; }
-.diary-public-card > p { flex: 1; margin: 0; color: #c9cbc5; font-size: 13px; line-height: 1.8; }
-.diary-public-card > footer { display: flex; justify-content: space-between; align-items: end; gap: 14px; margin-top: 22px; padding-top: 13px; border-top: 1px solid var(--steel); }
-.diary-public-card footer small, .diary-public-detail footer small { color: var(--muted); font-family: monospace; font-size: 8px; }
-.diary-public-card footer a { color: var(--signal); font-size: 11px; font-weight: 900; }
-.diary-public-detail { max-width: 880px; margin: 0 auto; padding: clamp(22px, 5vw, 54px); background: linear-gradient(145deg, rgb(214 164 59 / 7%), rgb(12 16 17 / 98%) 38%); }
-.diary-public-detail > p { margin: 34px 0; color: #d8dad4; font-size: 15px; line-height: 2.15; white-space: pre-line; }
-.diary-public-detail > footer { padding-top: 16px; border-top: 1px solid var(--steel); }
-.diary-day-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.diary-day-card { padding: 17px; }
-.diary-day-card > header { display: flex; justify-content: space-between; color: var(--muted); font-family: monospace; font-size: 9px; }
-.diary-day-card > header span { color: var(--signal); }
-.diary-day-card h2 { margin: 18px 0; font-family: monospace; font-size: 20px; }
-.diary-day-card dl { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.diary-day-card footer { display: flex; gap: 8px; margin: 18px -17px -17px; border-top: 1px solid var(--steel); }
-.diary-day-card footer a { flex: 1; padding: 11px 8px; color: var(--muted); font-size: 9px; text-align: center; text-decoration: none; }
-.diary-day-card footer a:hover { color: var(--signal); background: var(--signal-soft); }
 .diary-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .diary-metrics article { padding: 14px; border: 1px solid var(--line); background: var(--panel); }
 .diary-metrics span { display: block; color: var(--muted); font-size: 8px; letter-spacing: .12em; }
@@ -403,8 +379,6 @@ select:focus-visible, summary:focus-visible {
 .diary-player-row strong { font-size: 12px; }
 .diary-player-row span, .diary-player-row small { color: var(--muted); font-size: 9px; }
 .diary-player-row small { grid-column: 1 / -1; }
-.diary-tag-list { display: flex; flex-wrap: wrap; gap: 7px; padding: 16px; }
-.diary-tag-list span { padding: 5px 8px; border: 1px solid var(--line); color: var(--cyan); font-size: 9px; }
 .registered-diary h3 { margin: 20px 20px 8px; }
 .registered-diary > p { margin: 0; padding: 0 20px 20px; line-height: 1.8; white-space: pre-line; }
 .registered-diary .panel-head a { color: var(--signal); font-size: 10px; }
@@ -576,8 +550,6 @@ dd { margin: 4px 0 0; color: #c4c7c1; font-size: 11px; overflow-wrap: anywhere; 
   .insight-grid { grid-template-columns: 1fr; }
   .server-health { grid-template-columns: 1fr; }
   .ai-editor-grid { grid-template-columns: 1fr; }
-  .diary-day-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .diary-archive { grid-template-columns: 1fr; }
   .diary-data-grid { grid-template-columns: 1fr; }
   .ranking-grid { grid-template-columns: 1fr; }
   .poi-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -612,7 +584,7 @@ dd { margin: 4px 0 0; color: #c4c7c1; font-size: 11px; overflow-wrap: anywhere; 
   .combat-log div small { width: 100%; margin: 5px 0 0; }
   .player-card dl { grid-template-columns: 1fr; }
   .poi-cards { grid-template-columns: 1fr; }
-  .diary-day-list, .diary-metrics { grid-template-columns: 1fr; }
+  .diary-metrics { grid-template-columns: 1fr; }
   .account-row { grid-template-columns: minmax(0, 1fr) auto; }
   .account-row span:nth-of-type(2), .account-row small { text-align: right; }
 }
