@@ -46,6 +46,7 @@ class GuildTests {
   @Autowired GuildDungeon dungeon;
   @Autowired GuildVoice voices;
   @Autowired GuildSignboard signboard;
+  @Autowired GuildTalks talks;
   @Autowired JdbcTemplate jdbc;
   @Autowired MockMvc mvc;
   @MockitoBean BedrockTextClient bedrock;
@@ -62,7 +63,8 @@ class GuildTests {
       List.of("dawnlight", "spirit", "none"), List.of());
 
   @BeforeEach void setup() {
-    for (String table : List.of("T_GUILD_RELATION_EVENT", "T_GUILD_EXPEDITION_STAGE", "T_GUILD_EXPEDITION_MEMBER", "T_GUILD_EXPEDITION", "T_GUILD_AFFILIATION_HISTORY", "T_GUILD_THREAD", "T_GUILD_INTERACTION_PARTICIPANT", "T_GUILD_INTERACTION",
+    talks.forgetTries();
+    for (String table : List.of("T_GUILD_TALK_CHOICE", "T_GUILD_TALK", "T_GUILD_RELATION_EVENT", "T_GUILD_EXPEDITION_STAGE", "T_GUILD_EXPEDITION_MEMBER", "T_GUILD_EXPEDITION", "T_GUILD_AFFILIATION_HISTORY", "T_GUILD_THREAD", "T_GUILD_INTERACTION_PARTICIPANT", "T_GUILD_INTERACTION",
         "T_GUILD_RELATION", "T_GUILD_BOND", "T_GUILD_HOURLY_JOB", "T_GUILD_SOURCE", "T_GUILD_VISIT", "T_GUILD_DAY", "T_GUILD_JOB", "M_GUILD_CHARACTER", "T_CK_SESSION", "M_CK_PLAYER")) {
       jdbc.update("DELETE FROM " + table);
     }
@@ -85,6 +87,13 @@ class GuildTests {
       {"narration":"夕方の酒場。窓の外では雨が降っている。","lines":[{"speaker":"リネ","text":"今日は冷えるね。"},
        {"speaker":"ロアン","text":"火のそばに座ろう。"}]}
       """;
+  static final String TALK = """
+      {"opening":"この店の煮込み、今夜は少し塩が強いと思いませんか。わたしは好きなんですけど、あなたはどうです？",
+       "choices":[{"label":"たしかに少し濃いですね","reply":"ふふ、やっぱり。でも寒い夜にはこれくらいがちょうどいいんです。おかわり、頼んじゃいましょうか。"},
+                  {"label":"何が入っているんですか","reply":"根菜と干し肉、それに森で採れる香草です。香草は店主の秘密らしくて、わたしも名前を知らないんですよ。"},
+                  {"label":"あなたの舌が鈍っているのでは","reply":"まあ、ひどい。これでも料理の味には自信があるんです。明日、わたしの作ったものを食べてから言ってくださいね。"}]}
+      """;
+
   /** Today at 20:00 JST, one of the daily slots: the slot every interaction test runs in. */
   static final ZonedDateTime HOUR = LocalDate.now(GuildService.TOKYO).atTime(20, 0).atZone(GuildService.TOKYO);
 
@@ -637,8 +646,9 @@ class GuildTests {
    * from those who live there and are not at the guild. Each place has its own page in its own style.
    */
   @Test void theThreeNationsEachHaveATavernOfFive() throws Exception {
+    // Fifteen in each nation: however the guild's ten fall, each nation keeps at least five.
     String[] nations = {"grantford", "elmwood", "tsukikage"};
-    for (int i = 0; i < 30; i++) {
+    for (int i = 0; i < 45; i++) {
       jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,home_village,current_village) "
           + "VALUES (?,'7dtd',?,'旅の者。','記録から。','穏やか。','moss',?,?)", LocalDate.now(GuildService.TOKYO).minusDays(300 + i),
           "民" + i, nations[i % 3], nations[i % 3]);
@@ -692,6 +702,73 @@ class GuildTests {
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isEqualTo(12);
     // A nation's talk is written as happening in that nation's tavern.
     verify(bedrock, atLeastOnce()).generate(anyString(), argThat(input -> input.contains("場所=樫の盾亭（グランフォード）")), eq(1100), any());
+  }
+
+  /**
+   * Talks: the AI writes one for a resident in some place today, once a day for the evening and once from
+   * maintenance; visitors read the first line and three answers, and fetch one reply at a time.
+   */
+  @Test void residentsTalkWithVisitorsOnceADayEach() throws Exception {
+    when(bedrock.generate(anyString(), anyString(), eq(GuildTalkWriter.MAX_TOKENS), any())).thenReturn(TALK);
+    long rine = resident("リネ", 28, "ALIVE", 0);
+    long roan = resident("ロアン", 30, "ALIVE", 10);
+    jdbc.update("UPDATE T_GUILD_VISIT SET place = 'grantford' WHERE character_id = ?", roan);
+    assertThat(talks.write(HOUR, GuildTalks.MANUAL)).contains("作りました");
+    assertThat(talks.write(HOUR, GuildTalks.MANUAL)).contains("1日1回");
+    assertThat(talks.writeScheduled(HOUR.withHour(22).withMinute(30))).contains("作りました");
+    assertThat(talks.writeScheduled(HOUR.withHour(22).withMinute(40))).contains("すでに");
+    // Two talks today, for two different residents, each in the place they are today.
+    assertThat(jdbc.queryForList("SELECT character_id FROM T_GUILD_TALK", Long.class)).containsExactlyInAnyOrder(rine, roan);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_TALK WHERE character_id = ? AND place = 'grantford'", roan)).isEqualTo(1);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_TALK_CHOICE")).isEqualTo(6);
+    verify(bedrock, atLeastOnce()).generate(anyString(), argThat(input -> input.contains("話し方=一人称") && input.contains("今いる店=樫の盾亭（グランフォード）")),
+        eq(GuildTalkWriter.MAX_TOKENS), any());
+
+    var talk = talks.latest(rine);
+    assertThat(talk.labels()).containsExactly("たしかに少し濃いですね", "何が入っているんですか", "あなたの舌が鈍っているのでは");
+    String page = mvc.perform(get("/guild/characters/" + rine)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("リネと話す")))
+        .andExpect(content().string(containsString("今夜は少し塩が強い")))
+        .andExpect(content().string(containsString("data-talk-choice=\"2\"")))
+        .andReturn().getResponse().getContentAsString();
+    // The replies are not in the page: each comes when its answer is picked.
+    assertThat(page).doesNotContain("おかわり、頼んじゃいましょうか");
+    mvc.perform(get("/guild/talks/" + talk.id() + "/choices/1")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("店主の秘密")));
+    mvc.perform(get("/guild/talks/" + talk.id() + "/choices/3")).andExpect(status().isNotFound());
+    mvc.perform(get("/guild/talks/999999/choices/0")).andExpect(status().isNotFound());
+    mvc.perform(get("/guild")).andExpect(content().string(containsString("can-talk")));
+    // The dead don't talk; deleting a resident takes their talks too.
+    jdbc.update("UPDATE M_GUILD_CHARACTER SET status = 'DEAD' WHERE id = ?", rine);
+    assertThat(talks.latest(rine)).isNull();
+    mvc.perform(get("/guild/talks/" + talk.id() + "/choices/1")).andExpect(status().isNotFound());
+    guild.delete(roan);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_TALK WHERE character_id = ?", roan)).isZero();
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_TALK_CHOICE")).isEqualTo(3);
+  }
+
+  @Test void talksNeedSomeoneInAPlaceAndAValidText() throws Exception {
+    assertThat(talks.write(HOUR, GuildTalks.MANUAL)).contains("住人がいない");
+    resident("リネ", 28, "ALIVE", 0);
+    resident("ミナト", 30, "ALIVE", 1);
+    for (String bad : List.of(TALK.replace("あなたはどうです", "リネやミナトはどうです"), TALK.replace("おかわり", "結婚"), "{\"opening\":\"短い\"}", "not json")) {
+      when(bedrock.generate(anyString(), anyString(), eq(GuildTalkWriter.MAX_TOKENS), any())).thenReturn(bad);
+      assertThat(talks.write(HOUR, GuildTalks.MANUAL)).contains("書けませんでした");
+    }
+    when(bedrock.generate(anyString(), anyString(), eq(GuildTalkWriter.MAX_TOKENS), any())).thenThrow(new IllegalStateException("down"));
+    // The evening tries three times, then waits for the next day.
+    for (int i = 0; i < GuildTalks.SCHEDULE_TRIES; i++) assertThat(talks.writeScheduled(HOUR)).contains("呼び出しの失敗");
+    assertThat(talks.writeScheduled(HOUR)).contains("上限");
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_TALK")).isZero();
+    // From maintenance: administrators only, with CSRF.
+    reset(bedrock);
+    when(bedrock.generate(anyString(), anyString(), eq(GuildTalkWriter.MAX_TOKENS), any())).thenReturn(TALK.replace("あなたはどうです", "あなたは"));
+    mvc.perform(post("/guild/maintenance/talk").with(user("member").roles("PLAYER")).with(csrf())).andExpect(status().isForbidden());
+    mvc.perform(post("/guild/maintenance/talk").with(user("admin").roles("ADMIN"))).andExpect(status().isForbidden());
+    mvc.perform(post("/guild/maintenance/talk").with(user("admin").roles("ADMIN")).with(csrf())).andExpect(status().is3xxRedirection());
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_TALK WHERE origin = 'manual'")).isEqualTo(1);
+    mvc.perform(get("/guild/maintenance").with(user("admin").roles("ADMIN"))).andExpect(status().isOk())
+        .andExpect(content().string(containsString("今日はメンテから作成済み")));
   }
 
   /** Whoever talked today shares a table, the newest talk at the first; the rest spread out the same way all day part. */

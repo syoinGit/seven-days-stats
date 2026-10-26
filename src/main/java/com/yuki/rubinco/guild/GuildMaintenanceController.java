@@ -19,6 +19,7 @@ public class GuildMaintenanceController {
   private final GuildInteractionService interactions;
   private final GuildWorld world;
   private final GuildDungeon dungeon;
+  private final GuildTalks talks;
 
   @GetMapping("/guild/maintenance")
   public String index(Model model) {
@@ -42,6 +43,8 @@ public class GuildMaintenanceController {
     model.addAttribute("dungeonStageMinutes", properties.dungeonStageMinutes());
     // Administrators see every run, including today's before it is back (the result itself stays hidden until then).
     model.addAttribute("runs", dungeon.recent(java.time.ZonedDateTime.now(GuildService.TOKYO), null, 10));
+    model.addAttribute("talks", talks.recent(10));
+    model.addAttribute("manualTalkToday", talks.written(java.time.LocalDate.now(GuildService.TOKYO), GuildTalks.MANUAL));
     return "guild-maintenance";
   }
 
@@ -71,6 +74,13 @@ public class GuildMaintenanceController {
     if (dungeon.retellDue(java.time.ZonedDateTime.now(GuildService.TOKYO))) notice += "（物語はAIが書きました）";
     redirect.addFlashAttribute("notice", notice);
     return "redirect:/guild/maintenance#dungeon";
+  }
+
+  /** Has the AI write a talk with a resident in some place today; once a day from here, besides the evening's. */
+  @PostMapping("/guild/maintenance/talk")
+  public String talk(RedirectAttributes redirect) {
+    redirect.addFlashAttribute("notice", talks.write(java.time.ZonedDateTime.now(GuildService.TOKYO), GuildTalks.MANUAL));
+    return "redirect:/guild/maintenance#talks";
   }
 
   @PostMapping("/guild/maintenance/characters/{id}/delete")

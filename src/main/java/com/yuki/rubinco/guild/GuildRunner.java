@@ -13,6 +13,7 @@ public class GuildRunner {
   private final GuildService guild;
   private final GuildInteractionService interactions;
   private final GuildDungeon dungeon;
+  private final GuildTalks talks;
 
   @Scheduled(cron = "0 0 21 * * *", zone = "Asia/Tokyo")
   public void birth() {
@@ -37,6 +38,13 @@ public class GuildRunner {
     catch (RuntimeException exception) { log.error("Guild dungeon retelling failed ({})", exception.getClass().getSimpleName()); }
     try { dungeon.settleDue(java.time.ZonedDateTime.now(GuildService.TOKYO)); }
     catch (RuntimeException exception) { log.error("Guild dungeon settle failed ({})", exception.getClass().getSimpleName()); }
+  }
+
+  /** The evening's talk with a resident at 22:30, tried again at 22:40 and 22:50 if the AI could not write it. */
+  @Scheduled(cron = "0 30,40,50 22 * * *", zone = "Asia/Tokyo")
+  public void talk() {
+    try { log.info("Guild talk: {}", talks.writeScheduled(java.time.ZonedDateTime.now(GuildService.TOKYO))); }
+    catch (RuntimeException exception) { log.error("Guild talk failed ({})", exception.getClass().getSimpleName()); }
   }
 
   @Scheduled(initialDelayString = "${app.guild.visit-initial-delay:30s}", fixedDelayString = "${app.guild.visit-check-interval:1m}")

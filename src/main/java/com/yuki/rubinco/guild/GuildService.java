@@ -256,7 +256,7 @@ public class GuildService {
 
   /**
    * Removes a resident with their visits, source, interactions (and what those interactions changed or
-   * started), dungeon runs and relationships. The source's memory may be used again.
+   * started), dungeon runs, talks and relationships. The source's memory may be used again.
    */
   @Transactional
   public String delete(long id) {
@@ -278,6 +278,8 @@ public class GuildService {
       jdbc.update("DELETE FROM T_GUILD_EXPEDITION_MEMBER WHERE expedition_id = ?", expedition);
       jdbc.update("DELETE FROM T_GUILD_EXPEDITION WHERE id = ?", expedition);
     }
+    jdbc.update("DELETE FROM T_GUILD_TALK_CHOICE WHERE talk_id IN (SELECT id FROM T_GUILD_TALK WHERE character_id = ?)", id);
+    jdbc.update("DELETE FROM T_GUILD_TALK WHERE character_id = ?", id);
     jdbc.update("DELETE FROM T_GUILD_AFFILIATION_HISTORY WHERE character_id = ?", id);
     jdbc.update("DELETE FROM T_GUILD_RELATION_EVENT WHERE from_id = ? OR to_id = ?", id, id);
     jdbc.update("DELETE FROM T_GUILD_THREAD WHERE a_id = ? OR b_id = ?", id, id);

@@ -38,6 +38,13 @@
   <ul class="guild-jobs"><li th:each="run : ${runs}"><a th:href="@{/guild/dungeon/{id}(id=${run.id})}" th:text="${#temporals.format(run.date, 'yyyy年M月d日') + ' / ' + run.resultName()}">2026年10月25日 / 踏破</a><p th:text="${run.party + 'が' + run.dungeon + 'へ'}"></p></li></ul>
 </section>
 
+<section class="guild-panel" id="talks"><h2>住人との会話</h2>
+  <p>毎日 22:30（日本時間。書けなかったときは22:40・22:50に再試行）に、今日どこかの酒場にいる住人から1人をランダムに選び、AIがその人に合った会話（最初のひとことと、旅の人の返事3つ、それぞれへの返し）を1つ作ります。ここからも1日1回まで作れます（定時の分とは別）。同じ日に同じ住人は選ばれません。訪問者は人物の窓から、その住人のいちばん新しい会話で話せます（同じ住人とは1日1回。選んだ返事はブラウザにだけ残ります）。</p>
+  <form method="post" th:action="@{/guild/maintenance/talk}"><button type="submit" th:disabled="${manualTalkToday}" th:text="${manualTalkToday ? '今日はメンテから作成済み' : '会話を1つ作る'}">会話を1つ作る</button></form>
+  <p th:if="${#lists.isEmpty(talks)}">まだ会話はありません。</p>
+  <ul class="guild-jobs"><li th:each="talk : ${talks}"><strong th:text="${#temporals.format(talk.date, 'yyyy年M月d日') + ' / ' + talk.originName() + ' / ' + talk.name + '（' + talk.placeName() + '）'}">2026年10月26日 / 定時 / リネ（樫の盾亭（グランフォード））</strong><p th:text="${talk.opening}"></p></li></ul>
+</section>
+
 <section class="guild-panel" id="affiliations"><h2>村・派閥・信仰の内訳</h2>
   <p>存命の住人が、いまどこに暮らし、どの派閥と信仰にいるか。村・派閥・信仰の変化はすべて履歴に残ります。</p>
   <table class="guild-origins"><thead><tr><th>区分</th><th>名前</th><th>人数</th></tr></thead>

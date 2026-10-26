@@ -21,6 +21,7 @@ public class GuildController {
   private final GuildDungeon dungeon;
   private final GuildVoice voices;
   private final GuildSignboard signboard;
+  private final GuildTalks talks;
 
   @GetMapping("/guild")
   public String room(Model model) {
@@ -41,6 +42,18 @@ public class GuildController {
   @ResponseBody
   public GuildSignboard.Talk signboard() {
     return signboard.today(ZonedDateTime.now(GuildService.TOKYO));
+  }
+
+  /**
+   * The resident's reply to one of a talk's three answers, fetched when the visitor picks it. That a visitor talked
+   * today is kept in their browser only; this just reads the reply.
+   */
+  @GetMapping(value = "/guild/talks/{id}/choices/{position}", produces = "application/json")
+  @ResponseBody
+  public java.util.Map<String, String> reply(@PathVariable long id, @PathVariable int position) {
+    String reply = position < 0 || position > 2 ? null : talks.reply(id, position);
+    if (reply == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+    return java.util.Map.of("reply", reply);
   }
 
   @GetMapping("/guild/visitors")
@@ -74,6 +87,7 @@ public class GuildController {
     model.addAttribute("interactions", chronicle.list(new GuildChronicle.Filter(id, null, null, null, null), 0).stream().limit(8).toList());
     model.addAttribute("expeditions", dungeon.recent(ZonedDateTime.now(GuildService.TOKYO), id, 5));
     model.addAttribute("todayPlace", character.status().equals("ALIVE") ? guild.placeToday(id) : null);
+    model.addAttribute("talk", talks.latest(id));
     return stage(model, "roster", "character", character.name());
   }
 
@@ -174,6 +188,7 @@ public class GuildController {
       for (var seat : seats) idle.put(seat.visit().character().id(), voices.idle(seat.visit().character(), "tables", room.date(), room.phase()));
     }
     model.addAttribute("idleLines", idle);
+    model.addAttribute("talkers", talks.talkers());
     model.addAttribute("tab", tab);
     model.addAttribute("window", window);
     model.addAttribute("windowTitle", title);
