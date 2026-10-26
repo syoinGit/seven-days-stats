@@ -26,10 +26,18 @@ public class GuildInteractionWriter {
   /**
    * Everything the AI may know. labelAfter is null when the label stays. world describes only the villages,
    * factions and faiths of these two; change (and changeKind) is the affiliation change code made, if any.
+   * where: the place it happens ("無人の冒険者ギルド", "樫の盾亭（グランフォード）").
    */
   public record Scene(String phase, String kind, String outcome, GuildInteractionService.Person a, GuildInteractionService.Person b,
                       String aToB, String bToA, String label, String labelAfter, String changes, List<String> threads,
-                      String opened, String resolved, String dead, String world, String change, String changeKind) {
+                      String opened, String resolved, String dead, String world, String change, String changeKind, String where) {
+    public Scene(String phase, String kind, String outcome, GuildInteractionService.Person a, GuildInteractionService.Person b,
+                 String aToB, String bToA, String label, String labelAfter, String changes, List<String> threads,
+                 String opened, String resolved, String dead, String world, String change, String changeKind) {
+      this(phase, kind, outcome, a, b, aToB, bToA, label, labelAfter, changes, threads, opened, resolved, dead, world, change, changeKind,
+          GuildPlaces.CENTER.title());
+    }
+
     public Scene(String phase, String kind, String outcome, GuildInteractionService.Person a, GuildInteractionService.Person b,
                  String aToB, String bToA, String label, String labelAfter, String changes, List<String> threads,
                  String opened, String resolved, String dead) {
@@ -55,7 +63,8 @@ public class GuildInteractionWriter {
     String result;
     try {
       result = bedrock.generate("""
-          無人の冒険者ギルド兼酒場で、二人の住人が過ごしたひとときを短い場面にする。中世の小さな街。
+          酒場で二人の住人が過ごしたひとときを短い場面にする。中世の世界。場所は入力の「場所」：無人の冒険者ギルドは3つの国の真ん中にある
+          無人の酒場、ほかはその国の酒場（国の風土に合った店のつくり・料理・音）。
           何が起きたか（結果）と関係の変化はすでに決まっている。結果に矛盾しないように書き、結果にない出来事を足さない。
           入力にない結婚・婚約・交際の開始・死亡・絶交・弟子入り・派閥への加入や脱退や追放・改宗・移住などの大きな変化を書かない。
           気持ちは片方だけのこともある。「気になっている」側は、隠しきれない態度やぎこちなさでにじませ、はっきり口にしない。
@@ -85,7 +94,7 @@ public class GuildInteractionWriter {
       case "morning" -> "朝";
       case "afternoon" -> "昼";
       default -> "夜";
-    }).append("\n種類=").append(scene.kind()).append("\n結果=").append(scene.outcome());
+    }).append("\n場所=").append(scene.where()).append("\n種類=").append(scene.kind()).append("\n結果=").append(scene.outcome());
     for (var person : List.of(scene.a(), scene.b())) {
       text.append("\n人物=").append(person.name()).append("（")
           .append(person.age() == null ? "" : person.age() + "歳・").append(person.gender() == null ? "" : person.gender() + "・")

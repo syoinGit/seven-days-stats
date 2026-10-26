@@ -634,8 +634,11 @@ class GuildTests {
       jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance) "
           + "VALUES (?,'7dtd',?,'旅の者。','記録から。','穏やか。','moss')", LocalDate.now(GuildService.TOKYO).minusDays(300 + i), "客" + (char) ('ア' + i * 2));
     }
+    // Everyone lives in Grantford (the default nation): ten go to the guild, the other two to Grantford's tavern.
     guild.prepareToday();
-    assertThat(count("SELECT COUNT(*) FROM T_GUILD_VISIT")).isEqualTo(10);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_VISIT WHERE place = 'guild'")).isEqualTo(10);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_VISIT WHERE place = 'grantford' AND seat BETWEEN 10 AND 14")).isEqualTo(2);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_VISIT WHERE place NOT IN ('guild', 'grantford')")).isZero();
     String tavern = mvc.perform(get("/guild")).andExpect(status().isOk())
         .andExpect(content().string(containsString("id=\"guild-area-counter\"")))
         .andExpect(content().string(containsString("for=\"guild-area-hearth\"")))
@@ -647,6 +650,68 @@ class GuildTests {
     assertThat(tavern.split("class=\"room-person ", -1)).hasSize(11);
     String map = tavern.substring(tavern.indexOf("class=\"tv-map\""));
     assertThat(map.substring(0, map.indexOf("</div>")).split("<i></i>", -1)).hasSize(11);
+  }
+
+  /**
+   * Three nations around the guild: each day the guild draws ten from everyone and each nation's tavern five more
+   * from those who live there and are not at the guild. Each place has its own page in its own style.
+   */
+  @Test void theThreeNationsEachHaveATavernOfFive() throws Exception {
+    String[] nations = {"grantford", "elmwood", "tsukikage"};
+    for (int i = 0; i < 30; i++) {
+      jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,home_village,current_village) "
+          + "VALUES (?,'7dtd',?,'旅の者。','記録から。','穏やか。','moss',?,?)", LocalDate.now(GuildService.TOKYO).minusDays(300 + i),
+          "民" + i, nations[i % 3], nations[i % 3]);
+    }
+    guild.prepareToday();
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_VISIT WHERE place = 'guild'")).isEqualTo(10);
+    for (var town : GuildPlaces.TOWNS) {
+      assertThat(count("SELECT COUNT(*) FROM T_GUILD_VISIT WHERE place = ?", town.key())).isEqualTo(5);
+      assertThat(count("SELECT COUNT(*) FROM T_GUILD_VISIT v JOIN M_GUILD_CHARACTER c ON c.id = v.character_id "
+          + "WHERE v.place = ? AND (c.current_village <> ? OR v.seat NOT BETWEEN ? AND ?)", town.key(), town.nation(), town.base(), town.base() + 4)).isZero();
+    }
+    assertThat(count("SELECT COUNT(DISTINCT character_id) FROM T_GUILD_VISIT")).isEqualTo(25);
+    // Run again: nothing more is drawn.
+    guild.prepareToday();
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_VISIT")).isEqualTo(25);
+
+    String town = mvc.perform(get("/guild/towns/tsukikage")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("town-tsukikage")))
+        .andExpect(content().string(containsString("月見茶屋 朧")))
+        .andExpect(content().string(containsString("href=\"/guild/towns/tsukikage\" aria-current=\"page\"")))
+        .andReturn().getResponse().getContentAsString();
+    assertThat(town.split("class=\"room-person ", -1)).hasSize(6);
+    // The dungeon and the tavern map belong to the guild only.
+    assertThat(town).doesNotContain("guild-view-dungeon").doesNotContain("tv-map");
+    mvc.perform(get("/guild/towns/atlantis")).andExpect(status().isNotFound());
+    mvc.perform(get("/guild/towns/guild")).andExpect(status().isNotFound());
+    mvc.perform(get("/guild/visitors")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("樫の盾亭（グランフォード）（5人）")))
+        .andExpect(content().string(containsString("無人の冒険者ギルド（10人）")));
+  }
+
+  /** The first slot of each hour always happens at the guild; the second at any place where two or more are in. */
+  @Test void theGuildTalksEveryHourAndTheSecondSlotGoesAnywhere() {
+    long rine = resident("リネ", 28, "ALIVE", 0);
+    long roan = resident("ロアン", 30, "ALIVE", 1);
+    long mira = resident("ミラ", 45, "ALIVE", 10);
+    long gald = resident("ガルド", 19, "ALIVE", 11);
+    jdbc.update("UPDATE T_GUILD_VISIT SET place = 'grantford' WHERE character_id IN (?, ?)", mira, gald);
+    for (int hour = 18; hour < 24; hour++) interactions.runHour(HOUR.withHour(hour).withMinute(3));
+    assertThat(jdbc.queryForList("SELECT DISTINCT place FROM T_GUILD_INTERACTION", String.class)).containsExactly("guild");
+    assertThat(jdbc.queryForList("SELECT DISTINCT p.character_id FROM T_GUILD_INTERACTION_PARTICIPANT p", Long.class))
+        .containsExactlyInAnyOrder(rine, roan);
+    for (int hour = 18; hour < 21; hour++) interactions.runHour(HOUR.withHour(hour).withMinute(33));
+    // With one left at the guild, the second slot can only go to Grantford.
+    jdbc.update("UPDATE M_GUILD_CHARACTER SET status = 'DEAD' WHERE id = ?", roan);
+    for (int hour = 21; hour < 24; hour++) interactions.runHour(HOUR.withHour(hour).withMinute(33));
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION WHERE place = 'grantford'")).isGreaterThanOrEqualTo(3);
+    // Each talk happens among those at its place only.
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION i JOIN T_GUILD_INTERACTION_PARTICIPANT p ON p.interaction_id = i.id "
+        + "JOIN T_GUILD_VISIT v ON v.character_id = p.character_id AND v.visit_date = ? WHERE v.place <> i.place", HOUR.toLocalDate())).isZero();
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isEqualTo(12);
+    // A nation's talk is written as happening in that nation's tavern.
+    verify(bedrock, atLeastOnce()).generate(anyString(), argThat(input -> input.contains("場所=樫の盾亭（グランフォード）")), eq(1100), any());
   }
 
   /** Whoever talked today shares a table, the newest talk at the first; the rest spread out the same way all day part. */
@@ -722,7 +787,9 @@ class GuildTests {
   /** 21:50: a party leaves; its stages come out at 22:00, 22:10, 22:20 and 22:30, the result with the last. */
   @Test void aDungeonRunUnfoldsInFourStagesAndKeepsItsPartyOutOfTheTavern() {
     List<Long> ids = new java.util.ArrayList<>();
-    for (int i = 0; i < 6; i++) ids.add(resident("冒険" + (char) ('ア' + i * 2), 20 + i, "ALIVE", i));
+    for (int i = 0; i < 7; i++) ids.add(resident("冒険" + (char) ('ア' + i * 2), 20 + i, "ALIVE", i));
+    // The seventh sits in a nation's tavern today, so the party comes from the six at the guild.
+    jdbc.update("UPDATE T_GUILD_VISIT SET place = 'elmwood', seat = 15 WHERE character_id = ?", ids.get(6));
     var departure = HOUR.withHour(21).withMinute(50);
     assertThat(dungeon.departIfDue(departure.minusMinutes(1))).contains("出発の時間帯ではありません");
     assertThat(dungeon.departIfDue(departure.plusMinutes(40))).contains("出発の時間帯ではありません");
@@ -731,6 +798,7 @@ class GuildTests {
     long id = jdbc.queryForObject("SELECT id FROM T_GUILD_EXPEDITION", Long.class);
     List<Long> party = jdbc.queryForList("SELECT character_id FROM T_GUILD_EXPEDITION_MEMBER ORDER BY position", Long.class);
     assertThat(party).hasSizeBetween(1, 4).allMatch(ids::contains);
+    assertThat(party).as("only from the guild").doesNotContain(ids.get(6));
 
     var start = dungeon.expedition(id, departure.plusMinutes(5));
     assertThat(start.stages()).hasSize(4).noneMatch(GuildDungeon.Stage::revealed);
@@ -976,7 +1044,7 @@ class GuildTests {
   }
 
   @Test void publicViewsAreReadOnlyAndAdminWritesNeedRoleAndCsrf() throws Exception {
-    for (String path : List.of("/guild", "/guild/visitors", "/guild/board", "/guild/characters")) {
+    for (String path : List.of("/guild", "/guild/visitors", "/guild/board", "/guild/characters", "/guild/towns/grantford")) {
       mvc.perform(get(path)).andExpect(status().isOk());
     }
     mvc.perform(get("/guild/maintenance")).andExpect(status().is3xxRedirection());
@@ -1266,6 +1334,18 @@ class GuildTests {
           List.of("ember", "moss", "violet").get(i % 3), gender, jobs.get(i - 1), look.outfit(), look.hair(), look.hairColor(), look.skin(),
           look.cloth(), look.cloth2(), look.accessory(), look.eye());
     }
+    // Fifteen more, five living in each nation, so the nations' taverns have someone in them too.
+    for (int i = 0; i < 15; i++) {
+      String nation = List.of("grantford", "elmwood", "tsukikage").get(i % 3);
+      String gender = i % 2 == 0 ? "男性" : "女性";
+      var look = people.look(gender, jobs.get(i % jobs.size()));
+      jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,gender,occupation,outfit,"
+          + "hair_style,hair_color,skin_color,cloth_color,cloth2_color,accessory,eye_color,home_village,current_village) VALUES (?,'terraria',?,'国で暮らす住人。',"
+          + "'表示確認用の架空データです。','穏やか。',?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          LocalDate.now(GuildService.TOKYO).minusDays(40 + i), "見本" + (i + 1), List.of("ember", "moss", "violet").get(i % 3), gender,
+          jobs.get(i % jobs.size()), look.outfit(), look.hair(), look.hairColor(), look.skin(), look.cloth(), look.cloth2(), look.accessory(), look.eye(),
+          nation, nation);
+    }
     guild.prepareToday();
     var before = guild.room(ZonedDateTime.now());
     source(); guild.generateToday();
@@ -1273,7 +1353,9 @@ class GuildTests {
     assertThat(before.visits()).hasSize(10);
     var root = java.nio.file.Path.of("target/guild-preview");
     java.nio.file.Files.createDirectories(root.resolve("guild/characters"));
-    for (String path : List.of("/guild", "/guild/characters", "/guild/visitors", "/guild/board")) {
+    java.nio.file.Files.createDirectories(root.resolve("towns"));
+    for (String path : List.of("/guild", "/guild/characters", "/guild/visitors", "/guild/board", "/guild/towns/grantford", "/guild/towns/elmwood",
+        "/guild/towns/tsukikage")) {
       var response = mvc.perform(get(path)).andExpect(status().isOk()).andReturn().getResponse();
       String html = response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8).replace("<main class=", "<p style=\"text-align:center;color:#f0d8c2\">表示確認用サンプル・実プレイ由来ではありません</p><main class=");
       java.nio.file.Files.writeString(root.resolve(path.equals("/guild") ? "index.html" : path.substring(7) + ".html"), html);

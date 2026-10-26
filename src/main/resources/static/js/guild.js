@@ -6,7 +6,9 @@
   const tabbar = document.querySelector("[data-guild-tabbar]");
   if (!dialog || !scrim || !tabbar) return;
   const WINDOW = /^\/guild\/(visitors|board|characters(\/\d+)?|log(\/\d+)?|pairs\/\d+-\d+|dungeon(\/\d+)?)$/;
-  const TAVERN_TITLE = "無人の冒険者ギルド | Rubinco";
+  // The place under the windows: the guild, or a nation's tavern.
+  const HOME = document.body.dataset.placeUrl || "/guild";
+  const TAVERN_TITLE = document.body.dataset.placeTitle || "無人の冒険者ギルド | Rubinco";
   let opener = null;
 
   function show() {
@@ -62,7 +64,7 @@
     if (depth > 0) {
       history.go(-depth);
     } else {
-      history.pushState(null, "", "/guild");
+      history.pushState(null, "", HOME);
       hide();
     }
   }
@@ -74,7 +76,7 @@
     const url = new URL(link.href, location.href);
     if (url.origin !== location.origin) return;
     if (link.closest("form")) return;
-    if (url.pathname === "/guild" && !url.search) {
+    if (url.pathname === HOME && !url.search) {
       event.preventDefault();
       if (dialog.open) close();
     } else if (WINDOW.test(url.pathname)) {
@@ -103,7 +105,7 @@
   // Opened from a shared link: put the tavern underneath, so closing or Back lands there.
   if (dialog.open) {
     const here = location.href;
-    history.replaceState(null, "", "/guild");
+    history.replaceState(null, "", HOME);
     history.pushState({ guildDepth: 1 }, "", here);
     show();
   }

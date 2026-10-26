@@ -338,3 +338,92 @@
 @keyframes sb-flicker{50%{box-shadow:0 0 26px 8px #ffcf7a44}}
 @media(max-width:650px){.guild-sign-button{font-size:11px;padding:2px 8px 2px 3px}.sb-scene{height:250px}.sb-mire{width:192px;height:228px;bottom:33px}.sb-counter{height:30px}.sb-counter i{bottom:30px}.sb-box{padding:12px 14px 16px}.sb-text{font-size:15px}.sb-shelf{top:56px;width:34%}.sb-shelf.low{top:118px;width:30%}}
 @media(prefers-reduced-motion:reduce){.sb-mire.hop,.sb-mire.blinks .sb-blink,.sb-next,.sb-lamp::after{animation:none}}
+
+/* The world map: the unattended guild in the middle and a tavern in each of the three nations. */
+.guild-places{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:0 0 10px}
+.guild-places a{display:flex;flex-direction:column;gap:1px;padding:6px 10px;background:#221a28;border:2px solid #3e2e41;border-left-width:6px;color:#c6b8c7;font-size:12px;text-decoration:none;line-height:1.3}
+.guild-places a b{font-size:9px;letter-spacing:.2em;font-weight:normal;color:#a991a3}
+.guild-places a:hover{background:#2a2031;color:#f0d8c2}
+.guild-places a[aria-current]{background:#3a2738;border-color:#89634b;color:#ffe0a8}
+.guild-places a:focus-visible{outline:3px solid #ebbe92;outline-offset:1px}
+.guild-places .gp-guild{border-left-color:#c28f9b}.guild-places .gp-grantford{border-left-color:#b5463c}.guild-places .gp-elmwood{border-left-color:#5f9a5a}.guild-places .gp-tsukikage{border-left-color:#6d78b8}
+
+/* A nation's tavern: one room, five seats along one table, dressed in the nation's style. */
+.town-back,.town-front{position:absolute;inset:0}.town-front{z-index:3;pointer-events:none}
+.town-back>span{position:absolute;z-index:1}
+.town-room .room-person{bottom:86px;animation:tv-mill 23s ease-in-out infinite}
+.town-room .room-person .guild-sprite{width:72px;height:108px}
+.town-room .person-name{order:-1;margin-bottom:4px}
+.town-room .person-bubble{left:50%;translate:-50% 0}
+.town-room .room-person.slot-0 .person-bubble{left:0;translate:none}.town-room .room-person.slot-4 .person-bubble{left:auto;right:0;translate:none}
+.town-room .room-person.slot-0{left:18%}.town-room .room-person.slot-1{left:34%}.town-room .room-person.slot-2{left:50%}.town-room .room-person.slot-3{left:66%}.town-room .room-person.slot-4{left:82%}
+.town-room .room-person:is(.slot-1,.slot-3){animation-duration:29s;animation-delay:-11s}
+.town-room .room-person.slot-4{animation-direction:reverse;animation-delay:-5s}
+.town-room .room-person.talking{animation:none}
+.town-room .room-person:is(.talking,:hover,:focus){z-index:2}
+.tw-table{position:absolute;left:5%;right:5%;bottom:0;height:112px}
+.town-room .tv-mug{bottom:104px}
+.town-room .tv-mug.slot-0{left:calc(18% + 42px)}.town-room .tv-mug.slot-1{left:calc(34% + 42px)}.town-room .tv-mug.slot-2{left:calc(50% + 42px)}.town-room .tv-mug.slot-3{left:calc(66% + 42px)}.town-room .tv-mug.slot-4{left:calc(82% + 42px)}
+
+/* Grantford: a stone hall of the kingdom; banners, an old shield on the wall, a ring of candles, an oak table. */
+.town-grantford{background:#3b3640}
+.town-grantford .town-back{background:linear-gradient(#4a3226 0 20px,#2a1d18 20px 26px,transparent 26px),repeating-linear-gradient(0deg,transparent 0 30px,#2c2830 30px 33px),repeating-linear-gradient(90deg,#5d5862 0 58px,#2c2830 58px 61px,#55505b 61px 120px,#2c2830 120px 123px)}
+.town-grantford .town-back::after{content:"";position:absolute;left:0;right:0;bottom:0;height:70px;background:repeating-linear-gradient(90deg,#6a5240 0 90px,#5e4636 90px 180px);border-top:6px solid #2a1d18;box-shadow:inset 0 18px 24px #0007}
+.town-grantford .tw-window{left:8%;top:60px;width:84px;height:120px;border:9px solid #8a8490;border-radius:42px 42px 0 0;background:linear-gradient(90deg,transparent 45%,#4a4550 45% 55%,transparent 55%),var(--sky);box-shadow:0 0 36px #ffcf7a30}
+.town-grantford .tw-deco:is(.one,.two){top:26px;width:52px;height:132px;background:linear-gradient(90deg,transparent 40%,#e2b44a 40% 60%,transparent 60%) 0 30px/100% 22px no-repeat,#9c2f2a;border-top:8px solid #6b4a2a;clip-path:polygon(0 0,100% 0,100% 100%,50% 84%,0 100%)}
+.town-grantford .tw-deco.one{left:27%}.town-grantford .tw-deco.two{left:auto;right:10%;background-color:#2d4a7a}
+.town-grantford .tw-deco.three{left:calc(50% - 30px);top:66px;width:60px;height:72px;background:linear-gradient(90deg,transparent 44%,#e2b44a 44% 56%,transparent 56%),linear-gradient(0deg,transparent 44%,#e2b44a 44% 56%,transparent 56%),#7a2a26;border:5px solid #a8a2ae;border-radius:6px 6px 30px 30px}
+.town-grantford .tw-lamp.one{left:calc(50% - 70px);top:0;width:140px;height:40px;border-bottom:6px solid #3a2c22;background:linear-gradient(90deg,transparent 49%,#3a2c22 49% 51%,transparent 51%) 0 0/100% 34px no-repeat}
+.town-grantford .tw-lamp.one::after{content:"";position:absolute;left:8px;right:8px;bottom:6px;height:10px;background:repeating-linear-gradient(90deg,#ffd36b 0 5px,transparent 5px 24px);box-shadow:0 0 34px 14px #ffb75e30;animation:tv-flicker 6s steps(1) infinite}
+.town-grantford .tw-lamp:is(.two,.three){top:150px;width:10px;height:28px;background:#4a3a2c}
+.town-grantford .tw-lamp:is(.two,.three)::after{content:"";position:absolute;left:-3px;top:-16px;width:16px;height:18px;background:radial-gradient(#ffe7a0,#f08a2c 70%);border-radius:50% 50% 30% 30%;box-shadow:0 0 26px 10px #ffa04a40;animation:tv-flicker 4s steps(1) infinite}
+.town-grantford .tw-lamp.two{left:20%}.town-grantford .tw-lamp.three{left:auto;right:22%}.town-grantford .tw-lamp.three::after{animation-delay:-2s}
+.town-grantford .tw-table{background:linear-gradient(#a0703f 0 16px,#3a2618 16px 22px,transparent 22px),repeating-linear-gradient(90deg,#7a5232 0 96px,#5c3c24 96px 102px);box-shadow:0 -6px 20px #0006}
+
+/* Elmwood: an inn grown into a great tree; moss that glows, vines, a round window onto the woods, a table of roots. */
+.town-elmwood{background:#26302a}
+.town-elmwood .town-back{background:radial-gradient(ellipse at 50% 120%,#1e2a20 30%,transparent 31%),repeating-linear-gradient(90deg,#4a3a2a 0 14px,#41321f 14px 22px,#4f3e2c 22px 40px,#3a2c1e 40px 44px)}
+.town-elmwood .town-back::after{content:"";position:absolute;left:0;right:0;bottom:0;height:70px;background:radial-gradient(circle,#6c9a4e 0 3px,transparent 4px) 0 0/34px 22px,linear-gradient(#3e5a32,#2c3f26);border-top:6px solid #25331f;box-shadow:inset 0 18px 24px #0007}
+.town-elmwood .tw-window{left:9%;top:58px;width:110px;height:110px;border:10px solid #5e4a30;border-radius:50%;background:radial-gradient(circle at 30% 70%,#2f5a34 0 20px,transparent 21px),radial-gradient(circle at 75% 75%,#2a4f2e 0 26px,transparent 27px),var(--sky);box-shadow:0 0 0 4px #33281a,0 0 40px #b6ffb020}
+.town-elmwood .tw-deco:is(.one,.two){top:0;width:30px;height:150px;background:radial-gradient(ellipse 7px 5px,#6fae58 90%,transparent) 0 0/15px 20px,linear-gradient(90deg,transparent 46%,#3e6a34 46% 54%,transparent 54%);opacity:.9}
+.town-elmwood .tw-deco.one{left:29%}.town-elmwood .tw-deco.two{left:auto;right:7%;height:110px}
+.town-elmwood .tw-deco.three{left:calc(62% - 34px);top:0;bottom:70px;width:68px;background:repeating-linear-gradient(90deg,#5a442c 0 9px,#4a3622 9px 13px,#634b30 13px 22px);border-radius:0 0 40% 40%;box-shadow:inset -10px 0 14px #0005}
+.town-elmwood .tw-deco.three::after{content:"";position:absolute;left:18px;top:70px;width:30px;height:38px;border-radius:50%;background:#2a1e14;box-shadow:inset 3px 3px 6px #000a}
+.town-elmwood .tw-lamp{top:0;width:2px;height:58px;background:#3a5a30}
+.town-elmwood .tw-lamp::after{content:"";position:absolute;left:-11px;top:56px;width:24px;height:20px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#eaffc8,#8ee07a 55%,#3f8a46);box-shadow:0 0 30px 14px #9cf08a38;animation:tw-glow 6s ease-in-out infinite}
+.town-elmwood .tw-lamp.one{left:42%}.town-elmwood .tw-lamp.two{left:78%;height:80px}.town-elmwood .tw-lamp.two::after{top:78px;animation-delay:-2s}.town-elmwood .tw-lamp.three{left:22%;height:34px}.town-elmwood .tw-lamp.three::after{top:32px;animation-delay:-4s}
+@keyframes tw-glow{0%,100%{opacity:1}50%{opacity:.7}}
+.town-elmwood .tw-table{border-radius:50% 50% 0 0/40px 40px 0 0;background:radial-gradient(ellipse at 20% 8%,#7aa05a 0 10px,transparent 11px),radial-gradient(ellipse at 76% 6%,#7aa05a 0 8px,transparent 9px),linear-gradient(#8a6a44 0 18px,#3a2a1a 18px 24px,transparent 24px),repeating-linear-gradient(80deg,#5e462c 0 30px,#4e3a24 30px 46px);box-shadow:0 -6px 20px #0006}
+
+/* Tsukikage: a teahouse under the moon; shoji, paper lanterns, a noren in the doorway, tatami and a low table. */
+.town-tsukikage{background:#2e2a2a}
+.town-tsukikage .town-back{background:linear-gradient(#4a3226 0 18px,#24180f 18px 24px,transparent 24px),linear-gradient(90deg,#3c2a1e 0 14px,transparent 14px) 0 0/25% 100%,linear-gradient(0deg,#5a4434 0 3px,transparent 3px) 0 0/100% 38px,linear-gradient(90deg,#5a4434 0 3px,transparent 3px) 0 0/30px 100%,#e8dcc0}
+.guild-room.evening.town-tsukikage .town-back{background-color:#c9a86a}
+.town-tsukikage .town-back::after{content:"";position:absolute;left:0;right:0;bottom:0;height:70px;background:linear-gradient(90deg,#2c3a2a 0 4px,transparent 4px) 0 0/140px 100%,repeating-linear-gradient(0deg,#b7b07a 0 3px,#a8a06a 3px 6px);border-top:6px solid #3a2a1c;box-shadow:inset 0 18px 24px #0006}
+.town-tsukikage .tw-window{left:58%;top:52px;width:112px;height:112px;border:9px solid #3c2a1e;border-radius:50%;background:linear-gradient(90deg,transparent 48%,#3c2a1e 48% 52%,transparent 52%),var(--sky)}
+.guild-room.evening.town-tsukikage .tw-window{background:radial-gradient(circle at 62% 38%,#fbf2c8 0 16px,#fbf2c830 17px 26px,transparent 27px),linear-gradient(90deg,transparent 48%,#3c2a1e 48% 52%,transparent 52%),var(--sky)}
+.town-tsukikage .tw-deco.one{left:6%;top:24px;width:120px;height:96px;background:linear-gradient(90deg,transparent 31%,#e8dcc0 31% 34%,transparent 34% 65%,#e8dcc0 65% 68%,transparent 68%),#2d3a6e;border-top:7px solid #3c2a1e}
+.town-tsukikage .tw-deco.one::after{content:"";position:absolute;left:calc(50% - 14px);top:30px;width:28px;height:28px;border-radius:50%;border:3px solid #e8dcc0;border-right-color:transparent}
+.town-tsukikage .tw-deco.two{left:38%;top:44px;width:46px;height:120px;background:linear-gradient(#3c2a1e 0 6px,#efe6cf 6px calc(100% - 8px),#3c2a1e calc(100% - 8px));box-shadow:0 0 0 3px #7a5a3a}
+.town-tsukikage .tw-deco.two::after{content:"";position:absolute;left:12px;top:26px;width:22px;height:60px;background:linear-gradient(170deg,transparent 40%,#2a2a2a 40% 46%,transparent 46%),radial-gradient(circle at 50% 80%,#c03a2e 0 5px,transparent 6px)}
+.town-tsukikage .tw-deco.three{left:auto;right:6%;bottom:76px;width:30px;height:44px;background:linear-gradient(#5a6a3a,#3a4a2a) 50% 0/4px 70% no-repeat,radial-gradient(circle at 30% 20%,#e07a8a 0 5px,transparent 6px),radial-gradient(circle at 70% 30%,#f0b0b8 0 4px,transparent 5px),linear-gradient(transparent 62%,#2a2a3a 62%)}
+.town-tsukikage .tw-lamp{top:0;width:2px;height:46px;background:#2a1d18}
+.town-tsukikage .tw-lamp::after{content:"";position:absolute;left:-14px;top:44px;width:30px;height:40px;border-radius:45%;background:linear-gradient(#2a1d18 0 4px,transparent 4px calc(100% - 4px),#2a1d18 calc(100% - 4px)),repeating-linear-gradient(0deg,#c8402e 0 6px,#a8301f 6px 8px);box-shadow:0 0 30px 12px #ff8a5a30;animation:tv-flicker 6s steps(1) infinite}
+.town-tsukikage .tw-lamp.one{left:30%}.town-tsukikage .tw-lamp.two{left:52%;height:30px}.town-tsukikage .tw-lamp.two::after{top:28px;animation-delay:-3s;background:linear-gradient(#2a1d18 0 4px,transparent 4px calc(100% - 4px),#2a1d18 calc(100% - 4px)),repeating-linear-gradient(0deg,#f4ead0 0 6px,#d8ccb0 6px 8px)}.town-tsukikage .tw-lamp.three{left:88%}.town-tsukikage .tw-lamp.three::after{animation-delay:-1s}
+.town-tsukikage .room-person{bottom:66px}
+.town-tsukikage .tw-table{left:10%;right:10%;height:88px;background:linear-gradient(#5a1e1a 0 12px,#1e1210 12px 18px,transparent 18px) 0 0/100% 100% no-repeat,linear-gradient(90deg,#2a1a14 0 22px,transparent 22px calc(100% - 22px),#2a1a14 calc(100% - 22px)) 0 18px/100% 40px no-repeat;box-shadow:0 -4px 16px #0005}
+.town-tsukikage .tv-mug{bottom:80px;width:14px;height:12px;background:#e8e0cc;border-width:2px;border-right-width:2px;border-radius:0 0 6px 6px}
+.guild-room.evening.town-room .tv-light{background:radial-gradient(ellipse at 50% 25%,transparent 35%,#0b0820 100%);opacity:.5}
+
+@media(prefers-reduced-motion:reduce){.town-room .room-person,.town-room .tw-lamp::after{animation:none}}
+@media(max-width:650px){
+.guild-places{grid-template-columns:repeat(2,1fr);gap:4px}.guild-places a{padding:4px 8px;font-size:11px}
+.town-room .room-person .guild-sprite{width:48px;height:72px}
+.town-room .person-name{font-size:9px;max-width:60px;padding:2px 4px}
+.town-room .room-person.slot-0{left:14%}.town-room .room-person.slot-4{left:86%}
+.town-room .tv-mug{display:none}
+.town-room .tv-title{top:6px}
+.town-grantford .tw-window,.town-elmwood .tw-window{width:60px;height:80px}.town-elmwood .tw-window{height:60px}
+.town-tsukikage .tw-window{width:70px;height:70px}.town-tsukikage .tw-deco.one{width:80px;height:70px}
+.town-grantford .tw-deco:is(.one,.two){width:36px;height:96px}
+}

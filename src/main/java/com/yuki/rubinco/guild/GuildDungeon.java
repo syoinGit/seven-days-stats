@@ -26,8 +26,8 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
- * Provisional dungeon runs. Once a day at the departure time (21:50 JST), 1-4 of the day's visitors leave
- * the tavern for a dungeon. Code simulates the whole run when they leave, from guild/dungeon-cards.yml:
+ * Provisional dungeon runs. Once a day at the departure time (21:50 JST), 1-4 of the day's visitors at the
+ * unattended guild (never a nation's tavern) leave for a dungeon. Code simulates the whole run when they leave, from guild/dungeon-cards.yml:
  * the dungeon, the goal, one card for each stage (起承転結) and the result. The stages become readable
  * one every stageMinutes and the result only with the last; nothing unrevealed leaves this class.
  * Members are out of the tavern (and its interactions) for the rest of the day; once back they sit
@@ -213,7 +213,7 @@ public class GuildDungeon {
     }
     List<Member> present = new ArrayList<>(jdbc.query("""
         SELECT c.id, c.name, c.occupation, c.home_village FROM T_GUILD_VISIT v JOIN M_GUILD_CHARACTER c ON c.id = v.character_id
-        WHERE v.visit_date = ? AND c.status = 'ALIVE' ORDER BY v.seat
+        WHERE v.visit_date = ? AND v.place = 'guild' AND c.status = 'ALIVE' ORDER BY v.seat
         """, (rs, row) -> new Member(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4)), date));
     if (present.isEmpty()) return "今日の酒場には誰もいないため、ダンジョンへは誰も向かいませんでした。";
     Collections.shuffle(present, ThreadLocalRandom.current());

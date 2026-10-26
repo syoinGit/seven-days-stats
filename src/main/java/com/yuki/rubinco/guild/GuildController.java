@@ -28,6 +28,14 @@ public class GuildController {
     return stage(model, "tavern", null, null);
   }
 
+  /** A nation's tavern: five residents of that nation, seen in one room. Unknown keys are not found. */
+  @GetMapping("/guild/towns/{key}")
+  public String town(Model model, @PathVariable String key) {
+    var place = GuildPlaces.of(key);
+    if (place == null || place.guild()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+    return stage(model, place, "tavern", null, null);
+  }
+
   /** Today's talk with Mire on the sign, fetched when the visitor opens it (fixed script, today's public facts). */
   @GetMapping(value = "/guild/signboard", produces = "application/json")
   @ResponseBody
@@ -37,6 +45,7 @@ public class GuildController {
 
   @GetMapping("/guild/visitors")
   public String visitors(Model model) {
+    model.addAttribute("rooms", guild.rooms(ZonedDateTime.now(GuildService.TOKYO)));
     return stage(model, "visitors", "visitors", "今日の来店者");
   }
 
@@ -64,6 +73,7 @@ public class GuildController {
     model.addAttribute("history", guild.history(id));
     model.addAttribute("interactions", chronicle.list(new GuildChronicle.Filter(id, null, null, null, null), 0).stream().limit(8).toList());
     model.addAttribute("expeditions", dungeon.recent(ZonedDateTime.now(GuildService.TOKYO), id, 5));
+    model.addAttribute("todayPlace", character.status().equals("ALIVE") ? guild.placeToday(id) : null);
     return stage(model, "roster", "character", character.name());
   }
 
@@ -130,25 +140,38 @@ public class GuildController {
   }
 
   private String stage(Model model, String tab, String window, String title) {
+    return stage(model, GuildPlaces.CENTER, tab, window, title);
+  }
+
+  /** Every page is a place (the guild, or a nation's tavern) with, perhaps, a window open on top. */
+  private String stage(Model model, GuildPlaces.Place place, String tab, String window, String title) {
     var now = ZonedDateTime.now(GuildService.TOKYO);
-    var room = guild.room(now);
+    var room = guild.room(now, place);
+    model.addAttribute("place", place);
+    model.addAttribute("places", GuildPlaces.ALL);
     model.addAttribute("room", room);
-    var scene = chronicle.scene(now, room.date());
+    var scene = chronicle.scene(now, room.date(), place);
     model.addAttribute("scene", scene);
-    var todayRun = dungeon.day(room.date(), now);
-    model.addAttribute("todayRun", todayRun);
-    model.addAttribute("runMembers", todayRun == null ? java.util.List.of()
-        : todayRun.members().stream().map(member -> guild.character(member.id())).toList());
-    java.util.Set<Long> returned = todayRun == null || !todayRun.back() ? java.util.Set.of()
-        : todayRun.members().stream().map(GuildChronicle.Ref::id).collect(java.util.stream.Collectors.toSet());
-    var tavern = GuildTavern.arrange(room.visits(), chronicle.groups(now, room.date()),
-        scene == null ? java.util.Set.of() : scene.lines().keySet(), returned, room.date(), room.phase());
-    model.addAttribute("tavern", tavern);
-    // What each one says to no one in particular, in their own voice and fitting where they are; the party keeps its return line.
+    java.util.Set<Long> talking = scene == null ? java.util.Set.of() : scene.lines().keySet();
     java.util.Map<Long, String> idle = new java.util.HashMap<>();
-    for (var area : tavern.areas()) {
-      if (!GuildVoice.PLACES.contains(area.key())) continue;
-      for (var seat : area.seats()) idle.put(seat.visit().character().id(), voices.idle(seat.visit().character(), area.key(), room.date(), room.phase()));
+    if (place.guild()) {
+      var todayRun = dungeon.day(room.date(), now);
+      model.addAttribute("todayRun", todayRun);
+      model.addAttribute("runMembers", todayRun == null ? java.util.List.of()
+          : todayRun.members().stream().map(member -> guild.character(member.id())).toList());
+      java.util.Set<Long> returned = todayRun == null || !todayRun.back() ? java.util.Set.of()
+          : todayRun.members().stream().map(GuildChronicle.Ref::id).collect(java.util.stream.Collectors.toSet());
+      var tavern = GuildTavern.arrange(room.visits(), chronicle.groups(now, room.date(), place), talking, returned, room.date(), room.phase());
+      model.addAttribute("tavern", tavern);
+      // What each one says to no one in particular, in their own voice and fitting where they are; the party keeps its return line.
+      for (var area : tavern.areas()) {
+        if (!GuildVoice.PLACES.contains(area.key())) continue;
+        for (var seat : area.seats()) idle.put(seat.visit().character().id(), voices.idle(seat.visit().character(), area.key(), room.date(), room.phase()));
+      }
+    } else {
+      var seats = GuildTavern.town(room.visits(), talking);
+      model.addAttribute("townSeats", seats);
+      for (var seat : seats) idle.put(seat.visit().character().id(), voices.idle(seat.visit().character(), "tables", room.date(), room.phase()));
     }
     model.addAttribute("idleLines", idle);
     model.addAttribute("tab", tab);
