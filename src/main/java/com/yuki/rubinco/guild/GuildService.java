@@ -36,6 +36,10 @@ public class GuildService {
                           Integer age, String gender, String occupation, String memoryLabel, String memory,
                           String lineage, GuildPeople.Look look, String reading,
                           String homeVillage, String village, String faction, String faith) {
+    public List<String> spriteLayers() {
+      return look == null ? List.of("resident") : look.layers(age, personality);
+    }
+
     public String lineageName() {
       var known = GuildPeople.Lineage.of(lineage);
       return known == null ? null : known.label();
