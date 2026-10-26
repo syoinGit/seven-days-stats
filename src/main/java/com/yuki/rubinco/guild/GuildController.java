@@ -8,6 +8,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.server.ResponseStatusException;
 
 /** Every page is the tavern; the others open one of its windows (fragments/guild-windows.html) on top. */
@@ -19,11 +20,19 @@ public class GuildController {
   private final GuildProperties properties;
   private final GuildDungeon dungeon;
   private final GuildVoice voices;
+  private final GuildSignboard signboard;
 
   @GetMapping("/guild")
   public String room(Model model) {
     model.addAttribute("canonical", properties.publicUrl());
     return stage(model, "tavern", null, null);
+  }
+
+  /** Today's talk with Mire on the sign, fetched when the visitor opens it (fixed script, today's public facts). */
+  @GetMapping(value = "/guild/signboard", produces = "application/json")
+  @ResponseBody
+  public GuildSignboard.Talk signboard() {
+    return signboard.today(ZonedDateTime.now(GuildService.TOKYO));
   }
 
   @GetMapping("/guild/visitors")
