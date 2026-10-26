@@ -30,7 +30,8 @@ class AiAnalysisMaintenanceControllerTests {
     aiCommentService = mock(AiCommentService.class);
     controller = new AiAnalysisMaintenanceController(
         properties, observationService, publishingService, aiCommentService, new ObjectMapper(),
-        new com.yuki.rubinco.worldprogress.ai.WorldAiProperties(false, java.time.Duration.ofHours(1), 300));
+        new com.yuki.rubinco.worldprogress.ai.WorldAiProperties(false, java.time.Duration.ofHours(1), 300),
+        mock(com.yuki.rubinco.watchpoint.ai.AiCallBudget.class));
   }
 
   @Test

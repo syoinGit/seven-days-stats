@@ -25,6 +25,7 @@ public class AiAnalysisMaintenanceController {
   private final AiCommentService aiCommentService;
   private final ObjectMapper objectMapper;
   private final WorldAiProperties murmur;
+  private final com.yuki.rubinco.watchpoint.ai.AiCallBudget budget;
 
   @GetMapping("/maintenance/ai-analysis/test")
   public String testPage(Model model) {
@@ -34,6 +35,8 @@ public class AiAnalysisMaintenanceController {
     model.addAttribute("windowMinutes", properties.windowMinutes());
     // The AI murmurs once per this interval across every game (AiMurmurService), not on its own schedule.
     model.addAttribute("scheduleMinutes", murmur.interval().toMinutes());
+    // Every Bedrock call in the app, counted against the hard limits (AiCallBudget).
+    model.addAttribute("aiUsage", budget.today(java.time.ZonedDateTime.now(com.yuki.rubinco.watchpoint.ai.AiCallBudget.TOKYO)));
     model.addAttribute("latestComment",
         aiCommentService.latestBySourceType(WatchpointAiPublishingService.SOURCE_TYPE).orElse(null));
     try {

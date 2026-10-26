@@ -125,6 +125,24 @@ observation JSON and provides a CSRF-protected button for a real one-off Bedrock
 generation. A successful test is saved and immediately becomes the latest AI
 observation shown on the dashboard; failures are logged without saving a post.
 
+Every Bedrock call in the app (WATCHPOINT, the AI murmur, guild residents, interactions, dungeon stories and talks) goes
+through `BedrockTextClient`, which counts it in `T_AI_CALL_BUDGET` (V68) before calling and refuses it, without calling
+Bedrock, once a hard limit is reached (Tokyo days and hours; failed calls count too):
+
+| Setting | Default | Ceiling |
+|---|---|---|
+| `AI_BUDGET_DAILY_CALLS` | 50 calls a day | 200 |
+| `AI_BUDGET_HOURLY_CALLS` | 20 calls an hour | 60 |
+| `AI_BUDGET_DAILY_INPUT_TOKENS` | 250,000 | 1,000,000 |
+| `AI_BUDGET_DAILY_OUTPUT_TOKENS` | 80,000 | 300,000 |
+| `AI_BUDGET_MAX_TOKENS_PER_CALL` | 2,000 output tokens | 4,000 |
+
+A value above its ceiling is held at the ceiling. Token limits use what the replies report, so a day can go past them
+by at most one call. At the defaults a day's worst case is about 250k input and 82k output tokens (with Haiku 4.5 at
+$1 / $5 per million, about $0.66). A typical 20:00-23:30 day uses about 40 calls' worth of the budget at most (around
+40k input and 13k output tokens). Today's use is shown on `/maintenance/ai-analysis/test`. A refused guild interaction
+falls back to its fixed text; other features skip that run.
+
 The production profile enables secure session cookies. Keep `.env`, PostgreSQL, the 7DTD log/save directories, and the
 reverse-proxy access logs outside public storage. The application cannot protect data after a
 server, database, or proxy administrator has been compromised.

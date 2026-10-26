@@ -189,6 +189,14 @@ app:
     max-events: 60
     system-prompt-resource: classpath:prompts/watchpoint-system-prompt.txt
     max-output-tokens: 240
+    # Hard limits on every Bedrock call (AiCallBudget), Tokyo days and hours. Values above the ceilings in
+    # AiBudgetProperties are held there. At the defaults a day can't use more than ~250k input / 80k output tokens.
+    budget:
+      daily-calls: ${AI_BUDGET_DAILY_CALLS:50}
+      hourly-calls: ${AI_BUDGET_HOURLY_CALLS:20}
+      daily-input-tokens: ${AI_BUDGET_DAILY_INPUT_TOKENS:250000}
+      daily-output-tokens: ${AI_BUDGET_DAILY_OUTPUT_TOKENS:80000}
+      max-tokens-per-call: ${AI_BUDGET_MAX_TOKENS_PER_CALL:2000}
   # The AI's murmur (AiMurmurService): once per interval across every game, about one server picked at random among
   # those online with someone connected (7DTD when app.ai is enabled, Core Keeper when world-ai is). Nobody on: none.
   world-ai:

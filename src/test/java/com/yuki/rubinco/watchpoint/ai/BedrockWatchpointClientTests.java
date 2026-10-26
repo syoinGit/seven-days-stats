@@ -30,6 +30,9 @@ class BedrockWatchpointClientTests {
   @Mock
   private BedrockRuntimeClient runtimeClient;
 
+  @Mock
+  private AiCallBudget budget;
+
   private BedrockWatchpointClient client;
 
   @BeforeEach
@@ -38,7 +41,9 @@ class BedrockWatchpointClientTests {
         30, 60, "classpath:prompts/watchpoint-system-prompt.txt",
         "ap-northeast-1", "jp.anthropic.claude-haiku-4-5-20251001-v1:0", 400,
         java.time.Duration.ofMinutes(30), java.time.Duration.ofMinutes(1), 10);
-    client = new BedrockWatchpointClient(new BedrockTextClient(runtimeClient, properties), properties, new ObjectMapper());
+    // The budget lets every call through here; AiCallBudgetTests covers the limits.
+    org.mockito.Mockito.lenient().when(budget.cap(org.mockito.ArgumentMatchers.anyInt())).thenAnswer(call -> call.getArgument(0));
+    client = new BedrockWatchpointClient(new BedrockTextClient(runtimeClient, properties, budget), properties, new ObjectMapper());
   }
 
   @Test
