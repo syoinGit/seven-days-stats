@@ -403,7 +403,7 @@ class GuildTests {
 
   /** Signed-out visitors see only the guild icon in the header (no login either); signed-in members keep the portal and the game sites. */
   @Test void signedOutVisitorsSeeNoPortalInTheGuildHeader() throws Exception {
-    for (String path : List.of("/guild", "/guild/characters", "/guild/log")) {
+    for (String path : List.of("/guild", "/guild/log", "/guild/dungeon")) {
       mvc.perform(get(path)).andExpect(status().isOk())
           .andExpect(content().string(not(containsString("site-links"))))
           .andExpect(content().string(not(containsString("aria-label=\"ポータル\""))))
