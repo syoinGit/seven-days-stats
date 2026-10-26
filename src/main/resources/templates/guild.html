@@ -20,6 +20,7 @@
   <input class="area-radio" type="radio" name="guild-view" id="guild-view-dungeon" aria-label="ダンジョン">
   <div class="guild-controls">
     <label class="guild-back" th:for="${'guild-area-' + tavern.current}">酒場に戻る</label>
+    <button type="button" class="guild-sign-button" data-signboard-open hidden><svg viewBox="5 1 22 20" aria-hidden="true"><use href="/img/guild-signboard.svg?v=1#mire"></use><use href="/img/guild-signboard.svg?v=1#mire-smile"></use></svg>看板娘と話す<span class="pop-live" data-signboard-new>今日</span></button>
     <label class="guild-dungeon-button" for="guild-view-dungeon"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=3#tab-dungeon"></use></svg>ダンジョン<span th:if="${todayRun != null and !todayRun.back()}" class="pop-live">探索中</span></label>
   </div>
   <section class="guild-room" th:classappend="${room.phase}" aria-label="ギルド兼酒場。見取り図で場所を選べます。人物を選ぶと紹介を読めます。">
@@ -94,6 +95,21 @@
     <div class="guild-window-body"><th:block th:replace="~{fragments/guild-windows :: __${window}__}"></th:block></div>
   </th:block>
 </dialog>
+<!-- Mire, the girl painted on the sign: one short talk a day with set choices (GuildSignboard, /guild/signboard). Opened by guild.js. -->
+<dialog id="guild-signboard" class="signboard" aria-labelledby="signboard-name">
+  <div class="sb-scene" aria-hidden="true">
+    <span class="sb-shelf"></span><span class="sb-shelf low"></span><span class="sb-lamp"></span>
+    <svg class="sb-mire" viewBox="0 0 32 38"><use href="/img/guild-signboard.svg?v=1#mire"></use><use class="sb-face" href="/img/guild-signboard.svg?v=1#mire-normal"></use><use class="sb-blink" href="/img/guild-signboard.svg?v=1#mire-blink"></use></svg>
+    <span class="sb-counter"><i></i></span>
+  </div>
+  <div class="sb-box">
+    <p class="sb-name" id="signboard-name">ミレ<small>看板娘</small></p>
+    <p class="sb-text" aria-live="polite"></p>
+    <div class="sb-choices"></div>
+    <button type="button" class="sb-next" aria-label="次へ">▼</button>
+  </div>
+  <button type="button" class="sb-close" aria-label="閉じる">×</button>
+</dialog>
 <nav th:replace="~{fragments/guild :: tabbar(${tab})}"></nav>
-<script defer src="/js/guild.js?v=4"></script>
+<script defer src="/js/guild.js?v=5"></script>
 </body></html>

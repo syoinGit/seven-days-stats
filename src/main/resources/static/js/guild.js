@@ -139,3 +139,175 @@
   };
   setTimeout(murmur, 5000);
 })();
+
+// Mire, the girl painted on the sign: one short talk a day. The script comes from /guild/signboard; the visitor
+// reads it line by line and picks from set choices. "Talked today" (the Tokyo date) stays in this browser only.
+(() => {
+  const open = document.querySelector("[data-signboard-open]");
+  const board = document.getElementById("guild-signboard");
+  if (!open || !board || typeof board.showModal !== "function") return;
+  const KEY = "guild-signboard-day";
+  const SHEET = "/img/guild-signboard.svg?v=1#mire-";
+  const OPEN_EYES = new Set(["normal", "think", "surprise", "shy", "sad"]);
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const face = board.querySelector(".sb-face");
+  const figure = board.querySelector(".sb-mire");
+  const text = board.querySelector(".sb-text");
+  const choices = board.querySelector(".sb-choices");
+  const next = board.querySelector(".sb-next");
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+  const read = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
+  const mark = () => { try { localStorage.setItem(KEY, today); } catch { /* private window: the talk is just not remembered */ } };
+  const fresh = () => read() !== today;
+  const badge = () => { open.querySelector("[data-signboard-new]").hidden = !fresh(); };
+  let talk = null;
+  let queue = [];
+  let current = null;
+  let after = null;
+  let typing = null;
+  let menuTurn = 0;
+  let left = [];
+
+  function show(line) {
+    face.setAttribute("href", SHEET + line.face);
+    figure.classList.toggle("blinks", OPEN_EYES.has(line.face));
+    figure.classList.remove("hop");
+    void figure.getBoundingClientRect();
+    figure.classList.add("hop");
+    clearInterval(typing);
+    if (still) {
+      text.textContent = line.text;
+      typing = null;
+      return;
+    }
+    let shown = 0;
+    text.textContent = "";
+    typing = setInterval(() => {
+      shown += 1;
+      text.textContent = line.text.slice(0, shown);
+      if (shown >= line.text.length) {
+        clearInterval(typing);
+        typing = null;
+      }
+    }, 38);
+  }
+
+  // Lines one at a time; then runs. A click finishes the line being typed, the next click moves on.
+  function say(lines, then) {
+    choices.replaceChildren();
+    queue = [...lines];
+    after = then;
+    advance();
+  }
+
+  function advance() {
+    if (typing) {
+      clearInterval(typing);
+      typing = null;
+      text.textContent = current.text;
+      return;
+    }
+    const line = queue.shift();
+    if (!line) {
+      next.hidden = true;
+      const then = after;
+      after = null;
+      if (then) then();
+      return;
+    }
+    current = line;
+    next.hidden = false;
+    show(line);
+  }
+
+  function ask(options) {
+    next.hidden = true;
+    choices.replaceChildren(...options.map(([label, run]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        run();
+      });
+      return button;
+    }));
+    choices.querySelector("button")?.focus({ preventScroll: true });
+  }
+
+  function menu(first) {
+    if (!left.length) return farewell();
+    const line = first ? [] : [talk.menu[menuTurn++ % talk.menu.length]];
+    const offer = () => ask([...left.map((topic) => [topic.label, () => {
+      left = left.filter((other) => other !== topic);
+      node(topic.start);
+    }]), ["今日はこのへんで", farewell]]);
+    if (line.length) say(line, offer);
+    else offer();
+  }
+
+  function node(key) {
+    const here = talk.nodes[key];
+    say(here.lines, () => {
+      if (here.choices.length) ask(here.choices.map((choice) => [choice.label, () => node(choice.next)]));
+      else if (here.next === "menu" || !here.next) menu(false);
+      else node(here.next);
+    });
+  }
+
+  function farewell() {
+    say(talk.farewell, () => ask([["またね", close]]));
+  }
+
+  function close() {
+    clearInterval(typing);
+    typing = null;
+    if (board.open) board.close();
+  }
+
+  async function begin() {
+    board.classList.add("loading");
+    text.textContent = "……";
+    choices.replaceChildren();
+    next.hidden = true;
+    board.showModal();
+    try {
+      const response = await fetch("/guild/signboard", { headers: { Accept: "application/json" } });
+      if (!response.ok) throw new Error(String(response.status));
+      talk = await response.json();
+    } catch {
+      board.classList.remove("loading");
+      text.textContent = "……看板の絵の具がかすれて、うまく話せないみたい。また少ししてから来てね。";
+      ask([["閉じる", close]]);
+      return;
+    }
+    board.classList.remove("loading");
+    if (!fresh()) {
+      say(talk.done, () => ask([["またね", close]]));
+      return;
+    }
+    mark();
+    badge();
+    left = [...talk.topics];
+    menuTurn = 0;
+    say(talk.opener, () => menu(true));
+  }
+
+  board.querySelector(".sb-box").addEventListener("click", (event) => {
+    if (event.target.closest(".sb-choices")) return;
+    if (!next.hidden) advance();
+  });
+  board.addEventListener("keydown", (event) => {
+    // Escape closes only this, not the window under it.
+    if (event.key === "Escape") event.stopPropagation();
+    if ((event.key === "Enter" || event.key === " ") && !next.hidden && !event.target.closest("button")) {
+      event.preventDefault();
+      advance();
+    }
+  });
+  board.querySelector(".sb-close").addEventListener("click", close);
+  board.addEventListener("close", () => open.focus({ preventScroll: true }));
+  open.addEventListener("click", begin);
+  open.hidden = false;
+  badge();
+})();

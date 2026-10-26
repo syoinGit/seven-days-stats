@@ -1,0 +1,219 @@
+# Mire, the girl painted on the tavern's sign, talks with the visitor once a day (GuildSignboard).
+# She explains the guild and its world: the three villages, the factions, the faiths, the dungeon, the tavern.
+# Lines: one map per line, {face: text}. face is normal, smile, joy, think, surprise, shy or sad.
+#   if: says the line only when it holds: busy / empty (anyone visited today), newest (there is a newest resident),
+#   run-none / run-out / run-back (tonight's dungeon run).
+# Text may name today's facts, filled in by code: {visitors} (today's visitors), {residents} (living residents),
+#   {newest} (the newest resident), {run} (tonight's run, "古い坑道で戦闘中"), {party} (its members),
+#   {count:村や派閥や信仰の名前} (living residents there).
+# Each day opens with one opener (by date), then offers three topics (by date) from the menu, then says goodbye.
+# A node ends with choices (label -> next node) or with next: a node, or "menu" to go back to the topics.
+version: "2026-10-25-signboard-a"
+name: ミレ
+role: 看板娘
+openers:
+  - - {smile: "あ、いらっしゃい。……ふふ、びっくりした？ 看板の絵がしゃべったから。"}
+    - {normal: "わたしはミレ。このギルドの、看板娘……の絵。店番がいないから、代わりにお客さんの相手をしてるの。"}
+    - {if: busy, smile: "今日はもう{visitors}人来てるよ。あなたで、えっと……{visitors}人と、ひとり。"}
+    - {if: empty, think: "今日はまだ、だれも来てないの。だから、あなたが一番乗り。"}
+  - - {joy: "こんばんは！ ……あ、時間は関係ないか。絵だから、時計が読めなくて。"}
+    - {normal: "わたしはミレ。看板の中から、いつもこの酒場をながめてるんだ。"}
+    - {if: newest, smile: "いちばん新しい住人は{newest}さん。もう会った？ 名簿に載ってるよ。"}
+  - - {normal: "いらっしゃい。来てくれると思ってた。"}
+    - {shy: "……なんてね。ほんとは、だれか来ないかなって、ずっと扉を見てたの。"}
+    - {if: run-out, think: "今夜はね、{party}がダンジョンに出てるの。いまは{run}。……無事だといいな。"}
+    - {if: run-back, smile: "今夜の探索はもう終わったよ。{run}。円卓のほうがにぎやかでしょ？"}
+  - - {smile: "おかえりなさい……って言いたくなる顔してるね。はじめて？ それとも、また来てくれたの？"}
+    - {normal: "わたしはミレ。この看板に描かれてる娘。一日にちょっとだけ、こうして話せるんだ。"}
+    - {if: busy, normal: "今日の酒場には{visitors}人。見取り図の点が、それぞれのいる場所だよ。"}
+menu:
+  - {normal: "なにか聞きたいことある？"}
+  - {smile: "ほかには？ 今日はまだ、もう少し話せるよ。"}
+  - {think: "次はなんの話にしよっか。"}
+farewell:
+  - {smile: "……そろそろ、絵の具が乾いてきちゃった。今日はここまで。"}
+  - {normal: "わたしはずっとここにいるから。明日も、看板の下で待ってるね。"}
+done:
+  - {smile: "今日はもう、たくさん話したよ。"}
+  - {normal: "また明日。酒場は、あなたが見てないあいだも動いてるからね。"}
+topics:
+  - {key: guild, label: このギルドのこと, start: guild}
+  - {key: grantford, label: グランフォードのこと, start: grantford}
+  - {key: elmwood, label: エルムウッドのこと, start: elmwood}
+  - {key: tsukikage, label: 月影郷のこと, start: tsukikage}
+  - {key: faiths, label: 信仰のこと, start: faiths}
+  - {key: factions, label: 派閥のこと, start: factions}
+  - {key: dungeon, label: ダンジョンのこと, start: dungeon}
+  - {key: tavern, label: 酒場の過ごし方, start: tavern}
+nodes:
+  guild:
+    lines:
+      - {normal: "ここは「無人の冒険者ギルド」。ギルドと酒場がいっしょになった、小さな街のお店。"}
+      - {think: "でも、店主も受付もいないの。扉はいつも開いてて、火も勝手に入ってる。"}
+      - {normal: "なのに毎日、だれかがやって来るんだよ。"}
+    choices:
+      - {label: 住人はどこから来るの？, next: guild-born}
+      - {label: きみはどうしてしゃべれるの？, next: guild-mire}
+  guild-born:
+    lines:
+      - {think: "住人はね、「記憶」から生まれるんだって。"}
+      - {normal: "どこか遠くの世界で、だれかが冒険した記録。訪れた場所、倒した魔物、宝箱にしまったもの。"}
+      - {smile: "そのひとかけらが、この街でひとりの人になるの。だから住人はみんな、ちょっとずつ冒険の匂いがする。"}
+      - {if: newest, normal: "いちばん新しいのは{newest}さん。人物の紹介に、生まれた記憶も書いてあるよ。"}
+      - {normal: "いま街に暮らしてるのは{residents}人。毎日、そのなかから何人かが酒場に顔を出すの。"}
+    next: menu
+  guild-mire:
+    lines:
+      - {shy: "……それ、わたしにも分からないの。"}
+      - {think: "気づいたら看板の中にいて、気づいたらしゃべれた。住人みたいに、だれかの記憶から生まれたのかもね。"}
+      - {sad: "ただ、看板から出られないし、長くは話せない。一日に一回、少しだけ。"}
+      - {smile: "だから、話しかけてくれるとうれしいんだ。"}
+    next: menu
+  grantford:
+    lines:
+      - {normal: "グランフォードは、石造りの家と麦畑の村。領主さまのお屋敷もあるの。"}
+      - {smile: "領主さまと家臣の人たち、騎士、それから畑を耕す人がたくさん暮らしてる。"}
+      - {if: busy, normal: "いま住んでる住人は{count:グランフォード}人。"}
+    choices:
+      - {label: どんな人たちが仕切ってるの？, next: grantford-rule}
+      - {label: お祭りはある？, next: grantford-fest}
+  grantford-rule:
+    lines:
+      - {normal: "村を治めてるのは「グランフォード領主家」。領主さまと、その家臣たちだね。"}
+      - {think: "それとは別に「白銀の騎士団」もいるの。正義と名誉をなにより大事にする騎士たち。"}
+      - {smile: "騎士は月影郷にはいないの。あっちには侍がいるから。"}
+      - {normal: "グランフォードの人は、たいてい暁光教を信じてる。光と秩序の教えだよ。"}
+    next: menu
+  grantford-fest:
+    lines:
+      - {joy: "あるある！ 収穫祭。広場に麦束を積んで、焼き菓子を配るの。"}
+      - {smile: "それから馬上槍試合。騎士見習いの子たちが、この日のために一年じゅう練習してる。"}
+      - {think: "負けた子が酒場でしょんぼりしてると、だいたいだれかが一杯おごってあげるんだ。"}
+    next: menu
+  elmwood:
+    lines:
+      - {normal: "エルムウッドは、森の中の村。自然の信仰がさかんなところ。"}
+      - {smile: "狩人や薬草師が多くて、森の恵みで暮らしてる。"}
+      - {if: busy, normal: "住人は{count:エルムウッド}人。"}
+    choices:
+      - {label: 森を守ってる人たちがいるの？, next: elmwood-wardens}
+      - {label: 薬草ってどんなの？, next: elmwood-herbs}
+  elmwood-wardens:
+    lines:
+      - {normal: "うん、「翠葉の守人」。森や自然を守る人たちの集まり。"}
+      - {think: "森を荒らす魔物が出ると、真っ先に駆けつけるの。"}
+      - {smile: "森の精霊祭では木々に灯りを吊るして、一晩じゅう歌うんだ。"}
+      - {shy: "……看板の中まで歌声が聞こえる気がするの。気のせいかな。"}
+    next: menu
+  elmwood-herbs:
+    lines:
+      - {smile: "傷に効くもの、熱を下げるもの、よく眠れるもの。いろいろあるよ。"}
+      - {normal: "エルムウッドの薬草師は、摘むときに森へひとこと断るんだって。「少し分けてください」って。"}
+      - {think: "ダンジョンの湿った岩のすきまにも生えてるらしいの。探索のついでに摘んでくる人もいるよ。"}
+    next: menu
+  tsukikage:
+    lines:
+      - {normal: "月影郷は、和の趣きのある集落。"}
+      - {smile: "侍や浪人、巫女さんが暮らしてる。そういう人たちは、この街だと月影郷にしかいないの。"}
+      - {if: busy, normal: "住人は{count:月影郷}人。"}
+    choices:
+      - {label: だれが治めてるの？, next: tsukikage-rule}
+      - {label: どんな暮らしをしてるの？, next: tsukikage-life}
+  tsukikage-rule:
+    lines:
+      - {normal: "「月影武家衆」。月影郷を治める武家の人たち。"}
+      - {think: "言葉づかいが古風でね、「それがし」とか「でござる」とか。酒場で聞くとすぐ分かるよ。"}
+      - {smile: "礼儀にはうるさいけど、一度仲良くなると、とことん義理堅いの。"}
+    next: menu
+  tsukikage-life:
+    lines:
+      - {smile: "月見の夜には、お団子を供えて、みんなで月をながめるの。"}
+      - {normal: "お茶の作法もあってね、器の回し方ひとつにも意味があるんだって。"}
+      - {think: "巫女さんが舞う神楽は、八百万の神さまに捧げるもの。月影郷では、精霊信仰を八百万信仰って呼ぶんだ。"}
+    next: menu
+  faiths:
+    lines:
+      - {normal: "この街の信仰は、大きく分けて二つ。暁光教と、精霊信仰。"}
+      - {think: "どっちも信じてない人もいるよ。無信仰って言うの。"}
+    choices:
+      - {label: 暁光教って？, next: faiths-dawn}
+      - {label: 精霊信仰って？, next: faiths-spirit}
+      - {label: 信仰を変える人もいるの？, next: faiths-change}
+  faiths-dawn:
+    lines:
+      - {normal: "暁光教は、光と秩序を大事にする教え。夜明けの光が、世界を正しく照らすっていう考え方。"}
+      - {smile: "グランフォードの人に多いの。いまは{count:暁光教}人が暁光教を信じてる。"}
+      - {think: "神官さんはすごく丁寧な話し方をするから、すぐ分かるよ。"}
+    next: menu
+  faiths-spirit:
+    lines:
+      - {normal: "精霊信仰は、自然や、ご先祖さまの霊を敬う信仰。"}
+      - {smile: "エルムウッドでさかんで、月影郷では八百万信仰として根付いてる。木にも川にも、かまどにも何かが宿ってるって考えるの。"}
+      - {normal: "いま信じてる人は{count:精霊信仰}人。"}
+      - {shy: "……看板にも、宿ってたりして。"}
+    next: menu
+  faiths-change:
+    lines:
+      - {think: "うん、ときどき。だれかと話しこんだ夜に、心が動くことがあるみたい。"}
+      - {normal: "住人の所属や信仰が変わったら、人物の紹介に「これまでの変化」として残るよ。"}
+      - {sad: "信じるものが違って、ぎくしゃくする二人もいる。でも、それで仲良くなる二人もいるの。"}
+    next: menu
+  factions:
+    lines:
+      - {normal: "派閥は四つ。グランフォード領主家、白銀の騎士団、翠葉の守人、月影武家衆。"}
+      - {smile: "どこにも入ってない人は無所属。いまは{count:無所属}人で、実はいちばん気楽かも。"}
+    choices:
+      - {label: どの派閥にも入れるの？, next: factions-join}
+      - {label: 派閥どうしは仲がいいの？, next: factions-rivals}
+  factions-join:
+    lines:
+      - {think: "ううん、決まりがあるの。派閥にはそれぞれ根を張る村があって、そこに暮らす人が入る。"}
+      - {normal: "月影武家衆なら月影郷、翠葉の守人ならエルムウッド。グランフォードの二つは、グランフォードの人。"}
+      - {smile: "酒場での出会いがきっかけで入ったり、抜けたりすることもあるよ。"}
+    next: menu
+  factions-rivals:
+    lines:
+      - {think: "うーん……人によるかな。生まれた村や信じるものが違うと、話がかみ合わないこともあるの。"}
+      - {normal: "でもそれは、仲が悪いってことじゃなくて、まだお互いを知らないだけなんだと思う。"}
+      - {smile: "でもダンジョンでいっしょに戦ったら、そういうのはわりとどうでもよくなるみたい。"}
+    next: menu
+  dungeon:
+    lines:
+      - {normal: "毎晩21時50分になると、酒場にいる人から1人から4人がダンジョンへ出発するの。"}
+      - {if: run-none, think: "今夜はまだ出発してないよ。だれが行くのかな。"}
+      - {if: run-out, surprise: "いまちょうど探索中！ {party}が{run}。"}
+      - {if: run-back, smile: "今夜の探索は終わってる。{run}だって。"}
+    choices:
+      - {label: どんなダンジョンがあるの？, next: dungeon-places}
+      - {label: 帰ってきたらどうなるの？, next: dungeon-back}
+  dungeon-places:
+    lines:
+      - {normal: "グランフォードの近くには古い坑道と沈んだ礼拝堂。エルムウッドの近くには大樹のうろと霧の塚。"}
+      - {think: "月影郷には、月の夜だけ水が引く月影の裏洞。それから、街道の下を通る地下水路。"}
+      - {smile: "探索の様子は少しずつ知らせが届くよ。上の「ダンジョン」を押すと、いまどのあたりか見られるの。"}
+    next: menu
+  dungeon-back:
+    lines:
+      - {smile: "帰ってきた仲間は、酒場の円卓にまとまって座るの。うまくいった夜は、卓に戦利品が光ってる。"}
+      - {normal: "いっしょに潜ると、仲間どうしの信頼が深まるんだ。うまくいけばなおさら。"}
+      - {sad: "でも撤退した夜は……うまくいかなかった気持ちが、少し尾を引くこともある。"}
+    next: menu
+  tavern:
+    lines:
+      - {normal: "酒場はね、カウンター、テーブル席、依頼掲示板、暖炉、円卓の五か所。右上の見取り図で見る場所を選べるよ。"}
+      - {smile: "朝・昼・夜で、みんな座る場所が変わるの。"}
+    choices:
+      - {label: みんな何を話してるの？, next: tavern-talk}
+      - {label: おすすめの見方は？, next: tavern-watch}
+  tavern-talk:
+    lines:
+      - {normal: "夜の8時から10時ごろ、来てる人のうち二人がおしゃべりするの。話した二人は同じテーブルに座るよ。"}
+      - {think: "話すたびに、二人の仲は少しずつ変わっていく。友達になったり、恋人になったり、ときには宿敵になったり。"}
+      - {smile: "下の「記録」に、これまでの会話が全部残ってる。二人の物語を通して読むのもおすすめ。"}
+    next: menu
+  tavern-watch:
+    lines:
+      - {smile: "わたしのおすすめは、ぼーっとながめること。"}
+      - {normal: "猫があくびしたり、暖炉の火がはぜたり、だれかがひとりごとを言ったり。"}
+      - {shy: "……わたし、それを一日じゅう見てるの。けっこう飽きないよ。"}
+    next: menu
