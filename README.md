@@ -115,7 +115,7 @@ Administrators can inspect the generated AI request at
 strict JSON response contract, aggregate changes, survivor activity, localized
 POIs, and bounded evidence events. The payload deliberately excludes platform
 IDs, raw log lines, source paths, and exact coordinates. When `WATCHPOINT_AI_ENABLED`
-is enabled, the application invokes Claude Haiku 5.5 (`anthropic.claude-haiku-5-5`, overridable with `APP_AI_MODEL_ID`) through InvokeModel,
+is enabled, the application invokes Claude Haiku 4.5 (`jp.anthropic.claude-haiku-4-5-20251001-v1:0`; set `APP_AI_MODEL_ID` to switch, e.g. to Haiku 5.5 once the account has access) through InvokeModel,
 validates `body` and `evidenceKeys`, and saves the short observation only after
 validation succeeds. AWS credentials come exclusively from the SDK default
 credential chain, so EC2 uses its attached IAM role.

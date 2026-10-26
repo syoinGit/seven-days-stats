@@ -160,7 +160,7 @@ class WatchpointAiPublishingServiceTests {
   private AiAnalysisProperties properties(boolean enabled) {
     return new AiAnalysisProperties(enabled,
         30, 60, "classpath:prompts/watchpoint-system-prompt.txt",
-        "ap-northeast-1", "anthropic.claude-haiku-5-5", 400,
+        "ap-northeast-1", "jp.anthropic.claude-haiku-4-5-20251001-v1:0", 400,
         java.time.Duration.ofMinutes(30), java.time.Duration.ofMinutes(1), 10);
   }
 

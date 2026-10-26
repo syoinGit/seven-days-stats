@@ -25,7 +25,7 @@ public record AiAnalysisProperties(
         : systemPromptResource;
     awsRegion = awsRegion == null || awsRegion.isBlank() ? "ap-northeast-1" : awsRegion;
     modelId = modelId == null || modelId.isBlank()
-        ? "anthropic.claude-haiku-5-5"
+        ? "jp.anthropic.claude-haiku-4-5-20251001-v1:0"
         : modelId;
     maxOutputTokens = maxOutputTokens <= 0 ? 400 : Math.min(maxOutputTokens, 1000);
     scheduleInterval = positiveOrDefault(scheduleInterval, Duration.ofMinutes(30));

@@ -13,8 +13,8 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Shared InvokeModel transport (Anthropic Messages body). Callers own prompts, generation limits and domain validation.
- * Claude Haiku 5.5 rejects temperature/top_p/top_k, so none are sent; thinking is turned off because every caller
- * wants a short piece of text, not reasoning, and thinking would spend the same max_tokens.
+ * The body works for Haiku 4.5 (the default) and Haiku 5.5 alike: no temperature/top_p/top_k, which 5.5 rejects, and
+ * thinking turned off, which 5.5 would otherwise do by default; every caller wants a short piece of text, not reasoning.
  */
 @Service
 @RequiredArgsConstructor

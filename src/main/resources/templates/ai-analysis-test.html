@@ -10,7 +10,7 @@
 <body class="watchpoint-body">
 <header th:replace="~{fragments/header :: appHeader('7dtd', 'watchpoint-topbar')}"></header>
 <main class="detail-shell"><nav th:replace="~{fragments/navigation :: rail('ai-test')}"></nav><section class="layout detail-page">
-  <header class="page-title"><nav class="breadcrumbs"><a th:href="@{/dashboard}"><span aria-hidden="true">⌂</span> 冒険記録</a><span>›</span><b>Bedrockテスト</b></nav><h1>WATCHPOINT 発話テスト</h1><p>現在の観測JSONをClaude Haiku 5.5へ送り、検証成功時だけトップページのAI観測コメントとして保存します。</p></header>
+  <header class="page-title"><nav class="breadcrumbs"><a th:href="@{/dashboard}"><span aria-hidden="true">⌂</span> 冒険記録</a><span>›</span><b>Bedrockテスト</b></nav><h1>WATCHPOINT 発話テスト</h1><p>現在の観測JSONをClaude Haiku（既定は4.5）へ送り、検証成功時だけトップページのAI観測コメントとして保存します。</p></header>
 
   <p class="form-notice success" th:if="${notice}" th:text="${notice}">生成しました。</p>
   <p class="form-notice error" th:if="${error}" th:text="${error}">生成に失敗しました。</p>

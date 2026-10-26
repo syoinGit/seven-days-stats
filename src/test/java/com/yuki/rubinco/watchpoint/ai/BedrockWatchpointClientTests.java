@@ -36,7 +36,7 @@ class BedrockWatchpointClientTests {
   void setUp() {
     AiAnalysisProperties properties = new AiAnalysisProperties(true,
         30, 60, "classpath:prompts/watchpoint-system-prompt.txt",
-        "ap-northeast-1", "anthropic.claude-haiku-5-5", 400,
+        "ap-northeast-1", "jp.anthropic.claude-haiku-4-5-20251001-v1:0", 400,
         java.time.Duration.ofMinutes(30), java.time.Duration.ofMinutes(1), 10);
     client = new BedrockWatchpointClient(new BedrockTextClient(runtimeClient, properties), properties, new ObjectMapper());
   }
@@ -52,13 +52,13 @@ class BedrockWatchpointClientTests {
     assertThat(generated.evidenceKeys()).containsExactly("event-001");
     ArgumentCaptor<InvokeModelRequest> captor = ArgumentCaptor.forClass(InvokeModelRequest.class);
     verify(runtimeClient).invokeModel(captor.capture());
-    assertThat(captor.getValue().modelId()).isEqualTo("anthropic.claude-haiku-5-5");
+    assertThat(captor.getValue().modelId()).isEqualTo("jp.anthropic.claude-haiku-4-5-20251001-v1:0");
     JsonNode body = sent(captor.getValue());
     assertThat(body.path("anthropic_version").asString()).isEqualTo("bedrock-2023-05-31");
     assertThat(body.path("system").asString()).isEqualTo("WATCHPOINT system");
     assertThat(body.path("messages").get(0).path("role").asString()).isEqualTo("user");
     assertThat(body.path("max_tokens").asInt()).isEqualTo(400);
-    // Haiku 5.5 rejects sampling parameters; thinking is off for short text.
+    // No sampling parameters (Haiku 5.5 rejects them); thinking is off for short text.
     assertThat(body.has("temperature")).isFalse();
     assertThat(body.has("top_p")).isFalse();
     assertThat(body.path("thinking").path("type").asString()).isEqualTo("disabled");

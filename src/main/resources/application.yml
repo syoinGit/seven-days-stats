@@ -182,7 +182,7 @@ app:
   ai:
     enabled: false
     aws-region: ap-northeast-1
-    model-id: anthropic.claude-haiku-5-5
+    model-id: jp.anthropic.claude-haiku-4-5-20251001-v1:0
     window-minutes: 30
     max-events: 60
     system-prompt-resource: classpath:prompts/watchpoint-system-prompt.txt
