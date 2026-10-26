@@ -46,6 +46,23 @@ public class GuildChronicle {
       return body.lines().toList();
     }
 
+    /**
+     * The scene as a script: each line either a participant's speech ("リネ「…」", side 0 for the first participant,
+     * 1 for the second) or narration (speaker null, side -1).
+     */
+    public List<Line> script() {
+      List<Line> out = new ArrayList<>();
+      for (String line : lines()) {
+        var speech = java.util.regex.Pattern.compile("^(.+?)「(.*)」$").matcher(line.strip());
+        int side = -1;
+        if (speech.matches()) {
+          for (int i = 0; i < people.size(); i++) if (people.get(i).name().equals(speech.group(1))) side = Math.min(i, 1);
+        }
+        out.add(side < 0 ? new Line(null, null, -1, line.strip()) : new Line(people.get(side).id(), people.get(side).name(), side, speech.group(2)));
+      }
+      return List.copyOf(out);
+    }
+
     public String selectionName() {
       return GuildInteractionService.SELECTIONS.getOrDefault(selection, selection);
     }
@@ -53,6 +70,13 @@ public class GuildChronicle {
     /** "/guild/pairs/3-8" for the two participants. */
     public String pairPath() {
       return people.size() < 2 ? null : GuildChronicle.pairPath(people.get(0).id(), people.get(1).id());
+    }
+  }
+
+  /** One line of a scene: speech (speakerId, name, side 0 or 1) or narration (side -1). */
+  public record Line(Long speakerId, String name, int side, String text) {
+    public boolean narration() {
+      return side < 0;
     }
   }
 

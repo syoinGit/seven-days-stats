@@ -33,6 +33,17 @@
   <p th:if="${character.status == 'DEAD'}">この人物は亡くなりました。その人の記録はここに残ります。</p>
   <p th:if="${character.status == 'INJURED'}">現在は療養しています。</p><p th:if="${character.status == 'MISSING'}">現在は所在が分かっていません。</p>
   <div class="guild-dialogue"><p th:text="${character.introduction}"></p></div>
+  <!-- Talking with them, as a conversation read line by line (GuildAdv): their first line, the visitor's answer, their reply.
+       JS fetches the reply and keeps "talked today" in this browser. Without JS only the first line shows. -->
+  <section class="guild-talk" th:if="${talk != null}" data-talk th:attr="data-talk-id=${talk.id}, data-character-id=${character.id}, data-name=${character.name}">
+    <button type="button" class="guild-talk-start" data-talk-start hidden><span class="talk-icon" aria-hidden="true"><i></i><i></i><i></i></span><th:block th:text="${character.name + 'に話しかける'}">リネに話しかける</th:block></button>
+    <div class="adv-log" data-talk-log>
+      <div class="adv-say left"><svg th:replace="~{fragments/guild :: sprite(${character})}"></svg>
+        <div class="adv-bubble"><b th:text="${character.name}">リネ</b><p data-talk-opening th:text="${talk.opening}">いい夜ですね。</p></div></div>
+    </div>
+    <ol hidden data-talk-labels><li th:each="label, it : ${talk.labels}" th:attr="data-talk-choice=${it.index}" th:text="${label}">そうですね</li></ol>
+    <p class="guild-talk-note" data-talk-note>返事をするにはJavaScriptが必要です。</p>
+  </section>
   <dl class="guild-affiliation">
     <dt>出身地</dt><dd th:text="${character.homeVillage}">グランフォード</dd>
     <dt>現在地</dt><dd th:text="${character.village}">グランフォード</dd>
@@ -40,16 +51,6 @@
     <dt>所属派閥</dt><dd th:text="${character.faction}">無所属</dd>
     <dt>信仰</dt><dd th:text="${character.faith}">無信仰</dd>
   </dl>
-  <!-- Talking with them: the first line and three answers; JS fetches the reply and keeps "talked today" in this browser. -->
-  <section class="guild-talk" th:if="${talk != null}" data-talk th:attr="data-talk-id=${talk.id}, data-character-id=${character.id}">
-    <h3 th:text="${character.name + 'と話す'}">リネと話す</h3>
-    <p class="guild-talk-line" th:text="${talk.opening}">いい夜ですね。</p>
-    <div class="guild-talk-choices" data-talk-choices hidden>
-      <button type="button" th:each="label, it : ${talk.labels}" th:attr="data-talk-choice=${it.index}" th:text="${label}">そうですね</button>
-    </div>
-    <p class="guild-talk-reply" data-talk-reply hidden></p>
-    <p class="guild-talk-note" data-talk-note>返事を選ぶにはJavaScriptが必要です。</p>
-  </section>
   <h3>人となり</h3><p th:text="${character.personality}"></p>
   <p class="guild-voice" th:if="${voice != null}" th:text="${'話し方：' + voice.describe()}">話し方：一人称「あたし」・語尾「〜だろ・〜さ」・さばさばして遠慮がない</p>
   <th:block th:unless="${#lists.isEmpty(history)}"><h3>所属の履歴</h3>
@@ -131,7 +132,20 @@
   <p class="guild-window-lead"><small th:text="${#temporals.format(detail.entry.at, 'yyyy年M月d日 H時') + '・' + detail.entry.placeName() + '・' + detail.entry.kind + '・選ばれ方: ' + detail.entry.selectionName()}">2026年10月25日 14時・無人の冒険者ギルド・雑談</small></p>
   <h3 th:text="${detail.entry.summary}">リネとロアンは天気の話をした</h3>
   <ul class="guild-cast-list"><li th:each="person : ${detail.entry.people}"><strong th:text="${person.name}">リネ</strong><small th:text="${person.profile}">28歳・女性・冒険者・グランフォード</small></li></ul>
-  <div class="guild-dialogue"><p th:each="line : ${detail.entry.lines()}" th:text="${line}">窓の外は雨だった。</p></div>
+  <!-- The scene as speech bubbles beside each speaker's figure; with JS it can also be read one line at a time (GuildAdv). -->
+  <section class="adv-log" data-adv-scene>
+    <button type="button" class="adv-start" data-adv-start hidden>▶ ADV風に読む</button>
+    <th:block th:each="line : ${detail.entry.script()}">
+      <p th:if="${line.narration()}" class="adv-narration" data-adv-line th:text="${line.text}">窓の外は雨だった。</p>
+      <div th:unless="${line.narration()}" class="adv-say" th:classappend="${line.side == 0 ? 'left' : 'right'}" data-adv-line
+           th:attr="data-side=${line.side == 0 ? 'left' : 'right'}, data-name=${line.name}">
+        <svg th:replace="~{fragments/guild :: sprite(${cast.get(line.speakerId)})}"></svg>
+        <div class="adv-bubble"><b th:text="${line.name}">リネ</b><p th:text="${line.text}">今日は冷えるね。</p></div>
+      </div>
+    </th:block>
+    <div hidden data-adv-figures><span th:each="person, it : ${detail.entry.people}" th:if="${it.index < 2}" th:attr="data-side=${it.index == 0 ? 'left' : 'right'}"><svg
+      th:replace="~{fragments/guild :: sprite(${cast.get(person.id)})}"></svg></span></div>
+  </section>
   <p class="guild-footer" th:if="${detail.entry.writtenBy == 'template'}">この場面は定型文で記録されました。</p>
   <h3>登場した住人</h3>
   <p><th:block th:each="person, it : ${detail.entry.people}"><a th:href="@{/guild/characters/{id}(id=${person.id})}" th:text="${person.described()}">リネ</a><th:block th:unless="${it.last}">・</th:block></th:block>

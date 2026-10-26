@@ -524,6 +524,16 @@ class GuildTests {
     assertThatThrownBy(() -> writer.validate(SCENE.replace("今日は冷えるね。", "冷".repeat(120)), scene)).hasMessage("せりふが長すぎる");
   }
 
+  /** A scene splits into speech by either participant and narration; anything else stays narration. */
+  @Test void aSceneReadsAsAScript() {
+    var people = List.of(new GuildChronicle.Ref(1, "リネ", "ALIVE", ""), new GuildChronicle.Ref(2, "ロアン", "ALIVE", ""));
+    var entry = new GuildChronicle.Entry(1, java.time.OffsetDateTime.now(), "雑談", "random", "", "雨の夜。\nリネ「冷えるね。」\nロアン「そうだな。」\nガルド「誰だ？」",
+        "ai", "guild", people);
+    assertThat(entry.script()).extracting(GuildChronicle.Line::side).containsExactly(-1, 0, 1, -1);
+    assertThat(entry.script().get(2)).extracting(GuildChronicle.Line::name, GuildChronicle.Line::text).containsExactly("ロアン", "そうだな。");
+    assertThat(entry.script().get(3).text()).isEqualTo("ガルド「誰だ？」");
+  }
+
   /** A refused reply is asked for once more; when that fails too, the fixed scene is kept and the maintenance page says why. */
   @Test void aRefusedSceneIsAskedForAgainAndTheReasonIsKept() {
     resident("リネ", 28, "ALIVE", 0);
@@ -776,7 +786,7 @@ class GuildTests {
     var talk = talks.latest(rine);
     assertThat(talk.labels()).containsExactly("たしかに少し濃いですね", "何が入っているんですか", "あなたの舌が鈍っているのでは");
     String page = mvc.perform(get("/guild/characters/" + rine)).andExpect(status().isOk())
-        .andExpect(content().string(containsString("リネと話す")))
+        .andExpect(content().string(containsString("リネに話しかける")))
         .andExpect(content().string(containsString("今夜は少し塩が強い")))
         .andExpect(content().string(containsString("data-talk-choice=\"2\"")))
         .andReturn().getResponse().getContentAsString();
@@ -786,7 +796,7 @@ class GuildTests {
         .andExpect(content().string(containsString("店主の秘密")));
     mvc.perform(get("/guild/talks/" + talk.id() + "/choices/3")).andExpect(status().isNotFound());
     mvc.perform(get("/guild/talks/999999/choices/0")).andExpect(status().isNotFound());
-    mvc.perform(get("/guild")).andExpect(content().string(containsString("can-talk")));
+    mvc.perform(get("/guild")).andExpect(content().string(containsString("person-talkable")));
     // The dead don't talk; deleting a resident takes their talks too.
     jdbc.update("UPDATE M_GUILD_CHARACTER SET status = 'DEAD' WHERE id = ?", rine);
     assertThat(talks.latest(rine)).isNull();
@@ -1123,8 +1133,12 @@ class GuildTests {
     mvc.perform(get("/guild/log").param("character", String.valueOf(roan))).andExpect(status().isOk())
         .andExpect(content().string(containsString("ロアン の交流")));
     mvc.perform(get("/guild/log/" + id)).andExpect(status().isOk())
-        .andExpect(content().string(containsString("夕方の酒場。")))
-        .andExpect(content().string(containsString("リネ「今日は冷えるね。」")))
+        .andExpect(content().string(containsString("<p class=\"adv-narration\" data-adv-line>夕方の酒場。窓の外では雨が降っている。</p>")))
+        // Each line as a bubble beside its speaker's figure: the first participant on the left, the second on the right.
+        .andExpect(content().string(containsString("data-side=\"left\" data-name=\"リネ\"")))
+        .andExpect(content().string(containsString("data-side=\"right\" data-name=\"ロアン\"")))
+        .andExpect(content().string(containsString("<p>今日は冷えるね。</p>")))
+        .andExpect(content().string(containsString("data-adv-start")))
         .andExpect(content().string(containsString("知人になった")))
         .andExpect(content().string(not(containsString("PRIVATE_PLAYER_SECRET"))));
     mvc.perform(get("/guild/pairs/" + pair)).andExpect(status().isOk())

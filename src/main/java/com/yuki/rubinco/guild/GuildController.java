@@ -114,7 +114,12 @@ public class GuildController {
 
   @GetMapping("/guild/log/{id}")
   public String entry(Model model, @PathVariable long id) {
-    model.addAttribute("detail", chronicle.detail(id));
+    var detail = chronicle.detail(id);
+    model.addAttribute("detail", detail);
+    // Each participant's figure, shown beside their lines.
+    java.util.Map<Long, GuildService.Character> cast = new java.util.HashMap<>();
+    for (var person : detail.entry().people()) cast.put(person.id(), guild.character(person.id()));
+    model.addAttribute("cast", cast);
     return stage(model, "log", "entry", "交流の記録");
   }
 
