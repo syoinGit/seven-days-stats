@@ -12,7 +12,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * The choices a newcomer may be given and the pixel parts they wear. The AI reads the memory and picks
+ * The choices a newcomer may be given and the SD illustration parts they wear. The AI reads the memory and picks
  * gender, occupation and name lineage from what this offers; whatever the last residents already have
  * too much of is left out, so the town does not fill with one kind of person.
  */
@@ -99,7 +99,7 @@ public class GuildPeople {
       .collect(Collectors.toUnmodifiableSet());
 
   /**
-   * The pixel parts of one person. Colours are always from the palettes above. face follows gender (null when
+   * The illustration parts of one person. Generated colours come from the palettes above. face follows gender (null when
    * unknown); accessory and eye are null for residents born before V60.
    */
   public record Look(String outfit, String hair, String hairColor, String skin, String cloth, String cloth2, String legs,
@@ -113,6 +113,20 @@ public class GuildPeople {
       layers.add("hair-" + hair);
       if (accessory != null && !accessory.equals("none")) layers.add("acc-" + accessory);
       if (HATS.contains(outfit)) layers.add("hat-" + outfit);
+      return layers;
+    }
+
+    /** Permanent character cues, not the emotion of the current dialogue. No new stored/random choices. */
+    public List<String> layers(Integer age, String personality) {
+      List<String> layers = layers();
+      int faceEnd = face == null ? 1 : 2;
+      if (age != null) {
+        if (age >= 60) layers.add(faceEnd, "age-elder");
+        else if (age >= 40) layers.add(faceEnd, "age-mature");
+        else if (age < 20) layers.add(faceEnd, "age-young");
+      }
+      String expression = expression(personality);
+      if (expression != null) layers.add(faceEnd, "expression-" + expression);
       return layers;
     }
 
@@ -138,6 +152,21 @@ public class GuildPeople {
       String face = "女性".equals(gender) ? "f" : "男性".equals(gender) ? "m" : null;
       return new Look(outfit, hair, hairColor, skin, cloth, cloth2, legs, face, accessory, eye);
     }
+  }
+
+  /** Conservative text hints; unrecognised profiles keep the neutral face. */
+  private static String expression(String personality) {
+    if (personality == null) return null;
+    if (containsAny(personality, "陽気", "快活", "明朗", "明るい", "お調子者", "人懐っこ")) return "bright";
+    if (containsAny(personality, "勇敢", "豪快", "勝気", "勝ち気", "頑固", "強気")) return "resolute";
+    if (containsAny(personality, "慎重", "寡黙", "内気", "心配性", "思慮深")) return "thoughtful";
+    if (containsAny(personality, "穏やか", "温厚", "優しい", "おっとり", "世話好き")) return "gentle";
+    return null;
+  }
+
+  private static boolean containsAny(String text, String... hints) {
+    for (String hint : hints) if (text.contains(hint)) return true;
+    return false;
   }
 
   /** What the AI may choose from, and the last residents (newest first) so it can tell what the town already has. */
@@ -184,7 +213,7 @@ public class GuildPeople {
     return left.isEmpty() ? List.copyOf(values) : left;
   }
 
-  /** The pixel parts for a gender and occupation; hair and colours are drawn from the palettes. */
+  /** The illustration parts for a gender and occupation; hair and colours are drawn from the palettes. */
   public Look look(String gender, String occupation) {
     boolean woman = gender.equals("女性");
     String outfit = OUTFITS.get(occupation);

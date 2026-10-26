@@ -5,13 +5,12 @@
 <meta property="og:title" th:content="${title}"><meta property="og:type" content="website">
 <link th:if="${canonical != null and !#strings.isEmpty(canonical)}" rel="canonical" th:href="${canonical}">
 <meta th:if="${canonical != null and !#strings.isEmpty(canonical)}" property="og:url" th:content="${canonical}">
-<link rel="stylesheet" href="/css/app.css?v=header-5"><link rel="stylesheet" href="/css/portal.css?v=guild-1"><link rel="stylesheet" href="/css/guild.css?v=20">
+<link rel="stylesheet" href="/css/app.css?v=header-5"><link rel="stylesheet" href="/css/portal.css?v=guild-1"><link rel="stylesheet" href="/css/guild.css?v=21">
 </th:block></head><body>
-<!-- A resident's pixel figure: layered parts when code chose them, else the plain sprite tinted by appearance. -->
-<svg th:fragment="sprite(c)" class="guild-sprite" th:classappend="${c.appearance}" viewBox="0 0 16 24" aria-hidden="true"
+<!-- Shared SD figure: saved parts/colours, age and temperament; also used by dialogue portraits. -->
+<svg th:fragment="sprite(c)" class="guild-sprite" th:classappend="${c.appearance}" viewBox="0 0 96 144" aria-hidden="true"
      th:style="${c.look != null ? c.look.style() : null}">
-  <use th:if="${c.look == null}" href="/img/guild-people.svg?v=3#resident"></use>
-  <th:block th:if="${c.look != null}"><use th:each="layer : ${c.look.layers()}" th:href="${'/img/guild-people.svg?v=3#' + layer}"></use></th:block>
+  <use th:each="layer : ${c.spriteLayers()}" th:href="${'/img/guild-people.svg?v=4#' + layer}"></use>
 </svg>
 <!-- The guild's bottom tabs. Each one but maintenance opens a window over the tavern; active: tavern, dungeon or log. -->
 <nav th:fragment="tabbar(active)" class="guild-tabbar" aria-label="ギルド" data-guild-tabbar>
