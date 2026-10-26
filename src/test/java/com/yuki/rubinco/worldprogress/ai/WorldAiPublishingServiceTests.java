@@ -69,7 +69,7 @@ class WorldAiPublishingServiceTests {
     assertThat(saved.getValue().getActorName()).isEqualTo("WATCHPOINT");
     ArgumentCaptor<String> system = ArgumentCaptor.forClass(String.class);
     verify(bedrock).generate(system.capture(), anyString(), anyInt());
-    assertThat(system.getValue()).startsWith("統計を覗ける人").contains("Core Keeper", "120文字以内", "〜だなあ", "最近の変化");
+    assertThat(system.getValue()).startsWith("統計を覗ける人").contains("Core Keeper", "120文字以内", "丁寧語", "最近の変化");
   }
 
   @Test
