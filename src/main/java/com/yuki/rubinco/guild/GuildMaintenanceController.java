@@ -36,6 +36,7 @@ public class GuildMaintenanceController {
     model.addAttribute("worlds", guild.worlds());
     model.addAttribute("hourlyJobs", interactions.jobs());
     model.addAttribute("interactionHours", properties.interactionHours());
+    model.addAttribute("interactionEnd", properties.interactionEnd());
     model.addAttribute("interactionDailyMax", properties.interactionDailyMax());
     model.addAttribute("affiliationCounts", world.counts());
     model.addAttribute("currentSlot", GuildInteractionService.slot(java.time.ZonedDateTime.now(GuildService.TOKYO)));

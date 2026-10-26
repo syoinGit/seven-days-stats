@@ -156,10 +156,17 @@ public class GuildInteractionService {
         rs.getString(14), rs.getString(15), date)), date, place.key(), date, local.toOffsetDateTime());
   }
 
-  /** Two slots an hour: "2026-10-25T20:00" for the first half, "2026-10-25T20:30" for the second. */
+  /** Four slots an hour, one each quarter: "2026-10-25T20:00", "…T20:15", "…T20:30", "…T20:45". */
   public static String slot(ZonedDateTime now) {
     var local = now.withZoneSameInstant(GuildService.TOKYO);
-    return local.toLocalDate() + "T" + String.format("%02d", local.getHour()) + (local.getMinute() < 30 ? ":00" : ":30");
+    return local.toLocalDate() + "T" + String.format("%02d:%02d", local.getHour(), local.getMinute() / 15 * 15);
+  }
+
+  /** A slot runs in one of the interaction hours, and only if it is over by the end of the evening (the server stops then). */
+  boolean open(ZonedDateTime local) {
+    var start = java.time.LocalTime.of(local.getHour(), local.getMinute() / 15 * 15);
+    // Compared on the start, so 23:45 (whose end wraps to 00:00) never passes for an evening ending at 23:30.
+    return properties.interactionHours().contains(local.getHour()) && !start.isAfter(properties.interactionEnd().minusMinutes(15));
   }
 
   public List<Job> jobs() {
@@ -173,7 +180,7 @@ public class GuildInteractionService {
     var local = now.withZoneSameInstant(GuildService.TOKYO);
     LocalDate date = local.toLocalDate();
     String slot = slot(local);
-    if (!properties.interactionHours().contains(local.getHour())) return "この時間は交流の枠ではありません。";
+    if (!open(local)) return "この時間は交流の枠ではありません。";
     jdbc.queryForObject("SELECT id FROM T_GUILD_LOCK WHERE id = 1 FOR UPDATE", Integer.class);
     List<String> done = jdbc.queryForList("SELECT message FROM T_GUILD_HOURLY_JOB WHERE slot_key = ?", String.class, slot);
     if (!done.isEmpty()) return "この時間（" + slot + "）はすでに処理済みです：" + done.getFirst();
@@ -181,7 +188,7 @@ public class GuildInteractionService {
     int today = jdbc.queryForObject("SELECT COUNT(*) FROM T_GUILD_INTERACTION WHERE slot_key LIKE ?", Integer.class, date + "T%");
     int max = Math.min(properties.interactionDailyMax(), DAILY_CAP);
     if (today >= max) return record(slot, "SKIPPED", "今日の交流は上限（" + max + "件）に達しました。");
-    // The first slot of each hour is always at the guild; the second at any place where two or more are in.
+    // The first slot of each hour is always at the guild; the others at any place where two or more are in.
     GuildPlaces.Place place = GuildPlaces.CENTER;
     List<Person> present = present(date, local, place);
     if (!slot.endsWith(":00")) {
@@ -257,6 +264,7 @@ public class GuildInteractionService {
         change == null ? null : change.text(), change == null ? null : change.kind(), place.title());
     String body;
     String writtenBy;
+    String note = "";
     try {
       body = writer.write(scene);
       writtenBy = "ai";
@@ -268,6 +276,8 @@ public class GuildInteractionService {
       }
       body = fill(outcome.template(), pair);
       writtenBy = "template";
+      // Said on the maintenance page, so a run of fixed scenes shows why.
+      note = "・定型文（" + (failure.call() ? "Bedrockを呼び出せず：" : "AIの応答を不採用：") + failure.getMessage() + "）";
     }
 
     jdbc.update("INSERT INTO T_GUILD_INTERACTION (slot_key,happened_at,card_id,cards_version,kind,selection,outcome,summary,body,written_by,place) "
@@ -296,11 +306,12 @@ public class GuildInteractionService {
           + "VALUES (?,?,?,?,?,?,?,?)", pair.a().id(), change.field(), change.from(), change.to(), change.kind(), shorten(summary), id,
           local.toOffsetDateTime());
     }
-    return record(slot, "SUCCEEDED", summary + "（" + SELECTIONS.get(selection) + "）");
+    return record(slot, "SUCCEEDED", summary + "（" + SELECTIONS.get(selection) + note + "）");
   }
 
   private String record(String slot, String status, String message) {
-    jdbc.update("INSERT INTO T_GUILD_HOURLY_JOB (slot_key,status,message) VALUES (?,?,?)", slot, status, message);
+    jdbc.update("INSERT INTO T_GUILD_HOURLY_JOB (slot_key,status,message) VALUES (?,?,?)", slot, status,
+        message.length() > 300 ? message.substring(0, 299) + "…" : message);
     return message;
   }
 
