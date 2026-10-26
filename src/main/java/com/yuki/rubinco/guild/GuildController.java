@@ -22,6 +22,7 @@ public class GuildController {
   private final GuildVoice voices;
   private final GuildSignboard signboard;
   private final GuildTalks talks;
+  private final GuildThoughts thoughts;
 
   @GetMapping("/guild")
   public String room(Model model) {
@@ -67,6 +68,8 @@ public class GuildController {
     model.addAttribute("expeditions", dungeon.recent(ZonedDateTime.now(GuildService.TOKYO), id, 5));
     model.addAttribute("todayPlace", character.status().equals("ALIVE") ? guild.placeToday(id) : null);
     model.addAttribute("talk", talks.latest(id));
+    model.addAttribute("minds", thoughts.history(id, 5));
+    model.addAttribute("abouts", thoughts.abouts(id));
     return stage(model, "tavern", "character", character.name());
   }
 

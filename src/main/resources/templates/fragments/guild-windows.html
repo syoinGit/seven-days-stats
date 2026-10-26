@@ -18,6 +18,14 @@
     <ol hidden data-talk-labels><li th:each="label, it : ${talk.labels}" th:attr="data-talk-choice=${it.index}" th:text="${label}">そうですね</li></ol>
     <p class="guild-talk-note" data-talk-note>返事をするにはJavaScriptが必要です。</p>
   </section>
+  <!-- Where their mind is now (written after their latest interaction), and how it got there. -->
+  <section class="guild-mind" th:unless="${#lists.isEmpty(minds)}">
+    <h3>今、思っていること</h3>
+    <p class="mind-now"><span class="mind-dots" aria-hidden="true"><i></i><i></i><i></i></span><th:block th:text="${minds[0].text}">店の仕入れのことが頭から離れない。</th:block></p>
+    <ol class="mind-trail" th:if="${#lists.size(minds) > 1}" aria-label="これまでの心の動き">
+      <li th:each="mind, it : ${minds}" th:unless="${it.first}"><small th:text="${#temporals.format(mind.day, 'M月d日')}">10月25日</small><th:block th:text="${mind.text}">雨の日の客足が気になる。</th:block></li>
+    </ol>
+  </section>
   <dl class="guild-affiliation">
     <dt>出身地</dt><dd th:text="${character.homeVillage}">グランフォード</dd>
     <dt>現在地</dt><dd th:text="${character.village}">グランフォード</dd>
@@ -41,6 +49,7 @@
     <li th:each="rel : ${relations}">
       <a th:href="${rel.pairPath}"><strong th:text="${rel.other.name}">ロアン</strong></a>
       <span class="guild-label" th:text="${rel.labelName()}">友達</span><em th:if="${rel.smitten}">気になっている</em><em th:if="${rel.other.status == 'DEAD'}">故人</em>
+      <q class="mind-about" th:if="${abouts.get(rel.other.id) != null}" th:text="${abouts.get(rel.other.id)}">頼りになるけど、少し無茶をする。</q>
       <small th:text="${'信頼' + rel.trust + '・親しみ' + rel.affinity + '・警戒' + rel.wariness + '・恩義' + rel.debt}">信頼10・親しみ20・警戒0・恩義3</small>
       <small th:unless="${#lists.isEmpty(rel.history)}" th:text="${'関係の移り変わり: ' + #strings.listJoin(rel.history.![text()], ' → ')}">知人になった → 知人 → 友達</small>
     </li>

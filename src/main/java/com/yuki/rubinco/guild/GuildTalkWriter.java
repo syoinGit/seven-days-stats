@@ -27,9 +27,14 @@ public class GuildTalkWriter {
   private final BedrockTextClient bedrock;
   private final ObjectMapper mapper;
 
-  /** where: the place's title; others: every other resident's name, none of which may appear. */
+  /** where: the place's title; others: every other resident's name, none of which may appear; mind: what is on their mind now, or null. */
   public record Speaker(String name, String profile, String personality, String introduction, String voice, String village,
-                        String faction, String faith, String where, List<String> others) { }
+                        String faction, String faith, String where, List<String> others, String mind) {
+    public Speaker(String name, String profile, String personality, String introduction, String voice, String village,
+                   String faction, String faith, String where, List<String> others) {
+      this(name, profile, personality, introduction, voice, village, faction, faith, where, others, null);
+    }
+  }
 
   public record Choice(String label, String reply) { }
 
@@ -54,7 +59,7 @@ public class GuildTalkWriter {
       result = bedrock.generate("""
           夜の酒場で、隣に座った旅の人に住人が話しかける短い会話を作る。中世の世界。旅の人は読者自身で、名前・性別・素性は書かない。
           opening は住人の最初のひとこと。その人の職業・性格・暮らす国・今いる店に合った話題を一つ選び、具体的な物や出来事に触れ、
-          旅の人が答えたくなる問いかけや投げかけで終える。choices は旅の人の返事3つと、それぞれへの住人の返し。
+          旅の人が答えたくなる問いかけや投げかけで終える。入力の「今思っていること」があれば、それを話題の手がかりにしてよい（人の名前は出さない）。choices は旅の人の返事3つと、それぞれへの住人の返し。
           3つの返事は向きをはっきり変える（たとえば、共感する／くわしく聞く／冗談やからかい）。返しは選ばれた返事に応じて
           内容も気持ちも変わり、会話をそこで自然に締める。住人のせりふは入力の話し方（一人称・語尾）を必ず守る。
           ほかの人物の名前を出さない。死亡・結婚・恋人になる・派閥や信仰の変化・移住は書かない。ゲーム・プレイヤー・AIの話をしない。
@@ -76,7 +81,7 @@ public class GuildTalkWriter {
     return "住人=" + speaker.name() + "（" + (speaker.profile().isEmpty() ? "住人" : speaker.profile()) + "）"
         + "\n人となり=" + speaker.personality() + "\n紹介=" + speaker.introduction() + "\n話し方=" + speaker.voice()
         + "\n暮らす国=" + speaker.village() + "\n派閥=" + speaker.faction() + "\n信仰=" + speaker.faith()
-        + "\n今いる店=" + speaker.where() + "\n時間帯=夜";
+        + "\n今いる店=" + speaker.where() + "\n時間帯=夜" + (speaker.mind() == null ? "" : "\n今思っていること=" + speaker.mind());
   }
 
   Talk validate(String json, Speaker speaker) {
