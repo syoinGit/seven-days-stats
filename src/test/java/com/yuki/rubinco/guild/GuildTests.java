@@ -47,6 +47,7 @@ class GuildTests {
   @Autowired GuildVoice voices;
   @Autowired GuildSignboard signboard;
   @Autowired JdbcTemplate jdbc;
+  @Autowired com.yuki.rubinco.account.repository.M_WebAccountRepository accounts;
   @Autowired MockMvc mvc;
   @MockitoBean BedrockTextClient bedrock;
   static final String DRAFT = """
@@ -390,6 +391,25 @@ class GuildTests {
     assertThat(scene.turnsOf(rine)).singleElement().extracting(GuildChronicle.Turn::index).isEqualTo(0);
   }
 
+  /** Signed-out visitors see only the guild icon in the header (no login either); signed-in members keep the portal and the game sites. */
+  @Test void signedOutVisitorsSeeNoPortalInTheGuildHeader() throws Exception {
+    for (String path : List.of("/guild", "/guild/characters", "/guild/log")) {
+      mvc.perform(get(path)).andExpect(status().isOk())
+          .andExpect(content().string(not(containsString("site-links"))))
+          .andExpect(content().string(not(containsString("aria-label=\"ポータル\""))))
+          .andExpect(content().string(not(containsString("href=\"/login\""))));
+    }
+    if (accounts.findByLoginId("guild-header-member").isEmpty()) {
+      var account = new com.yuki.rubinco.account.entity.M_WebAccount();
+      account.setLoginId("guild-header-member");
+      account.setPasswordHash("unused-test-hash");
+      account.setRole("MEMBER");
+      accounts.save(account);
+    }
+    mvc.perform(get("/guild").with(user("guild-header-member").roles("MEMBER"))).andExpect(status().isOk())
+        .andExpect(content().string(containsString("aria-label=\"ポータル\"")));
+  }
+
   /** Mire's script hangs together: three topics a day, every node they reach, today's facts filled, no placeholder left. */
   @Test void theSignboardScriptHangsTogether() throws Exception {
     assertThat(signboard.version()).isNotBlank();
@@ -662,9 +682,10 @@ class GuildTests {
   @Test void aDungeonRunChangesHowItsPartyFeelOnceBack() throws Exception {
     List<Long> ids = new java.util.ArrayList<>();
     for (int i = 0; i < 3; i++) ids.add(resident("同行" + (char) ('ア' + i * 2), 22 + i, "ALIVE", i));
-    var departure = HOUR.withHour(21).withMinute(50);
+    // Last night's run, so its page is open whatever the time of day the test runs.
+    var departure = HOUR.minusDays(1).withHour(21).withMinute(50);
     jdbc.update("INSERT INTO T_GUILD_EXPEDITION (expedition_date,dungeon_key,dungeon_name,goal,result,cards_version,departed_at,returned_at) "
-        + "VALUES (?,'old-mine','古い坑道','古い坑道で探し物をする','success','test',?,?)", HOUR.toLocalDate(), departure.toOffsetDateTime(),
+        + "VALUES (?,'old-mine','古い坑道','古い坑道で探し物をする','success','test',?,?)", departure.toLocalDate(), departure.toOffsetDateTime(),
         departure.plusMinutes(40).toOffsetDateTime());
     long id = jdbc.queryForObject("SELECT id FROM T_GUILD_EXPEDITION", Long.class);
     for (int i = 0; i < ids.size(); i++) jdbc.update("INSERT INTO T_GUILD_EXPEDITION_MEMBER (expedition_id,character_id,position) VALUES (?,?,?)", id, ids.get(i), i);
