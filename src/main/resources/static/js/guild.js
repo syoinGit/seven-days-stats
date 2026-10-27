@@ -549,9 +549,9 @@ const GuildAdv = (() => {
   scan();
 })();
 
-// Talking with a resident (in their window), as a conversation: they speak first, the visitor answers in their own
-// words (one of three), and they reply. One talk with each resident a day; "talked today", the answer and the reply,
-// and which answers were picked before stay in this browser only.
+// Talking with a resident (the one beside the traveller at a meal), as a conversation: they speak first, the visitor
+// answers in their own words (one of three), and they reply. One talk with each resident a day; "talked today", the
+// answer and the reply, and which answers were picked before stay in this browser only.
 (() => {
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
   const get = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } };
@@ -591,10 +591,11 @@ const GuildAdv = (() => {
     note.hidden = !doneToday;
     start.hidden = false;
 
-    // prelude: lines said before their own talk (how they took the beer).
-    box.play = async (prelude = []) => {
+    // prelude: lines said before their own talk (how they took the meal). after: run once they have replied; may say
+    // more, and returns the closing line. at: the place whose counter is behind them (where the traveller sits).
+    box.play = async (prelude = [], after = null, at = place) => {
       const again = get(dayKey);
-      GuildAdv.open({ left: figure }, place);
+      GuildAdv.open({ left: figure }, at);
       try {
         for (const line of prelude) await GuildAdv.say(line);
         if (again && again.date === today) {
@@ -617,7 +618,7 @@ const GuildAdv = (() => {
           if (!response.ok) throw new Error(String(response.status));
           reply = (await response.json()).reply;
         } catch {
-          await GuildAdv.say({ text: "……声がうまく届かなかったようだ。少し待って、もう一杯出してみよう。" });
+          await GuildAdv.say({ text: "……声がうまく届かなかったようだ。少し待って、また席を探してみよう。" });
           GuildAdv.close();
           return;
         }
@@ -627,7 +628,7 @@ const GuildAdv = (() => {
         note.textContent = name + "とは今日もう話しました。また明日。";
         note.hidden = false;
         await GuildAdv.say({ side: "left", name, text: reply });
-        await GuildAdv.say({ text: name + "は空になったジョッキを置いて、席を立った。" });
+        await GuildAdv.say({ text: (after && await after()) || name + "は空になった杯を置いて、席を立った。" });
         GuildAdv.close();
       } catch { /* closed midway: what was decided is already kept */ }
     };
@@ -638,14 +639,23 @@ const GuildAdv = (() => {
   document.addEventListener("guild-window", scan);
   scan();
 
-  // The keeper's counter (the "ビール" window): serve a beer, and someone not yet talked with today comes over and orders
-  // (a base and something to add, fixed for them that day). The visitor picks both and pours, holding the tap and letting
-  // go at the line. How well it matched decides how they take it; then their talk plays. Nothing of it is sent back.
-  const TIERS = [
-    (name) => name + "は一口飲んで、少しだけ首をかしげた。",
-    (name) => name + "は一口飲んで、小さくうなずいた。",
-    (name) => name + "は一口飲んで、目を細めた。注文どおりの一杯だ。",
-  ];
+  // A meal (the "食事" window). The traveller is a stranger with a few silver coins: a purse kept in this browser, 8 to
+  // start and 8 more each new day (up to 20). They take a seat, and someone not yet talked with today sits beside them;
+  // a clue gives away what that one likes best here. The traveller orders at most one item from each section within the
+  // purse, pours their own beer if they ordered one, and the neighbour reacts (their favorite, a pairing on the menu, or
+  // neither) before their talk plays. Having hit on the favorite, the traveller may treat them to another. Nothing of it
+  // is sent back.
+  const PURSE = "guild-purse";
+  const ALLOWANCE = 8;
+  const PURSE_MAX = 20;
+  const purse = () => {
+    const kept = get(PURSE);
+    if (kept && kept.day === today && Number.isInteger(kept.coins)) return kept.coins;
+    const coins = kept && Number.isInteger(kept.coins) ? Math.min(PURSE_MAX, Math.max(0, kept.coins) + ALLOWANCE) : ALLOWANCE;
+    put(PURSE, { day: today, coins });
+    return coins;
+  };
+  const spend = (price) => put(PURSE, { day: today, coins: Math.max(0, purse() - price) });
   const talkedToday = () => {
     const ids = [];
     try {
@@ -653,62 +663,121 @@ const GuildAdv = (() => {
         const key = localStorage.key(i);
         if (key?.startsWith("guild-talk-day-") && get(key)?.date === today) ids.push(key.slice("guild-talk-day-".length));
       }
-    } catch { /* private window: anyone may come */ }
+    } catch { /* private window: anyone may sit down */ }
     return ids.filter((id) => /^\d+$/.test(id));
   };
 
-  function brew(counter) {
-    if (counter.dataset.ready) return;
-    counter.dataset.ready = "1";
-    const ask = counter.querySelector("[data-brew-ask]");
-    const make = counter.querySelector("[data-brew-make]");
-    const start = counter.querySelector("[data-brew-start]");
-    const note = counter.querySelector("[data-brew-note]");
-    const holder = counter.querySelector("[data-brew-holder]");
-    const pour = counter.querySelector("[data-brew-pour]");
-    const redo = counter.querySelector("[data-brew-redo]");
-    const serveIt = counter.querySelector("[data-brew-serve]");
-    const beer = counter.querySelector("[data-brew-beer]");
-    const foam = counter.querySelector("[data-brew-foam]");
-    const level = counter.querySelector("[data-brew-level]");
+  function meal(table) {
+    if (table.dataset.ready) return;
+    table.dataset.ready = "1";
+    const $ = (selector) => table.querySelector(selector);
+    const place = table.dataset.place;
+    const enter = $("[data-meal-enter]");
+    const seat = $("[data-meal-table]");
+    const menu = $("[data-meal-menu]");
+    const bill = $("[data-meal-bill]");
+    const pourBox = $("[data-meal-pour]");
+    const sit = $("[data-meal-sit]");
+    const note = $("[data-meal-note]");
+    const order = $("[data-meal-order]");
+    const tap = $("[data-meal-tap]");
+    const redo = $("[data-meal-redo]");
+    const carry = $("[data-meal-carry]");
+    const level = $("[data-meal-level]");
+    const items = [...table.querySelectorAll("[data-meal-item]")];
+    const pairings = [...table.querySelectorAll("[data-meal-pairings] li")].map((item) => ({ a: item.dataset.a, b: item.dataset.b, line: item.textContent }));
     const LINE = 82;
-    let order = null;
     let box = null;
-    let picked = { base: null, extra: null };
+    let favorite = null;
+    let chosen = [];
     let fill = 0;
     let poured = false;
     let timer = null;
 
-    note.textContent = "";
-    start.hidden = false;
-    const ready = () => { serveIt.disabled = !(picked.base && picked.extra && poured); };
-    const draw = () => {
-      beer.style.height = Math.min(fill, 100) + "%";
-      foam.style.bottom = Math.min(fill, 100) + "%";
-      foam.style.height = Math.min(Math.max(fill - 30, 0) / 6, 14) + "%";
-      counter.querySelector("[data-brew-glass]").classList.toggle("over", fill > 100);
+    const showPurse = () => {
+      const coins = purse();
+      $("[data-meal-purse]").textContent = coins > 0 ? "財布の中は銀貨 " + coins + " 枚。" : "財布は空っぽだ。明日になれば、旅の稼ぎが少し入る。";
+      $("[data-meal-purse]").hidden = false;
     };
-    const reset = () => {
-      picked = { base: null, extra: null };
+    const picked = () => items.filter((button) => button.getAttribute("aria-pressed") === "true");
+    const total = () => picked().reduce((sum, button) => sum + Number(button.dataset.price), 0);
+    const tally = () => {
+      const coins = purse();
+      $("[data-meal-total]").textContent = total();
+      $("[data-meal-left]").textContent = coins;
+      order.disabled = picked().length === 0 || total() > coins;
+      order.textContent = total() > coins ? "銀貨が足りない" : "これを頼む";
+    };
+    const ordering = (on) => {
+      items.forEach((button) => {
+        button.disabled = !on;
+        button.setAttribute("aria-pressed", "false");
+      });
+      bill.hidden = !on;
+      if (on) tally();
+    };
+    note.textContent = "";
+    note.hidden = true;
+    sit.hidden = false;
+    showPurse();
+
+    // At most one from each section: picking another in the same section swaps it, picking it again puts it back.
+    items.forEach((button) => button.addEventListener("click", () => {
+      const on = button.getAttribute("aria-pressed") !== "true";
+      items.filter((other) => other.dataset.section === button.dataset.section).forEach((other) => other.setAttribute("aria-pressed", "false"));
+      button.setAttribute("aria-pressed", String(on));
+      tally();
+    }));
+
+    sit.addEventListener("click", async () => {
+      sit.disabled = true;
+      note.hidden = true;
+      try {
+        const response = await fetch("/guild/neighbor?place=" + encodeURIComponent(place) + "&skip=" + talkedToday().join(","), { headers: { Accept: "text/html" } });
+        if (response.status === 404) {
+          note.textContent = "今夜は、隣に座る人はいないようだ。また明日。";
+          note.hidden = false;
+          return;
+        }
+        if (!response.ok) throw new Error(String(response.status));
+        const holder = $("[data-meal-holder]");
+        holder.innerHTML = await response.text();
+        const neighbor = holder.querySelector("[data-neighbor]");
+        box = holder.querySelector("[data-talk]");
+        if (!neighbor || !box) throw new Error("empty");
+        setUp(box);
+        favorite = neighbor.dataset.favorite;
+        $("[data-meal-figure]").replaceChildren(box.querySelector(".adv-say svg").cloneNode(true));
+        $("[data-meal-seated]").textContent = "隣の席に、" + box.dataset.name + "が座っている。";
+        $("[data-meal-hint]").textContent = neighbor.dataset.hint;
+        enter.hidden = true;
+        seat.hidden = false;
+        ordering(true);
+        items[0]?.focus();
+      } catch {
+        note.textContent = "……空いている席が見つからなかった。少し待って、もう一度。";
+        note.hidden = false;
+      } finally {
+        sit.disabled = false;
+      }
+    });
+
+    // The beer is poured by the traveller: holding the tap pours (pointer, or Space / Enter held down), letting go stops.
+    const draw = () => {
+      $("[data-meal-beer]").style.height = Math.min(fill, 100) + "%";
+      $("[data-meal-foam]").style.bottom = Math.min(fill, 100) + "%";
+      $("[data-meal-foam]").style.height = Math.min(Math.max(fill - 30, 0) / 6, 14) + "%";
+      $("[data-meal-glass]").classList.toggle("over", fill > 100);
+    };
+    const resetPour = () => {
       fill = 0;
       poured = false;
-      counter.querySelectorAll("[data-brew-base],[data-brew-extra]").forEach((button) => button.setAttribute("aria-pressed", "false"));
-      pour.disabled = false;
+      tap.disabled = false;
       redo.hidden = true;
+      carry.disabled = true;
       level.textContent = "";
       draw();
-      ready();
     };
-    const choose = (kind) => (event) => {
-      const button = event.currentTarget;
-      counter.querySelectorAll("[data-brew-" + kind + "]").forEach((other) => other.setAttribute("aria-pressed", String(other === button)));
-      picked[kind] = button.dataset["brew" + kind[0].toUpperCase() + kind.slice(1)];
-      ready();
-    };
-    counter.querySelectorAll("[data-brew-base]").forEach((button) => button.addEventListener("click", choose("base")));
-    counter.querySelectorAll("[data-brew-extra]").forEach((button) => button.addEventListener("click", choose("extra")));
-
-    // Holding the tap pours (pointer, or Space / Enter held down); letting go stops. Past the brim it spills.
     const open = (event) => {
       event.preventDefault();
       if (poured || timer) return;
@@ -719,63 +788,77 @@ const GuildAdv = (() => {
       clearInterval(timer);
       timer = null;
       poured = true;
-      pour.disabled = true;
+      tap.disabled = true;
       redo.hidden = false;
+      carry.disabled = false;
       const off = Math.abs(fill - LINE);
       level.textContent = fill > 100 ? "あふれた！" : off <= 4 ? "ぴったり！" : off <= 10 ? "まずまず" : fill < LINE ? "少し足りない" : "少し多い";
-      ready();
     };
-    pour.addEventListener("pointerdown", open);
-    ["pointerup", "pointerleave", "pointercancel"].forEach((type) => pour.addEventListener(type, close));
-    pour.addEventListener("keydown", (event) => { if ((event.key === " " || event.key === "Enter") && !event.repeat) open(event); });
-    pour.addEventListener("keyup", (event) => { if (event.key === " " || event.key === "Enter") close(); });
-    pour.addEventListener("click", (event) => event.preventDefault());
-    redo.addEventListener("click", () => { fill = 0; poured = false; pour.disabled = false; redo.hidden = true; level.textContent = ""; draw(); ready(); pour.focus(); });
-
-    start.addEventListener("click", async () => {
-      start.disabled = true;
-      try {
-        const response = await fetch("/guild/beer?skip=" + talkedToday().join(","), { headers: { Accept: "text/html" } });
-        if (response.status === 404) {
-          note.textContent = "今夜はもう、誰も来ないようだ。また明日。";
-          return;
-        }
-        if (!response.ok) throw new Error(String(response.status));
-        holder.innerHTML = await response.text();
-        order = holder.querySelector("[data-beer-order]");
-        box = holder.querySelector("[data-beer]");
-        if (!order || !box) throw new Error("empty");
-        setUp(box);
-        counter.querySelector("[data-brew-figure]").replaceChildren(box.querySelector(".adv-say svg").cloneNode(true));
-        counter.querySelector("[data-brew-name]").textContent = box.dataset.name;
-        counter.querySelector("[data-brew-ticket]").textContent = order.dataset.ticket;
-        reset();
-        ask.hidden = true;
-        make.hidden = false;
-        counter.querySelector("[data-brew-base]")?.focus();
-      } catch {
-        note.textContent = "……今は誰も来ないようだ。少し待って、もう一度。";
-      } finally {
-        start.disabled = false;
-      }
-    });
-
-    serveIt.addEventListener("click", async () => {
+    tap.addEventListener("pointerdown", open);
+    ["pointerup", "pointerleave", "pointercancel"].forEach((type) => tap.addEventListener(type, close));
+    tap.addEventListener("keydown", (event) => { if ((event.key === " " || event.key === "Enter") && !event.repeat) open(event); });
+    tap.addEventListener("keyup", (event) => { if (event.key === " " || event.key === "Enter") close(); });
+    tap.addEventListener("click", (event) => event.preventDefault());
+    redo.addEventListener("click", () => { resetPour(); tap.focus(); });
+    const pourLine = () => {
       const off = Math.abs(fill - LINE);
-      const pourScore = fill > 100 ? 0 : off <= 4 ? 2 : off <= 10 ? 1 : 0;
-      const score = (picked.base === order.dataset.base ? 1 : 0) + (picked.extra === order.dataset.extra ? 1 : 0) + pourScore;
+      return fill > 100 ? "泡が杯のふちからあふれて、卓を濡らしてしまった。" : off <= 4 ? "泡と酒がちょうどいい具合に分かれた。我ながら見事な一杯だ。"
+        : off <= 10 ? "まずまずの一杯が注げた。" : fill < LINE ? "少し物足りない量だが、まあいい。" : "泡が多めになってしまった。";
+    };
+
+    const serve = async (pourText) => {
+      pourBox.hidden = true;
+      menu.hidden = false;
+      seat.hidden = true;
+      enter.hidden = false;
+      sit.textContent = "別の空いている席につく";
+      showPurse();
       const name = box.dataset.name;
-      const taken = fill > 100 ? name + "は、泡のあふれたジョッキを苦笑いで受け取った。" : TIERS[score >= 4 ? 2 : score >= 2 ? 1 : 0](name);
-      make.hidden = true;
-      ask.hidden = false;
-      note.textContent = "";
-      start.textContent = "もう一杯出す";
-      await box.play([{ text: taken }]);
-      start.focus();
+      const keys = chosen.map((item) => item.key);
+      const liked = chosen.find((item) => item.key === favorite);
+      const pairing = pairings.find((pair) => keys.includes(pair.a) && keys.includes(pair.b));
+      const prelude = [{ text: table.dataset.payment }, { text: "卓に、" + chosen.map((item) => item.name).join("と") + "が並んだ。" }];
+      if (pourText) prelude.push({ text: pourText });
+      if (pairing) prelude.push({ text: pairing.line });
+      prelude.push({ text: liked ? name + "が、あなたの" + liked.name + "に目を留めて、顔をほころばせた。どうやら好物らしい。"
+        : pairing ? name + "が、感心したようにこちらの卓を見た。"
+        : chosen.every((item) => item.price === 0) ? name + "は、" + chosen[0].name + "だけの卓をちらりと見て、気の毒そうな顔をした。"
+        : name + "は杯を軽く持ち上げて、こちらに会釈した。" });
+      // Having hit on their favorite, the traveller may treat them to another, if the purse allows.
+      const after = async () => {
+        if (!liked || purse() < liked.price) return name + "は軽く会釈して、席を立った。";
+        const pick = await GuildAdv.choose(["こちらにも" + liked.name + "をひとつ（銀貨" + liked.price + "枚）", "ごちそうさま。そろそろ宿に戻ります"]);
+        if (pick === 1) return name + "は軽く会釈して、席を立った。あなたも、宿に戻ることにした。";
+        spend(liked.price);
+        await GuildAdv.say({ name: "あなた", text: "こちらにも" + liked.name + "をひとつ。", kind: "you" });
+        await GuildAdv.say({ text: "もうひとつの" + liked.name + "が、" + name + "の前に置かれた。" });
+        return name + "は目を丸くしてから、うれしそうにそれを平らげ、何度も頭を下げて席を立った。";
+      };
+      await box.play(prelude, after, place);
+      showPurse();
+      sit.focus();
+    };
+    order.addEventListener("click", () => {
+      if (!picked().length || total() > purse()) return;
+      chosen = picked().map((button) => ({ key: button.dataset.mealItem, name: button.dataset.name, price: Number(button.dataset.price), pour: button.hasAttribute("data-pour") }));
+      // Paid when ordered.
+      spend(total());
+      ordering(false);
+      const beer = chosen.find((item) => item.pour);
+      if (!beer) {
+        serve(null);
+        return;
+      }
+      $("[data-meal-pour-name]").textContent = beer.name;
+      menu.hidden = true;
+      pourBox.hidden = false;
+      resetPour();
+      tap.focus();
     });
+    carry.addEventListener("click", () => serve(pourLine()));
   }
 
-  const counters = () => document.querySelectorAll("[data-brew]").forEach(brew);
-  document.addEventListener("guild-window", counters);
-  counters();
+  const meals = () => document.querySelectorAll("[data-meal]").forEach(meal);
+  document.addEventListener("guild-window", meals);
+  meals();
 })();

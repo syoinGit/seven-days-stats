@@ -650,40 +650,83 @@
 }
 /* A thought that is a rumor they heard. */
 .mind-rumor{display:inline-block;margin-right:6px;padding:0 6px;font-size:10px;letter-spacing:.1em;color:#2a1d24;background:#d9b37a;vertical-align:1px}
-/* The keeper's counter: the ask, the guest and their order ticket, three steps, and a glass that fills while the tap is held. */
-.guild-brew{color:#e9dfdf}
-.brew-ask{display:flex;flex-direction:column;align-items:center;gap:12px;padding:26px 12px;text-align:center}
-.brew-ask p{margin:0;font-size:17px;letter-spacing:.06em;color:#f0d8c2}
-.brew-ask .brew-note{font-size:13px;color:#c4a9ad;min-height:1.6em}
-.brew-tap{position:relative;width:58px;height:64px;background:linear-gradient(90deg,#6b4a2c 0 12%,#8a5e36 12% 88%,#6b4a2c 88%);border:3px solid #3a2718;border-radius:6px 6px 2px 2px}
-.brew-tap::before{content:"";position:absolute;left:50%;top:-14px;width:10px;height:14px;background:#c8a24a;border:2px solid #5a3a1e;transform:translateX(-50%)}
-.brew-tap i{position:absolute;inset:16px 6px auto;height:4px;background:#3a2718;box-shadow:0 22px #3a2718}
-.brew-button{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:#7a4a24;border:2px solid #d8a35a;color:#fff3dc;font:inherit;font-size:15px;letter-spacing:.08em;cursor:pointer}
-.brew-button:hover{background:#8f5a2c}.brew-button:focus-visible,.guild-brew fieldset button:focus-visible,.brew-redo:focus-visible{outline:3px solid #ebbe92;outline-offset:2px}
-.brew-button:disabled{opacity:.45;cursor:default}.brew-button[hidden],.brew-redo[hidden]{display:none}
-.brew-guest{display:flex;align-items:center;gap:16px;padding:6px 4px 14px;border-bottom:1px dashed #5a4150}
-.brew-guest-figure .guild-sprite{width:64px;height:96px}
-.brew-ticket{flex:1;position:relative;padding:10px 16px;background:#efe0c4;color:#3a2a22;border:2px solid #9b7b5c;box-shadow:3px 3px #1d1520;font-size:12px;transform:rotate(-1deg)}
-.brew-ticket b{font-size:14px}.brew-ticket p{margin:4px 0 0;font-size:15px;line-height:1.6;color:#3a2a22}
-.brew-steps{display:grid;gap:12px;margin:14px 0}
-.guild-brew fieldset{margin:0;padding:10px 12px 12px;border:1px solid #5a4150;background:#201927}
-.guild-brew legend{padding:0 6px;font-size:12px;color:#d9b37a;letter-spacing:.06em}
-.guild-brew fieldset>button{display:inline-flex;align-items:center;gap:6px;margin:4px 6px 0 0;padding:7px 12px;background:#2e2236;border:2px solid #5a4150;color:#e9dfdf;font:inherit;font-size:13px;cursor:pointer}
-.guild-brew fieldset>button[aria-pressed="true"]{background:#5a3a24;border-color:#e3b36a;color:#fff3dc}
-.guild-brew fieldset>button i{width:12px;height:12px;border:2px solid #1d1520}
-.base-lager i{background:#f2c14e}.base-ale i{background:#d98a2b}.base-stout i{background:#3b2418}
-.extra-none i{background:transparent}.extra-honey i{background:#e8a93a;border-radius:50% 50% 40% 40%}.extra-herb i{background:#6f9a52;border-radius:0 60%}.extra-berry i{background:#b8344a;border-radius:50%}
-.brew-pour{display:flex;align-items:flex-end;gap:18px}
-.brew-glass{position:relative;width:74px;height:110px;border:3px solid #d9e4ea;border-top-width:2px;border-radius:2px 2px 8px 8px;background:#ffffff10;overflow:hidden}
-.brew-glass::after{content:"";position:absolute;right:-16px;top:24px;width:12px;height:44px;border:3px solid #d9e4ea;border-left:0;border-radius:0 8px 8px 0}
-.brew-beer{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(#f2b542,#d88a1c)}
-.brew-foam{position:absolute;left:0;right:0;bottom:0;height:0;background:#fff8e8}
-.brew-line{position:absolute;left:-2px;right:-2px;bottom:82%;border-top:2px dashed #e35d5d}
-.brew-glass.over{box-shadow:0 0 0 3px #e35d5d66}
-.brew-pour-controls{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
-.brew-button.tap{touch-action:none;user-select:none;-webkit-user-select:none}
-.brew-redo{padding:4px 10px;background:none;border:1px solid #8c6f7d;color:#e0c8cf;font:inherit;font-size:12px;cursor:pointer}
-.brew-level{margin:0;min-height:1.5em;font-size:14px;color:#ffd58a}
-.brew-button.serve{display:flex;margin:0 auto}
-@media(max-width:650px){.brew-guest-figure .guild-sprite{width:48px;height:72px}.brew-ticket p{font-size:14px}.guild-brew fieldset>button{padding:6px 9px;font-size:12px}}
-.brew-ask[hidden],.brew-make[hidden]{display:none}
+/* A meal: coming in, the seat beside someone, the place's own menu (a chalkboard at the guild, parchment at Grantford, bark
+   at Elmwood, wooden tags at Tsukikage), the bill, and a glass the traveller fills while the tap is held. */
+.guild-meal{color:#e9dfdf}
+.meal-enter{display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px 12px 22px;text-align:center}
+.meal-enter[hidden],.meal-table[hidden],.meal-menu[hidden],.meal-pour[hidden],.meal-bill[hidden],.meal-button[hidden],.meal-redo[hidden],.meal-note[hidden],.meal-purse[hidden]{display:none}
+.guild-shell .meal-scene,.meal-scene{max-width:34em;margin:0;font-size:16px;line-height:1.9;letter-spacing:.04em;color:#f0d8c2}
+.meal-purse{margin:0;font-size:14px;color:#ffd58a}
+.meal-purse::before{content:"";display:inline-block;width:12px;height:12px;margin-right:6px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff 0 12%,#cfd5da 13% 60%,#8a949b 61%);vertical-align:-1px}
+.meal-note{margin:0;font-size:13px;color:#c4a9ad}
+.meal-button{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:#7a4a24;border:2px solid #d8a35a;color:#fff3dc;font:inherit;font-size:15px;letter-spacing:.08em;cursor:pointer}
+.meal-button:hover{background:#8f5a2c}.meal-button:disabled{opacity:.45;cursor:default}
+.meal-button:focus-visible,.meal-item:focus-visible,.meal-redo:focus-visible{outline:3px solid #ebbe92;outline-offset:2px}
+.meal-neighbor{display:flex;align-items:center;gap:16px;padding:4px 4px 14px}
+.meal-neighbor-figure .guild-sprite{width:64px;height:96px}
+.meal-neighbor p{margin:0;line-height:1.8}.meal-seated{font-size:16px;color:#f0d8c2}
+.meal-hint{font-size:14px;color:#d9c3a0}.meal-hint::before{content:"";display:inline-block;width:8px;height:8px;margin-right:8px;background:#e3b36a;transform:rotate(45deg);vertical-align:1px}
+.meal-menu{position:relative;margin:4px 0 12px;padding:20px 18px 16px}
+.meal-board{margin:0 0 12px;text-align:center;font-size:18px;letter-spacing:.2em}
+.meal-sections{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.meal-sections fieldset{min-width:0;margin:0;padding:6px 8px 10px;border:0}
+.meal-sections legend{padding:0;margin-bottom:6px;font-size:13px;letter-spacing:.18em}
+.meal-item{position:relative;display:grid;grid-template-columns:1fr auto;gap:2px 10px;width:100%;margin:0 0 6px;padding:8px 10px;text-align:left;background:none;border:2px solid transparent;color:inherit;font:inherit;cursor:pointer}
+.meal-item:disabled{cursor:default}
+.meal-item-name{font-size:15px;letter-spacing:.04em}.meal-item-price{font-size:13px;white-space:nowrap}
+.meal-item small{grid-column:1/-1;font-size:12px;line-height:1.6;opacity:.85}
+.guild-shell .meal-board-note,.meal-board-note{margin:10px 0 0;font-size:13px;line-height:1.7;text-align:center}
+.meal-bill{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 18px;margin-top:14px;padding-top:12px}
+.meal-bill p{margin:0;font-size:14px}.meal-bill b{font-size:17px}
+/* The guild: a chalkboard on the wall beside the coin box, written by whoever passed by. */
+.menu-board .meal-menu{background:radial-gradient(ellipse at 30% 20%,#ffffff0d,transparent 60%),#22332b;border:10px solid #6b4a2c;box-shadow:inset 0 0 30px #0008,0 6px #3a2718;color:#eeece2;font-family:"Hiragino Maru Gothic ProN","Yu Gothic",system-ui,sans-serif}
+.menu-board .meal-board{color:#f6f1d8;border-bottom:2px dashed #eeece255;padding-bottom:8px}
+.menu-board legend{color:#f2c9a0}.menu-board .meal-item-price{color:#f7e08a}
+.menu-board .meal-item[aria-pressed="true"]{border:2px solid #f6f1d8;border-radius:40% 30% 45% 35%/30% 45% 35% 40%}
+.menu-board .meal-board-note{color:#bfd8c6}.menu-board .meal-bill{border-top:2px dashed #eeece255}
+/* Grantford: parchment from the kitchen, sealed with the house's red wax. */
+.menu-parchment .meal-menu{background:radial-gradient(ellipse at center,#f4e6c6 55%,#d9be8c 100%);border:1px solid #8a6a44;box-shadow:4px 6px #1d1520;color:#3b2a1c;font-family:"Hiragino Mincho ProN","Yu Mincho",serif}
+.menu-parchment .meal-menu::before{content:"";position:absolute;right:22px;top:-12px;width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#d4544a,#8e1e1e 70%);box-shadow:0 2px #4a0f0f}
+.menu-parchment .meal-board{color:#5a1e14;font-size:19px}.menu-parchment .meal-board::before,.menu-parchment .meal-board::after{content:"—";margin:0 10px;color:#8a6a44}
+.menu-parchment legend{color:#7a2a1c;border-bottom:1px solid #8a6a44}.menu-parchment .meal-item-price{color:#6b4a1c}
+.menu-parchment .meal-item[aria-pressed="true"]{border-color:#7a2a1c;background:#7a2a1c14}
+.menu-parchment .meal-item[aria-pressed="true"]::after{content:"✓";position:absolute;left:-12px;top:6px;color:#7a2a1c;font-weight:bold}
+.menu-parchment .meal-board-note{color:#5c4632}.menu-parchment .meal-bill{border-top:1px solid #8a6a44}
+.menu-parchment .meal-bill p{color:#3b2a1c}.menu-parchment .meal-item:focus-visible,.menu-parchment .meal-button:focus-visible{outline-color:#7a2a1c}
+/* Elmwood: words cut into a strip of bark, with moss in the grooves. */
+.menu-bark .meal-menu{background:repeating-linear-gradient(90deg,#4a3424 0 9px,#563d2a 9px 15px,#432f20 15px 22px),#4a3424;border:3px solid #2c1e14;border-radius:14px 6px 16px 8px;box-shadow:inset 0 0 0 4px #6f8f4a66,0 6px #1d1520;color:#f1e6c8}
+.menu-bark .meal-board{color:#cfe6a8;text-shadow:1px 1px #1d140c}.menu-bark .meal-board::before{content:"";display:inline-block;width:14px;height:14px;margin-right:10px;background:#8fbf5a;border-radius:0 80%;vertical-align:-1px}
+.menu-bark legend{color:#b9da8a}.menu-bark .meal-item-price{color:#f5d27a}
+.menu-bark .meal-item{background:#2c1e1466;border-radius:6px}
+.menu-bark .meal-item[aria-pressed="true"]{border-color:#a7d36e;box-shadow:0 0 12px #a7d36e66}
+.menu-bark .meal-board-note{color:#cfe6a8}.menu-bark .meal-bill{border-top:1px solid #a7d36e55}
+/* Tsukikage: wooden tags on the wall, read right to left, top to bottom. */
+.menu-tags .meal-menu{background:linear-gradient(#2a1c16,#1f1512);border-top:8px solid #5a2222;box-shadow:inset 0 10px 20px #0006;color:#2a1a10;font-family:"Hiragino Mincho ProN","Yu Mincho",serif}
+.menu-tags .meal-board{display:inline-block;margin:0 auto 14px;padding:4px 18px;background:#f1e8d4;color:#1c120c;border:2px solid #8a5a2c;letter-spacing:.4em}
+.menu-tags .meal-menu{text-align:center}
+.menu-tags .meal-sections{display:flex;flex-direction:row-reverse;flex-wrap:wrap;justify-content:center;gap:14px}
+.menu-tags .meal-sections fieldset{display:flex;flex-direction:row-reverse;align-items:flex-start;gap:6px;padding:0}
+.menu-tags legend{float:right;writing-mode:vertical-rl;margin:0;padding:12px 6px;background:#1c120c;color:#f1e8d4;border:2px solid #8a5a2c;font-size:14px;letter-spacing:.3em}
+.menu-tags .meal-item{display:flex;flex-direction:column;align-items:flex-start;gap:8px;width:auto;min-height:210px;margin:0;padding:12px 6px;writing-mode:vertical-rl;text-align:start;background:repeating-linear-gradient(0deg,#e9d4a8 0 6px,#e2cb9c 6px 9px);border:2px solid #8a5a2c;border-radius:3px 3px 0 0;box-shadow:2px 3px #0008}
+.menu-tags .meal-item::before{content:"";position:absolute;left:50%;top:-8px;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:#3a2a20}
+.menu-tags .meal-item-name{font-size:17px;letter-spacing:.12em}
+.menu-tags .meal-item-price{font-size:12px;color:#7a2a1c;text-combine-upright:digits}
+.menu-tags .meal-item small{font-size:11px;line-height:1.5;color:#5a4232;opacity:1;max-height:230px}
+.menu-tags .meal-item[aria-pressed="true"]{border-color:#b8342a}
+.menu-tags .meal-item[aria-pressed="true"]::after{content:"注";position:absolute;right:50%;bottom:-12px;margin-right:-13px;width:26px;height:26px;writing-mode:horizontal-tb;border:2px solid #c8382c;border-radius:50%;background:#f1e8d4;color:#c8382c;font-size:13px;line-height:22px;text-align:center}
+.menu-tags .meal-board-note{margin-top:22px;color:#e8d8b8}.menu-tags .meal-bill{border-top:1px solid #8a5a2c88;color:#f1e8d4}
+/* The glass, filled while the tap is held. */
+.meal-pour{padding:10px 4px}
+.guild-shell .meal-pour-title,.meal-pour-title{margin:0 0 14px;font-size:15px;color:#f0d8c2}
+.meal-pour-row{display:flex;align-items:flex-end;gap:22px;margin-bottom:16px}
+.meal-glass{position:relative;width:74px;height:110px;border:3px solid #d9e4ea;border-top-width:2px;border-radius:2px 2px 8px 8px;background:#ffffff10;overflow:hidden}
+.meal-beer{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(#f2b542,#d88a1c)}
+.meal-foam{position:absolute;left:0;right:0;bottom:0;height:0;background:#fff8e8}
+.meal-line{position:absolute;left:-2px;right:-2px;bottom:82%;border-top:2px dashed #e35d5d}
+.meal-glass.over{box-shadow:0 0 0 3px #e35d5d66}
+.meal-pour-controls{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.meal-button.tap{touch-action:none;user-select:none;-webkit-user-select:none}
+.meal-redo{padding:4px 10px;background:none;border:1px solid #8c6f7d;color:#e0c8cf;font:inherit;font-size:12px;cursor:pointer}
+.meal-level{margin:0;min-height:1.5em;font-size:14px;color:#ffd58a}
+@media(max-width:650px){.meal-neighbor-figure .guild-sprite{width:48px;height:72px}.meal-menu{padding:16px 10px 12px}.meal-sections{grid-template-columns:1fr}
+  .menu-tags .meal-item{min-height:180px;padding:10px 4px}.menu-tags .meal-item-name{font-size:15px}.menu-tags .meal-sections{gap:10px}}

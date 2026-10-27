@@ -50,6 +50,7 @@ class GuildTests {
   @Autowired GuildTalks talks;
   @Autowired GuildThoughts thoughts;
   @Autowired GuildRumors rumors;
+  @Autowired GuildMenus menus;
   @Autowired JdbcTemplate jdbc;
   @Autowired com.yuki.rubinco.account.repository.M_WebAccountRepository accounts;
   @Autowired MockMvc mvc;
@@ -944,29 +945,46 @@ class GuildTests {
 
     var talk = talks.latest(rine);
     assertThat(talk.labels()).containsExactly("たしかに少し濃いですね", "何が入っているんですか", "あなたの舌が鈍っているのでは");
-    // Talking happens only over a beer: the resident's window has no talk, the tavern no talk marks.
+    // Talking happens only at a meal: the resident's window has no talk, the tavern no talk marks; the tab follows the place.
     mvc.perform(get("/guild/characters/" + rine)).andExpect(status().isOk())
         .andExpect(content().string(not(containsString("data-talk"))));
     mvc.perform(get("/guild")).andExpect(content().string(not(containsString("person-talkable"))))
-        .andExpect(content().string(containsString("href=\"/guild/brew\"")));
-    mvc.perform(get("/guild/brew")).andExpect(status().isOk())
-        .andExpect(content().string(containsString("店主として、ビールを出しますか？")))
-        .andExpect(content().string(containsString("data-brew-base=\"stout\"")))
-        .andExpect(content().string(containsString("data-brew-extra=\"berry\"")));
-    // Serving a beer brings someone with a talk who was not talked with today; their order is fixed for the day.
-    var order = GuildBrew.order(roan, LocalDate.now(GuildService.TOKYO));
+        .andExpect(content().string(containsString("href=\"/guild/meal\"")));
+    mvc.perform(get("/guild/towns/tsukikage")).andExpect(content().string(containsString("href=\"/guild/towns/tsukikage/meal\"")));
+    // Each place has its own menu, drawn in its own style; the menu reads without JS.
+    mvc.perform(get("/guild/meal")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("menu-board")))
+        .andExpect(content().string(containsString("data-meal-item=\"tap-ale\"")))
+        .andExpect(content().string(containsString("data-pour=\"1\"")))
+        .andExpect(content().string(containsString("data-a=\"bean-soup\" data-b=\"hardtack\"")))
+        .andExpect(content().string(not(containsString("店主"))));
+    mvc.perform(get("/guild/towns/tsukikage/meal")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("menu-tags")))
+        .andExpect(content().string(containsString("月見団子")))
+        .andExpect(content().string(containsString("data-place=\"tsukikage\"")))
+        .andExpect(content().string(containsString("毎度おおきに")));
+    mvc.perform(get("/guild/towns/grantford/meal")).andExpect(content().string(containsString("menu-parchment")));
+    mvc.perform(get("/guild/towns/elmwood/meal")).andExpect(content().string(containsString("menu-bark")));
+    mvc.perform(get("/guild/towns/nowhere/meal")).andExpect(status().isNotFound());
+    mvc.perform(get("/guild/towns/guild/meal")).andExpect(status().isNotFound());
+    // Sitting down brings someone with a talk who was not talked with today, those who talk at this place first,
+    // with what they like best here and the clue to it.
+    var favorite = menus.favorite(roan, "grantford");
     for (int i = 0; i < 5; i++) {
-      mvc.perform(get("/guild/beer").param("skip", rine + ",x,<b>")).andExpect(status().isOk())
-          .andExpect(content().string(containsString("data-beer=\"1\"")))
+      mvc.perform(get("/guild/neighbor").param("place", "grantford")).andExpect(status().isOk())
           .andExpect(content().string(containsString("data-character-id=\"" + roan + "\"")))
-          .andExpect(content().string(containsString("data-base=\"" + order.base() + "\" data-extra=\"" + order.extra() + "\"")))
-          .andExpect(content().string(containsString(order.ticket())))
+          .andExpect(content().string(containsString("data-favorite=\"" + favorite.key() + "\" data-hint=\"" + favorite.hint() + "\"")))
           .andExpect(content().string(not(containsString("guild-window"))));
+      mvc.perform(get("/guild/neighbor").param("place", "guild").param("skip", "x,<b>")).andExpect(status().isOk())
+          .andExpect(content().string(containsString("data-character-id=\"" + rine + "\"")));
+      // Nobody of this place left: anyone else sits down.
+      mvc.perform(get("/guild/neighbor").param("place", "grantford").param("skip", roan + ",x")).andExpect(status().isOk())
+          .andExpect(content().string(containsString("data-character-id=\"" + rine + "\"")));
     }
-    String page = mvc.perform(get("/guild/beer").param("skip", String.valueOf(roan))).andExpect(status().isOk())
+    mvc.perform(get("/guild/neighbor").param("place", "nowhere")).andExpect(status().isNotFound());
+    String page = mvc.perform(get("/guild/neighbor").param("skip", String.valueOf(roan))).andExpect(status().isOk())
         .andExpect(content().string(containsString("今夜は少し塩が強い")))
         .andExpect(content().string(containsString("data-talk-choice=\"2\"")))
-        // Read at the counter of the place where the talk was written.
         .andExpect(content().string(containsString("data-place=\"" + talk.place() + "\" data-place-name=\"" + talk.placeName() + "\"")))
         .andReturn().getResponse().getContentAsString();
     // The replies are not in the page: each comes when its answer is picked.
@@ -975,13 +993,18 @@ class GuildTests {
         .andExpect(content().string(containsString("店主の秘密")));
     mvc.perform(get("/guild/talks/" + talk.id() + "/choices/3")).andExpect(status().isNotFound());
     mvc.perform(get("/guild/talks/999999/choices/0")).andExpect(status().isNotFound());
-    // Everyone talked with today: nobody comes.
-    mvc.perform(get("/guild/beer").param("skip", rine + "," + roan)).andExpect(status().isNotFound());
-    // Orders cover every base and extra over residents and days, and stay put within a day.
-    var orders = new java.util.HashSet<String>();
-    for (long id = 1; id <= 60; id++) orders.add(GuildBrew.order(id, LocalDate.of(2026, 10, 27)).base() + GuildBrew.order(id, LocalDate.of(2026, 10, 27)).extra());
-    assertThat(orders).hasSize(GuildBrew.BASES.size() * GuildBrew.EXTRAS.size());
-    assertThat(GuildBrew.order(7, LocalDate.of(2026, 10, 27))).isEqualTo(GuildBrew.order(7, LocalDate.of(2026, 10, 27)));
+    // Everyone talked with today: nobody sits down.
+    mvc.perform(get("/guild/neighbor").param("skip", rine + "," + roan)).andExpect(status().isNotFound());
+    // A favorite is a paid item of that place's menu, fixed for the resident, and residents differ.
+    var liked = new java.util.HashSet<String>();
+    for (long id = 1; id <= 60; id++) {
+      var item = menus.favorite(id, "tsukikage");
+      assertThat(item.price()).isPositive();
+      assertThat(menus.of("tsukikage").item(item.key())).isEqualTo(item);
+      assertThat(menus.favorite(id, "tsukikage")).isEqualTo(item);
+      liked.add(item.key());
+    }
+    assertThat(liked).hasSizeGreaterThan(4);
     // The dead don't talk; deleting a resident takes their talks too.
     jdbc.update("UPDATE M_GUILD_CHARACTER SET status = 'DEAD' WHERE id = ?", rine);
     assertThat(talks.latest(rine)).isNull();
@@ -989,8 +1012,8 @@ class GuildTests {
     guild.delete(roan);
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_TALK WHERE character_id = ?", roan)).isZero();
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_TALK_CHOICE")).isEqualTo(3);
-    // Nobody left to talk: no beer to serve.
-    mvc.perform(get("/guild/beer")).andExpect(status().isNotFound());
+    // Nobody left to talk: nobody sits down.
+    mvc.perform(get("/guild/neighbor")).andExpect(status().isNotFound());
   }
 
   @Test void talksNeedSomeoneInAPlaceAndAValidText() throws Exception {

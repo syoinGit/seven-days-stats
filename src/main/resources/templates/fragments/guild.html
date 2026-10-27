@@ -5,7 +5,7 @@
 <meta property="og:title" th:content="${title}"><meta property="og:type" content="website">
 <link th:if="${canonical != null and !#strings.isEmpty(canonical)}" rel="canonical" th:href="${canonical}">
 <meta th:if="${canonical != null and !#strings.isEmpty(canonical)}" property="og:url" th:content="${canonical}">
-<link rel="stylesheet" href="/css/app.css?v=header-5"><link rel="stylesheet" href="/css/portal.css?v=guild-1"><link rel="stylesheet" href="/css/guild.css?v=27">
+<link rel="stylesheet" href="/css/app.css?v=header-5"><link rel="stylesheet" href="/css/portal.css?v=guild-1"><link rel="stylesheet" href="/css/guild.css?v=28">
 </th:block></head><body>
 <!-- The small figure carries validated, saved portrait choices for the counter-view player. -->
 <svg th:fragment="sprite(c)" th:replace="~{fragments/guild :: figure(${c}, ${c.pose()})}"></svg>
@@ -14,11 +14,11 @@
      th:attr="data-portrait-layers=${#strings.listJoin(c.portraitLayers(), ',')}, data-outfit=${c.look != null ? c.look.outfit : 'adventurer'}, data-pose=${pose}">
   <use th:each="layer : ${c.spriteLayers(pose)}" th:href="${'/img/guild-people.svg?v=7#' + layer}"></use>
 </svg>
-<!-- The guild's bottom tabs. Each one but maintenance opens a window over the tavern; active: tavern, dungeon or log. -->
+<!-- The guild's bottom tabs. Each one but maintenance opens a window over the tavern; active: tavern, dungeon, meal or log. The meal is at the place shown. -->
 <nav th:fragment="tabbar(active)" class="guild-tabbar" aria-label="ギルド" data-guild-tabbar>
   <a href="/guild" th:attr="aria-current=${active == 'tavern'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=4#tab-tavern"></use></svg>酒場</a>
   <a href="/guild/dungeon" th:attr="aria-current=${active == 'dungeon'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=4#tab-dungeon"></use></svg>冒険</a>
-  <a href="/guild/brew" th:attr="aria-current=${active == 'brew'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=4#tab-beer"></use></svg>ビール</a>
+  <a th:href="${place == null or place.guild() ? '/guild/meal' : '/guild/towns/' + place.key + '/meal'}" href="/guild/meal" th:attr="aria-current=${active == 'meal'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=4#tab-beer"></use></svg>食事</a>
   <a href="/guild/log" th:attr="aria-current=${active == 'log'} ? 'page'"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=4#tab-log"></use></svg>記録</a>
   <a th:if="${currentAdmin}" href="/guild/maintenance"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=4#tab-maintenance"></use></svg>メンテ</a>
 </nav>

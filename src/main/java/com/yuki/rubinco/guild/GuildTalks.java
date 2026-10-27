@@ -154,14 +154,19 @@ public class GuildTalks {
 
 
   /**
-   * Who comes over when the visitor serves a beer: a living resident with a talk, at random, not one of skip (those the
-   * visitor already talked with today, as their browser says). Null when nobody is left.
+   * Who sits beside the traveller at a place: a living resident with a talk, at random, not one of skip (those the
+   * visitor already talked with today, as their browser says). Those whose newest talk was written at this place come
+   * first; anyone else otherwise. Null when nobody is left.
    */
-  public Long draw(Collection<Long> skip) {
-    String sql = "SELECT DISTINCT t.character_id FROM T_GUILD_TALK t JOIN M_GUILD_CHARACTER c ON c.id = t.character_id WHERE c.status = 'ALIVE'";
-    List<Long> pool = jdbc.queryForList(sql, Long.class).stream().filter(id -> !skip.contains(id)).toList();
-    if (pool.isEmpty()) return null;
-    return pool.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(pool.size()));
+  public Long draw(Collection<Long> skip, String place) {
+    var pool = jdbc.query("""
+        SELECT t.character_id, t.place FROM T_GUILD_TALK t JOIN M_GUILD_CHARACTER c ON c.id = t.character_id
+        WHERE c.status = 'ALIVE' AND t.id = (SELECT MAX(u.id) FROM T_GUILD_TALK u WHERE u.character_id = t.character_id)
+        """, (rs, row) -> Map.entry(rs.getLong(1), rs.getString(2))).stream().filter(entry -> !skip.contains(entry.getKey())).toList();
+    var here = pool.stream().filter(entry -> entry.getValue().equals(place)).toList();
+    var from = here.isEmpty() ? pool : here;
+    if (from.isEmpty()) return null;
+    return from.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(from.size())).getKey();
   }
 
   public List<Row> recent(int limit) {

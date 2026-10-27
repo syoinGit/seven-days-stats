@@ -1,11 +1,11 @@
 <!doctype html><html lang="ja" xmlns:th="http://www.thymeleaf.org"><body>
 <!-- The guild's windows, drawn over the tavern by guild.html. -->
 
-<!-- Talking with a resident: only when the visitor serves them a beer (the "ビール" window). -->
+<!-- Talking with a resident: only with the one who sits beside the traveller at a meal (the "食事" window). -->
   <!-- Talking with them, as a conversation read line by line (GuildAdv): their first line, the visitor's answer, their reply.
        JS fetches the reply and keeps "talked today" in this browser. Without JS only the first line shows. -->
-  <section class="guild-talk" th:fragment="talk(character, talk, beer)" data-talk
-           th:attr="data-beer=${beer ? '1' : null}, data-talk-id=${talk.id}, data-character-id=${character.id}, data-name=${character.name}, data-place=${talk.place}, data-place-name=${talk.placeName()}">
+  <section class="guild-talk" th:fragment="talk(character, talk)" data-talk
+           th:attr="data-talk-id=${talk.id}, data-character-id=${character.id}, data-name=${character.name}, data-place=${talk.place}, data-place-name=${talk.placeName()}">
     <button type="button" class="guild-talk-start" data-talk-start hidden><span class="talk-icon" aria-hidden="true"><i></i><i></i><i></i></span><th:block th:text="${character.name + 'に話しかける'}">リネに話しかける</th:block></button>
     <div class="adv-log" data-talk-log>
       <div class="adv-say left"><svg th:replace="~{fragments/guild :: sprite(${character})}"></svg>
@@ -15,44 +15,57 @@
     <p class="guild-talk-note" data-talk-note>返事をするにはJavaScriptが必要です。</p>
   </section>
 
-<!-- Serving a beer (/guild/beer): the one who came over, their order, and their talk; guild.js plays it after the pour. -->
-<th:block th:fragment="beer"><div data-beer-order th:attr="data-base=${order.base}, data-extra=${order.extra}, data-ticket=${order.ticket}"><section
-  th:replace="~{fragments/guild-windows :: talk(${character}, ${talk}, true)}"></section></div></th:block>
+<!-- Who sits beside the traveller (/guild/neighbor): their talk, and what they like best here with the clue that gives
+     it away (GuildMenus.favorite); guild.js plays the talk once the meal is ordered. -->
+<th:block th:fragment="neighbor"><div data-neighbor th:attr="data-favorite=${favorite.key}, data-hint=${favorite.hint}"><section
+  th:replace="~{fragments/guild-windows :: talk(${character}, ${talk})}"></section></div></th:block>
 
-<!-- The keeper's counter (/guild/brew): serve a beer, someone comes over and orders, the visitor makes it (a base, something
-     to add, and a pour held to the line), and then they talk. All of it runs in guild.js; nothing of it is sent back. -->
-<th:block th:fragment="brew">
-  <section class="guild-brew" data-brew>
-    <div class="brew-ask" data-brew-ask>
-      <span class="brew-tap" aria-hidden="true"><i></i></span>
-      <p>店主として、ビールを出しますか？</p>
-      <button type="button" class="brew-button" data-brew-start hidden>ビールを出す</button>
-      <p class="brew-note" data-brew-note>ビールを出すにはJavaScriptが必要です。</p>
+<!-- A meal (/guild/meal, /guild/towns/{key}/meal): the traveller comes in, takes a seat, orders from the place's own menu
+     (guild/menus.yml) within the silver in their purse, and the one beside them reacts and talks. The menu reads without
+     JS; ordering, the purse and the pour run in guild.js, and nothing of it is sent back. -->
+<th:block th:fragment="meal">
+  <section class="guild-meal" th:classappend="${'menu-' + menu.style}" data-meal
+           th:attr="data-place=${place.key}, data-payment=${menu.payment}">
+    <div class="meal-enter" data-meal-enter>
+      <p class="meal-scene" th:text="${menu.enter}">扉を押すと、誰もいない広間に暖炉の火だけが揺れていた。</p>
+      <p class="meal-purse" data-meal-purse hidden>財布の中は銀貨 <b data-meal-coins>8</b> 枚。</p>
+      <button type="button" class="meal-button" data-meal-sit hidden>空いている席につく</button>
+      <p class="meal-note" data-meal-note>注文するにはJavaScriptが必要です。</p>
     </div>
-    <div class="brew-make" data-brew-make hidden>
-      <div class="brew-guest"><div class="brew-guest-figure" data-brew-figure></div>
-        <div class="brew-ticket"><b data-brew-name>リネ</b>の注文<p data-brew-ticket>すっきりした一杯に、蜂蜜をひとさじ</p></div></div>
-      <div class="brew-steps">
-        <fieldset><legend>1. 樽を選ぶ</legend>
-          <button type="button" th:each="base : ${bases}" th:attr="data-brew-base=${base.key}" th:classappend="${'base-' + base.key}" aria-pressed="false"><i aria-hidden="true"></i><th:block th:text="${base.name}">ラガー</th:block></button>
-        </fieldset>
-        <fieldset><legend>2. ひと工夫</legend>
-          <button type="button" th:each="extra : ${extras}" th:attr="data-brew-extra=${extra.key}" th:classappend="${'extra-' + extra.key}" aria-pressed="false"><i aria-hidden="true"></i><th:block th:text="${extra.name}">蜂蜜</th:block></button>
-        </fieldset>
-        <fieldset><legend>3. 注ぐ（押しているあいだ注ぐ。線で止める）</legend>
-          <div class="brew-pour">
-            <div class="brew-glass" data-brew-glass aria-hidden="true"><span class="brew-beer" data-brew-beer></span><span class="brew-foam" data-brew-foam></span><span class="brew-line"></span></div>
-            <div class="brew-pour-controls">
-              <button type="button" class="brew-button tap" data-brew-pour disabled>注ぐ</button>
-              <button type="button" class="brew-redo" data-brew-redo hidden>注ぎなおす</button>
-              <p class="brew-level" data-brew-level aria-live="polite"></p>
-            </div>
-          </div>
+    <div class="meal-table" data-meal-table hidden>
+      <div class="meal-neighbor"><div class="meal-neighbor-figure" data-meal-figure></div>
+        <div><p class="meal-seated" data-meal-seated></p><p class="meal-hint" data-meal-hint></p></div></div>
+    </div>
+    <div class="meal-menu" data-meal-menu>
+      <h3 class="meal-board" th:text="${menu.board}">黒板の品書き</h3>
+      <div class="meal-sections">
+        <fieldset th:each="section, it : ${menu.sections}"><legend th:text="${section.name}">飲み物</legend>
+          <button type="button" class="meal-item" th:each="item : ${section.items}" disabled aria-pressed="false"
+                  th:attr="data-meal-item=${item.key}, data-name=${item.name}, data-price=${item.price}, data-section=${it.index}, data-pour=${item.pour ? '1' : null}">
+            <span class="meal-item-name" th:text="${item.name}">樽のエール</span>
+            <span class="meal-item-price" th:text="${item.price == 0 ? 'ただ' : '銀貨' + item.price}">銀貨2</span>
+            <small th:text="${item.about}">自分で樽の栓をひねって注ぐ。</small>
+          </button>
         </fieldset>
       </div>
-      <button type="button" class="brew-button serve" data-brew-serve disabled>出す</button>
+      <p class="meal-board-note" th:text="${menu.note}">黒板の隅に、誰かの字で「豆のスープには固焼きを浸せ」と書き足してある。</p>
+      <ul hidden data-meal-pairings><li th:each="pairing : ${menu.pairings}" th:attr="data-a=${pairing.a}, data-b=${pairing.b}" th:text="${pairing.line}">…</li></ul>
+      <div class="meal-bill" data-meal-bill hidden><p>お代 銀貨 <b data-meal-total>0</b> 枚 ／ 財布 <b data-meal-left>8</b> 枚</p>
+        <button type="button" class="meal-button" data-meal-order disabled>これを頼む</button></div>
     </div>
-    <div hidden data-brew-holder></div>
+    <div class="meal-pour" data-meal-pour hidden>
+      <p class="meal-pour-title"><b data-meal-pour-name>樽のエール</b>は自分で注ぐ。押しているあいだ注ぎ、線で止める。</p>
+      <div class="meal-pour-row">
+        <div class="meal-glass" data-meal-glass aria-hidden="true"><span class="meal-beer" data-meal-beer></span><span class="meal-foam" data-meal-foam></span><span class="meal-line"></span></div>
+        <div class="meal-pour-controls">
+          <button type="button" class="meal-button tap" data-meal-tap>注ぐ</button>
+          <button type="button" class="meal-redo" data-meal-redo hidden>注ぎなおす</button>
+          <p class="meal-level" data-meal-level aria-live="polite"></p>
+        </div>
+      </div>
+      <button type="button" class="meal-button" data-meal-carry disabled>席に持っていく</button>
+    </div>
+    <div hidden data-meal-holder></div>
   </section>
 </th:block>
 

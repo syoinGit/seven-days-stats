@@ -23,6 +23,7 @@ public class GuildController {
   private final GuildSignboard signboard;
   private final GuildTalks talks;
   private final GuildThoughts thoughts;
+  private final GuildMenus menus;
 
   @GetMapping("/guild")
   public String room(Model model) {
@@ -58,28 +59,40 @@ public class GuildController {
   }
 
   /**
-   * Serving a beer: someone with a talk comes over and orders. Returns their order and talk, ready to play
-   * (fragments/guild-windows :: beer). skip: ids the visitor already talked with today (kept in their browser); at most 200
-   * of them are read. Not found when nobody is left.
+   * Who sits beside the traveller (fragments/guild-windows :: neighbor): their talk, and what they like best here with
+   * the clue that gives it away. place: where the traveller is (unknown places are not found). skip: ids the visitor
+   * already talked with today (kept in their browser); at most 200 of them are read. Not found when nobody is left.
    */
-  @GetMapping("/guild/beer")
-  public String beer(Model model, @RequestParam(defaultValue = "") String skip) {
+  @GetMapping("/guild/neighbor")
+  public String neighbor(Model model, @RequestParam(defaultValue = GuildPlaces.GUILD) String place, @RequestParam(defaultValue = "") String skip) {
+    if (GuildPlaces.of(place) == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     java.util.Set<Long> skipped = java.util.Arrays.stream(skip.split(",")).limit(200).filter(id -> id.matches("\\d{1,18}"))
         .map(Long::parseLong).collect(java.util.stream.Collectors.toSet());
-    Long id = talks.draw(skipped);
+    Long id = talks.draw(skipped, place);
     if (id == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     model.addAttribute("character", guild.character(id));
     model.addAttribute("talk", talks.latest(id));
-    model.addAttribute("order", GuildBrew.order(id, ZonedDateTime.now(GuildService.TOKYO).toLocalDate()));
-    return "fragments/guild-windows :: beer";
+    model.addAttribute("favorite", menus.favorite(id, place));
+    return "fragments/guild-windows :: neighbor";
   }
 
-  /** The keeper's counter: pour a beer, and someone comes over to talk (the only way to talk with residents). */
-  @GetMapping("/guild/brew")
-  public String brew(Model model) {
-    model.addAttribute("bases", GuildBrew.BASES);
-    model.addAttribute("extras", GuildBrew.EXTRAS);
-    return stage(model, "brew", "brew", "ビールを出す");
+  /** A meal at the guild: the traveller orders within their purse, and the one beside them talks (the only way to talk with residents). */
+  @GetMapping("/guild/meal")
+  public String meal(Model model) {
+    return meal(model, GuildPlaces.CENTER);
+  }
+
+  /** A meal at a nation's tavern, from its own menu. Unknown keys are not found. */
+  @GetMapping("/guild/towns/{key}/meal")
+  public String townMeal(Model model, @PathVariable String key) {
+    var place = GuildPlaces.of(key);
+    if (place == null || place.guild()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+    return meal(model, place);
+  }
+
+  private String meal(Model model, GuildPlaces.Place place) {
+    model.addAttribute("menu", menus.of(place.key()));
+    return stage(model, place, "meal", "meal", place.name() + "で食事");
   }
 
   @GetMapping("/guild/characters/{id}")
