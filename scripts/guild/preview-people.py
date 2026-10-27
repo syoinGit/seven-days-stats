@@ -3,16 +3,25 @@
 Run this, then: python3 -m http.server 18765 --bind 127.0.0.1 --directory target/guild-sd-preview
 """
 from pathlib import Path
+import argparse
 import shutil
+import subprocess
 import xml.etree.ElementTree as ET
 
 root = Path(__file__).resolve().parents[2]
 out = root/'target/guild-sd-preview'
 out.mkdir(parents=True, exist_ok=True)
+arguments = argparse.ArgumentParser(description=__doc__)
+arguments.add_argument('--compare-ref', help='Git revision whose artwork is shown next to the current version')
+options = arguments.parse_args()
 for name in ('img/guild-people.svg', 'css/guild.css'):
     target = out/name
     target.parent.mkdir(exist_ok=True)
     shutil.copyfile(root/'src/main/resources/static'/name, target)
+if options.compare_ref:
+    before = subprocess.run(['git', 'show', f'{options.compare_ref}:src/main/resources/static/img/guild-people.svg'],
+                            cwd=root, check=True, capture_output=True).stdout
+    (out/'img/guild-people-before.svg').write_bytes(before)
 ids = [element.attrib['id'] for element in ET.parse(out/'img/guild-people.svg').getroot()]
 hairs = [name.removeprefix('hair-') for name in ids if name.startswith('hair-')]
 eyes = [name.removeprefix('eyes-') for name in ids if name.startswith('eyes-')]
@@ -32,7 +41,7 @@ def figure(outfit='adventurer_f',hair='bob',eye='round',brow='natural',variant='
     assert all(layer in ids for layer in layers), layers
     hc,skin,c1,c2 = palettes[palette%4]
     style=f'--hair:{hc};--skin:{skin};--cloth:{c1};--cloth2:{c2};--eye:#4d6455'
-    uses=''.join(f'<use width="96" height="144" href="img/guild-people.svg?v=5#{layer}"/>' for layer in layers)
+    uses=''.join(f'<use width="96" height="144" href="img/guild-people.svg?v=6#{layer}"/>' for layer in layers)
     return f'<svg class="guild-sprite" viewBox="{"16 8 64 64" if face else "0 0 96 144"}" style="{style}" aria-hidden="true">{uses}</svg>'
 
 def cards(items, scales=True):
@@ -46,6 +55,17 @@ def cards(items, scales=True):
 html='''<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Guild SD visual review</title><link rel="stylesheet" href="css/guild.css"><style>
 body{margin:0;background:#201c27;color:#f5e5c3;font:15px system-ui}main{max-width:1200px;margin:auto;padding:28px}h1{font-size:26px}p{color:#c5b7ae;line-height:1.8}.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:14px}.sample{border:1px solid #65534d;border-radius:12px;background:radial-gradient(ellipse at 50% 50%,#55463e,#302932);text-align:center;padding:16px 4px}.portrait .guild-sprite{width:144px;height:216px}.scales{display:flex;gap:12px;justify-content:center;align-items:end;border-top:1px solid #ffffff18;padding-top:10px}.tiny .guild-sprite{width:32px;height:48px}.town-room{height:230px;position:relative;background:repeating-linear-gradient(0deg,#534039 0 40px,#43322e 40px 43px);border:6px solid #80634c;margin:24px 0;overflow:hidden}.town-room .room-person{bottom:25px}.sample h3{font-size:14px;font-weight:500;margin:4px}.legacy{display:flex;flex-wrap:wrap;gap:30px;align-items:center;margin:24px 0}.legacy .guild-sprite{width:96px;height:144px}.faces .portrait .guild-sprite{width:144px;height:144px}
 </style><main><h1>GUILD · 顔で見分けるSDキャラクター</h1><p>目9種類・眉3種類・髪45種類・職業別24衣装 × 3差分。比較用の架空データです。</p>'''
+showcase = [('騎士', dict(outfit='knight_f', hair='wavy', eye='almond', palette=1)),
+            ('冒険者', dict(hair='sidebraid', eye='round', palette=0)),
+            ('聖職者', dict(outfit='cleric', hair='swept', eye='narrow', female=False, palette=2)),
+            ('職人', dict(outfit='crafter_f', hair='shortwave', eye='droop', palette=3))]
+if options.compare_ref:
+    html+='<section id="comparison"><h2>仕上げの比較</h2><p>同じ髪型・目・衣装・配色で比較。左が変更前、右が変更後です。</p><div class="gallery">'
+    for label, settings in showcase:
+        svg = figure(**settings)
+        old = svg.replace('guild-people.svg?', 'guild-people-before.svg?')
+        html+=f'<article class="sample"><h3>{label}</h3><div class="compare-pair"><div><small>変更前</small>{old}</div><div><small>変更後</small>{svg}</div></div></article>'
+    html+='</div></section><style>#comparison .gallery{grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr))}.compare-pair{display:flex;justify-content:center;gap:14px}.compare-pair>div{flex:1;min-width:0}.compare-pair small{display:block;color:#c5b7ae;margin:12px}.compare-pair .guild-sprite{width:min(100%,192px);height:auto;aspect-ratio:2/3}</style>'
 html+='<section class="faces"><h2>目の形（髪・肌・瞳の色は共通）</h2><p>形の差を比べるため、基本表情と装飾品は付けていません。</p>'
 html+=cards([(label,figure(eye=eye,face=True)) for eye,label in zip(eyes,eye_names)],False)+'</section>'
 html+='<h2>眉の形</h2>'+cards([(brow,figure(brow=brow,face=True)) for brow in ['natural','straight','arched']],False)
@@ -58,6 +78,6 @@ for i,(job,label) in enumerate(jobs):
         for variant,cut in [('classic','普段着'),('travel','旅装'),('formal','晴れ着')]:
             figures.append((label+'・'+cut,figure(outfit,hairs[i%len(hairs)],eyes[i%9],variant=variant,female=female,palette=i,hat=True)))
 html+='<h2>衣装72パターン</h2>'+cards(figures)
-html+='<div class="legacy">旧データの表示：'+''.join(f'<svg class="guild-sprite {tint}" viewBox="0 0 96 144"><use href="img/guild-people.svg?v=5#resident"/></svg>' for tint in ['ember','moss','violet'])+'</div></main></html>'
+html+='<div class="legacy">旧データの表示：'+''.join(f'<svg class="guild-sprite {tint}" viewBox="0 0 96 144"><use href="img/guild-people.svg?v=6#resident"/></svg>' for tint in ['ember','moss','violet'])+'</div></main></html>'
 (out/'index.html').write_text(html)
 print(out/'index.html')
