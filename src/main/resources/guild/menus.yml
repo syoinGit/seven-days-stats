@@ -1,0 +1,110 @@
+# What the traveller can order at each place (GuildMenus). The traveller is a stranger who wandered in, with a few silver
+# coins a night; they order within their purse, and whoever sits beside them reacts to it before they talk.
+#
+#   style: how the menu is drawn (board / parchment / bark / tags)
+#   enter: what the traveller sees on coming in. board: the menu's heading. note: a line under it (a hint for pairings).
+#   sections: up to one item from each. item: key, name, price (silver coins), about (one line), pour (a beer to pour),
+#     hint (what gives away that the neighbour likes it; shown before ordering)
+#   pairings: two items that go together and what is said when both are ordered
+version: "2026-10-27"
+places:
+  guild:
+    style: board
+    enter: 扉を押すと、誰もいない広間に暖炉の火だけが揺れていた。カウンターの黒板に品書きがあり、横に木の料金箱が置いてある。
+    board: 黒板の品書き
+    note: 黒板の隅に、誰かの字で「豆のスープには固焼きを浸せ」と書き足してある。
+    payment: 料金箱に銀貨を落とすと、奥の棚の扉がかちりと開いた。
+    sections:
+      - name: 飲み物
+        items:
+          - {key: tap-ale, name: 樽のエール, price: 2, pour: true, about: 自分で樽の栓をひねって注ぐ。, hint: 隣の席のジョッキに、エールの泡の跡が残っている。}
+          - {key: mead, name: 蜂蜜酒, price: 3, about: 冒険者が置いていった甘い酒。, hint: 隣の席から、ほのかに蜂蜜の甘い匂いがする。}
+          - {key: well-water, name: 井戸水, price: 0, about: 汲みたて。ただ。, hint: 隣の席には、水の入った杯がひとつだけ置かれている。}
+      - name: 料理
+        items:
+          - {key: bean-soup, name: 豆のスープ, price: 3, about: 鍋が暖炉にかけっぱなしになっている。, hint: 隣の席の器に、豆がひと粒だけ残っている。}
+          - {key: jerky, name: 干し肉, price: 2, about: 旅の保存食。噛むほど味が出る。, hint: 隣の人が、干し肉の切れ端をかじりながら座っている。}
+          - {key: stew-of-the-day, name: 誰かの作った煮込み, price: 4, about: 鍋に「好きに食え」と札が下がっている。, hint: 隣の席から、煮込みの湯気の匂いがする。}
+      - name: つまみ
+        items:
+          - {key: hardtack, name: 固焼きビスケット, price: 1, about: 歯が折れそうに硬い。, hint: 隣の席に、固焼きのかけらが散らばっている。}
+          - {key: dried-fruit, name: 干し果物, price: 2, about: 遠征帰りの誰かのおすそわけ。, hint: 隣の人の指先が、干し果物の糖でべたついている。}
+    pairings:
+      - {a: bean-soup, b: hardtack, line: 黒板の字のとおり、固焼きをスープに浸すと、ちょうどいい柔らかさになった。}
+      - {a: tap-ale, b: jerky, line: 干し肉の塩気をエールで流しこむ。冒険者の晩飯は、昔からこれだ。}
+      - {a: mead, b: dried-fruit, line: 蜂蜜酒と干し果物。甘いものどうしが、疲れた体にしみる。}
+  grantford:
+    style: parchment
+    enter: 石造りの広間に旗が下がり、樫の長卓で騎士や農夫が肩を並べている。給仕の娘が羊皮紙の品書きを置いていった。
+    board: 樫の盾亭 本日の品書き
+    note: 品書きの下に「収穫祭の季節につき、林檎と栗は領地の畑より」と添えてある。
+    payment: 給仕の娘が銀貨を受け取り、厨房に向かって注文を読み上げた。
+    sections:
+      - name: 飲み物
+        items:
+          - {key: stout, name: 黒ビール, price: 3, pour: true, about: 樽から自分で注ぐのがこの店の流儀。, hint: 隣の人の口もとに、黒ビールの泡がついている。}
+          - {key: cider, name: 林檎酒, price: 2, about: 領地の林檎で仕込んだ、すっきりした酒。, hint: 隣の席から、林檎の甘酸っぱい香りがする。}
+          - {key: barley-tea, name: 麦湯, price: 1, about: 麦を炒って煮出した、温かい飲み物。, hint: 隣の人は、湯気の立つ麦湯の杯を両手で包んでいる。}
+      - name: 料理
+        items:
+          - {key: mutton-stew, name: 羊肉の煮込み, price: 5, about: 根菜と一緒に一晩煮こんだ、店の看板料理。, hint: 隣の皿に、煮込みの骨がきれいにしゃぶられて残っている。}
+          - {key: black-bread, name: 黒パンとチーズ, price: 3, about: 酸味のある黒パンに、硬いチーズをひと切れ。, hint: 隣の人の膝に、黒パンのくずが落ちている。}
+          - {key: harvest-pie, name: 収穫祭のパイ, price: 4, about: 林檎と木の実を包んだ、祭りの季節だけのパイ。, hint: 隣の人が、パイの最後のひと口を名残惜しそうに見ている。}
+      - name: つまみ
+        items:
+          - {key: roast-chestnut, name: 焼き栗, price: 1, about: 暖炉の灰で焼いた、ほくほくの栗。, hint: 隣の席に、焼き栗の殻が小さな山になっている。}
+          - {key: pickled-onion, name: 小玉ねぎの酢漬け, price: 1, about: 騎士たちが好む、つんとした酸っぱさ。, hint: 隣の人の前に、酢漬けの瓶が開けたまま置いてある。}
+    pairings:
+      - {a: stout, b: mutton-stew, line: 給仕の娘が「黒ビールに煮込み、騎士さま方と同じ頼み方ですね」と笑った。}
+      - {a: cider, b: harvest-pie, line: 林檎酒と林檎のパイ。給仕の娘が「収穫祭の晩の組み合わせです」と目を輝かせた。}
+      - {a: black-bread, b: pickled-onion, line: 黒パンに酢漬けをのせると、長卓の農夫が「わかってるね」とうなずいた。}
+  elmwood:
+    style: bark
+    enter: 大樹のうろの中に、光る苔のランプがともっている。根の卓に、木の皮に刻まれた品書きが立てかけてある。
+    board: 苔灯りの宿 森の恵み
+    note: 皮の品書きの端に、葉の印とともに「茸の汁物には、どんぐりの薄焼きを」と刻まれている。
+    payment: 宿の主が銀貨を受け取り、精霊へのお礼にと、ひと粒の木の実を窓辺に置いた。
+    sections:
+      - name: 飲み物
+        items:
+          - {key: herb-tea, name: 香草茶, price: 1, about: その日に摘んだ七種の香草。, hint: 隣の席から、すっとする香草の香りが漂ってくる。}
+          - {key: nut-wine, name: 木の実の酒, price: 3, about: 森の奥で寝かせた、とろりとした酒。, hint: 隣の人の杯の底に、木の実の酒のとろみが残っている。}
+          - {key: sap-water, name: 樹液水, price: 2, about: 楓の樹液を薄めた、ほのかに甘い水。, hint: 隣の人が、樹液水の杯を苔のランプにかざして眺めている。}
+      - name: 料理
+        items:
+          - {key: mushroom-soup, name: 森茸の汁物, price: 3, about: 雨上がりに採った茸の香り。, hint: 隣の器から、茸の香りがまだ立っている。}
+          - {key: smoked-venison, name: 鹿肉の燻製, price: 5, about: 狩人がおさめた、薫りの強い燻製。, hint: 隣の人の指に、燻製の煙の匂いが染みついている。}
+      - name: 焼きもの・甘味
+        items:
+          - {key: acorn-flatbread, name: どんぐりの薄焼き, price: 2, about: どんぐり粉を薄くのばして焼いたもの。, hint: 隣の席に、どんぐりの薄焼きのかけらが落ちている。}
+          - {key: honey-berries, name: 木いちごの蜂蜜漬け, price: 2, about: 森の蜂の蜜に漬けた、赤い実。, hint: 隣の人の唇が、木いちごの色にうっすら染まっている。}
+          - {key: moss-cake, name: 苔色の蒸し菓子, price: 3, about: 薬草を練りこんだ、緑色の蒸し菓子。, hint: 隣の皿に、緑色の蒸し菓子の包み葉が残っている。}
+    pairings:
+      - {a: mushroom-soup, b: acorn-flatbread, line: 刻まれた言葉のとおり、薄焼きで汁物をすくう。森の味がした。}
+      - {a: herb-tea, b: moss-cake, line: 宿の主が「香草茶に蒸し菓子、精霊祭の朝の食べ方ですよ」と微笑んだ。}
+      - {a: nut-wine, b: smoked-venison, line: 木の実の酒が、燻製の薫りをやわらかく包んだ。狩人たちの夜の楽しみだという。}
+  tsukikage:
+    style: tags
+    enter: 暖簾をくぐると、提灯の明かりが畳に揺れていた。壁には木札の品書きが並び、障子の向こうに月がのぼっている。
+    board: 品書き
+    note: 木札の端に、墨で「月の夜は団子に熱燗」と小さく書き添えてある。
+    payment: 女将が銀貨を受け取り、「毎度おおきに」と頭を下げた。
+    sections:
+      - name: 飲み物
+        items:
+          - {key: hot-sake, name: 熱燗, price: 3, about: 徳利でぬる燗に。, hint: 隣の人の前に、空の徳利が一本立っている。}
+          - {key: matcha, name: 抹茶, price: 2, about: 女将が一服点ててくれる。, hint: 隣の席に、茶筅でたてた抹茶の泡の跡がある。}
+          - {key: barley-cha, name: 麦茶, price: 1, about: 香ばしい冷やし麦茶。, hint: 隣の人が、麦茶の湯呑みを静かにすすっている。}
+      - name: 料理
+        items:
+          - {key: grilled-ayu, name: 鮎の塩焼き, price: 4, about: 川で獲れた鮎を、炭火でじっくり。, hint: 隣の皿に、鮎の骨が頭から尾まできれいに残っている。}
+          - {key: yudofu, name: 湯豆腐, price: 3, about: 昆布だしで温めた、やわらかな豆腐。, hint: 隣の席の土鍋から、昆布だしの湯気が上がっている。}
+          - {key: inari, name: 稲荷寿司, price: 2, about: 甘辛く煮た揚げに酢飯を詰めて。, hint: 隣の人の皿に、稲荷寿司がひとつだけ残してある。}
+      - name: 甘味
+        items:
+          - {key: tsukimi-dango, name: 月見団子, price: 2, about: 月の夜だけ出る、白い団子。, hint: 隣の人が、月見団子の串をくるくる回している。}
+          - {key: warabi-mochi, name: わらび餅, price: 2, about: きな粉と黒蜜をたっぷり。, hint: 隣の人の袖に、きな粉がうっすらついている。}
+    pairings:
+      - {a: hot-sake, b: tsukimi-dango, line: 木札の言葉のとおり、団子に熱燗。障子の向こうの月が、ひときわ明るく見えた。}
+      - {a: matcha, b: warabi-mochi, line: 女将が「抹茶にわらび餅、通な頼み方やねえ」と目を細めた。}
+      - {a: grilled-ayu, b: hot-sake, line: 鮎の塩気に熱燗がよく合う。隣の卓の侍が、うらやましそうにこちらを見た。}
