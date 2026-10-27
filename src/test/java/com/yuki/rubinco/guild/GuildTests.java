@@ -47,6 +47,7 @@ class GuildTests {
   @Autowired GuildVoice voices;
   @Autowired GuildSignboard signboard;
   @Autowired GuildTalks talks;
+  @Autowired GuildThoughts thoughts;
   @Autowired JdbcTemplate jdbc;
   @Autowired com.yuki.rubinco.account.repository.M_WebAccountRepository accounts;
   @Autowired MockMvc mvc;
@@ -65,7 +66,7 @@ class GuildTests {
 
   @BeforeEach void setup() {
     talks.forgetTries();
-    for (String table : List.of("T_GUILD_TALK_CHOICE", "T_GUILD_TALK", "T_GUILD_RELATION_EVENT", "T_GUILD_EXPEDITION_STAGE", "T_GUILD_EXPEDITION_MEMBER", "T_GUILD_EXPEDITION", "T_GUILD_AFFILIATION_HISTORY", "T_GUILD_THREAD", "T_GUILD_INTERACTION_PARTICIPANT", "T_GUILD_INTERACTION",
+    for (String table : List.of("T_GUILD_THOUGHT", "T_GUILD_TALK_CHOICE", "T_GUILD_TALK", "T_GUILD_RELATION_EVENT", "T_GUILD_EXPEDITION_STAGE", "T_GUILD_EXPEDITION_MEMBER", "T_GUILD_EXPEDITION", "T_GUILD_AFFILIATION_HISTORY", "T_GUILD_THREAD", "T_GUILD_INTERACTION_PARTICIPANT", "T_GUILD_INTERACTION",
         "T_GUILD_RELATION", "T_GUILD_BOND", "T_GUILD_HOURLY_JOB", "T_GUILD_SOURCE", "T_GUILD_VISIT", "T_GUILD_DAY", "T_GUILD_JOB", "M_GUILD_CHARACTER", "T_CK_SESSION", "M_CK_PLAYER")) {
       jdbc.update("DELETE FROM " + table);
     }
@@ -388,6 +389,58 @@ class GuildTests {
         p.interactionFallback(), p.recentPairSlots(), p.dungeonDeparture(), p.dungeonStageMinutes()).dailyLimit()).isEqualTo(5);
   }
 
+  /**
+   * Where each one's mind is (V69): after a scene the AI writes what is on each one's mind and how they see the other; the
+   * next scene between them is given that and what they talked about before, and the resident's window shows it.
+   */
+  @Test void residentsCarryWhatTheyThinkIntoTheNextScene() throws Exception {
+    String minded = SCENE.strip().replaceFirst("}$", ",\"thoughts\":[{\"name\":\"リネ\",\"now\":\"冬に備えて薪を集めないと。\",\"about\":\"ロアンは気が利く人だ。\"},"
+        + "{\"name\":\"ロアン\",\"now\":\"火の番を任されたのが少しうれしい。\",\"about\":\"リネは寒がりらしい。\"}]}");
+    when(bedrock.generate(anyString(), anyString(), eq(GuildInteractionWriter.MAX_TOKENS), any())).thenReturn(minded);
+    long rine = resident("リネ", 28, "ALIVE", 0);
+    long roan = resident("ロアン", 30, "ALIVE", 1);
+    interactions.runHour(HOUR);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_THOUGHT")).isEqualTo(4);
+    assertThat(thoughts.now(rine)).isEqualTo("冬に備えて薪を集めないと。");
+    assertThat(thoughts.about(roan, rine)).isEqualTo("リネは寒がりらしい。");
+    // The first scene had nothing to recall; the next one between them is given each one's mind and their last talk.
+    verify(bedrock, never()).generate(anyString(), argThat(input -> input.contains("今思っていること")), anyInt(), any());
+    interactions.runHour(HOUR.plusMinutes(15));
+    verify(bedrock).generate(argThat(prompt -> prompt.contains("続きのある会話")), argThat(input -> input.contains("リネが今思っていること=冬に備えて薪を集めないと。")
+        && input.contains("ロアンがリネについて思っていること=リネは寒がりらしい。") && input.contains("前に二人で話したこと=")),
+        eq(GuildInteractionWriter.MAX_TOKENS), any());
+    // The window shows where the mind is now, how it got there, and how they see the other one.
+    mvc.perform(get("/guild/characters/" + rine)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("今、思っていること")))
+        .andExpect(content().string(containsString("冬に備えて薪を集めないと。")))
+        .andExpect(content().string(containsString("class=\"mind-trail\"")))
+        .andExpect(content().string(containsString("ロアンは気が利く人だ。")));
+    // A talk is written with what is on their mind.
+    when(bedrock.generate(anyString(), anyString(), eq(GuildTalkWriter.MAX_TOKENS), any())).thenReturn(TALK);
+    talks.write(HOUR, GuildTalks.MANUAL);
+    verify(bedrock).generate(anyString(), argThat(input -> input.contains("今思っていること=")), eq(GuildTalkWriter.MAX_TOKENS), any());
+    // Deleting a resident takes the thoughts with the interactions.
+    guild.delete(rine);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_THOUGHT")).isZero();
+  }
+
+  /** Thoughts that don't hold are dropped; the scene stays. */
+  @Test void thoughtsThatDoNotHoldAreDroppedButTheSceneStays() {
+    var a = new GuildInteractionService.Person(1, "リネ", 28, "女性", "冒険者", "穏やか。");
+    var b = new GuildInteractionService.Person(2, "ロアン", 30, "男性", "鍛冶屋", "無口。");
+    var scene = new GuildInteractionWriter.Scene("evening", "雑談", "二人は天気の話をした", a, b, "ふつう", "ふつう", "知人", null, "", List.of(),
+        null, null, null);
+    String good = SCENE.strip().replaceFirst("}$", ",\"thoughts\":[{\"name\":\"リネさん\",\"now\":\"雨が止むといい。\",\"about\":null}]}");
+    assertThat(writer.thoughts(good, scene)).containsExactly(new GuildInteractionWriter.Thought("リネ", "雨が止むといい。", null));
+    for (String bad : List.of("{\"name\":\"ガルド\",\"now\":\"眠い。\"}", "{\"name\":\"リネ\",\"now\":\"ロアンと結婚したい。\"}",
+        "{\"name\":\"リネ\",\"now\":\"" + "長".repeat(100) + "\"}", "{\"name\":\"リネ\",\"now\":\"a\"},{\"name\":\"リネ\",\"now\":\"b\"}")) {
+      String json = SCENE.strip().replaceFirst("}$", ",\"thoughts\":[" + bad + "]}");
+      assertThat(writer.thoughts(json, scene)).isEmpty();
+      assertThat(writer.validate(json, scene)).contains("リネ「今日は冷えるね。」");
+    }
+    assertThat(writer.thoughts(SCENE, scene)).isEmpty();
+  }
+
   /** The writer is told each one's voice; the tavern gets the whole talk, line by line, to play in turn. */
   @Test void theWriterHearsTheVoicesAndTheTavernPlaysTheTalk() {
     resident("リネ", 28, "ALIVE", 0);
@@ -554,7 +607,7 @@ class GuildTests {
     long roan = resident("ロアン", 30, "ALIVE", 1);
     jdbc.update("UPDATE M_GUILD_CHARACTER SET occupation = '騎士', faction = 'silver_knights', faith = 'dawnlight' WHERE id = ?", roan);
     var only = new GuildCards(new org.springframework.core.io.ClassPathResource("guild/affiliation-test-cards.yml"));
-    var service = new GuildInteractionService(jdbc, properties, only, writer, world);
+    var service = new GuildInteractionService(jdbc, properties, only, writer, world, thoughts);
     service.runHour(HOUR.withHour(20));
     service.runHour(HOUR.withHour(21));
     assertThat(jdbc.queryForMap("SELECT faction, faith, current_village FROM M_GUILD_CHARACTER WHERE id = ?", rine))
@@ -631,7 +684,7 @@ class GuildTests {
     jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten) VALUES (?,?,10,45,0,0,TRUE)", rine, roan);
     jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten) VALUES (?,?,10,0,0,0,FALSE)", roan, rine);
     var quiet = new GuildCards(new org.springframework.core.io.ClassPathResource("guild/crush-test-cards.yml"));
-    new GuildInteractionService(jdbc, properties, quiet, writer, world).runHour(HOUR);
+    new GuildInteractionService(jdbc, properties, quiet, writer, world, thoughts).runHour(HOUR);
     assertThat(count("SELECT affinity FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", rine, roan)).isEqualTo(45 + 2 + 1 + 1);
     assertThat(count("SELECT affinity FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", roan, rine)).isBetween(0, 1);
     assertThat(jdbc.queryForMap("SELECT kind, a_id, summary FROM T_GUILD_THREAD")).containsEntry("KIND", "crush")

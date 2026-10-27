@@ -30,14 +30,17 @@ public class GuildTalks {
   private final GuildService guild;
   private final GuildVoice voices;
   private final GuildTalkWriter writer;
+  private final GuildThoughts thoughts;
   private final TransactionTemplate transactions;
   private final Map<LocalDate, Integer> tries = new ConcurrentHashMap<>();
 
-  public GuildTalks(JdbcTemplate jdbc, GuildService guild, GuildVoice voices, GuildTalkWriter writer, TransactionTemplate transactions) {
+  public GuildTalks(JdbcTemplate jdbc, GuildService guild, GuildVoice voices, GuildTalkWriter writer, GuildThoughts thoughts,
+                    TransactionTemplate transactions) {
     this.jdbc = jdbc;
     this.guild = guild;
     this.voices = voices;
     this.writer = writer;
+    this.thoughts = thoughts;
     this.transactions = transactions;
   }
 
@@ -99,7 +102,8 @@ public class GuildTalks {
     GuildTalkWriter.Talk talk;
     try {
       talk = writer.write(new GuildTalkWriter.Speaker(character.name(), character.profile(), character.personality(), character.introduction(),
-          voices.of(character).describe(), character.village(), character.faction(), character.faith(), GuildPlaces.of(place).title(), others));
+          voices.of(character).describe(), character.village(), character.faction(), character.faith(), GuildPlaces.of(place).title(), others,
+          thoughts.now(id)));
     } catch (GuildTalkWriter.WritingException failure) {
       log.warn("Guild talk writing failed ({}, {})", failure.call() ? "bedrock call" : "invalid output", failure.getMessage());
       return "AIが会話を書けませんでした（" + (failure.call() ? "呼び出しの失敗" : "応答が条件を満たさない") + "）。";

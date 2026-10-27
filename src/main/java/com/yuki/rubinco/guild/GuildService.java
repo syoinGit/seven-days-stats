@@ -264,6 +264,7 @@ public class GuildService {
     if (names.isEmpty()) return "その住人は見つかりませんでした。";
     List<Long> interactions = jdbc.queryForList("SELECT interaction_id FROM T_GUILD_INTERACTION_PARTICIPANT WHERE character_id = ?", Long.class, id);
     for (long interaction : interactions) {
+      jdbc.update("DELETE FROM T_GUILD_THOUGHT WHERE interaction_id = ?", interaction);
       jdbc.update("DELETE FROM T_GUILD_AFFILIATION_HISTORY WHERE interaction_id = ?", interaction);
       jdbc.update("DELETE FROM T_GUILD_RELATION_EVENT WHERE interaction_id = ?", interaction);
       jdbc.update("DELETE FROM T_GUILD_THREAD WHERE origin_interaction_id = ? OR resolved_interaction_id = ?", interaction, interaction);

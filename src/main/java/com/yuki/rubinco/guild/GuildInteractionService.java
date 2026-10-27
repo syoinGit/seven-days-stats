@@ -46,6 +46,7 @@ public class GuildInteractionService {
   private final GuildCards cards;
   private final GuildInteractionWriter writer;
   private final GuildWorld world;
+  private final GuildThoughts thoughts;
 
   /**
    * Where a resident lives, their faction and faith (keys and names), the faction they last left or were
@@ -261,12 +262,15 @@ public class GuildInteractionService {
         after.equals(before) ? null : LABELS.get(after), changes(abDelta, pair.a().name(), pair.b().name())
         + changes(baDelta, pair.b().name(), pair.a().name()), pair.threads().stream().map(OpenThread::summary).limit(3).toList(),
         opened, resolved == null ? null : resolved.summary(), pair.deadName(), world.describe(keys),
-        change == null ? null : change.text(), change == null ? null : change.kind(), place.title());
+        change == null ? null : change.text(), change == null ? null : change.kind(), place.title(), thoughts.recall(pair.a(), pair.b()));
     String body;
     String writtenBy;
+    List<GuildInteractionWriter.Thought> minds = List.of();
     String note = "";
     try {
-      body = writer.write(scene);
+      var written = writer.write(scene);
+      body = written.body();
+      minds = written.thoughts();
       writtenBy = "ai";
     } catch (GuildInteractionWriter.WritingException failure) {
       log.warn("Guild interaction writing failed ({}, {})", failure.call() ? "bedrock call" : "invalid output", failure.getMessage());
@@ -286,6 +290,7 @@ public class GuildInteractionService {
     long id = jdbc.queryForObject("SELECT id FROM T_GUILD_INTERACTION WHERE slot_key = ?", Long.class, slot);
     jdbc.update("INSERT INTO T_GUILD_INTERACTION_PARTICIPANT (interaction_id,character_id,position) VALUES (?,?,0)", id, pair.a().id());
     jdbc.update("INSERT INTO T_GUILD_INTERACTION_PARTICIPANT (interaction_id,character_id,position) VALUES (?,?,1)", id, pair.b().id());
+    thoughts.save(id, pair.a(), pair.b(), minds);
     save(id, pair.a().id(), pair.b().id(), ab, abDelta, card.kind() + "：" + summary);
     save(id, pair.b().id(), pair.a().id(), ba, baDelta, card.kind() + "：" + summary);
     if (!after.equals(before)) bond(id, pair, before, after, local.toOffsetDateTime(), summary);
