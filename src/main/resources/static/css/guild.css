@@ -721,3 +721,34 @@
 .wolf-rules{margin:14px 0 6px;font-size:13px}.wolf-rules summary{cursor:pointer;color:#efbea9}
 @media(max-width:650px){.wolf-seats{grid-template-columns:repeat(4,1fr);gap:2px;padding:4px}.wolf-seat .guild-sprite{width:30px;height:45px}
   .wolf-you-mark{width:30px;height:30px;margin:8px 0 7px;font-size:13px}.wolf-log{max-height:38vh}.guild-shell .wolf-lead,.wolf-lead{font-size:13px}}
+/* The relationship chart: lines in an SVG square, the residents and the words on the lines placed over it by percent. */
+.rmap{position:relative;width:100%;max-width:560px;aspect-ratio:1;margin:4px auto 10px;background:radial-gradient(circle,#2e2230,#1a1320 72%);border:3px solid #4a3438}
+.rmap-lines{position:absolute;inset:0;width:100%;height:100%}
+.rmap-edge{fill:none;stroke:#8c7a86;stroke-width:2;stroke-linecap:round}
+.e-spouse{--edge:#ff5c95}.e-lover{--edge:#ff7fae}.e-close_friend{--edge:#4fd18b}.e-friend{--edge:#8fcf8f}.e-companion{--edge:#6fa8d8}
+.e-mentor{--edge:#b48cff}.e-rival{--edge:#e35d5d}.e-crush{--edge:#ff9fc6}.e-warm{--edge:#a8949f}.e-cold{--edge:#c86a5a}
+.rmap-edge[class*="e-"]{stroke:var(--edge)}
+.rmap-edge.e-spouse,.rmap-edge.e-close_friend,.rmap-edge.e-rival{stroke-width:4}
+.rmap-edge.e-crush{stroke-dasharray:8 6}.rmap-edge.e-cold{stroke-dasharray:3 5}.rmap-edge.e-warm{stroke-width:1.5;opacity:.7}
+.rmap.around .rmap-edge{stroke-width:3}.rmap.around .rmap-edge.e-warm{stroke-width:2}.rmap.around .rmap-edge.ring{stroke-width:2;opacity:.5}
+.rmap-chip{position:absolute;z-index:1;transform:translate(-50%,-50%);padding:1px 6px;background:#1a1320;border:1px solid var(--edge,#8c7a86);color:#f0d8c2;font-size:11px;line-height:1.5;white-space:nowrap;pointer-events:none}
+.rmap-node{position:absolute;z-index:2;display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-50%);color:#f0d8c2!important;font-size:12px;line-height:1.3;text-decoration:none;text-align:center}
+.rmap-node span{padding:1px 6px;background:#201927e6;border:1px solid #6c4c45;white-space:nowrap}
+.rmap-node .guild-sprite{width:44px;height:66px;margin-bottom:-4px}
+.rmap-node.center .guild-sprite{width:64px;height:96px}.rmap-node.center span{border-color:#ffd58a;color:#ffe0a8;font-weight:bold}
+.rmap-node:hover span,.rmap-node:focus-visible span{background:#3a2738;outline:2px solid #ebbe92}
+.rmap-node.dead{opacity:.5}.rmap-node.dead .guild-sprite{filter:grayscale(1)}
+.rmap.overview .rmap-node span{font-size:11px;padding:2px 5px}
+.n-grantford{--nation:#d8a35a}.n-elmwood{--nation:#8fcf6a}.n-tsukikage{--nation:#c890e0}.n-other{--nation:#8c7a86}
+.rmap.overview .rmap-node span{border-color:var(--nation);border-left-width:4px}
+.rmap-keys,.rmap-nations{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 14px;margin:0 0 8px;padding:0;list-style:none;font-size:12px;color:#c6b8c7}
+.rmap-keys li::before{content:"";display:inline-block;width:18px;margin-right:6px;border-top:3px solid var(--edge);vertical-align:3px}
+.rmap-keys li.e-crush::before{border-top-style:dashed}.rmap-keys li.e-cold::before{border-top-style:dotted}
+.rmap-nations li::before{content:"";display:inline-block;width:10px;height:10px;margin-right:6px;background:var(--nation);vertical-align:-1px}
+.rmap-link{margin:-4px 0 8px}
+.rmap-rows{width:100%;margin:8px 0 14px;border-collapse:collapse;font-size:13px}
+.rmap-rows th,.rmap-rows td{padding:6px 6px;border-bottom:1px solid #3e2e41;text-align:left;vertical-align:top;color:#e9dfdf}
+.rmap-rows th{font-size:11px;font-weight:normal;color:#a991a3}
+.rmap-rows small{display:block;font-size:10px;color:#a991a3}.rmap-rows .rmap-thread{color:#ffb3c8}
+@media(max-width:650px){.rmap-node{font-size:10px}.rmap-node .guild-sprite{width:30px;height:45px}.rmap-node.center .guild-sprite{width:44px;height:66px}
+  .rmap-chip{font-size:9px;padding:0 3px}.rmap.overview .rmap-node span{font-size:9px;padding:1px 3px}}

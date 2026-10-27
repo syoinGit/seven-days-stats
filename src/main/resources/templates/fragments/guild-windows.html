@@ -91,6 +91,38 @@
   </section>
 </th:block>
 
+<!-- The relationship chart (/guild/relations, GuildRelationMap): lines drawn in an SVG under the residents, who are
+     placed over it by percent, so it reads without JS. Overview: names, coloured by nation; each opens their own chart.
+     Around one resident: figures, a word on each line, and a list of how each feels about the other. -->
+<th:block th:fragment="relations">
+  <p class="guild-window-lead" th:if="${map.center == null}">特別な関係（友達以上・恋人・宿敵・師弟・片思い）がある住人を、暮らす国ごとに並べた図。名前を選ぶと、その人を中心にした相関図になります。</p>
+  <p class="guild-window-lead" th:if="${map.center != null}"><th:block th:text="${map.center.name + 'と、関わりの深い人たち。線の言葉は今の関係（なければ' + map.center.name + 'の気持ち）。'}">リネと、関わりの深い人たち。</th:block>
+    <a href="/guild/relations">全体の相関図へ</a></p>
+  <p th:if="${map.empty()}" th:text="${map.center == null ? 'まだ特別な関係になった住人はいません。' : 'まだ誰とも言葉を交わしていません。'}">まだ特別な関係になった住人はいません。</p>
+  <div class="rmap" th:unless="${map.empty()}" th:classappend="${map.center == null ? 'overview' : 'around'}">
+    <svg class="rmap-lines" viewBox="0 0 600 600" aria-hidden="true">
+      <defs><marker id="rmap-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#ff9fc6"/></marker></defs>
+      <path th:each="edge : ${map.edges}" th:attr="d=${edge.d()}, marker-end=${edge.kind == 'crush' ? 'url(#rmap-arrow)' : null}" th:class="${'rmap-edge e-' + edge.kind + (edge.cx != null ? ' ring' : '')}"/>
+    </svg>
+    <span th:each="edge : ${map.edges}" th:if="${edge.chip != null}" class="rmap-chip" th:classappend="${'e-' + edge.kind}" th:style="${edge.chipStyle()}" th:text="${edge.chip}">親友</span>
+    <a th:if="${map.center != null}" class="rmap-node center" th:classappend="${map.center.dead ? 'dead' : ''}" th:style="${map.center.style()}" th:href="@{/guild/characters/{id}(id=${map.center.id})}">
+      <svg th:replace="~{fragments/guild :: sprite(${map.center.character})}"></svg><span th:text="${map.center.name}">リネ</span></a>
+    <a th:each="node : ${map.nodes}" class="rmap-node" th:classappend="${'n-' + node.nation() + (node.dead ? ' dead' : '')}" th:style="${node.style()}"
+       th:href="@{/guild/relations(center=${node.id})}">
+      <th:block th:if="${node.character != null}"><svg th:replace="~{fragments/guild :: sprite(${node.character})}"></svg></th:block><span th:text="${node.name}">ロアン</span></a>
+  </div>
+  <ul class="rmap-keys" th:unless="${#lists.isEmpty(map.keys)}"><li th:each="key : ${map.keys}" th:classappend="${'e-' + key.kind}" th:text="${key.name}">親友</li></ul>
+  <ul class="rmap-nations" th:if="${map.center == null and !map.empty()}"><li class="n-grantford">グランフォード</li><li class="n-elmwood">エルムウッド</li><li class="n-tsukikage">月影郷</li></ul>
+  <table class="rmap-rows" th:unless="${#lists.isEmpty(map.rows)}">
+    <thead><tr><th>相手</th><th>関係</th><th th:text="${map.center.name + 'から'}">リネから</th><th>相手から</th></tr></thead>
+    <tbody><tr th:each="row : ${map.rows}">
+      <td><a th:href="${row.pairPath}" th:text="${row.other.name}">ロアン</a><small th:if="${row.other.dead}">故人</small></td>
+      <td th:text="${row.label}">友達</td><td th:text="${row.toward}">好き</td>
+      <td><th:block th:text="${row.back}">ふつう</th:block><small th:each="thread : ${row.threads}" class="rmap-thread" th:text="${thread}">約束</small></td>
+    </tr></tbody>
+  </table>
+</th:block>
+
 <th:block th:fragment="character">
   <div class="resident-heading"><svg th:replace="~{fragments/guild :: sprite(${character})}"></svg><div><p class="guild-eyebrow" th:text="${character.gameName()}">Core Keeper</p><p class="resident-profile" th:if="${!character.profile().isEmpty()}" th:text="${character.profile()}">28歳・女性・道具職人</p><p class="resident-lineage" th:if="${character.lineageName() != null}" th:text="${character.lineageName() + 'の名'}">北方系の名</p><p th:text="${#temporals.format(character.bornOn, 'yyyy年M月d日') + ' に誕生'}"></p></div></div>
   <p th:if="${character.status == 'DEAD'}">この人物は亡くなりました。その人の記録はここに残ります。</p>
@@ -122,6 +154,7 @@
     <p class="guild-footer">記録の「誰か」は、その時間にいたプレイヤーです。名前は残していません。</p></th:block>
   <p th:if="${#lists.isEmpty(character.memoryLines())}" th:text="${character.origin}"></p>
   <h3>この街での関係</h3>
+  <p class="rmap-link" th:unless="${#lists.isEmpty(relations)}"><a th:href="@{/guild/relations(center=${character.id})}">相関図で見る →</a></p>
   <p th:if="${#lists.isEmpty(relations)}">まだ誰とも言葉を交わしていません。</p>
   <ul class="guild-relations" th:unless="${#lists.isEmpty(relations)}">
     <li th:each="rel : ${relations}">
@@ -153,7 +186,7 @@
 </th:block>
 
 <th:block th:fragment="log">
-  <p class="guild-window-lead" th:unless="${filter.any()}">住人たちが酒場で過ごした時間の記録。新しい順。</p>
+  <p class="guild-window-lead" th:unless="${filter.any()}">住人たちが酒場で過ごした時間の記録。新しい順。<a href="/guild/relations">住人の相関図 →</a></p>
   <p class="guild-window-lead" th:if="${filter.any()}">
     <th:block th:if="${filterCharacter != null}" th:text="${filterCharacter.name + ' の交流'}">リネの交流</th:block>
     <th:block th:if="${filter.kind != null}" th:text="${'種類: ' + filter.kind}"></th:block>

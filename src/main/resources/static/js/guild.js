@@ -5,7 +5,7 @@
   const scrim = document.querySelector("[data-guild-scrim]");
   const tabbar = document.querySelector("[data-guild-tabbar]");
   if (!dialog || !scrim || !tabbar) return;
-  const WINDOW = /^\/guild\/(characters\/\d+|log(\/\d+)?|pairs\/\d+-\d+|dungeon(\/\d+)?)$/;
+  const WINDOW = /^\/guild\/(characters\/\d+|log(\/\d+)?|pairs\/\d+-\d+|dungeon(\/\d+)?|relations)$/;
   // The place under the windows: the guild, or a nation's tavern.
   const HOME = document.body.dataset.placeUrl || "/guild";
   const TAVERN_TITLE = document.body.dataset.placeTitle || "無人の冒険者ギルド | Rubinco";
