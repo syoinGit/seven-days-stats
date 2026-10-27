@@ -5,7 +5,7 @@
 <meta property="og:title" th:content="${title}"><meta property="og:type" content="website">
 <link th:if="${canonical != null and !#strings.isEmpty(canonical)}" rel="canonical" th:href="${canonical}">
 <meta th:if="${canonical != null and !#strings.isEmpty(canonical)}" property="og:url" th:content="${canonical}">
-<link rel="stylesheet" href="/css/app.css?v=header-5"><link rel="stylesheet" href="/css/portal.css?v=guild-1"><link rel="stylesheet" href="/css/guild.css?v=26">
+<link rel="stylesheet" href="/css/app.css?v=header-5"><link rel="stylesheet" href="/css/portal.css?v=guild-1"><link rel="stylesheet" href="/css/guild.css?v=27">
 </th:block></head><body>
 <!-- The small figure carries validated, saved portrait choices for the counter-view player. -->
 <svg th:fragment="sprite(c)" th:replace="~{fragments/guild :: figure(${c}, ${c.pose()})}"></svg>
