@@ -1304,9 +1304,9 @@ class GuildTests {
         .andExpect(content().string(containsString("ヨーロッパ系の名")))
         .andExpect(content().string(containsString("<dt>出身地</dt><dd>グランフォード</dd>")))
         .andExpect(content().string(containsString("<dt>信仰</dt><dd>無信仰</dd>")))
-        .andExpect(content().string(containsString("guild-people.svg?v=5#outfit-")))
+        .andExpect(content().string(containsString("guild-people.svg?v=6#outfit-")))
         .andExpect(content().string(containsString("viewBox=\"0 0 96 144\"")))
-        .andExpect(content().string(containsString("guild-people.svg?v=5#expression-thoughtful")))
+        .andExpect(content().string(containsString("guild-people.svg?v=6#expression-thoughtful")))
         .andExpect(content().string(containsString("7 Days to Die・")))
         .andExpect(content().string(containsString("zombieGuild10を1体倒した日から生まれました")))
         .andExpect(content().string(containsString("10:00 古い家でzombieGuild10を倒した")))
@@ -1593,7 +1593,7 @@ class GuildTests {
     var response = mvc.perform(get("/guild/maintenance").with(admin)).andExpect(status().isOk())
         .andExpect(content().string(containsString("目元を引き直す")))
         .andExpect(content().string(containsString("外見を引き直す")))
-        .andExpect(content().string(containsString("guild-people.svg?v=5#eyes-")))
+        .andExpect(content().string(containsString("guild-people.svg?v=6#eyes-")))
         .andExpect(content().string(containsString("name=\"_csrf\"")))
         .andReturn().getResponse();
     var preview = java.nio.file.Path.of("target/guild-preview/maintenance.html");

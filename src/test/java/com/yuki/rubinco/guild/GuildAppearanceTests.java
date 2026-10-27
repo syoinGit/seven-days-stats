@@ -31,7 +31,21 @@ class GuildAppearanceTests {
     var factory = DocumentBuilderFactory.newInstance();
     factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
     try (var input = new ClassPathResource("static/img/guild-people.svg").getInputStream()) {
-      var symbols = factory.newDocumentBuilder().parse(input).getElementsByTagName("symbol");
+      var document = factory.newDocumentBuilder().parse(input);
+      var symbols = document.getElementsByTagName("symbol");
+      var definitions = new HashSet<String>();
+      var references = new HashSet<String>();
+      var elements = document.getElementsByTagName("*");
+      for (int i = 0; i < elements.getLength(); i++) {
+        var attributes = elements.item(i).getAttributes();
+        var id = attributes.getNamedItem("id");
+        if (id != null) assertThat(definitions.add(id.getNodeValue())).as("unique SVG id: %s", id.getNodeValue()).isTrue();
+        for (int j = 0; j < attributes.getLength(); j++) {
+          var urls = java.util.regex.Pattern.compile("url\\(#([^)]*)\\)").matcher(attributes.item(j).getNodeValue());
+          while (urls.find()) references.add(urls.group(1));
+        }
+      }
+      assertThat(definitions).containsAll(references);
       var ids = new HashSet<String>();
       for (int i = 0; i < symbols.getLength(); i++) {
         var attributes = symbols.item(i).getAttributes();
