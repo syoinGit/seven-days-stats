@@ -22,8 +22,8 @@ public class GuildThoughts {
 
   private final JdbcTemplate jdbc;
 
-  /** One thought, dated by the day of the interaction it came from. */
-  public record Entry(LocalDate day, String text) { }
+  /** One thought, dated by the day of the interaction it came from; rumor: something they heard (GuildRumors). */
+  public record Entry(LocalDate day, String text, boolean rumor) { }
 
   /** What is on their mind now, or null. */
   public String now(long characterId) {
@@ -50,10 +50,23 @@ public class GuildThoughts {
   /** What was on their mind, newest first: the first is where they are now, the rest how they got there. */
   public List<Entry> history(long characterId, int limit) {
     return jdbc.query("""
-        SELECT t.text, i.happened_at FROM T_GUILD_THOUGHT t JOIN T_GUILD_INTERACTION i ON i.id = t.interaction_id
+        SELECT t.text, t.kind, i.happened_at FROM T_GUILD_THOUGHT t JOIN T_GUILD_INTERACTION i ON i.id = t.interaction_id
         WHERE t.character_id = ? AND t.about_id IS NULL ORDER BY t.id DESC LIMIT ?
         """, (rs, row) -> new Entry(rs.getObject("happened_at", java.time.OffsetDateTime.class)
-        .atZoneSameInstant(GuildService.TOKYO).toLocalDate(), rs.getString("text")), characterId, Math.max(1, Math.min(limit, 20)));
+        .atZoneSameInstant(GuildService.TOKYO).toLocalDate(), rs.getString("text"), "rumor".equals(rs.getString("kind"))),
+        characterId, Math.max(1, Math.min(limit, 20)));
+  }
+
+  /** Those whose mind is on a rumor they heard that day (their newest thought): what they murmur in the tavern, by id. */
+  public Map<Long, String> rumorsOn(LocalDate day) {
+    Map<Long, String> out = new LinkedHashMap<>();
+    jdbc.query("""
+        SELECT t.character_id, t.text FROM T_GUILD_THOUGHT t JOIN T_GUILD_INTERACTION i ON i.id = t.interaction_id
+        WHERE t.kind = 'rumor' AND t.about_id IS NULL AND i.happened_at >= ? AND i.happened_at < ?
+          AND t.id = (SELECT MAX(u.id) FROM T_GUILD_THOUGHT u WHERE u.character_id = t.character_id AND u.about_id IS NULL)
+        """, rs -> { out.put(rs.getLong(1), rs.getString(2)); },
+        day.atStartOfDay(GuildService.TOKYO).toOffsetDateTime(), day.plusDays(1).atStartOfDay(GuildService.TOKYO).toOffsetDateTime());
+    return out;
   }
 
   /**

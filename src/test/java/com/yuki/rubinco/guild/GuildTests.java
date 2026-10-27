@@ -49,6 +49,7 @@ class GuildTests {
   @Autowired GuildSignboard signboard;
   @Autowired GuildTalks talks;
   @Autowired GuildThoughts thoughts;
+  @Autowired GuildRumors rumors;
   @Autowired JdbcTemplate jdbc;
   @Autowired com.yuki.rubinco.account.repository.M_WebAccountRepository accounts;
   @Autowired MockMvc mvc;
@@ -425,6 +426,68 @@ class GuildTests {
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_THOUGHT")).isZero();
   }
 
+  /**
+   * The town talks (V71): big news reaches friends of the two as a rumor on their mind, which they murmur in the tavern
+   * that day; a partner who hears of their lover growing close to another takes it badly; feelings not fed fade.
+   */
+  @Test void rumorsSpreadJealousyStingsAndFeelingsFade() throws Exception {
+    when(bedrock.generate(anyString(), anyString(), anyInt(), any())).thenThrow(new RuntimeException("offline"));
+    long rine = resident("リネ", 28, "ALIVE", 0);
+    long roan = resident("ロアン", 30, "ALIVE", 1);
+    interactions.runHour(HOUR);
+    long id = jdbc.queryForObject("SELECT id FROM T_GUILD_INTERACTION", Long.class);
+    // Two more come in later; one is fond of Rine, one barely knows her.
+    long mira = resident("ミラ", 25, "ALIVE", 2);
+    long gard = resident("ガルド", 40, "ALIVE", 3);
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,10,30,0,0)", mira, rine);
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,0,5,0,0)", gard, rine);
+    assertThat(rumors.spread(id, rine, roan, "リネとロアンが恋仲になったらしい。", List.of())).containsExactly(mira);
+    assertThat(thoughts.now(mira)).isEqualTo("リネとロアンが恋仲になったらしい。");
+    assertThat(thoughts.now(gard)).isNull();
+    assertThat(thoughts.rumorsOn(HOUR.toLocalDate())).containsOnlyKeys(mira);
+    mvc.perform(get("/guild")).andExpect(status().isOk()).andExpect(content().string(containsString("リネとロアンが恋仲になったらしい。")));
+    mvc.perform(get("/guild/characters/" + mira)).andExpect(status().isOk()).andExpect(content().string(containsString("class=\"mind-rumor\"")));
+    // Gard is Rine's husband and hears that Roan has grown close to her.
+    rumors.jealous(id, gard, "ガルド", rine, "リネ", roan, "ロアン");
+    assertThat(jdbc.queryForMap("SELECT trust, affinity, wariness FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", gard, roan))
+        .containsEntry("TRUST", 0).containsEntry("AFFINITY", -GuildRumors.JEALOUS_AFFINITY).containsEntry("WARINESS", GuildRumors.JEALOUS_WARINESS);
+    assertThat(count("SELECT trust FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", gard, rine)).isEqualTo(-GuildRumors.JEALOUS_TRUST);
+    assertThat(thoughts.now(gard)).isEqualTo("リネがロアンと親しくしているらしい。胸がざわつく。");
+    assertThat(thoughts.about(gard, roan)).contains("気に入らない");
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_RELATION_EVENT WHERE interaction_id = ? AND from_id = ? AND reason LIKE '噂：%'", id, gard)).isEqualTo(2);
+    // Feelings not fed fade, a step each DRIFT_AFTER_DAYS, down to the floor; spouses don't drift.
+    var now = HOUR.toOffsetDateTime();
+    jdbc.update("UPDATE T_GUILD_RELATION SET affinity = 40, updated_at = ? WHERE from_id = ? AND to_id = ?", now.minusDays(20), mira, rine);
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,updated_at) VALUES (?,?,0,12,0,0,?)", mira, roan, now.minusDays(20));
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,updated_at) VALUES (?,?,0,60,0,0,?)", rine, gard, now.minusDays(20));
+    jdbc.update("INSERT INTO T_GUILD_BOND (low_id,high_id,label,since) VALUES (?,?,'spouse',?)", Math.min(rine, gard), Math.max(rine, gard), now.minusDays(30));
+    rumors.drift(now);
+    rumors.drift(now);
+    assertThat(count("SELECT affinity FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", mira, rine)).isEqualTo(40 - GuildRumors.DRIFT);
+    assertThat(count("SELECT affinity FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", mira, roan)).isEqualTo(GuildRumors.DRIFT_FLOOR);
+    assertThat(count("SELECT affinity FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", rine, gard)).isEqualTo(60);
+    rumors.drift(now.plusDays(GuildRumors.DRIFT_AFTER_DAYS + 1));
+    assertThat(count("SELECT affinity FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", mira, rine)).isEqualTo(40 - 2 * GuildRumors.DRIFT);
+    // A hearer can be deleted; so can the one the rumor is about.
+    guild.delete(mira);
+    guild.delete(roan);
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_THOUGHT WHERE character_id = ? OR about_id = ?", mira, roan)).isZero();
+  }
+
+  /** What is passed on: code-made, from what code decided; everyday talk is not news. */
+  @Test void onlyBigNewsIsPassedOn() {
+    var a = new GuildInteractionService.Person(1, "リネ", 28, "女性", "冒険者", "穏やか");
+    var b = new GuildInteractionService.Person(2, "ロアン", 30, "男性", "鍛冶屋", "無口");
+    var pair = new GuildInteractionService.Pair(a, b, GuildInteractionService.Rel.NONE, GuildInteractionService.Rel.NONE, "friend", null, 3, 0, List.of(), null);
+    assertThat(GuildInteractionService.news(pair, "friend", "lover", null)).isEqualTo("リネとロアンが恋仲になったらしい。");
+    assertThat(GuildInteractionService.news(pair, "friend", "mentor", null)).isEqualTo("ロアンがリネに弟子入りしたそうだ。");
+    assertThat(GuildInteractionService.news(pair, "acquaintance", "friend", null)).isNull();
+    assertThat(GuildInteractionService.news(pair, "friend", "friend", null)).isNull();
+    assertThat(GuildInteractionService.news(pair, null, "acquaintance", null)).isNull();
+    var join = new GuildInteractionService.Change("join", "faction", "faction", "none", "silver_knights", "リネが銀の騎士団に加わる（加入）");
+    assertThat(GuildInteractionService.news(pair, "friend", "friend", join)).isEqualTo("リネが銀の騎士団に加わると聞いた。");
+  }
+
   /** Thoughts that don't hold are dropped; the scene stays. */
   @Test void thoughtsThatDoNotHoldAreDroppedButTheSceneStays() {
     var a = new GuildInteractionService.Person(1, "リネ", 28, "女性", "冒険者", "穏やか。");
@@ -607,7 +670,7 @@ class GuildTests {
     long roan = resident("ロアン", 30, "ALIVE", 1);
     jdbc.update("UPDATE M_GUILD_CHARACTER SET occupation = '騎士', faction = 'silver_knights', faith = 'dawnlight' WHERE id = ?", roan);
     var only = new GuildCards(new org.springframework.core.io.ClassPathResource("guild/affiliation-test-cards.yml"));
-    var service = new GuildInteractionService(jdbc, properties, only, writer, world, thoughts);
+    var service = new GuildInteractionService(jdbc, properties, only, writer, world, thoughts, rumors);
     service.runHour(HOUR.withHour(20));
     service.runHour(HOUR.withHour(21));
     assertThat(jdbc.queryForMap("SELECT faction, faith, current_village FROM M_GUILD_CHARACTER WHERE id = ?", rine))
@@ -729,7 +792,7 @@ class GuildTests {
     jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten) VALUES (?,?,10,45,0,0,TRUE)", rine, roan);
     jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten) VALUES (?,?,10,0,0,0,FALSE)", roan, rine);
     var quiet = new GuildCards(new org.springframework.core.io.ClassPathResource("guild/crush-test-cards.yml"));
-    new GuildInteractionService(jdbc, properties, quiet, writer, world, thoughts).runHour(HOUR);
+    new GuildInteractionService(jdbc, properties, quiet, writer, world, thoughts, rumors).runHour(HOUR);
     assertThat(count("SELECT affinity FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", rine, roan)).isEqualTo(45 + 15);
     // The card's 2 at the pace (×3) and getting used to each other (+3) is 9; smitten makes it 9 + 5 + 1, reserved 0 or 6.
     assertThat(count("SELECT affinity FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", roan, rine)).isIn(0, 6);

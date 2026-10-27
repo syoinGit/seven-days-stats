@@ -620,3 +620,5 @@
 @media(prefers-reduced-motion:no-preference){.guild-beer-button:hover .beer-mug{animation:beer-tilt .5s ease-in-out}}
 @keyframes beer-tilt{50%{transform:rotate(-12deg)}}
 @media(max-width:650px){.guild-beer-button{font-size:11px;padding:3px 8px 3px 6px}}
+/* A thought that is a rumor they heard. */
+.mind-rumor{display:inline-block;margin-right:6px;padding:0 6px;font-size:10px;letter-spacing:.1em;color:#2a1d24;background:#d9b37a;vertical-align:1px}

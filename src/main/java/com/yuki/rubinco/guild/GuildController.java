@@ -191,6 +191,8 @@ public class GuildController {
       model.addAttribute("townSeats", seats);
       for (var seat : seats) idle.put(seat.visit().character().id(), voices.idle(seat.visit().character(), "tables", room.date(), room.phase()));
     }
+    // Someone who heard a rumor today murmurs it instead.
+    thoughts.rumorsOn(room.date()).forEach((id, rumor) -> idle.computeIfPresent(id, (key, line) -> rumor));
     model.addAttribute("idleLines", idle);
     model.addAttribute("talkers", talks.talkers());
     model.addAttribute("tab", tab);
