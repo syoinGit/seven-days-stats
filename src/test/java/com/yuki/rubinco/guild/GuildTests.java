@@ -944,8 +944,26 @@ class GuildTests {
 
     var talk = talks.latest(rine);
     assertThat(talk.labels()).containsExactly("たしかに少し濃いですね", "何が入っているんですか", "あなたの舌が鈍っているのでは");
-    String page = mvc.perform(get("/guild/characters/" + rine)).andExpect(status().isOk())
-        .andExpect(content().string(containsString("リネに話しかける")))
+    // Talking happens only over a beer: the resident's window has no talk, the tavern no talk marks.
+    mvc.perform(get("/guild/characters/" + rine)).andExpect(status().isOk())
+        .andExpect(content().string(not(containsString("data-talk"))));
+    mvc.perform(get("/guild")).andExpect(content().string(not(containsString("person-talkable"))))
+        .andExpect(content().string(containsString("href=\"/guild/brew\"")));
+    mvc.perform(get("/guild/brew")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("店主として、ビールを出しますか？")))
+        .andExpect(content().string(containsString("data-brew-base=\"stout\"")))
+        .andExpect(content().string(containsString("data-brew-extra=\"berry\"")));
+    // Serving a beer brings someone with a talk who was not talked with today; their order is fixed for the day.
+    var order = GuildBrew.order(roan, LocalDate.now(GuildService.TOKYO));
+    for (int i = 0; i < 5; i++) {
+      mvc.perform(get("/guild/beer").param("skip", rine + ",x,<b>")).andExpect(status().isOk())
+          .andExpect(content().string(containsString("data-beer=\"1\"")))
+          .andExpect(content().string(containsString("data-character-id=\"" + roan + "\"")))
+          .andExpect(content().string(containsString("data-base=\"" + order.base() + "\" data-extra=\"" + order.extra() + "\"")))
+          .andExpect(content().string(containsString(order.ticket())))
+          .andExpect(content().string(not(containsString("guild-window"))));
+    }
+    String page = mvc.perform(get("/guild/beer").param("skip", String.valueOf(roan))).andExpect(status().isOk())
         .andExpect(content().string(containsString("今夜は少し塩が強い")))
         .andExpect(content().string(containsString("data-talk-choice=\"2\"")))
         // Read at the counter of the place where the talk was written.
@@ -957,18 +975,13 @@ class GuildTests {
         .andExpect(content().string(containsString("店主の秘密")));
     mvc.perform(get("/guild/talks/" + talk.id() + "/choices/3")).andExpect(status().isNotFound());
     mvc.perform(get("/guild/talks/999999/choices/0")).andExpect(status().isNotFound());
-    mvc.perform(get("/guild")).andExpect(content().string(containsString("person-talkable")))
-        .andExpect(content().string(containsString("data-beer-serve")));
-    // Serving a beer brings someone with a talk, not one already talked with today while anyone else is left.
-    for (int i = 0; i < 5; i++) {
-      mvc.perform(get("/guild/beer").param("skip", rine + ",x,<b>")).andExpect(status().isOk())
-          .andExpect(content().string(containsString("data-beer=\"1\"")))
-          .andExpect(content().string(containsString("data-character-id=\"" + roan + "\"")))
-          .andExpect(content().string(containsString("ロアンに話しかける")))
-          .andExpect(content().string(not(containsString("guild-window"))));
-    }
-    mvc.perform(get("/guild/beer").param("skip", rine + "," + roan)).andExpect(status().isOk())
-        .andExpect(content().string(containsString("data-beer=\"1\"")));
+    // Everyone talked with today: nobody comes.
+    mvc.perform(get("/guild/beer").param("skip", rine + "," + roan)).andExpect(status().isNotFound());
+    // Orders cover every base and extra over residents and days, and stay put within a day.
+    var orders = new java.util.HashSet<String>();
+    for (long id = 1; id <= 60; id++) orders.add(GuildBrew.order(id, LocalDate.of(2026, 10, 27)).base() + GuildBrew.order(id, LocalDate.of(2026, 10, 27)).extra());
+    assertThat(orders).hasSize(GuildBrew.BASES.size() * GuildBrew.EXTRAS.size());
+    assertThat(GuildBrew.order(7, LocalDate.of(2026, 10, 27))).isEqualTo(GuildBrew.order(7, LocalDate.of(2026, 10, 27)));
     // The dead don't talk; deleting a resident takes their talks too.
     jdbc.update("UPDATE M_GUILD_CHARACTER SET status = 'DEAD' WHERE id = ?", rine);
     assertThat(talks.latest(rine)).isNull();
@@ -978,7 +991,6 @@ class GuildTests {
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_TALK_CHOICE")).isEqualTo(3);
     // Nobody left to talk: no beer to serve.
     mvc.perform(get("/guild/beer")).andExpect(status().isNotFound());
-    mvc.perform(get("/guild")).andExpect(content().string(not(containsString("data-beer-serve"))));
   }
 
   @Test void talksNeedSomeoneInAPlaceAndAValidText() throws Exception {

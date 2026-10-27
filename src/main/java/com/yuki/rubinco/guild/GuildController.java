@@ -58,8 +58,9 @@ public class GuildController {
   }
 
   /**
-   * Serving a beer: someone with a talk comes over. Returns their talk, ready to play (fragments/guild-windows :: beer).
-   * skip: ids the visitor already talked with today (kept in their browser); at most 200 of them are read.
+   * Serving a beer: someone with a talk comes over and orders. Returns their order and talk, ready to play
+   * (fragments/guild-windows :: beer). skip: ids the visitor already talked with today (kept in their browser); at most 200
+   * of them are read. Not found when nobody is left.
    */
   @GetMapping("/guild/beer")
   public String beer(Model model, @RequestParam(defaultValue = "") String skip) {
@@ -69,7 +70,16 @@ public class GuildController {
     if (id == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     model.addAttribute("character", guild.character(id));
     model.addAttribute("talk", talks.latest(id));
+    model.addAttribute("order", GuildBrew.order(id, ZonedDateTime.now(GuildService.TOKYO).toLocalDate()));
     return "fragments/guild-windows :: beer";
+  }
+
+  /** The keeper's counter: pour a beer, and someone comes over to talk (the only way to talk with residents). */
+  @GetMapping("/guild/brew")
+  public String brew(Model model) {
+    model.addAttribute("bases", GuildBrew.BASES);
+    model.addAttribute("extras", GuildBrew.EXTRAS);
+    return stage(model, "brew", "brew", "ビールを出す");
   }
 
   @GetMapping("/guild/characters/{id}")
@@ -82,7 +92,6 @@ public class GuildController {
     model.addAttribute("interactions", chronicle.list(new GuildChronicle.Filter(id, null, null, null, null), 0).stream().limit(8).toList());
     model.addAttribute("expeditions", dungeon.recent(ZonedDateTime.now(GuildService.TOKYO), id, 5));
     model.addAttribute("todayPlace", character.status().equals("ALIVE") ? guild.placeToday(id) : null);
-    model.addAttribute("talk", talks.latest(id));
     model.addAttribute("minds", thoughts.history(id, 5));
     model.addAttribute("abouts", thoughts.abouts(id));
     return stage(model, "tavern", "character", character.name());
@@ -194,7 +203,6 @@ public class GuildController {
     // Someone who heard a rumor today murmurs it instead.
     thoughts.rumorsOn(room.date()).forEach((id, rumor) -> idle.computeIfPresent(id, (key, line) -> rumor));
     model.addAttribute("idleLines", idle);
-    model.addAttribute("talkers", talks.talkers());
     model.addAttribute("tab", tab);
     model.addAttribute("window", window);
     model.addAttribute("windowTitle", title);
