@@ -611,3 +611,5 @@
 .guild-admin-residents .guild-appearance-actions form{flex-wrap:wrap;justify-content:flex-end}
 .guild-admin-residents li:target{outline:2px solid #d7b46c;outline-offset:6px;scroll-margin-top:24px}
 @media(max-width:650px){.guild-admin-residents .guild-appearance-actions{flex-basis:100%;align-items:flex-start}.guild-admin-residents .guild-appearance-actions form{justify-content:flex-start}}
+/* A thought that is a rumor they heard. */
+.mind-rumor{display:inline-block;margin-right:6px;padding:0 6px;font-size:10px;letter-spacing:.1em;color:#2a1d24;background:#d9b37a;vertical-align:1px}

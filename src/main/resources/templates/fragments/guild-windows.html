@@ -21,9 +21,9 @@
   <!-- Where their mind is now (written after their latest interaction), and how it got there. -->
   <section class="guild-mind" th:unless="${#lists.isEmpty(minds)}">
     <h3>今、思っていること</h3>
-    <p class="mind-now"><span class="mind-dots" aria-hidden="true"><i></i><i></i><i></i></span><th:block th:text="${minds[0].text}">店の仕入れのことが頭から離れない。</th:block></p>
+    <p class="mind-now"><span class="mind-dots" aria-hidden="true"><i></i><i></i><i></i></span><small class="mind-rumor" th:if="${minds[0].rumor}">噂</small><th:block th:text="${minds[0].text}">店の仕入れのことが頭から離れない。</th:block></p>
     <ol class="mind-trail" th:if="${#lists.size(minds) > 1}" aria-label="これまでの心の動き">
-      <li th:each="mind, it : ${minds}" th:unless="${it.first}"><small th:text="${#temporals.format(mind.day, 'M月d日')}">10月25日</small><th:block th:text="${mind.text}">雨の日の客足が気になる。</th:block></li>
+      <li th:each="mind, it : ${minds}" th:unless="${it.first}"><small th:text="${#temporals.format(mind.day, 'M月d日') + (mind.rumor ? '・噂' : '')}">10月25日</small><th:block th:text="${mind.text}">雨の日の客足が気になる。</th:block></li>
     </ol>
   </section>
   <dl class="guild-affiliation">

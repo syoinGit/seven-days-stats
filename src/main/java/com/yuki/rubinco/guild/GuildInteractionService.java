@@ -47,6 +47,7 @@ public class GuildInteractionService {
   private final GuildInteractionWriter writer;
   private final GuildWorld world;
   private final GuildThoughts thoughts;
+  private final GuildRumors rumors;
 
   /**
    * Where a resident lives, their faction and faith (keys and names), the faction they last left or were
@@ -115,6 +116,8 @@ public class GuildInteractionService {
   static final int DEPTH = 4;
   static final int RIPE_MARGIN = 10;
   static final int RIPE = 5;
+  /** One who is smitten and this fond of someone with a partner may be heard of by that partner (GuildRumors). */
+  static final int JEALOUS_AT = 40;
   /** How many meetings each label needs, besides the axes. */
   static final int FRIEND_MEETINGS = 2;
   static final int COMPANION_COOP = 2;
@@ -207,6 +210,7 @@ public class GuildInteractionService {
     List<String> done = jdbc.queryForList("SELECT message FROM T_GUILD_HOURLY_JOB WHERE slot_key = ?", String.class, slot);
     if (!done.isEmpty()) return "この時間（" + slot + "）はすでに処理済みです：" + done.getFirst();
     jdbc.update("UPDATE T_GUILD_THREAD SET status = 'FADED' WHERE status = 'OPEN' AND expires_on < ?", date);
+    rumors.drift(local.toOffsetDateTime());
     int today = jdbc.queryForObject("SELECT COUNT(*) FROM T_GUILD_INTERACTION WHERE slot_key LIKE ?", Integer.class, date + "T%");
     int max = Math.min(properties.interactionDailyMax(), DAILY_CAP);
     if (today >= max) return record(slot, "SKIPPED", "今日の交流は上限（" + max + "件）に達しました。");
@@ -312,8 +316,8 @@ public class GuildInteractionService {
     jdbc.update("INSERT INTO T_GUILD_INTERACTION_PARTICIPANT (interaction_id,character_id,position) VALUES (?,?,0)", id, pair.a().id());
     jdbc.update("INSERT INTO T_GUILD_INTERACTION_PARTICIPANT (interaction_id,character_id,position) VALUES (?,?,1)", id, pair.b().id());
     thoughts.save(id, pair.a(), pair.b(), minds);
-    save(id, pair.a().id(), pair.b().id(), ab, abDelta, card.kind() + "：" + summary);
-    save(id, pair.b().id(), pair.a().id(), ba, baDelta, card.kind() + "：" + summary);
+    save(id, pair.a().id(), pair.b().id(), ab, abDelta, card.kind() + "：" + summary, local.toOffsetDateTime());
+    save(id, pair.b().id(), pair.a().id(), ba, baDelta, card.kind() + "：" + summary, local.toOffsetDateTime());
     if (!after.equals(before)) bond(id, pair, before, after, local.toOffsetDateTime(), summary);
     if (resolved != null) {
       jdbc.update("UPDATE T_GUILD_THREAD SET status = 'RESOLVED', resolved_interaction_id = ? WHERE id = ?", id, resolved.id());
@@ -332,7 +336,53 @@ public class GuildInteractionService {
           + "VALUES (?,?,?,?,?,?,?,?)", pair.a().id(), change.field(), change.from(), change.to(), change.kind(), shorten(summary), id,
           local.toOffsetDateTime());
     }
+    talkOfTheTown(id, pair, before, after, change, ab, ba);
     return record(slot, "SUCCEEDED", summary + "（" + SELECTIONS.get(selection) + note + "）");
+  }
+
+  /**
+   * What the town hears of this interaction (GuildRumors): big news reaches a few friends of the two, and a partner may hear
+   * that their lover grew close to someone else. ab and ba are the relations after it.
+   */
+  private void talkOfTheTown(long id, Pair pair, String before, String after, Change change, Rel ab, Rel ba) {
+    List<Long> jealous = new ArrayList<>();
+    for (Pair side : List.of(pair, pair.swap())) {
+      // side.b grows close to side.a, who has a partner elsewhere: smitten and warm now, or newly close friends across genders.
+      Rel toward = side == pair ? ba : ab;
+      boolean close = toward.smitten() && toward.affinity() >= JEALOUS_AT && (side == pair ? pair.ba() : pair.ab()).affinity() < toward.affinity()
+          || "close_friend".equals(after) && !after.equals(before) && Boolean.FALSE.equals(pair.sameGender());
+      if (!close || PARTNERS.contains(after)) continue;
+      var partner = partner(side.a().id(), side.b().id());
+      if (partner == null || !GuildRumors.heard()) continue;
+      rumors.jealous(id, partner.getKey(), partner.getValue(), side.a().id(), side.a().name(), side.b().id(), side.b().name());
+      jealous.add(partner.getKey());
+    }
+    String news = news(pair, before, after, change);
+    if (news != null) rumors.spread(id, pair.a().id(), pair.b().id(), news, jealous);
+  }
+
+  /** The news others pass on, or null when nothing much happened. Code-made, from what code decided. */
+  static String news(Pair pair, String before, String after, Change change) {
+    String a = pair.a().name();
+    String b = pair.b().name();
+    if (change != null) return change.text().replaceAll("（[^）]*）$", "") + "と聞いた。";
+    if (after.equals(before) || before == null) return null;
+    return switch (after) {
+      case "lover" -> a + "と" + b + "が恋仲になったらしい。";
+      case "spouse" -> a + "と" + b + "が夫婦になったそうだ。";
+      case "rival" -> a + "と" + b + "が派手に決裂したと聞いた。";
+      case "close_friend" -> a + "と" + b + "はすっかり親友らしい。";
+      case "mentor" -> b + "が" + a + "に弟子入りしたそうだ。";
+      default -> null;
+    };
+  }
+
+  /** The lover or spouse of id other than not, with their name, or null. */
+  private Map.Entry<Long, String> partner(long id, long not) {
+    return jdbc.query("""
+        SELECT c.id, c.name FROM T_GUILD_BOND b JOIN M_GUILD_CHARACTER c ON c.id = CASE WHEN b.low_id = ? THEN b.high_id ELSE b.low_id END
+        WHERE (b.low_id = ? OR b.high_id = ?) AND b.label IN ('lover', 'spouse') AND c.id <> ? AND c.status = 'ALIVE'
+        """, (rs, row) -> Map.entry(rs.getLong(1), rs.getString(2)), id, id, id, not).stream().findFirst().orElse(null);
   }
 
   private String record(String slot, String status, String message) {
@@ -649,7 +699,7 @@ public class GuildInteractionService {
           }
         }
         delta = attraction(delta, new Pair(from, to, rel, Rel.NONE, null, null, 0, 0, List.of(), null), rel);
-        store(from.id(), to.id(), rel.plus(delta));
+        store(from.id(), to.id(), rel.plus(delta), OffsetDateTime.now());
         if (delta.values().stream().allMatch(value -> value == 0)) continue;
         jdbc.update("INSERT INTO T_GUILD_RELATION_EVENT (expedition_id,from_id,to_id,change_kind,trust_delta,affinity_delta,"
             + "wariness_delta,debt_delta,reason) VALUES (?,?,?,'axes',?,?,?,0,?)", expedition, from.id(), to.id(),
@@ -658,17 +708,18 @@ public class GuildInteractionService {
     }
   }
 
-  private void store(long from, long to, Rel rel) {
-    int updated = jdbc.update("UPDATE T_GUILD_RELATION SET trust = ?, affinity = ?, wariness = ?, debt = ?, updated_at = CURRENT_TIMESTAMP "
-        + "WHERE from_id = ? AND to_id = ?", rel.trust(), rel.affinity(), rel.wariness(), rel.debt(), from, to);
+  /** at: when they were last together, which holds off drifting apart (GuildRumors.drift). */
+  private void store(long from, long to, Rel rel, OffsetDateTime at) {
+    int updated = jdbc.update("UPDATE T_GUILD_RELATION SET trust = ?, affinity = ?, wariness = ?, debt = ?, updated_at = ? "
+        + "WHERE from_id = ? AND to_id = ?", rel.trust(), rel.affinity(), rel.wariness(), rel.debt(), at, from, to);
     if (updated == 0) {
-      jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten) VALUES (?,?,?,?,?,?,?)",
-          from, to, rel.trust(), rel.affinity(), rel.wariness(), rel.debt(), rel.smitten());
+      jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten,updated_at) VALUES (?,?,?,?,?,?,?,?)",
+          from, to, rel.trust(), rel.affinity(), rel.wariness(), rel.debt(), rel.smitten(), at);
     }
   }
 
-  private void save(long interaction, long from, long to, Rel rel, Map<String, Integer> delta, String reason) {
-    store(from, to, rel);
+  private void save(long interaction, long from, long to, Rel rel, Map<String, Integer> delta, String reason, OffsetDateTime at) {
+    store(from, to, rel, at);
     if (delta.values().stream().allMatch(value -> value == 0)) return;
     jdbc.update("INSERT INTO T_GUILD_RELATION_EVENT (interaction_id,from_id,to_id,change_kind,trust_delta,affinity_delta,"
         + "wariness_delta,debt_delta,reason) VALUES (?,?,?,'axes',?,?,?,?,?)", interaction, from, to,

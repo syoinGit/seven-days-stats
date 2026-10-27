@@ -299,6 +299,8 @@ public class GuildService {
     }
     jdbc.update("DELETE FROM T_GUILD_TALK_CHOICE WHERE talk_id IN (SELECT id FROM T_GUILD_TALK WHERE character_id = ?)", id);
     jdbc.update("DELETE FROM T_GUILD_TALK WHERE character_id = ?", id);
+    // Rumors they heard, or that are about them, of interactions they were not in.
+    jdbc.update("DELETE FROM T_GUILD_THOUGHT WHERE character_id = ? OR about_id = ?", id, id);
     jdbc.update("DELETE FROM T_GUILD_AFFILIATION_HISTORY WHERE character_id = ?", id);
     jdbc.update("DELETE FROM T_GUILD_RELATION_EVENT WHERE from_id = ? OR to_id = ?", id, id);
     jdbc.update("DELETE FROM T_GUILD_THREAD WHERE a_id = ? OR b_id = ?", id, id);
