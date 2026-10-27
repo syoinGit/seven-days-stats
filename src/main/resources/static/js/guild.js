@@ -593,17 +593,19 @@ const GuildAdv = (() => {
     note.hidden = !doneToday;
     start.hidden = false;
 
-    start.addEventListener("click", async () => {
+    // prelude: lines said before their own talk (how they took the beer).
+    box.play = async (prelude = []) => {
       const again = get(dayKey);
       GuildAdv.open({ left: figure }, place);
       try {
+        for (const line of prelude) await GuildAdv.say(line);
         if (again && again.date === today) {
           if (again.talk === talkId) {
             await GuildAdv.say({ side: "left", name, text: opening });
             await GuildAdv.say({ name: "あなた", text: again.label, kind: "you" });
             await GuildAdv.say({ side: "left", name, text: again.reply });
           }
-          await GuildAdv.say({ text: name + "とは今日もう話した。また明日、話しかけてみよう。" });
+          await GuildAdv.say({ text: name + "とは今日もう話した。また明日。" });
           GuildAdv.close();
           return;
         }
@@ -617,7 +619,7 @@ const GuildAdv = (() => {
           if (!response.ok) throw new Error(String(response.status));
           reply = (await response.json()).reply;
         } catch {
-          await GuildAdv.say({ text: "……声がうまく届かなかったようだ。少し待って、もう一度話しかけてみよう。" });
+          await GuildAdv.say({ text: "……声がうまく届かなかったようだ。少し待って、もう一杯出してみよう。" });
           GuildAdv.close();
           return;
         }
@@ -627,46 +629,155 @@ const GuildAdv = (() => {
         note.textContent = name + "とは今日もう話しました。また明日。";
         note.hidden = false;
         await GuildAdv.say({ side: "left", name, text: reply });
-        await GuildAdv.say({ text: "また明日、話しかけてみよう。" });
+        await GuildAdv.say({ text: name + "は空になったジョッキを置いて、席を立った。" });
         GuildAdv.close();
       } catch { /* closed midway: what was decided is already kept */ }
-    });
+    };
+    start.addEventListener("click", () => box.play());
   }
 
   const scan = () => document.querySelectorAll("[data-talk]").forEach(setUp);
   document.addEventListener("guild-window", scan);
   scan();
 
-  // Serving a beer: someone with a talk comes over (not one already talked with today, while anyone else is left), and
-  // the talk plays at once. Their talk is kept, unseen, in the page while it plays.
-  const serve = document.querySelector("[data-beer-serve]");
-  if (serve) {
-    const holder = document.createElement("div");
-    holder.hidden = true;
-    document.body.append(holder);
-    serve.hidden = false;
-    serve.addEventListener("click", async () => {
-      const talked = [];
+  // The keeper's counter (the "ビール" window): serve a beer, and someone not yet talked with today comes over and orders
+  // (a base and something to add, fixed for them that day). The visitor picks both and pours, holding the tap and letting
+  // go at the line. How well it matched decides how they take it; then their talk plays. Nothing of it is sent back.
+  const TIERS = [
+    (name) => name + "は一口飲んで、少しだけ首をかしげた。",
+    (name) => name + "は一口飲んで、小さくうなずいた。",
+    (name) => name + "は一口飲んで、目を細めた。注文どおりの一杯だ。",
+  ];
+  const talkedToday = () => {
+    const ids = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith("guild-talk-day-") && get(key)?.date === today) ids.push(key.slice("guild-talk-day-".length));
+      }
+    } catch { /* private window: anyone may come */ }
+    return ids.filter((id) => /^\d+$/.test(id));
+  };
+
+  function brew(counter) {
+    if (counter.dataset.ready) return;
+    counter.dataset.ready = "1";
+    const ask = counter.querySelector("[data-brew-ask]");
+    const make = counter.querySelector("[data-brew-make]");
+    const start = counter.querySelector("[data-brew-start]");
+    const note = counter.querySelector("[data-brew-note]");
+    const holder = counter.querySelector("[data-brew-holder]");
+    const pour = counter.querySelector("[data-brew-pour]");
+    const redo = counter.querySelector("[data-brew-redo]");
+    const serveIt = counter.querySelector("[data-brew-serve]");
+    const beer = counter.querySelector("[data-brew-beer]");
+    const foam = counter.querySelector("[data-brew-foam]");
+    const level = counter.querySelector("[data-brew-level]");
+    const LINE = 82;
+    let order = null;
+    let box = null;
+    let picked = { base: null, extra: null };
+    let fill = 0;
+    let poured = false;
+    let timer = null;
+
+    note.textContent = "";
+    start.hidden = false;
+    const ready = () => { serveIt.disabled = !(picked.base && picked.extra && poured); };
+    const draw = () => {
+      beer.style.height = Math.min(fill, 100) + "%";
+      foam.style.bottom = Math.min(fill, 100) + "%";
+      foam.style.height = Math.min(Math.max(fill - 30, 0) / 6, 14) + "%";
+      counter.querySelector("[data-brew-glass]").classList.toggle("over", fill > 100);
+    };
+    const reset = () => {
+      picked = { base: null, extra: null };
+      fill = 0;
+      poured = false;
+      counter.querySelectorAll("[data-brew-base],[data-brew-extra]").forEach((button) => button.setAttribute("aria-pressed", "false"));
+      pour.disabled = false;
+      redo.hidden = true;
+      level.textContent = "";
+      draw();
+      ready();
+    };
+    const choose = (kind) => (event) => {
+      const button = event.currentTarget;
+      counter.querySelectorAll("[data-brew-" + kind + "]").forEach((other) => other.setAttribute("aria-pressed", String(other === button)));
+      picked[kind] = button.dataset["brew" + kind[0].toUpperCase() + kind.slice(1)];
+      ready();
+    };
+    counter.querySelectorAll("[data-brew-base]").forEach((button) => button.addEventListener("click", choose("base")));
+    counter.querySelectorAll("[data-brew-extra]").forEach((button) => button.addEventListener("click", choose("extra")));
+
+    // Holding the tap pours (pointer, or Space / Enter held down); letting go stops. Past the brim it spills.
+    const open = (event) => {
+      event.preventDefault();
+      if (poured || timer) return;
+      timer = setInterval(() => { fill += 1.1; draw(); if (fill >= 112) close(); }, 30);
+    };
+    const close = () => {
+      if (!timer) return;
+      clearInterval(timer);
+      timer = null;
+      poured = true;
+      pour.disabled = true;
+      redo.hidden = false;
+      const off = Math.abs(fill - LINE);
+      level.textContent = fill > 100 ? "あふれた！" : off <= 4 ? "ぴったり！" : off <= 10 ? "まずまず" : fill < LINE ? "少し足りない" : "少し多い";
+      ready();
+    };
+    pour.addEventListener("pointerdown", open);
+    ["pointerup", "pointerleave", "pointercancel"].forEach((type) => pour.addEventListener(type, close));
+    pour.addEventListener("keydown", (event) => { if ((event.key === " " || event.key === "Enter") && !event.repeat) open(event); });
+    pour.addEventListener("keyup", (event) => { if (event.key === " " || event.key === "Enter") close(); });
+    pour.addEventListener("click", (event) => event.preventDefault());
+    redo.addEventListener("click", () => { fill = 0; poured = false; pour.disabled = false; redo.hidden = true; level.textContent = ""; draw(); ready(); pour.focus(); });
+
+    start.addEventListener("click", async () => {
+      start.disabled = true;
       try {
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key?.startsWith("guild-talk-day-") && get(key)?.date === today) talked.push(key.slice("guild-talk-day-".length));
+        const response = await fetch("/guild/beer?skip=" + talkedToday().join(","), { headers: { Accept: "text/html" } });
+        if (response.status === 404) {
+          note.textContent = "今夜はもう、誰も来ないようだ。また明日。";
+          return;
         }
-      } catch { /* private window: anyone may come */ }
-      serve.disabled = true;
-      try {
-        const response = await fetch("/guild/beer?skip=" + talked.filter((id) => /^\d+$/.test(id)).join(","), { headers: { Accept: "text/html" } });
         if (!response.ok) throw new Error(String(response.status));
         holder.innerHTML = await response.text();
-        const box = holder.querySelector("[data-beer]");
-        if (!box) throw new Error("empty");
+        order = holder.querySelector("[data-beer-order]");
+        box = holder.querySelector("[data-beer]");
+        if (!order || !box) throw new Error("empty");
         setUp(box);
-        box.querySelector("[data-talk-start]").click();
+        counter.querySelector("[data-brew-figure]").replaceChildren(box.querySelector(".adv-say svg").cloneNode(true));
+        counter.querySelector("[data-brew-name]").textContent = box.dataset.name;
+        counter.querySelector("[data-brew-ticket]").textContent = order.dataset.ticket;
+        reset();
+        ask.hidden = true;
+        make.hidden = false;
+        counter.querySelector("[data-brew-base]")?.focus();
       } catch {
-        serve.title = "今は誰も来ないようだ";
+        note.textContent = "……今は誰も来ないようだ。少し待って、もう一度。";
       } finally {
-        serve.disabled = false;
+        start.disabled = false;
       }
     });
+
+    serveIt.addEventListener("click", async () => {
+      const off = Math.abs(fill - LINE);
+      const pourScore = fill > 100 ? 0 : off <= 4 ? 2 : off <= 10 ? 1 : 0;
+      const score = (picked.base === order.dataset.base ? 1 : 0) + (picked.extra === order.dataset.extra ? 1 : 0) + pourScore;
+      const name = box.dataset.name;
+      const taken = fill > 100 ? name + "は、泡のあふれたジョッキを苦笑いで受け取った。" : TIERS[score >= 4 ? 2 : score >= 2 ? 1 : 0](name);
+      make.hidden = true;
+      ask.hidden = false;
+      note.textContent = "";
+      start.textContent = "もう一杯出す";
+      await box.play([{ text: taken }]);
+      start.focus();
+    });
   }
+
+  const counters = () => document.querySelectorAll("[data-brew]").forEach(brew);
+  document.addEventListener("guild-window", counters);
+  counters();
 })();

@@ -152,22 +152,15 @@ public class GuildTalks {
         """, String.class, talkId, position).stream().findFirst().orElse(null);
   }
 
-  /** Living residents who have something to talk about: their name tag in the tavern says so. */
-  public Set<Long> talkers() {
-    return Set.copyOf(jdbc.queryForList("SELECT DISTINCT t.character_id FROM T_GUILD_TALK t JOIN M_GUILD_CHARACTER c ON c.id = t.character_id "
-        + "WHERE c.status = 'ALIVE'", Long.class));
-  }
 
   /**
    * Who comes over when the visitor serves a beer: a living resident with a talk, at random, not one of skip (those the
-   * visitor already talked with today, as their browser says) while anyone else is left. Null when nobody has a talk.
+   * visitor already talked with today, as their browser says). Null when nobody is left.
    */
   public Long draw(Collection<Long> skip) {
     String sql = "SELECT DISTINCT t.character_id FROM T_GUILD_TALK t JOIN M_GUILD_CHARACTER c ON c.id = t.character_id WHERE c.status = 'ALIVE'";
-    List<Long> all = jdbc.queryForList(sql, Long.class);
-    if (all.isEmpty()) return null;
-    List<Long> fresh = all.stream().filter(id -> !skip.contains(id)).toList();
-    List<Long> pool = fresh.isEmpty() ? all : fresh;
+    List<Long> pool = jdbc.queryForList(sql, Long.class).stream().filter(id -> !skip.contains(id)).toList();
+    if (pool.isEmpty()) return null;
     return pool.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(pool.size()));
   }
 

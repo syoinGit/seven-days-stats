@@ -633,14 +633,42 @@
 .adv-figure .guild-portrait,.adv-player.adv-solo .guild-portrait{width:auto;height:calc(100dvh - 138px);max-height:330px}
 .adv-figure.left{left:9%}.adv-figure.right{right:9%}
 }
-/* Serving a beer: a small pixel mug, foam on top, beside the dungeon button. */
-.guild-beer-button{margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:4px 12px 4px 8px;background:#2b1f1a;border:2px solid #b07a3c;color:#ffe0a8;font:inherit;font-size:12px;letter-spacing:.06em;cursor:pointer}
-.guild-beer-button:hover{background:#3d2a1f}.guild-beer-button:focus-visible{outline:3px solid #ebbe92;outline-offset:2px}.guild-beer-button[hidden]{display:none}
-.guild-beer-button:disabled{opacity:.6;cursor:progress}
-.beer-mug{position:relative;width:14px;height:16px;background:linear-gradient(#fff4dc 0 4px,#e3a33b 4px);border:2px solid #5a3a1e;border-top-width:1px;box-sizing:border-box}
-.beer-mug i{position:absolute;right:-7px;top:4px;width:5px;height:7px;border:2px solid #5a3a1e;border-left:0}
-@media(prefers-reduced-motion:no-preference){.guild-beer-button:hover .beer-mug{animation:beer-tilt .5s ease-in-out}}
-@keyframes beer-tilt{50%{transform:rotate(-12deg)}}
-@media(max-width:650px){.guild-beer-button{font-size:11px;padding:3px 8px 3px 6px}}
 /* A thought that is a rumor they heard. */
 .mind-rumor{display:inline-block;margin-right:6px;padding:0 6px;font-size:10px;letter-spacing:.1em;color:#2a1d24;background:#d9b37a;vertical-align:1px}
+/* The keeper's counter: the ask, the guest and their order ticket, three steps, and a glass that fills while the tap is held. */
+.guild-brew{color:#e9dfdf}
+.brew-ask{display:flex;flex-direction:column;align-items:center;gap:12px;padding:26px 12px;text-align:center}
+.brew-ask p{margin:0;font-size:17px;letter-spacing:.06em;color:#f0d8c2}
+.brew-ask .brew-note{font-size:13px;color:#c4a9ad;min-height:1.6em}
+.brew-tap{position:relative;width:58px;height:64px;background:linear-gradient(90deg,#6b4a2c 0 12%,#8a5e36 12% 88%,#6b4a2c 88%);border:3px solid #3a2718;border-radius:6px 6px 2px 2px}
+.brew-tap::before{content:"";position:absolute;left:50%;top:-14px;width:10px;height:14px;background:#c8a24a;border:2px solid #5a3a1e;transform:translateX(-50%)}
+.brew-tap i{position:absolute;inset:16px 6px auto;height:4px;background:#3a2718;box-shadow:0 22px #3a2718}
+.brew-button{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:#7a4a24;border:2px solid #d8a35a;color:#fff3dc;font:inherit;font-size:15px;letter-spacing:.08em;cursor:pointer}
+.brew-button:hover{background:#8f5a2c}.brew-button:focus-visible,.guild-brew fieldset button:focus-visible,.brew-redo:focus-visible{outline:3px solid #ebbe92;outline-offset:2px}
+.brew-button:disabled{opacity:.45;cursor:default}.brew-button[hidden],.brew-redo[hidden]{display:none}
+.brew-guest{display:flex;align-items:center;gap:16px;padding:6px 4px 14px;border-bottom:1px dashed #5a4150}
+.brew-guest-figure .guild-sprite{width:64px;height:96px}
+.brew-ticket{flex:1;position:relative;padding:10px 16px;background:#efe0c4;color:#3a2a22;border:2px solid #9b7b5c;box-shadow:3px 3px #1d1520;font-size:12px;transform:rotate(-1deg)}
+.brew-ticket b{font-size:14px}.brew-ticket p{margin:4px 0 0;font-size:15px;line-height:1.6;color:#3a2a22}
+.brew-steps{display:grid;gap:12px;margin:14px 0}
+.guild-brew fieldset{margin:0;padding:10px 12px 12px;border:1px solid #5a4150;background:#201927}
+.guild-brew legend{padding:0 6px;font-size:12px;color:#d9b37a;letter-spacing:.06em}
+.guild-brew fieldset>button{display:inline-flex;align-items:center;gap:6px;margin:4px 6px 0 0;padding:7px 12px;background:#2e2236;border:2px solid #5a4150;color:#e9dfdf;font:inherit;font-size:13px;cursor:pointer}
+.guild-brew fieldset>button[aria-pressed="true"]{background:#5a3a24;border-color:#e3b36a;color:#fff3dc}
+.guild-brew fieldset>button i{width:12px;height:12px;border:2px solid #1d1520}
+.base-lager i{background:#f2c14e}.base-ale i{background:#d98a2b}.base-stout i{background:#3b2418}
+.extra-none i{background:transparent}.extra-honey i{background:#e8a93a;border-radius:50% 50% 40% 40%}.extra-herb i{background:#6f9a52;border-radius:0 60%}.extra-berry i{background:#b8344a;border-radius:50%}
+.brew-pour{display:flex;align-items:flex-end;gap:18px}
+.brew-glass{position:relative;width:74px;height:110px;border:3px solid #d9e4ea;border-top-width:2px;border-radius:2px 2px 8px 8px;background:#ffffff10;overflow:hidden}
+.brew-glass::after{content:"";position:absolute;right:-16px;top:24px;width:12px;height:44px;border:3px solid #d9e4ea;border-left:0;border-radius:0 8px 8px 0}
+.brew-beer{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(#f2b542,#d88a1c)}
+.brew-foam{position:absolute;left:0;right:0;bottom:0;height:0;background:#fff8e8}
+.brew-line{position:absolute;left:-2px;right:-2px;bottom:82%;border-top:2px dashed #e35d5d}
+.brew-glass.over{box-shadow:0 0 0 3px #e35d5d66}
+.brew-pour-controls{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.brew-button.tap{touch-action:none;user-select:none;-webkit-user-select:none}
+.brew-redo{padding:4px 10px;background:none;border:1px solid #8c6f7d;color:#e0c8cf;font:inherit;font-size:12px;cursor:pointer}
+.brew-level{margin:0;min-height:1.5em;font-size:14px;color:#ffd58a}
+.brew-button.serve{display:flex;margin:0 auto}
+@media(max-width:650px){.brew-guest-figure .guild-sprite{width:48px;height:72px}.brew-ticket p{font-size:14px}.guild-brew fieldset>button{padding:6px 9px;font-size:12px}}
+.brew-ask[hidden],.brew-make[hidden]{display:none}
