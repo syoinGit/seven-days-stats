@@ -98,6 +98,27 @@ public class GuildInteractionService {
 
   /** The chance that an adult finds an adult of the other gender their type when they first meet. */
   static final double SMITTEN_CHANCE = 0.2;
+  /**
+   * Card changes are multiplied by this. Twelve interactions a day spread over the whole town, so one pair meets only now and
+   * then; at the cards' own small steps (1-3) nobody became friends even in a month. At this pace a pair that gets on well
+   * becomes friends in about five meetings, and a falling-out stings as much.
+   */
+  static final int PACE = 3;
+  /** Each meeting that did not go badly for one side brings that side this much closer, whatever the card: they get used to each other. */
+  static final int FAMILIAR_AFFINITY = 3;
+  static final int FAMILIAR_TRUST = 2;
+  /** Two who already get on (both at least this affinity) are this many times as likely to be the ones who talk. */
+  static final int REUNION_AFFINITY = 10;
+  static final int REUNION = 3;
+  /** From this affinity (both ways), or once they are more than acquaintances, the pair's story cards come DEPTH times as often. */
+  static final int DEEP_AFFINITY = 30;
+  static final int DEPTH = 4;
+  static final int RIPE_MARGIN = 10;
+  static final int RIPE = 5;
+  /** How many meetings each label needs, besides the axes. */
+  static final int FRIEND_MEETINGS = 2;
+  static final int COMPANION_COOP = 2;
+  static final int CLOSE_FRIEND_MEETINGS = 5;
   /** Below this affinity, people of different genders warm to each other slowly (unless smitten). */
   static final int RESERVED_BELOW = 20;
 
@@ -223,7 +244,7 @@ public class GuildInteractionService {
       if (majorToday && card.tier().equals("major")) continue;
       for (Pair oriented : List.of(chosen, chosen.swap())) {
         if (matches(card, oriented, phase, date)) {
-          options.add(new Option(card, oriented, card.weight() * boost(selection, card)));
+          options.add(new Option(card, oriented, card.weight() * boost(selection, card) * depth(card, oriented)));
           break;
         }
       }
@@ -236,8 +257,8 @@ public class GuildInteractionService {
 
     // Everything below is decided before the AI sees anything.
     // "both" is rolled for each direction, so the two rarely warm by the same amount; gender and taste shape it further.
-    Map<String, Integer> abDelta = attraction(sum(roll(outcome.both()), roll(outcome.aToB())), pair, pair.ab());
-    Map<String, Integer> baDelta = attraction(sum(roll(outcome.both()), roll(outcome.bToA())), pair, pair.ba());
+    Map<String, Integer> abDelta = attraction(familiar(sum(roll(outcome.both()), roll(outcome.aToB()))), pair, pair.ab());
+    Map<String, Integer> baDelta = attraction(familiar(sum(roll(outcome.both()), roll(outcome.bToA()))), pair, pair.ba());
     Rel ab = pair.ab().plus(abDelta);
     Rel ba = pair.ba().plus(baDelta);
     int together = pair.together() + 1;
@@ -410,7 +431,7 @@ public class GuildInteractionService {
 
   /**
    * How much warmer one direction really gets. Same gender (or unknown): as the card says. Different
-   * genders: reserved at first (below RESERVED_BELOW affinity the gain is halved and a third of the time
+   * genders: reserved at first (below RESERVED_BELOW affinity the gain is two thirds and a quarter of the time
    * nothing), unless this one finds the other their type, which makes every gain bigger.
    */
   static Map<String, Integer> attraction(Map<String, Integer> delta, Pair pair, Rel from) {
@@ -419,7 +440,7 @@ public class GuildInteractionService {
     if (gain <= 0 || same == null || same) return delta;
     Map<String, Integer> shaped = new LinkedHashMap<>(delta);
     if (from.smitten()) shaped.put("affinity", gain + (gain + 1) / 2 + 1);
-    else if (from.affinity() < RESERVED_BELOW) shaped.put("affinity", ThreadLocalRandom.current().nextInt(3) == 0 ? 0 : (gain + 1) / 2);
+    else if (from.affinity() < RESERVED_BELOW) shaped.put("affinity", ThreadLocalRandom.current().nextInt(4) == 0 ? 0 : (gain * 2 + 2) / 3);
     return shaped;
   }
 
@@ -455,7 +476,7 @@ public class GuildInteractionService {
     Map<Pair, Integer> weights = new LinkedHashMap<>();
     for (Pair pair : pairs) {
       String key = Math.min(pair.a().id(), pair.b().id()) + "-" + Math.max(pair.a().id(), pair.b().id());
-      weights.put(pair, recent.contains(key) ? 1 : 4);
+      weights.put(pair, recent.contains(key) ? 1 : pair.together() > 0 && pair.minAffinity() >= REUNION_AFFINITY ? 4 * REUNION : 4);
     }
     return draw(weights);
   }
@@ -508,6 +529,23 @@ public class GuildInteractionService {
     return person.age() != null && person.age() >= 18;
   }
 
+  /**
+   * Two who are close talk about more than the weather: their story moves on (progress, thread and major cards are DEPTH
+   * times as likely). Two at odds are likelier to quarrel, make up or break off. Most cards are everyday talk, so without
+   * this a confession came up about once in a hundred meetings, even between two very fond of each other. A big event
+   * whose moment is ripe (RIPE_MARGIN past the card's affinity or wariness) is RIPE times likelier again.
+   */
+  static int depth(GuildCards.Card card, Pair pair) {
+    var when = card.when();
+    // The moment is ripe: well past what the card needs (a confession between two long fond of each other).
+    if (card.tier().equals("major") && ((when.affinityMin() != null && pair.minAffinity() >= when.affinityMin() + RIPE_MARGIN)
+        || (when.warinessMin() != null && pair.maxWariness() >= when.warinessMin() + RIPE_MARGIN))) return DEPTH * RIPE;
+    boolean story = !card.tier().equals("daily");
+    if (pair.minAffinity() >= DEEP_AFFINITY || (pair.label() != null && !pair.label().equals("acquaintance"))) return story ? DEPTH : 1;
+    if (pair.maxWariness() >= 20 || pair.minAffinity() <= -10) return story || card.kind().equals("口論") ? DEPTH : 1;
+    return 1;
+  }
+
   /** The selection route makes its own kind of card likelier. */
   private static int boost(String selection, GuildCards.Card card) {
     return switch (selection) {
@@ -554,9 +592,9 @@ public class GuildInteractionService {
     }
     if (AUTO_LABELS.contains(next)) {
       if (minAffinity < 0) next = "acquaintance";
-      else if (minAffinity >= 60 && minTrust >= 50 && together >= 8 && !next.equals("acquaintance")) next = "close_friend";
-      else if (next.equals("acquaintance") && minTrust >= 40 && coop >= 3) next = "companion";
-      else if (next.equals("acquaintance") && minAffinity >= 30 && together >= 3) next = "friend";
+      else if (minAffinity >= 60 && minTrust >= 50 && together >= CLOSE_FRIEND_MEETINGS && !next.equals("acquaintance")) next = "close_friend";
+      else if (next.equals("acquaintance") && minTrust >= 40 && coop >= COMPANION_COOP) next = "companion";
+      else if (next.equals("acquaintance") && minAffinity >= 30 && together >= FRIEND_MEETINGS) next = "friend";
     }
     // A pair that never met has no label yet; its first interaction makes them acquaintances.
     return pair.label() == null && next.equals("acquaintance") ? "acquaintance" : next;
@@ -691,8 +729,17 @@ public class GuildInteractionService {
 
   private static Map<String, Integer> roll(GuildCards.Delta delta) {
     Map<String, Integer> values = new LinkedHashMap<>();
-    delta.ranges().forEach((axis, range) -> values.put(axis, ThreadLocalRandom.current().nextInt(range[0], range[1] + 1)));
+    delta.ranges().forEach((axis, range) -> values.put(axis, PACE * ThreadLocalRandom.current().nextInt(range[0], range[1] + 1)));
     return values;
+  }
+
+  /** A meeting that went no worse than even for one side: that side gets a little more used to the other. */
+  static Map<String, Integer> familiar(Map<String, Integer> delta) {
+    if (delta.getOrDefault("affinity", 0) < 0 || delta.getOrDefault("trust", 0) < 0 || delta.getOrDefault("wariness", 0) > 0) return delta;
+    Map<String, Integer> warmer = new LinkedHashMap<>(delta);
+    warmer.merge("affinity", FAMILIAR_AFFINITY, Integer::sum);
+    warmer.merge("trust", FAMILIAR_TRUST, Integer::sum);
+    return warmer;
   }
 
   private static Map<String, Integer> sum(Map<String, Integer> left, Map<String, Integer> right) {
