@@ -23,6 +23,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = {
@@ -645,11 +646,56 @@ class GuildTests {
     var gain = java.util.Map.of("affinity", 4, "trust", 2);
     assertThat(GuildInteractionService.attraction(gain, same, cool)).isEqualTo(gain);
     for (int i = 0; i < 30; i++) {
-      assertThat(GuildInteractionService.attraction(gain, mixed, cool).get("affinity")).isIn(0, 2);
+      assertThat(GuildInteractionService.attraction(gain, mixed, cool).get("affinity")).isIn(0, 3);
     }
     assertThat(GuildInteractionService.attraction(gain, mixed, new GuildInteractionService.Rel(0, 0, 0, 0, true))).containsEntry("affinity", 7).containsEntry("trust", 2);
     assertThat(GuildInteractionService.attraction(gain, mixed, new GuildInteractionService.Rel(0, 30, 0, 0))).containsEntry("affinity", 4);
     assertThat(GuildInteractionService.attraction(java.util.Map.of("affinity", -3), mixed, cool)).containsEntry("affinity", -3);
+  }
+
+  /**
+   * Relations move at the pace of twelve interactions a day: each meeting that goes no worse than even brings both sides a
+   * little closer, close pairs move their story on, and a big event whose moment is ripe comes up far more often.
+   */
+  @Test void relationsMoveAtTheTavernsPace() {
+    assertThat(GuildInteractionService.familiar(java.util.Map.of("affinity", 6))).containsEntry("affinity", 9).containsEntry("trust", 2);
+    assertThat(GuildInteractionService.familiar(java.util.Map.of("affinity", -6))).containsEntry("affinity", -6).doesNotContainKey("trust");
+    assertThat(GuildInteractionService.familiar(java.util.Map.of("wariness", 3))).doesNotContainKey("affinity");
+    var cards = new GuildCards().cards();
+    var weather = cards.stream().filter(card -> card.id().equals("weather-talk")).findFirst().orElseThrow();
+    var confess = cards.stream().filter(card -> card.id().equals("confess")).findFirst().orElseThrow();
+    var a = new GuildInteractionService.Person(1, "リネ", 28, "女性", "冒険者", "穏やか");
+    var b = new GuildInteractionService.Person(2, "ロアン", 30, "男性", "鍛冶屋", "無口");
+    java.util.function.BiFunction<Integer, String, GuildInteractionService.Pair> pair = (affinity, label) -> new GuildInteractionService.Pair(a, b,
+        new GuildInteractionService.Rel(20, affinity, 0, 0), new GuildInteractionService.Rel(20, affinity, 0, 0), label, null, 3, 0, List.of(), null);
+    assertThat(GuildInteractionService.depth(weather, pair.apply(10, "acquaintance"))).isEqualTo(1);
+    assertThat(GuildInteractionService.depth(confess, pair.apply(10, "acquaintance"))).isEqualTo(1);
+    assertThat(GuildInteractionService.depth(weather, pair.apply(45, "friend"))).isEqualTo(1);
+    assertThat(GuildInteractionService.depth(confess, pair.apply(45, "friend"))).isEqualTo(GuildInteractionService.DEPTH);
+    assertThat(GuildInteractionService.depth(confess, pair.apply(55, "friend"))).isEqualTo(GuildInteractionService.DEPTH * GuildInteractionService.RIPE);
+  }
+
+  /** Now and then a visitor comes with someone they like, who takes the seat of the last one in line. */
+  @Test void visitorsSometimesBringSomeoneTheyLike() {
+    List<Long> line = new java.util.ArrayList<>();
+    for (int i = 0; i < 11; i++) line.add(resident("住人" + i, 30, "ALIVE", i));
+    long rine = line.get(0);
+    long roan = line.remove(10);
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,20,40,0,0)", rine, roan);
+    boolean came = false;
+    for (int i = 0; i < 40; i++) {
+      List<Long> seated = ReflectionTestUtils.invokeMethod(guild, "companions", line, GuildPlaces.CENTER, List.of());
+      assertThat(seated).hasSize(10).doesNotHaveDuplicates();
+      if (seated.get(1) == roan) {
+        came = true;
+        assertThat(seated).doesNotContain(line.get(9));
+      } else {
+        assertThat(seated).isEqualTo(line);
+      }
+      // Someone already elsewhere today stays there.
+      assertThat((List<Long>) ReflectionTestUtils.invokeMethod(guild, "companions", line, GuildPlaces.CENTER, List.of(roan))).isEqualTo(line);
+    }
+    assertThat(came).isTrue();
   }
 
   /** Interactions run in the evening, so every card must be able to fall then; gender and taste cards are read. */
@@ -685,8 +731,9 @@ class GuildTests {
     jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten) VALUES (?,?,10,0,0,0,FALSE)", roan, rine);
     var quiet = new GuildCards(new org.springframework.core.io.ClassPathResource("guild/crush-test-cards.yml"));
     new GuildInteractionService(jdbc, properties, quiet, writer, world, thoughts).runHour(HOUR);
-    assertThat(count("SELECT affinity FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", rine, roan)).isEqualTo(45 + 2 + 1 + 1);
-    assertThat(count("SELECT affinity FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", roan, rine)).isBetween(0, 1);
+    assertThat(count("SELECT affinity FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", rine, roan)).isEqualTo(45 + 15);
+    // The card's 2 at the pace (×3) and getting used to each other (+3) is 9; smitten makes it 9 + 5 + 1, reserved 0 or 6.
+    assertThat(count("SELECT affinity FROM T_GUILD_RELATION WHERE from_id = ? AND to_id = ?", roan, rine)).isIn(0, 6);
     assertThat(jdbc.queryForMap("SELECT kind, a_id, summary FROM T_GUILD_THREAD")).containsEntry("KIND", "crush")
         .containsEntry("A_ID", rine).containsEntry("SUMMARY", "リネはロアンに片思いしている");
     verify(bedrock).generate(anyString(), argThat(input -> input.contains("二人は異性") && input.contains("好みのタイプで気になっている")
@@ -1150,20 +1197,20 @@ class GuildTests {
     var b = new GuildInteractionService.Person(roan, "ロアン", 30, "男性", null, "");
     var minor = new GuildInteractionService.Person(mira, "ミラ", 16, "女性", null, "");
     var friends = new GuildInteractionService.Pair(a, b, warm, warm, "friend", now.minusDays(30), 5, 0, List.of(), null);
-    assertThat(interactions.label(friends, warm, warm, "lover", 6, 0, now)).isEqualTo("lover");
-    assertThat(interactions.label(friends, warm, warm, "spouse", 6, 0, now)).as("spouse needs lovers first").isEqualTo("friend");
-    assertThat(interactions.label(friends, warm, warm, null, 6, 0, now)).as("no attempt, no romance").isEqualTo("friend");
+    assertThat(interactions.label(friends, warm, warm, "lover", 4, 0, now)).isEqualTo("lover");
+    assertThat(interactions.label(friends, warm, warm, "spouse", 4, 0, now)).as("spouse needs lovers first").isEqualTo("friend");
+    assertThat(interactions.label(friends, warm, warm, null, 4, 0, now)).as("no attempt, no romance").isEqualTo("friend");
     var withMinor = new GuildInteractionService.Pair(a, minor, warm, warm, "friend", now.minusDays(30), 5, 0, List.of(), null);
-    assertThat(interactions.label(withMinor, warm, warm, "lover", 6, 0, now)).isEqualTo("friend");
+    assertThat(interactions.label(withMinor, warm, warm, "lover", 4, 0, now)).isEqualTo("friend");
     var newLovers = new GuildInteractionService.Pair(a, b, warm, warm, "lover", now.minusDays(2), 9, 0, List.of(), null);
     assertThat(interactions.label(newLovers, warm, warm, "spouse", 10, 0, now)).as("a week first").isEqualTo("lover");
     var lovers = new GuildInteractionService.Pair(a, b, warm, warm, "lover", now.minusDays(8), 9, 0, List.of(), null);
     assertThat(interactions.label(lovers, warm, warm, "spouse", 10, 0, now)).isEqualTo("spouse");
     var cold = new GuildInteractionService.Rel(0, -50, 70, 0);
-    assertThat(interactions.label(friends, cold, cold, null, 6, 0, now)).isEqualTo("acquaintance");
-    assertThat(interactions.label(friends, cold, cold, "rival", 6, 0, now)).isEqualTo("rival");
+    assertThat(interactions.label(friends, cold, cold, null, 4, 0, now)).isEqualTo("acquaintance");
+    assertThat(interactions.label(friends, cold, cold, "rival", 4, 0, now)).isEqualTo("rival");
     jdbc.update("INSERT INTO T_GUILD_BOND (low_id,high_id,label,since) VALUES (?,?,'lover',?)", Math.min(rine, mira), Math.max(rine, mira), now);
-    assertThat(interactions.label(friends, warm, warm, "lover", 6, 0, now)).as("one partner at a time").isEqualTo("friend");
+    assertThat(interactions.label(friends, warm, warm, "lover", 4, 0, now)).as("one partner at a time").isEqualTo("friend");
   }
 
   @Test void theLogEntryAndPairPagesShowTheStoryWithoutPlayers() throws Exception {
