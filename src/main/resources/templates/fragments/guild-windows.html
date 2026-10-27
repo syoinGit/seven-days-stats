@@ -123,46 +123,45 @@
   </table>
 </th:block>
 
+<!-- A resident's window: who they are and the ways to see more (chart, log, where they are today) first, then what is
+     on their mind, where they belong, their nature, their relations and interactions; where they were born from last. -->
 <th:block th:fragment="character">
-  <div class="resident-heading"><svg th:replace="~{fragments/guild :: sprite(${character})}"></svg><div><p class="guild-eyebrow" th:text="${character.gameName()}">Core Keeper</p><p class="resident-profile" th:if="${!character.profile().isEmpty()}" th:text="${character.profile()}">28歳・女性・道具職人</p><p class="resident-lineage" th:if="${character.lineageName() != null}" th:text="${character.lineageName() + 'の名'}">北方系の名</p><p th:text="${#temporals.format(character.bornOn, 'yyyy年M月d日') + ' に誕生'}"></p></div></div>
-  <p th:if="${character.status == 'DEAD'}">この人物は亡くなりました。その人の記録はここに残ります。</p>
-  <p th:if="${character.status == 'INJURED'}">現在は療養しています。</p><p th:if="${character.status == 'MISSING'}">現在は所在が分かっていません。</p>
+  <div class="resident-heading"><svg th:replace="~{fragments/guild :: sprite(${character})}"></svg>
+    <div><p class="resident-profile" th:if="${!character.profile().isEmpty()}" th:text="${character.profile()}">28歳・女性・道具職人</p>
+      <p class="resident-born" th:text="${#temporals.format(character.bornOn, 'yyyy年M月d日') + ' 生まれ・' + character.gameName() + 'の記録から'}">2026年10月3日 生まれ・Core Keeperの記録から</p>
+      <p class="resident-status" th:if="${character.status == 'DEAD'}">この人物は亡くなりました。その人の記録はここに残ります。</p>
+      <p class="resident-status" th:if="${character.status == 'INJURED'}">現在は療養しています。</p>
+      <p class="resident-status" th:if="${character.status == 'MISSING'}">現在は所在が分かっていません。</p></div></div>
+  <nav class="resident-links" aria-label="この人をもっと見る">
+    <a th:unless="${#lists.isEmpty(relations)}" th:href="@{/guild/relations(center=${character.id})}">相関図</a>
+    <a th:unless="${#lists.isEmpty(interactions)}" th:href="@{/guild/log(character=${character.id})}">交流の記録</a>
+    <a th:if="${todayPlace != null}" th:href="${todayPlace.guild() ? '/guild' : '/guild/towns/' + todayPlace.key}" th:text="${'今日は' + todayPlace.name + 'に'}">今日は樫の盾亭に</a>
+  </nav>
   <div class="guild-dialogue"><p th:text="${character.introduction}"></p></div>
   <!-- Where their mind is now (written after their latest interaction), and how it got there. -->
   <section class="guild-mind" th:unless="${#lists.isEmpty(minds)}">
     <h3>今、思っていること</h3>
-    <p class="mind-now"><span class="mind-dots" aria-hidden="true"><i></i><i></i><i></i></span><small class="mind-rumor" th:if="${minds[0].rumor}">噂</small><th:block th:text="${minds[0].text}">店の仕入れのことが頭から離れない。</th:block></p>
+    <p class="mind-now"><span class="mind-dots" aria-hidden="true"><i></i><i></i><i></i></span><span><small class="mind-rumor" th:if="${minds[0].rumor}">噂</small><th:block th:text="${minds[0].text}">店の仕入れのことが頭から離れない。</th:block></span></p>
     <ol class="mind-trail" th:if="${#lists.size(minds) > 1}" aria-label="これまでの心の動き">
       <li th:each="mind, it : ${minds}" th:unless="${it.first}"><small th:text="${#temporals.format(mind.day, 'M月d日') + (mind.rumor ? '・噂' : '')}">10月25日</small><th:block th:text="${mind.text}">雨の日の客足が気になる。</th:block></li>
     </ol>
   </section>
   <dl class="guild-affiliation">
-    <dt>出身地</dt><dd th:text="${character.homeVillage}">グランフォード</dd>
-    <dt>現在地</dt><dd th:text="${character.village}">グランフォード</dd>
-    <th:block th:if="${todayPlace != null}"><dt>今日いる場所</dt><dd><a th:href="${todayPlace.guild() ? '/guild' : '/guild/towns/' + todayPlace.key}" th:text="${todayPlace.title()}">樫の盾亭（グランフォード）</a></dd></th:block>
-    <dt>所属派閥</dt><dd th:text="${character.faction}">無所属</dd>
-    <dt>信仰</dt><dd th:text="${character.faith}">無信仰</dd>
+    <div><dt>出身地</dt><dd th:text="${character.homeVillage}">グランフォード</dd></div>
+    <div><dt>暮らす国</dt><dd th:text="${character.village}">グランフォード</dd></div>
+    <div><dt>派閥</dt><dd th:text="${character.faction}">無所属</dd></div>
+    <div><dt>信仰</dt><dd th:text="${character.faith}">無信仰</dd></div>
   </dl>
-  <h3>人となり</h3><p th:text="${character.personality}"></p>
-  <p class="guild-voice" th:if="${voice != null}" th:text="${'話し方：' + voice.describe()}">話し方：一人称「あたし」・語尾「〜だろ・〜さ」・さばさばして遠慮がない</p>
-  <th:block th:unless="${#lists.isEmpty(history)}"><h3>所属の履歴</h3>
-    <ol class="guild-memory"><li th:each="change : ${history}" th:text="${#temporals.format(change.day(), 'yyyy年M月d日') + ' ' + change.text() + ' — ' + change.reason}">2026年10月1日 派閥：無所属 → 白銀の騎士団（加入）</li></ol></th:block>
-  <h3>生まれた記憶</h3>
-  <th:block th:if="${!#lists.isEmpty(character.memoryLines())}"><p th:text="${character.memoryLabel + 'から生まれました。'}">7 Days to Die・10月3日 21時〜24時の記録から生まれました。</p>
-    <ol class="guild-memory"><li th:each="line : ${character.memoryLines()}" th:text="${line}">21:14 ゾンビを倒した</li></ol>
-    <p class="guild-reading" th:if="${character.reading != null}" th:text="${'記録から読み取られたこと：' + character.reading}">釣果の多い一日から、海辺で暮らす人だと読み取られた。</p>
-    <p class="guild-footer">記録の「誰か」は、その時間にいたプレイヤーです。名前は残していません。</p></th:block>
-  <p th:if="${#lists.isEmpty(character.memoryLines())}" th:text="${character.origin}"></p>
+  <h3>人となり</h3><p class="resident-nature" th:text="${character.personality}"></p>
   <h3>この街での関係</h3>
-  <p class="rmap-link" th:unless="${#lists.isEmpty(relations)}"><a th:href="@{/guild/relations(center=${character.id})}">相関図で見る →</a></p>
   <p th:if="${#lists.isEmpty(relations)}">まだ誰とも言葉を交わしていません。</p>
   <ul class="guild-relations" th:unless="${#lists.isEmpty(relations)}">
     <li th:each="rel : ${relations}">
-      <a th:href="${rel.pairPath}"><strong th:text="${rel.other.name}">ロアン</strong></a>
-      <span class="guild-label" th:text="${rel.labelName()}">友達</span><em th:if="${rel.smitten}">気になっている</em><em th:if="${rel.other.status == 'DEAD'}">故人</em>
+      <div class="rel-head"><a th:href="${rel.pairPath}"><strong th:text="${rel.other.name}">ロアン</strong></a>
+        <span class="guild-label" th:if="${rel.label != null and rel.label != 'acquaintance'}" th:text="${rel.labelName()}">友達</span><em th:if="${rel.smitten}">気になっている</em><em th:if="${rel.other.status == 'DEAD'}">故人</em></div>
       <q class="mind-about" th:if="${abouts.get(rel.other.id) != null}" th:text="${abouts.get(rel.other.id)}">頼りになるけど、少し無茶をする。</q>
-      <small th:text="${'信頼' + rel.trust + '・親しみ' + rel.affinity + '・警戒' + rel.wariness + '・恩義' + rel.debt}">信頼10・親しみ20・警戒0・恩義3</small>
-      <small th:unless="${#lists.isEmpty(rel.history)}" th:text="${'関係の移り変わり: ' + #strings.listJoin(rel.history.![text()], ' → ')}">知人になった → 知人 → 友達</small>
+      <p class="rel-axes"><span th:text="${'信頼 ' + rel.trust}">信頼 10</span><span th:text="${'親しみ ' + rel.affinity}">親しみ 20</span><span th:text="${'警戒 ' + rel.wariness}">警戒 0</span><span th:text="${'恩義 ' + rel.debt}">恩義 3</span></p>
+      <small th:unless="${#lists.isEmpty(rel.history)}" th:text="${'移り変わり：' + #strings.listJoin(rel.history.![text()], ' → ')}">知人になった → 友達</small>
     </li>
   </ul>
   <h3>最近の交流</h3>
@@ -173,6 +172,14 @@
   <p th:unless="${#lists.isEmpty(interactions)}"><a th:href="@{/guild/log(character=${character.id})}">この人の交流をすべて見る →</a></p>
   <th:block th:unless="${#lists.isEmpty(expeditions)}"><h3>ダンジョンの記録</h3>
     <ul class="guild-entries"><li th:each="run : ${expeditions}" th:insert="~{fragments/guild-windows :: runRow(${run})}"></li></ul></th:block>
+  <th:block th:unless="${#lists.isEmpty(history)}"><h3>所属の履歴</h3>
+    <ol class="guild-memory"><li th:each="change : ${history}" th:text="${#temporals.format(change.day(), 'yyyy年M月d日') + ' ' + change.text() + ' — ' + change.reason}">2026年10月1日 派閥：無所属 → 白銀の騎士団（加入）</li></ol></th:block>
+  <h3>生まれた記憶</h3>
+  <th:block th:if="${!#lists.isEmpty(character.memoryLines())}"><p th:text="${character.memoryLabel + 'から生まれました。'}">7 Days to Die・10月3日 21時〜24時の記録から生まれました。</p>
+    <ol class="guild-memory"><li th:each="line : ${character.memoryLines()}" th:text="${line}">21:14 ゾンビを倒した</li></ol>
+    <p class="guild-reading" th:if="${character.reading != null}" th:text="${'記録から読み取られたこと：' + character.reading}">釣果の多い一日から、海辺で暮らす人だと読み取られた。</p>
+    <p class="guild-footer">記録の「誰か」は、その時間にいたプレイヤーです。名前は残していません。</p></th:block>
+  <p th:if="${#lists.isEmpty(character.memoryLines())}" th:text="${character.origin}"></p>
   <p class="guild-footer">人物の性格・職業・信仰・暮らしは創作です。実プレイヤーの人格を推定したものではありません。</p>
 </th:block>
 

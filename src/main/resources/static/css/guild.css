@@ -7,7 +7,7 @@
 .guild-window{position:fixed;z-index:35;top:76px;left:0;right:0;margin:0 auto;width:min(640px,calc(100% - 24px));max-height:calc(100dvh - 76px - 96px - env(safe-area-inset-bottom));padding:0;flex-direction:column;border:4px solid #89634b;background:#201927;color:#e9dfdf;box-shadow:0 0 0 3px #1c1420,0 0 0 7px #4a3438,0 30px 70px #000c}.guild-window[open]{display:flex}.guild-window-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px 10px 20px;background:#3a2738;border-bottom:3px solid #6c4c45}.guild-window-bar h2{margin:0;font-size:17px;letter-spacing:.08em;color:#ffe0a8;overflow-wrap:anywhere}.guild-window-close{flex:none;display:grid;place-items:center;width:36px;height:36px;background:#9a6578;border:2px solid #d19b9a;color:#fff!important;font-size:22px;line-height:1;text-decoration:none}.guild-window-close:hover{background:#b07489}.guild-window-close:focus-visible{outline:3px solid #ebbe92;outline-offset:2px}.guild-window-body{overflow-y:auto;overscroll-behavior:contain;padding:18px 22px 8px}.guild-window a{color:#efbea9;text-underline-offset:5px}.guild-window p{line-height:1.85;color:#c6b8c7;font-size:14px}.guild-window h3{font-size:15px;color:#f0d8c2;margin:24px 0 8px}.guild-window-lead{margin-top:0}
 .guild-list{list-style:none;margin:0;padding:0}.guild-list li+li{border-top:1px solid #3e2e41}.guild-row{display:flex;gap:16px;align-items:center;padding:12px 6px;text-decoration:none}.guild-row:hover{background:#2a2031}.guild-row .guild-sprite{width:32px;height:48px}.guild-row strong{display:block;color:#f0d8c2;font-size:15px}.guild-row small{display:block;color:#a991a3;font-size:11px;margin-top:2px}.guild-row em{display:inline-block;margin-top:4px;font-style:normal;font-size:11px;color:#c28f9b}.guild-pager{display:flex;justify-content:space-between;padding:14px 0}.guild-window .resident-heading{gap:20px}.guild-window .resident-heading p{margin:2px 0}.guild-window .resident-heading .guild-sprite{width:64px;height:96px}.guild-window .guild-dialogue{margin:18px 0}
 @media(max-width:650px){.guild-stage{padding:12px 10px 8px}.guild-plate{padding:7px 12px;border-width:3px}.guild-clock{font-size:11px;padding:4px 8px}.guild-tabbar a{font-size:10px}.guild-tabbar svg{width:26px;height:26px}.guild-window{top:64px;width:calc(100% - 16px);max-height:calc(100dvh - 64px - 84px - env(safe-area-inset-bottom))}.guild-window-body{padding:14px 14px 6px}}
-.resident-lineage{font-size:12px!important;color:#a991a3!important;margin:0!important}.guild-origins{width:100%;border-collapse:collapse;font-size:13px}.guild-origins th,.guild-origins td{text-align:left;padding:6px 8px;border-bottom:1px solid #3e2e41}.guild-origins td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.guild-origins{width:100%;border-collapse:collapse;font-size:13px}.guild-origins th,.guild-origins td{text-align:left;padding:6px 8px;border-bottom:1px solid #3e2e41}.guild-origins td:last-child{text-align:right;font-variant-numeric:tabular-nums}
 /* Interactions: the current scene in the tavern, the log, relationships. */
 .room-person.talking{z-index:4}.room-person.talking .person-bubble{display:block;width:150px;font-size:11px;padding:8px 10px}.room-person.talking .person-name{border-color:#e3b448}.guild-now a{color:#ffe0a8}
 .guild-entries,.guild-relations,.guild-changes{list-style:none;margin:0;padding:0}.guild-entries li,.guild-relations li{border-top:1px solid #3e2e41;padding:10px 4px}.guild-entry{display:block;text-decoration:none}.guild-entry small{display:block;color:#a991a3;font-size:11px}.guild-entry span{color:#f0d8c2;font-size:14px}
@@ -16,7 +16,7 @@
 .guild-filter{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 12px;font-size:12px;color:#c6b8c7}.guild-filter select{background:#2a2031;color:#f0d8c2;border:1px solid #6c4c45;padding:4px 6px;font:inherit}.guild-filter button{background:#9a6578;border:1px solid #d19b9a;color:#fff;padding:5px 12px;font:inherit;cursor:pointer}
 @media(max-width:650px){.room-person.talking .person-bubble{width:110px;font-size:10px}.guild-tabbar a{flex-basis:64px}}
 .guild-reading{margin:6px 0 10px;padding:8px 12px;border-left:3px solid #c99a4a;background:rgba(201,154,74,.08);color:#e8d8c4;font-size:14px;line-height:1.8}.guild-admin-residents details{margin-top:6px;font-size:12px}.guild-world{margin:6px 0 0;white-space:pre-wrap;word-break:break-word;color:#c6b8c7;font:12px/1.7 ui-monospace,monospace}
-.guild-affiliation{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:10px 0;font-size:14px}.guild-affiliation dt{color:#c99a4a}.guild-affiliation dd{margin:0;color:#e8d8c4}
+.guild-affiliation{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:18px 0 6px}.guild-affiliation div{padding:8px 12px;background:#2a2031;border:1px solid #4a3846}.guild-affiliation dt{font-size:11px;letter-spacing:.08em;color:#d9b37a}.guild-affiliation dd{margin:2px 0 0;font-size:15px;color:#f3e6dc}
 
 .guild-cast{display:block;color:#a991a3;font-size:11px;margin-top:2px}.guild-cast-list{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-wrap:wrap;gap:6px 18px}.guild-cast-list strong{color:#f0d8c2;font-size:14px;margin-right:6px}.guild-cast-list small{color:#a991a3;font-size:12px}
 .guild-dungeon{list-style:none;margin:14px 0;padding:0;display:grid;gap:8px}.guild-dungeon li{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:8px 12px;border:2px solid #4a3546;background:#241a2b}.guild-dungeon strong{display:grid;place-items:center;width:30px;height:30px;border:2px solid #89634b;background:#3a2738;color:#ffe0a8;font-size:15px}.guild-dungeon p{margin:4px 0;color:#f0d8c2;font-size:14px;line-height:1.7}.guild-dungeon li.dark{opacity:.55}.guild-dungeon li.dark p{color:#a991a3}.guild-dungeon-result{display:inline-block;padding:2px 12px;border:2px solid #ebbe92;color:#ffe0a8;font-weight:bold}
@@ -116,7 +116,6 @@
 .room-person.murmur{z-index:2}.room-person.murmur .person-bubble{display:block;width:150px;font-size:11px;padding:8px 10px;animation:tv-pop .25s ease-out}
 .room-person.speaking .person-bubble{animation:tv-pop .25s ease-out}
 @keyframes tv-pop{from{opacity:0;transform:translateY(4px)}}
-.guild-voice{color:#c6b8c7!important;font-size:13px!important}
 .tv-area .room-person:is(.slot-0,.slot-3) .person-bubble{left:auto;right:0;translate:none}
 .tv-area .room-person:is(.slot-1,.slot-4) .person-bubble{left:0;translate:none}
 @keyframes tv-mill{0%,38%{translate:0}46%,72%{translate:16px 0}80%,100%{translate:0}}
@@ -558,7 +557,7 @@
 .mind-now{position:relative;display:flex;gap:10px;align-items:flex-start;margin:6px 0 0;padding:12px 16px;background:#f3e6cf;color:#3a2a2a;border:3px solid #574045;border-radius:18px;box-shadow:3px 3px #0d0a12;font-size:15px;line-height:1.75;word-break:auto-phrase;text-wrap:pretty}
 .mind-now::after{content:"";position:absolute;left:22px;bottom:-14px;width:10px;height:10px;background:#f3e6cf;border:3px solid #574045;border-radius:50%;box-shadow:-10px 9px 0 -2px #f3e6cf,-10px 9px 0 1px #574045}
 .mind-dots{display:inline-flex;gap:2px;margin-top:9px;flex:none}.mind-dots i{width:4px;height:4px;background:#8a6a6e;border-radius:50%}
-.mind-trail{list-style:none;margin:22px 0 0;padding:0 0 0 14px;border-left:2px dashed #5a4552}
+.mind-trail{list-style:none;margin:34px 0 0;padding:0 0 0 14px;border-left:2px dashed #5a4552}
 .mind-trail li{margin:0 0 6px;color:#b9a6b4;font-size:13px;line-height:1.6}
 .mind-trail li:nth-child(n+2){opacity:.8}.mind-trail li:nth-child(n+3){opacity:.6}
 .mind-trail small{display:inline-block;margin-right:8px;color:#8f7b8b;font-size:11px}
@@ -752,3 +751,24 @@
 .rmap-rows small{display:block;font-size:10px;color:#a991a3}.rmap-rows .rmap-thread{color:#ffb3c8}
 @media(max-width:650px){.rmap-node{font-size:10px}.rmap-node .guild-sprite{width:30px;height:45px}.rmap-node.center .guild-sprite{width:44px;height:66px}
   .rmap-chip{font-size:9px;padding:0 3px}.rmap.overview .rmap-node span{font-size:9px;padding:1px 3px}}
+/* A resident's window, made easier to read: the heading, the ways to see more, and quieter text kept legible on the dark. */
+.guild-window .mind-now{color:#2e2024;font-size:15px}
+.guild-window .resident-heading{display:flex;align-items:center;gap:18px;margin-bottom:12px}
+.guild-window .resident-heading .guild-sprite{flex:none}
+.guild-window .resident-profile{margin:0;font-size:17px;color:#ffe0a8!important;letter-spacing:.04em}
+.guild-window .resident-born{margin:4px 0 0;font-size:12px;color:#c9b6c4}
+.guild-window .resident-status{margin:6px 0 0;padding:2px 8px;display:inline-block;background:#3a2738;border-left:3px solid #c28f9b;font-size:12px;color:#f0d8c2}
+.resident-links{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.guild-window .resident-links a{display:inline-flex;align-items:center;padding:6px 14px;background:#3a2738;border:2px solid #89634b;color:#ffe0a8;font-size:13px;text-decoration:none}
+.guild-window .resident-links a:hover{background:#4a3248}
+.guild-window .resident-links a:focus-visible{outline:3px solid #ebbe92;outline-offset:2px}
+.guild-window .guild-dialogue p{color:#efe3da}
+.guild-window .resident-nature{color:#e4d6dc;font-size:14px}
+.guild-window .guild-relations li{padding:12px 4px}
+.rel-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 0}
+.guild-window .rel-axes{display:flex;flex-wrap:wrap;gap:4px 12px;margin:4px 0 0;font-size:12px;color:#c9b6c4;font-variant-numeric:tabular-nums}
+.guild-window .guild-relations small{font-size:12px;color:#b9a6b4}
+.guild-window .mind-about{color:#efe3da}
+.guild-window .mind-trail li{color:#d2c2cc}.guild-window .mind-trail small{color:#a993a5}
+.guild-window .guild-memory{color:#d2c2cc}
+.guild-window .guild-footer{color:#a993a5}
