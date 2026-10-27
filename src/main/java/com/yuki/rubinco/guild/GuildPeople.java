@@ -92,6 +92,8 @@ public class GuildPeople {
   static final List<String> EYE_STYLES = List.of("round", "almond", "droop", "sharp", "sleepy", "wide", "narrow", "sparkle", "smile");
   static final List<String> BROW_STYLES = List.of("natural", "straight", "arched");
   static final List<String> OUTFIT_VARIANTS = List.of("classic", "travel", "formal");
+  static final List<String> HEAD_SHAPES = List.of("soft", "round", "angular");
+  static final List<String> POSES = List.of("rest", "wave", "crossed", "mug", "think");
   static final List<String> MALE_ACCESSORIES = List.of("none", "none", "none", "beard", "mustache", "stubble", "eyepatch", "scar", "glasses");
   static final List<String> FEMALE_ACCESSORIES = List.of("none", "none", "none", "ribbon", "flower", "earrings", "hairband", "glasses");
   private static final List<String> HAIR_COLORS = List.of("#2b2224", "#4a2f25", "#6e4630", "#a0683a", "#d6a85a", "#e8d6b0", "#8c8c96", "#a0413c",
@@ -113,23 +115,36 @@ public class GuildPeople {
                      String face, String accessory, String eye, String eyeStyle, String browStyle, String outfitVariant) {
     /** Symbol ids in /img/guild-people.svg, drawn bottom to top. */
     public List<String> layers() {
-      List<String> layers = new ArrayList<>(List.of("body"));
+      return partLayers("soft", "rest");
+    }
+
+    private List<String> partLayers(String contour, String pose) {
+      boolean posed = !pose.equals("rest");
+      String cut = posed ? "-posed" : "";
+      List<String> layers = new ArrayList<>(List.of(posed ? "body-posed" : "body-core", "head-" + contour));
       layers.add("eyes-" + eyeStyle);
       if (face != null) layers.add("face-" + face);
       layers.add("brows-" + browStyle);
       if (legs != null) layers.add("legs-" + legs);
-      layers.add("outfit-" + outfit);
-      if (!outfitVariant.equals("classic")) layers.add("dress-" + outfit + "-" + outfitVariant);
+      layers.add("outfit-" + outfit + cut);
+      if (!outfitVariant.equals("classic")) layers.add("dress-" + outfit + "-" + outfitVariant + cut);
       layers.add("hair-" + hair);
       if (accessory != null && !accessory.equals("none")) layers.add("acc-" + accessory);
       if (HATS.contains(outfit)) layers.add("hat-" + outfit);
+      if (posed) layers.add("pose-" + outfit + "-" + pose);
       return layers;
     }
 
     /** Permanent character cues, not the emotion of the current dialogue. No new stored/random choices. */
     public List<String> layers(Integer age, String personality) {
-      List<String> layers = layers();
-      int faceEnd = face == null ? 3 : 4;
+      return layers(age, personality, "soft", "rest");
+    }
+
+    public List<String> layers(Integer age, String personality, String contour, String pose) {
+      if (contour == null || !HEAD_SHAPES.contains(contour)) contour = "soft";
+      if (pose == null || !POSES.contains(pose)) pose = "rest";
+      List<String> layers = partLayers(contour, pose);
+      int faceEnd = face == null ? 4 : 5;
       if (age != null) {
         if (age >= 60) layers.add(faceEnd, "age-elder");
         else if (age >= 40) layers.add(faceEnd, "age-mature");
@@ -137,6 +152,16 @@ public class GuildPeople {
       }
       String expression = expression(personality);
       if (expression != null) layers.add(faceEnd, "expression-" + expression);
+      return layers;
+    }
+
+    /** Independent bust artwork, sharing saved identity choices and facial cues with the SD figure. */
+    public List<String> portraitLayers(Integer age, String personality, String contour, String pose) {
+      List<String> layers = layers(age, personality, contour, "rest");
+      layers.set(0, "body");
+      layers.removeIf(layer -> layer.startsWith("legs-"));
+      layers.add(0, "hair-back-" + hair);
+      layers.add(layers.indexOf("hair-" + hair), "pose-" + outfit + "-" + (pose != null && POSES.contains(pose) ? pose : "rest"));
       return layers;
     }
 
@@ -186,6 +211,15 @@ public class GuildPeople {
   private static boolean containsAny(String text, String... hints) {
     for (String hint : hints) if (text.contains(hint)) return true;
     return false;
+  }
+
+  static String pose(String text, String fallback) {
+    if (text == null) return fallback;
+    if (containsAny(text, "飲", "カップ", "グラス", "一杯", "乾杯")) return "mug";
+    if (containsAny(text, "手を振", "挨拶", "ようこそ", "こんにちは", "陽気", "快活", "人懐っこ")) return "wave";
+    if (containsAny(text, "腕を組", "腕組", "頑固", "強気", "勝気", "勇敢")) return "crossed";
+    if (containsAny(text, "考え", "悩", "慎重", "思慮深", "寡黙")) return "think";
+    return fallback;
   }
 
   /** What the AI may choose from, and the last residents (newest first) so it can tell what the town already has. */

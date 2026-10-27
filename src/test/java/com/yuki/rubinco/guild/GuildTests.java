@@ -1380,9 +1380,9 @@ class GuildTests {
         .andExpect(content().string(containsString("ヨーロッパ系の名")))
         .andExpect(content().string(containsString("<dt>出身地</dt><dd>グランフォード</dd>")))
         .andExpect(content().string(containsString("<dt>信仰</dt><dd>無信仰</dd>")))
-        .andExpect(content().string(containsString("guild-people.svg?v=6#outfit-")))
+        .andExpect(content().string(containsString("guild-people.svg?v=7#outfit-")))
         .andExpect(content().string(containsString("viewBox=\"0 0 96 144\"")))
-        .andExpect(content().string(containsString("guild-people.svg?v=6#expression-thoughtful")))
+        .andExpect(content().string(containsString("guild-people.svg?v=7#expression-thoughtful")))
         .andExpect(content().string(containsString("7 Days to Die・")))
         .andExpect(content().string(containsString("zombieGuild10を1体倒した日から生まれました")))
         .andExpect(content().string(containsString("10:00 古い家でzombieGuild10を倒した")))
@@ -1565,13 +1565,13 @@ class GuildTests {
       // Women wear the women's cut; outfits without their own legs get a skirt.
       var look = people.look("女性", i % 2 == 0 ? "騎士" : "鍛冶屋");
       assertThat(look.outfit()).isIn("knight_f", "crafter_f");
-      assertThat(look.layers()).startsWith("body").contains("outfit-" + look.outfit());
+      assertThat(look.layers()).startsWith("body-core").contains("outfit-" + look.outfit());
       assertThat(look.style()).matches("(--[a-z0-9]+:#[0-9a-f]{6};?)+");
     }
     assertThat(GuildPeople.Look.of("knight", "short", "#000000", "#ffffff", "#123456", "#654321", "男性").layers())
-        .containsExactly("body", "eyes-round", "face-m", "brows-natural", "outfit-knight", "hair-short", "hat-knight");
+        .containsExactly("body-core", "head-soft", "eyes-round", "face-m", "brows-natural", "outfit-knight", "hair-short", "hat-knight");
     assertThat(GuildPeople.Look.of("cook_f", "bob", "#000000", "#ffffff", "#123456", "#654321", "女性", "ribbon", "#3a5a8a").layers())
-        .containsExactly("body", "eyes-round", "face-f", "brows-natural", "outfit-cook_f", "hair-bob", "acc-ribbon", "hat-cook_f");
+        .containsExactly("body-core", "head-soft", "eyes-round", "face-f", "brows-natural", "outfit-cook_f", "hair-bob", "acc-ribbon", "hat-cook_f");
     assertThat(GuildPeople.Look.of("adventurer", "short", "#000000", "#ffffff", "#123456", "#654321", "男性", "glasses", "#3a5a8a").style())
         .endsWith(";--eye:#3a5a8a");
     assertThat(GuildPeople.Look.of("cook", "bob", "red;background:url(x)", "#ffffff", "#123456", "#654321", "女性")).isNull();
@@ -1669,7 +1669,7 @@ class GuildTests {
     var response = mvc.perform(get("/guild/maintenance").with(admin)).andExpect(status().isOk())
         .andExpect(content().string(containsString("目元を引き直す")))
         .andExpect(content().string(containsString("外見を引き直す")))
-        .andExpect(content().string(containsString("guild-people.svg?v=6#eyes-")))
+        .andExpect(content().string(containsString("guild-people.svg?v=7#eyes-")))
         .andExpect(content().string(containsString("name=\"_csrf\"")))
         .andReturn().getResponse();
     var preview = java.nio.file.Path.of("target/guild-preview/maintenance.html");

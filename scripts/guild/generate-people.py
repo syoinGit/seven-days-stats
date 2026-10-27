@@ -125,6 +125,35 @@ symbol('body', ellipse(48,136,28,4,'#171322',extra='opacity=".22"'),
     ellipse(47,47.5,.8,.5,'#fff0d3',extra='opacity=".6"'),
     path('M43 55 Q48 58 53 55',stroke='#935d52',width=1.2),
     path('M46 59 Q48 59.5 50 59',stroke='#fff0d3',width=.7,extra='opacity=".55"'))
+
+# Face contours retain the hair/eye anchors while varying cheeks and jaw.
+HEADS = {
+ 'soft': 'M24 37 Q22 14 48 14 Q74 14 72 37 L71 49 Q68 64 48 66 Q28 64 25 49Z',
+ 'round': 'M24 37 Q22 14 48 14 Q74 14 72 37 L72 48 Q70 67 48 67 Q26 67 24 48Z',
+ 'angular': 'M24 37 Q22 14 48 14 Q74 14 72 37 L70 51 L61 62 L48 67 L35 62 L26 51Z',
+}
+symbol('body-core', ellipse(48,136,28,4,'#171322',extra='opacity=".22"'),
+    rect(35,108,10,21,SKIN,4),rect(51,108,10,21,SKIN,4),
+    path('M34 124 Q40 127 45 124 L45 134 H29 Q27 128 34 124Z',LEATHER),
+    path('M51 124 Q57 127 62 124 Q69 128 67 134 H51Z',LEATHER),
+    seam('M30 131 H43 M53 131 H66'),
+    fold('M36 126 L42 127 M54 127 L60 126',.8),
+    glint('M32 128 Q35 126 38 128 M55 128 Q59 126 62 128',.7),rect(41,59,14,15,SKIN,4),
+    path('M33 69 Q48 62 63 69 L69 110 Q48 118 27 110Z',SKIN),
+    ellipse(23,100,7,9,SKIN,INK),ellipse(73,100,7,9,SKIN,INK),
+    path('M20 98 Q24 97 25 101 M71 99 Q73 97 76 99',stroke='#a76b5a',width=.85,extra='opacity=".55"'))
+for head_name,head_path in HEADS.items():
+    symbol('head-'+head_name,
+    ellipse(24,44,5,7,SKIN,INK),ellipse(72,44,5,7,SKIN,INK),
+    path('M22 42 Q26 39 26 46 M70 42 Q74 39 74 46',stroke='#a76b5a',width=1,extra='opacity=".55"'),
+    path(head_path,SKIN),
+    ellipse(32,51,5,2.6,'#dc8780',extra='opacity=".22"'),ellipse(64,51,5,2.6,'#dc8780',extra='opacity=".22"'),
+    glint('M29 48 Q31 47 33 48 M63 48 Q65 47 67 48',.65),
+    path('M47 48 Q45.5 50 48.5 50',stroke='#a96f59',width=.8,extra='opacity=".7"'),
+    ellipse(47,47.5,.8,.5,'#fff0d3',extra='opacity=".6"'),
+    path('M43 55 Q48 58 53 55',stroke='#935d52',width=1.2),
+    path('M46 59 Q48 59.5 50 59',stroke='#fff0d3',width=.7,extra='opacity=".55"'))
+
 symbol('face-m',path('M31 58 Q33 61 36 61 M60 61 Q63 61 65 58',stroke='#a96f59',width=1,extra='opacity=".4"'))
 symbol('face-f',ellipse(31,52,4,2,'#d27c73',extra='opacity=".2"'),ellipse(65,52,4,2,'#d27c73',extra='opacity=".2"'))
 # Each eye has its own silhouette, clipped iris, upper lash and reflected light.
@@ -417,6 +446,43 @@ symbol('acc-flower',*(ellipse(x,y,4,5,'#e8b8a6',INK,1) for x,y in [(24,24),(19,2
 symbol('acc-earrings',ellipse(24,51,3,4,GOLD,INK,1),ellipse(72,51,3,4,GOLD,INK,1),ellipse(24,56,2,3,'#8dad9e'),ellipse(72,56,2,3,'#8dad9e'))
 symbol('acc-hairband',path('M24 31 Q48 9 72 31',stroke=SECOND,width=5),path('M26 29 Q48 12 70 29',stroke=GOLD,width=1))
 symbol('acc-glasses',ellipse(36,44,8,7,'none',LEATHER,1.8),ellipse(60,44,8,7,'none',LEATHER,1.8),path('M44 43 Q48 40 52 43 M28 43 L24 41 M68 43 L72 41',stroke=LEATHER,width=1.5),seam('M31 43 L35 39 M55 43 L59 39'))
+# Posed bodies retain the complete torso/hem but remove the neutral arms and side-held tools.
+POSES = ('rest','wave','crossed','mug','think')
+pose_clip = '<clipPath id="sd-pose-torso"><path d="M0 0H96V68H0Z M32 68H64V108H32Z M25 108H71V144H25Z"/></clipPath>'
+
+def sd_pose(outfit, pose):
+    sleeve = '#9faeb4' if outfit.startswith('knight') else CREAM if outfit in ('miko','miko_m') else CLOTH
+    left = path('M33 72 Q23 72 19 94 L29 99 L36 81Z',sleeve)+ellipse(23,100,6,7,SKIN,INK,1.2)
+    right = path('M63 72 Q73 72 77 94 L67 99 L60 81Z',sleeve)+ellipse(73,100,6,7,SKIN,INK,1.2)
+    if pose=='wave':
+        left = path('M35 73 Q29 70 24 60 L22 51 L12 54 Q12 78 25 88 L32 86Z',sleeve)
+        left += path('M10 53 L7 40 Q7 37 9 38 L12 44 L10 31 Q10 28 12 30 L16 40 L16 28 Q17 26 19 29 L20 40 L23 31 Q25 30 25 33 L23 46 Q25 53 19 56Z',SKIN)
+        left += fold('M15 46 Q19 43 21 47',.7)+seam('M15 58 Q18 73 27 78')
+    elif pose=='crossed':
+        left = path('M32 72 Q21 75 22 91 Q28 104 56 104 L61 94 L34 88 L37 79Z',sleeve)
+        left += path('M54 95 Q65 87 70 92 Q73 98 62 103 L56 104Z',SKIN)
+        right = path('M64 72 Q76 77 74 91 Q62 103 37 101 L34 92 L61 87 L59 78Z',sleeve)
+        right += path('M40 92 Q29 85 25 91 Q24 98 36 101 L41 100Z',SKIN)
+        right += seam('M43 96 L63 91')+fold('M58 94 L65 91',.8)
+    elif pose=='mug':
+        right = path('M63 72 Q73 74 76 84 L78 94 L65 102 L56 97 L63 89 L59 80Z',sleeve)
+        right += rect(64,82,17,20,'#c2a578',3)+path('M81 86 Q91 86 88 95 Q86 99 81 97',stroke=GOLD,width=2)
+        right += ellipse(72.5,82,8.5,2.5,'#573b32',INK,1)+path('M65 94 Q59 91 58 95 Q58 101 67 102 L71 99Z',SKIN)
+        right += glint('M68 86 V92',.9)
+    elif pose=='think':
+        left = path('M33 72 Q23 74 21 94 Q26 105 34 99 L46 77 L39 71 L29 86 L35 79Z',sleeve)
+        left += path('M39 77 L38 67 L39 59 Q41 56 42 60 L43 66 L47 65 Q51 65 50 69 L46 78Z',SKIN)
+        left += fold('M41 68 L46 68',.7)+seam('M25 94 L39 79')
+    return left+right+fold('M25 84 L29 81 M68 84 L65 81',.7)
+
+symbol('body-posed','<g clip-path="url(#sd-pose-torso)">'+parts['body-core']+'</g>')
+for outfit in [key.removeprefix('outfit-') for key in list(parts) if key.startswith('outfit-')]:
+    symbol('outfit-'+outfit+'-posed','<g clip-path="url(#sd-pose-torso)">'+parts['outfit-'+outfit]+'</g>')
+    for variant in ('travel','formal'):
+        key='dress-'+outfit+'-'+variant
+        symbol(key+'-posed','<g clip-path="url(#sd-pose-torso)">'+parts[key]+'</g>')
+    for pose in POSES[1:]: symbol('pose-'+outfit+'-'+pose,sd_pose(outfit,pose))
+
 # Legacy/invalid records also get SD artwork; currentColor retains their old tint.
 legacy = ''.join(parts[k] for k in ['body','eyes-round','face-m','brows-natural','legs-pants','outfit-adventurer','hair-short'])
 # Flattened legacy parts need their own local clipping IDs; shared finish references stay global.
@@ -424,11 +490,15 @@ for local_id in re.findall(r'\bid="([^"]+)"', legacy):
     legacy = legacy.replace(f'id="{local_id}"', f'id="legacy-{local_id}"').replace(f'url(#{local_id})', f'url(#legacy-{local_id})')
 symbol('resident','<g style="--cloth:currentColor">'+legacy+'</g>')
 
-out = ['<svg xmlns="http://www.w3.org/2000/svg">',
-       '  <!-- Generated by scripts/guild/generate-people.py. Stable IDs preserve saved residents. -->',
-       f'  <defs id="sd-finishes">{finishes}</defs>']
-for name, art in parts.items():
-    out.append(f'  <symbol id="{name}" viewBox="0 0 96 144"><g stroke-linecap="round" stroke-linejoin="round">{art}</g></symbol>')
-out.append('</svg>\n')
-(ROOT/'src/main/resources/static/img/guild-people.svg').write_text('\n'.join(out))
-print(f'Wrote {len(parts)} SD layers.')
+def write_sheet():
+    out = ['<svg xmlns="http://www.w3.org/2000/svg">',
+           '  <!-- Generated by scripts/guild/generate-people.py. Stable IDs preserve saved residents. -->',
+           f'  <defs id="sd-finishes">{finishes}{pose_clip}</defs>']
+    for name, art in parts.items():
+        out.append(f'  <symbol id="{name}" viewBox="0 0 96 144"><g stroke-linecap="round" stroke-linejoin="round">{art}</g></symbol>')
+    out.append('</svg>\n')
+    (ROOT/'src/main/resources/static/img/guild-people.svg').write_text('\n'.join(out))
+    print(f'Wrote {len(parts)} SD layers.')
+
+if __name__ == '__main__':
+    write_sheet()

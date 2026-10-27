@@ -37,7 +37,23 @@ public class GuildService {
                           String lineage, GuildPeople.Look look, String reading,
                           String homeVillage, String village, String faction, String faith) {
     public List<String> spriteLayers() {
-      return look == null ? List.of("resident") : look.layers(age, personality);
+      return spriteLayers(pose());
+    }
+
+    public String contour() {
+      return GuildPeople.HEAD_SHAPES.get(Math.floorMod(id, GuildPeople.HEAD_SHAPES.size()));
+    }
+
+    public String pose() {
+      return GuildPeople.pose(personality, "rest");
+    }
+
+    public List<String> spriteLayers(String pose) {
+      return look == null ? List.of("resident") : look.layers(age, personality, contour(), pose);
+    }
+
+    public List<String> portraitLayers() {
+      return look == null ? List.of("resident") : look.portraitLayers(age, personality, contour(), pose());
     }
 
     public String lineageName() {
@@ -67,7 +83,9 @@ public class GuildService {
       return memoryLabel == null || memory == null ? List.of() : memory.lines().toList();
     }
   }
-  public record Visit(Character character, int seat, String line) { }
+  public record Visit(Character character, int seat, String line) {
+    public String pose() { return GuildPeople.pose(line, character.pose()); }
+  }
   /** One place's visitors for the day. */
   public record Room(LocalDate date, String phase, List<Visit> visits, GuildPlaces.Place place) {
     public Room(LocalDate date, String phase, List<Visit> visits) {

@@ -611,6 +611,28 @@
 .guild-admin-residents .guild-appearance-actions form{flex-wrap:wrap;justify-content:flex-end}
 .guild-admin-residents li:target{outline:2px solid #d7b46c;outline-offset:6px;scroll-margin-top:24px}
 @media(max-width:650px){.guild-admin-residents .guild-appearance-actions{flex-basis:100%;align-items:flex-start}.guild-admin-residents .guild-appearance-actions form{justify-content:flex-start}}
+
+/* Counter-view busts: forearms meet the counter instead of cropping an enlarged SD body. */
+.adv-player{--adv-counter-height:290px}
+.adv-stage{bottom:calc(var(--adv-counter-height) - 18px);max-width:1100px}
+.adv-counter{height:var(--adv-counter-height)}
+.adv-figure{bottom:0}
+.adv-figure.left{left:3%}.adv-figure.right{right:3%}
+.adv-figure .guild-portrait{display:block;width:clamp(280px,35vw,420px);height:auto;aspect-ratio:9/11;filter:drop-shadow(0 7px 5px #0d0a1266)}
+.adv-figure.active{translate:0 -3px;z-index:1}
+.adv-player.adv-solo .adv-figure.left{left:50%;transform:translateX(-50%)}
+.adv-player.adv-solo .adv-figure.right{right:50%;transform:translateX(50%)}
+@media(max-width:650px){
+.adv-player{--adv-counter-height:270px}
+.adv-figure.left{left:-6%}.adv-figure.right{right:-6%}
+.adv-figure .guild-portrait{width:clamp(220px,65vw,300px)}
+.adv-player.adv-solo .guild-portrait{width:min(82vw,340px)}
+}
+@media(max-height:520px){
+.adv-player{--adv-counter-height:150px}
+.adv-figure .guild-portrait,.adv-player.adv-solo .guild-portrait{width:auto;height:calc(100dvh - 138px);max-height:330px}
+.adv-figure.left{left:9%}.adv-figure.right{right:9%}
+}
 /* Serving a beer: a small pixel mug, foam on top, beside the dungeon button. */
 .guild-beer-button{margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:4px 12px 4px 8px;background:#2b1f1a;border:2px solid #b07a3c;color:#ffe0a8;font:inherit;font-size:12px;letter-spacing:.06em;cursor:pointer}
 .guild-beer-button:hover{background:#3d2a1f}.guild-beer-button:focus-visible{outline:3px solid #ebbe92;outline-offset:2px}.guild-beer-button[hidden]{display:none}

@@ -355,17 +355,61 @@ const GuildAdv = (() => {
   }
 
   const PLACES = ["guild", "grantford", "elmwood", "tsukikage"];
+  const POSES = new Set(["rest", "wave", "crossed", "mug", "think"]);
+  const PORTRAITS = "/img/guild-portraits.svg?v=1#";
+
+  function pose(slot, value) {
+    const figure = slot.querySelector(".guild-portrait");
+    const arms = figure?.querySelector('[data-portrait-pose]');
+    if (arms && POSES.has(value)) {
+      arms.setAttribute("href", PORTRAITS + "pose-" + figure.dataset.outfit + "-" + value);
+      figure.dataset.pose = value;
+    }
+  }
+
+  function portrait(source) {
+    const keys = source.dataset.portraitLayers?.split(",");
+    // Older/cached pages still have a usable SD figure until they are refreshed.
+    if (!keys?.length || keys.some((key) => !/^[a-z0-9_-]+$/.test(key))) return source.cloneNode(true);
+    const ns = "http://www.w3.org/2000/svg";
+    const image = document.createElementNS(ns, "svg");
+    image.setAttribute("class", "guild-portrait " + [...source.classList].filter((key) => key !== "guild-sprite").join(" "));
+    image.setAttribute("viewBox", "0 0 360 440");
+    image.setAttribute("aria-hidden", "true");
+    if (source.getAttribute("style")) image.setAttribute("style", source.getAttribute("style"));
+    image.dataset.outfit = /^[a-z0-9_]+$/.test(source.dataset.outfit || "") ? source.dataset.outfit : "adventurer";
+    image.dataset.basePose = POSES.has(source.dataset.pose) ? source.dataset.pose : "rest";
+    for (const key of keys) {
+      const layer = document.createElementNS(ns, "use");
+      layer.setAttribute("href", PORTRAITS + key);
+      if (key.startsWith("pose-")) layer.setAttribute("data-portrait-pose", "");
+      image.append(layer);
+    }
+    return image;
+  }
+
+  function spokenPose(text, fallback) {
+    if (/乾杯|飲|カップ|グラス|一杯/.test(text)) return "mug";
+    if (/こんにちは|こんばんは|ようこそ|おはよう|またね|手を振/.test(text)) return "wave";
+    if (/考え|悩|どうしよう|かもしれ|だろうか/.test(text)) return "think";
+    if (/任せ|譲れ|断る|腕を組/.test(text)) return "crossed";
+    return fallback;
+  }
 
   /** figures: { left: svg, right: svg } (cloned), either may be missing; place: whose counter we sit at. */
   function open(figures, place = "guild") {
     if (!dialog) build();
     opener = document.activeElement;
     dialog.className = "adv-player adv-bg-" + (PLACES.includes(place) ? place : "guild");
+    dialog.classList.toggle("adv-solo", Object.values(figures).filter(Boolean).length === 1);
     for (const side of ["left", "right"]) {
       const slot = dialog.querySelector(".adv-figure." + side);
       slot.replaceChildren();
       slot.classList.remove("active", "dim");
-      if (figures[side]) slot.append(figures[side].cloneNode(true));
+      if (figures[side]) {
+        slot.append(portrait(figures[side]));
+        pose(slot, slot.querySelector(".guild-portrait")?.dataset.basePose);
+      }
     }
     dialog.querySelector(".adv-choices").replaceChildren();
     dialog.showModal();
@@ -382,7 +426,10 @@ const GuildAdv = (() => {
   function muse(text) {
     return new Promise((resolve, reject) => {
       if (!dialog?.open) { reject(new Error("closed")); return; }
-      dialog.querySelectorAll(".adv-figure").forEach((figure) => figure.classList.remove("active"));
+      dialog.querySelectorAll(".adv-figure").forEach((figure) => {
+        figure.classList.remove("active");
+        pose(figure, figure.querySelector(".guild-portrait")?.dataset.basePose);
+      });
       const mono = dialog.querySelector(".adv-mono");
       mono.classList.remove("shown", "now");
       mono.textContent = text;
@@ -412,6 +459,8 @@ const GuildAdv = (() => {
         const speaking = side !== null && figure.classList.contains(side);
         figure.classList.toggle("active", speaking);
         figure.classList.toggle("dim", side !== null && !speaking && figure.childElementCount > 0);
+        const baseline = figure.querySelector(".guild-portrait")?.dataset.basePose;
+        pose(figure, speaking ? spokenPose(text, baseline) : baseline);
       });
       const box = dialog.querySelector(".adv-box");
       box.className = "adv-box" + (kind ? " " + kind : side ? " " + side : " narration");
