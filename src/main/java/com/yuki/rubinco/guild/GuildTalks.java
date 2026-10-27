@@ -46,12 +46,7 @@ public class GuildTalks {
   }
 
   /** labels: the visitor's three answers; the replies are read one at a time with reply(). */
-  public record Talk(long id, long characterId, LocalDate date, String place, String opening, List<String> labels) {
-    public String placeName() {
-      var known = GuildPlaces.of(place);
-      return known == null ? place : known.title();
-    }
-  }
+  public record Talk(long id, long characterId, LocalDate date, String place, String opening, List<String> labels) { }
 
   /** One written talk, for the maintenance page. */
   public record Row(long id, LocalDate date, String origin, String name, String place, String opening, OffsetDateTime createdAt) {

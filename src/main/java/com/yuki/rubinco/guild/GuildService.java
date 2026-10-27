@@ -52,10 +52,6 @@ public class GuildService {
       return look == null ? List.of("resident") : look.layers(age, personality, contour(), pose);
     }
 
-    public List<String> portraitLayers() {
-      return look == null ? List.of("resident") : look.portraitLayers(age, personality, contour(), pose());
-    }
-
     public String lineageName() {
       var known = GuildPeople.Lineage.of(lineage);
       return known == null ? null : known.label();

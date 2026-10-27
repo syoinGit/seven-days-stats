@@ -2,7 +2,6 @@ package com.yuki.rubinco.account.security;
 
 import com.yuki.rubinco.account.service.CognitoOidcUserService;
 import com.yuki.rubinco.portal.config.PortalPlatformProperties;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -88,7 +87,7 @@ public class CognitoSecurityConfig {
             .requestMatchers(HttpMethod.TRACE, "/**").denyAll()
             .requestMatchers(HttpMethod.OPTIONS, "/**").denyAll()
             .requestMatchers("/guild/maintenance", "/guild/maintenance/**").access(adminAccess.requests())
-            .requestMatchers(HttpMethod.GET, "/", "/guild", "/guild/characters/*", "/guild/log", "/guild/log/*", "/guild/pairs/*", "/guild/dungeon", "/guild/dungeon/*", "/guild/towns/*", "/guild/talks/*/choices/*", "/guild/signboard", "/guild/neighbor", "/guild/meal", "/guild/towns/*/meal").permitAll()
+            .requestMatchers(HttpMethod.GET, "/", "/guild", "/guild/characters/*", "/guild/log", "/guild/log/*", "/guild/pairs/*", "/guild/dungeon", "/guild/dungeon/*", "/guild/towns/*", "/guild/talks/*/choices/*", "/guild/neighbor", "/guild/meal", "/guild/towns/*/meal").permitAll()
             .requestMatchers("/octarine/maintenance/**", "/luminite/maintenance/**").access(adminAccess.requests())
             .requestMatchers("/maintenance/**", "/portal/maintenance/**").hasRole("ADMIN")
             .requestMatchers("/portal/profile").hasAnyRole("PLAYER", "MEMBER", "ADMIN")
@@ -96,8 +95,7 @@ public class CognitoSecurityConfig {
                 "/portal/actions/games/*/start", "/portal/actions/games/*/stop")
             .access(gameServerAccess.requests())
             .requestMatchers(
-                HttpMethod.POST, "/players/*/status", "/posts", "/posts/*/like",
-                "/posts/*/like.json", "/posts/*/react", "/posts/*/delete")
+                HttpMethod.POST, "/players/*/status", "/posts", "/posts/*/react", "/posts/*/delete")
             .hasAnyRole("MEMBER", "PLAYER", "ADMIN")
             .anyRequest().authenticated())
         .oauth2Login(oauth -> oauth

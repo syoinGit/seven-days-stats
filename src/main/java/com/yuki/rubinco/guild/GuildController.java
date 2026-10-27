@@ -20,7 +20,6 @@ public class GuildController {
   private final GuildProperties properties;
   private final GuildDungeon dungeon;
   private final GuildVoice voices;
-  private final GuildSignboard signboard;
   private final GuildTalks talks;
   private final GuildThoughts thoughts;
   private final GuildMenus menus;
@@ -37,13 +36,6 @@ public class GuildController {
     var place = GuildPlaces.of(key);
     if (place == null || place.guild()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     return stage(model, place, "tavern", null, null);
-  }
-
-  /** Today's talk with Mire on the sign, fetched when the visitor opens it (fixed script, today's public facts). */
-  @GetMapping(value = "/guild/signboard", produces = "application/json")
-  @ResponseBody
-  public GuildSignboard.Talk signboard() {
-    return signboard.today(ZonedDateTime.now(GuildService.TOKYO));
   }
 
   /**

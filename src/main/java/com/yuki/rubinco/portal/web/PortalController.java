@@ -52,7 +52,6 @@ public class PortalController {
     var sites = portalService.sites();
     model.addAttribute("sites", sites);
     var serverStatuses = portalService.serverStatuses();
-    model.addAttribute("serverStatuses", serverStatuses);
     model.addAttribute("memoryBudget", portalService.memorySnapshot(serverStatuses));
     var servers = portalService.servers(serverStatuses);
     model.addAttribute("servers", servers);

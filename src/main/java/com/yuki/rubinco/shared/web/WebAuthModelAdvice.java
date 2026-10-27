@@ -59,15 +59,11 @@ public class WebAuthModelAdvice {
     model.addAttribute("currentProfile", currentProfile);
     model.addAttribute("currentAvatar", guest ? profiles.url("guest") : currentProfile.avatarUrl());
     model.addAttribute("currentDisplayName", guest ? "ゲスト" : currentProfile.displayName());
-    model.addAttribute("currentAccountLogin", account.map(M_WebAccount::getLoginId).orElse(null));
     model.addAttribute("currentPlayerId", account.flatMap(value -> Optional.ofNullable(value.getPlayerId())).orElse(null));
     model.addAttribute("currentAdmin", account.map(value -> "ADMIN".equals(value.getRole())).orElse(false));
     model.addAttribute("currentViewer", account.map(value -> "VIEWER".equals(value.getRole())).orElse(false));
     model.addAttribute("portalUrl", platformProperties.portalPageUrl());
     model.addAttribute("guildUrl", platformProperties.guildPageUrl());
-    model.addAttribute("watchpointUrl", platformProperties.getWatchpointUrl());
-    model.addAttribute("luminiteUrl", platformProperties.getLuminiteUrl());
-    model.addAttribute("octarineUrl", platformProperties.getOctarineUrl());
     model.addAttribute("headerSites", portalService.sites().stream()
         .map(site -> new HeaderSite(site.id(), site.displayName(), site.siteName(),
             account.isPresent() ? platformProperties.siteEntryUrl(site.siteUrl()) : site.siteUrl(), site.accent()))

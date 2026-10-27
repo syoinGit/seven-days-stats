@@ -262,4 +262,3 @@ disposable PostgreSQL database**, run:
 ```
 
 The upgrade test creates and deletes fixture accounts/posts; never point it at an application DB.
-See [docs/REFACTOR_REVIEW.md](docs/REFACTOR_REVIEW.md) for the schema and behavior changes.

@@ -155,16 +155,6 @@ public class GuildPeople {
       return layers;
     }
 
-    /** Independent bust artwork, sharing saved identity choices and facial cues with the SD figure. */
-    public List<String> portraitLayers(Integer age, String personality, String contour, String pose) {
-      List<String> layers = layers(age, personality, contour, "rest");
-      layers.set(0, "body");
-      layers.removeIf(layer -> layer.startsWith("legs-"));
-      layers.add(0, "hair-back-" + hair);
-      layers.add(layers.indexOf("hair-" + hair), "pose-" + outfit + "-" + (pose != null && POSES.contains(pose) ? pose : "rest"));
-      return layers;
-    }
-
     public String style() {
       return "--skin:" + skin + ";--hair:" + hairColor + ";--cloth:" + cloth + ";--cloth2:" + cloth2 + (eye == null ? "" : ";--eye:" + eye);
     }

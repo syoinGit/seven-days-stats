@@ -25,9 +25,6 @@ public interface T_WorldImportRunRepository extends JpaRepository<T_WorldImportR
   Optional<T_WorldImportRun> findFirstByGameWorldIdAndStatusInOrderByFinishedAtDescIdDesc(
       Long gameWorldId, Collection<String> statuses);
 
-  Optional<T_WorldImportRun> findFirstByGameIdAndStatusOrderByFinishedAtDescIdDesc(
-      String gameId, String status);
-
   @Modifying
   @Query("delete from T_WorldImportRun run where run.gameId = :gameId and run.requestedAt < :before"
       + " and run.status in ('SUCCEEDED', 'UNCHANGED', 'FAILED')")
