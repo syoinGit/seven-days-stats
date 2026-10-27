@@ -537,7 +537,6 @@ const GuildAdv = (() => {
       scene.querySelectorAll("[data-adv-figures] [data-side]").forEach((slot) => { figures[slot.dataset.side] = slot.querySelector("svg"); });
       GuildAdv.open(figures, scene.dataset.place);
       try {
-        await GuildAdv.say({ text: (scene.dataset.placeName || "酒場") + "のカウンター。グラスを傾けていると、近くの席から話し声が聞こえてきた。" });
         for (const line of scene.querySelectorAll("[data-adv-line]")) {
           if (line.classList.contains("adv-narration")) await GuildAdv.say({ text: line.textContent });
           else await GuildAdv.say({ side: line.dataset.side, name: line.dataset.name, text: line.querySelector(".adv-bubble p").textContent });
@@ -574,10 +573,6 @@ const GuildAdv = (() => {
     const note = box.querySelector("[data-talk-note]");
     const start = box.querySelector("[data-talk-start]");
     const place = box.dataset.place;
-    // How the talk begins: where we sit, and who turns to us.
-    const settings = { guild: "カウンターの隣の席で", grantford: "燭台の灯りの下、長卓の向かいで", elmwood: "苔の灯りに照らされた卓の隣で",
-      tsukikage: "提灯の明かりの下、低い卓の隣で" };
-    const intro = (box.dataset.placeName || "酒場") + "。" + (settings[place] || settings.guild) + "、" + name + "がこちらに気づいた。";
 
     // What was said today, under the first line: the visitor's answer on the right, their reply on the left.
     const written = (label, reply) => {
@@ -602,7 +597,6 @@ const GuildAdv = (() => {
       const again = get(dayKey);
       GuildAdv.open({ left: figure }, place);
       try {
-        await GuildAdv.say({ text: intro });
         if (again && again.date === today) {
           if (again.talk === talkId) {
             await GuildAdv.say({ side: "left", name, text: opening });
@@ -642,4 +636,37 @@ const GuildAdv = (() => {
   const scan = () => document.querySelectorAll("[data-talk]").forEach(setUp);
   document.addEventListener("guild-window", scan);
   scan();
+
+  // Serving a beer: someone with a talk comes over (not one already talked with today, while anyone else is left), and
+  // the talk plays at once. Their talk is kept, unseen, in the page while it plays.
+  const serve = document.querySelector("[data-beer-serve]");
+  if (serve) {
+    const holder = document.createElement("div");
+    holder.hidden = true;
+    document.body.append(holder);
+    serve.hidden = false;
+    serve.addEventListener("click", async () => {
+      const talked = [];
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key?.startsWith("guild-talk-day-") && get(key)?.date === today) talked.push(key.slice("guild-talk-day-".length));
+        }
+      } catch { /* private window: anyone may come */ }
+      serve.disabled = true;
+      try {
+        const response = await fetch("/guild/beer?skip=" + talked.filter((id) => /^\d+$/.test(id)).join(","), { headers: { Accept: "text/html" } });
+        if (!response.ok) throw new Error(String(response.status));
+        holder.innerHTML = await response.text();
+        const box = holder.querySelector("[data-beer]");
+        if (!box) throw new Error("empty");
+        setUp(box);
+        box.querySelector("[data-talk-start]").click();
+      } catch {
+        serve.title = "今は誰も来ないようだ";
+      } finally {
+        serve.disabled = false;
+      }
+    });
+  }
 })();

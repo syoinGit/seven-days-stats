@@ -317,6 +317,8 @@ public class GuildService {
     }
     jdbc.update("DELETE FROM T_GUILD_TALK_CHOICE WHERE talk_id IN (SELECT id FROM T_GUILD_TALK WHERE character_id = ?)", id);
     jdbc.update("DELETE FROM T_GUILD_TALK WHERE character_id = ?", id);
+    // Rumors they heard, or that are about them, of interactions they were not in.
+    jdbc.update("DELETE FROM T_GUILD_THOUGHT WHERE character_id = ? OR about_id = ?", id, id);
     jdbc.update("DELETE FROM T_GUILD_AFFILIATION_HISTORY WHERE character_id = ?", id);
     jdbc.update("DELETE FROM T_GUILD_RELATION_EVENT WHERE from_id = ? OR to_id = ?", id, id);
     jdbc.update("DELETE FROM T_GUILD_THREAD WHERE a_id = ? OR b_id = ?", id, id);
@@ -339,9 +341,15 @@ public class GuildService {
     ensureVisits(LocalDate.now(TOKYO));
   }
 
+  /** The chance that a visitor brings along someone they like (who may come there), in place of the last one in line. */
+  static final double COMPANION_CHANCE = 0.5;
+  /** How much a visitor must like someone to bring them along. */
+  static final int COMPANION_AFFINITY = 5;
+
   /**
    * Today's visitors: ten for the guild from every resident (newest and longest away first), then five for each
-   * nation's tavern from those who live there and are not at the guild. A resident is in one place a day.
+   * nation's tavern from those who live there and are not at the guild. A resident is in one place a day. Now and then a
+   * visitor comes with the one they like best, so people who get on meet again instead of waiting for the rotation.
    */
   private void ensureVisits(LocalDate today) {
     if (jdbc.queryForObject("SELECT COUNT(*) FROM T_GUILD_DAY WHERE visit_date = ?", Integer.class, today) > 0) return;
@@ -360,6 +368,7 @@ public class GuildService {
       List<Long> ids = jdbc.queryForList("SELECT c.id FROM M_GUILD_CHARACTER c LEFT JOIN T_GUILD_VISIT v ON c.id = v.character_id WHERE "
           + where + " GROUP BY c.id, c.born_on ORDER BY CASE WHEN c.born_on >= ? THEN 0 ELSE 1 END, "
           + "COALESCE(MAX(v.visit_date), DATE '1970-01-01'), RANDOM() LIMIT " + place.seats(), Long.class, args.toArray());
+      ids = companions(ids, place, taken);
       picked.put(place, ids);
       taken.addAll(ids);
     }
@@ -373,5 +382,36 @@ public class GuildService {
             today, ids.get(i), seat, place.key(), place.line(seat, "morning"), place.line(seat, "afternoon"), place.line(seat, "evening"));
       }
     });
+  }
+
+  /** The line for one place, where each one in turn may bring a companion, who takes the seat of the last one in line. */
+  private List<Long> companions(List<Long> line, GuildPlaces.Place place, List<Long> taken) {
+    List<Long> seated = new java.util.ArrayList<>();
+    java.util.Deque<Long> waiting = new java.util.ArrayDeque<>(line);
+    var random = java.util.concurrent.ThreadLocalRandom.current();
+    while (!waiting.isEmpty() && seated.size() < place.seats()) {
+      long visitor = waiting.pollFirst();
+      seated.add(visitor);
+      if (seated.size() >= place.seats() || random.nextDouble() >= COMPANION_CHANCE) continue;
+      List<Object> args = new java.util.ArrayList<>(List.of(visitor, COMPANION_AFFINITY));
+      String where = "";
+      if (!place.guild()) {
+        where = " AND c.current_village = ?";
+        args.add(place.nation());
+      }
+      List<Long> away = new java.util.ArrayList<>(taken);
+      away.addAll(seated);
+      // Ids come from the database, never from a request.
+      where += " AND c.id NOT IN (" + String.join(",", away.stream().map(String::valueOf).toList()) + ")";
+      // One of the three they like best, so it is not always the same one.
+      List<Long> liked = jdbc.queryForList("SELECT c.id FROM T_GUILD_RELATION r JOIN M_GUILD_CHARACTER c ON c.id = r.to_id WHERE r.from_id = ? "
+          + "AND r.affinity >= ? AND c.status = 'ALIVE'" + where + " ORDER BY r.affinity DESC, c.id LIMIT 3", Long.class, args.toArray());
+      if (liked.isEmpty()) continue;
+      long friend = liked.get(random.nextInt(liked.size()));
+      waiting.remove(friend);
+      if (waiting.size() + seated.size() >= place.seats()) waiting.pollLast();
+      waiting.addFirst(friend);
+    }
+    return seated;
   }
 }

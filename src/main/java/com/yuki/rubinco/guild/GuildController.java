@@ -57,6 +57,21 @@ public class GuildController {
     return java.util.Map.of("reply", reply);
   }
 
+  /**
+   * Serving a beer: someone with a talk comes over. Returns their talk, ready to play (fragments/guild-windows :: beer).
+   * skip: ids the visitor already talked with today (kept in their browser); at most 200 of them are read.
+   */
+  @GetMapping("/guild/beer")
+  public String beer(Model model, @RequestParam(defaultValue = "") String skip) {
+    java.util.Set<Long> skipped = java.util.Arrays.stream(skip.split(",")).limit(200).filter(id -> id.matches("\\d{1,18}"))
+        .map(Long::parseLong).collect(java.util.stream.Collectors.toSet());
+    Long id = talks.draw(skipped);
+    if (id == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+    model.addAttribute("character", guild.character(id));
+    model.addAttribute("talk", talks.latest(id));
+    return "fragments/guild-windows :: beer";
+  }
+
   @GetMapping("/guild/characters/{id}")
   public String character(Model model, @PathVariable long id) {
     var character = guild.character(id);
@@ -176,6 +191,8 @@ public class GuildController {
       model.addAttribute("townSeats", seats);
       for (var seat : seats) idle.put(seat.visit().character().id(), voices.idle(seat.visit().character(), "tables", room.date(), room.phase()));
     }
+    // Someone who heard a rumor today murmurs it instead.
+    thoughts.rumorsOn(room.date()).forEach((id, rumor) -> idle.computeIfPresent(id, (key, line) -> rumor));
     model.addAttribute("idleLines", idle);
     model.addAttribute("talkers", talks.talkers());
     model.addAttribute("tab", tab);

@@ -23,7 +23,7 @@
   <input class="area-radio" type="radio" name="guild-view" id="guild-view-dungeon" aria-label="ダンジョン">
   </th:block>
   <!-- One bar for going anywhere: the three nations' taverns and the guild (plain links), and inside the guild its five
-       places, Mire on the sign and tonight's dungeon. -->
+       places, serving a beer and tonight's dungeon. -->
   <div class="guild-bar">
     <nav class="guild-places" aria-label="酒場の場所">
       <a th:each="here : ${places}" th:href="${here.guild() ? '/guild' : '/guild/towns/' + here.key}" th:classappend="${'gp-' + here.key}"
@@ -37,7 +37,10 @@
         </label>
       </div>
       <div class="guild-extras">
-        <button type="button" class="guild-sign-button" data-signboard-open hidden><svg viewBox="10 2 44 40" aria-hidden="true"><use href="/img/guild-signboard.svg?v=2#mire"></use><use href="/img/guild-signboard.svg?v=2#mire-smile"></use></svg>看板娘と話す<span class="pop-live" data-signboard-new>今日</span></button>
+        <!-- Serving a beer: someone with something to talk about comes over (/guild/beer, guild.js). -->
+        <button type="button" class="guild-beer-button" data-beer-serve hidden th:if="${!talkers.isEmpty()}"><span class="beer-mug" aria-hidden="true"><i></i></span>ビールを出す</button>
+        <!-- Mire on the sign is paused for now; her button and dialog are kept off the page. -->
+        <button type="button" class="guild-sign-button" data-signboard-open hidden th:if="${false}"><svg viewBox="10 2 44 40" aria-hidden="true"><use href="/img/guild-signboard.svg?v=2#mire"></use><use href="/img/guild-signboard.svg?v=2#mire-smile"></use></svg>看板娘と話す<span class="pop-live" data-signboard-new>今日</span></button>
         <label class="guild-dungeon-button" for="guild-view-dungeon"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=3#tab-dungeon"></use></svg>ダンジョン<span th:if="${todayRun != null and !todayRun.back()}" class="pop-live">探索中</span></label>
       </div>
     </div>
@@ -133,8 +136,9 @@
     <div class="guild-window-body"><th:block th:replace="~{fragments/guild-windows :: __${window}__}"></th:block></div>
   </th:block>
 </dialog>
-<!-- Mire, the girl painted on the sign: one short talk a day with set choices (GuildSignboard, /guild/signboard). Opened by guild.js. -->
-<dialog id="guild-signboard" class="signboard" aria-labelledby="signboard-name">
+<!-- Mire, the girl painted on the sign: one short talk a day with set choices (GuildSignboard, /guild/signboard). Opened by guild.js.
+     Paused for now (th:if false), so neither it nor its button is on the page. -->
+<dialog id="guild-signboard" class="signboard" aria-labelledby="signboard-name" th:if="${false}">
   <div class="sb-scene" aria-hidden="true">
     <span class="sb-shelf"></span><span class="sb-shelf low"></span><span class="sb-lamp"></span>
     <svg class="sb-mire" viewBox="0 0 64 76"><use href="/img/guild-signboard.svg?v=2#mire"></use><use class="sb-face" href="/img/guild-signboard.svg?v=2#mire-normal"></use><use class="sb-blink" href="/img/guild-signboard.svg?v=2#mire-blink"></use></svg>
@@ -149,5 +153,5 @@
   <button type="button" class="sb-close" aria-label="閉じる">×</button>
 </dialog>
 <nav th:replace="~{fragments/guild :: tabbar(${tab})}"></nav>
-<script defer src="/js/guild.js?v=counter-portraits-1"></script>
+<script defer src="/js/guild.js?v=11"></script>
 </body></html>

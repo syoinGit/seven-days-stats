@@ -47,6 +47,7 @@ public class GuildInteractionService {
   private final GuildInteractionWriter writer;
   private final GuildWorld world;
   private final GuildThoughts thoughts;
+  private final GuildRumors rumors;
 
   /**
    * Where a resident lives, their faction and faith (keys and names), the faction they last left or were
@@ -98,6 +99,29 @@ public class GuildInteractionService {
 
   /** The chance that an adult finds an adult of the other gender their type when they first meet. */
   static final double SMITTEN_CHANCE = 0.2;
+  /**
+   * Card changes are multiplied by this. Twelve interactions a day spread over the whole town, so one pair meets only now and
+   * then; at the cards' own small steps (1-3) nobody became friends even in a month. At this pace a pair that gets on well
+   * becomes friends in about five meetings, and a falling-out stings as much.
+   */
+  static final int PACE = 3;
+  /** Each meeting that did not go badly for one side brings that side this much closer, whatever the card: they get used to each other. */
+  static final int FAMILIAR_AFFINITY = 3;
+  static final int FAMILIAR_TRUST = 2;
+  /** Two who already get on (both at least this affinity) are this many times as likely to be the ones who talk. */
+  static final int REUNION_AFFINITY = 10;
+  static final int REUNION = 3;
+  /** From this affinity (both ways), or once they are more than acquaintances, the pair's story cards come DEPTH times as often. */
+  static final int DEEP_AFFINITY = 30;
+  static final int DEPTH = 4;
+  static final int RIPE_MARGIN = 10;
+  static final int RIPE = 5;
+  /** One who is smitten and this fond of someone with a partner may be heard of by that partner (GuildRumors). */
+  static final int JEALOUS_AT = 40;
+  /** How many meetings each label needs, besides the axes. */
+  static final int FRIEND_MEETINGS = 2;
+  static final int COMPANION_COOP = 2;
+  static final int CLOSE_FRIEND_MEETINGS = 5;
   /** Below this affinity, people of different genders warm to each other slowly (unless smitten). */
   static final int RESERVED_BELOW = 20;
 
@@ -186,6 +210,7 @@ public class GuildInteractionService {
     List<String> done = jdbc.queryForList("SELECT message FROM T_GUILD_HOURLY_JOB WHERE slot_key = ?", String.class, slot);
     if (!done.isEmpty()) return "この時間（" + slot + "）はすでに処理済みです：" + done.getFirst();
     jdbc.update("UPDATE T_GUILD_THREAD SET status = 'FADED' WHERE status = 'OPEN' AND expires_on < ?", date);
+    rumors.drift(local.toOffsetDateTime());
     int today = jdbc.queryForObject("SELECT COUNT(*) FROM T_GUILD_INTERACTION WHERE slot_key LIKE ?", Integer.class, date + "T%");
     int max = Math.min(properties.interactionDailyMax(), DAILY_CAP);
     if (today >= max) return record(slot, "SKIPPED", "今日の交流は上限（" + max + "件）に達しました。");
@@ -223,7 +248,7 @@ public class GuildInteractionService {
       if (majorToday && card.tier().equals("major")) continue;
       for (Pair oriented : List.of(chosen, chosen.swap())) {
         if (matches(card, oriented, phase, date)) {
-          options.add(new Option(card, oriented, card.weight() * boost(selection, card)));
+          options.add(new Option(card, oriented, card.weight() * boost(selection, card) * depth(card, oriented)));
           break;
         }
       }
@@ -236,8 +261,8 @@ public class GuildInteractionService {
 
     // Everything below is decided before the AI sees anything.
     // "both" is rolled for each direction, so the two rarely warm by the same amount; gender and taste shape it further.
-    Map<String, Integer> abDelta = attraction(sum(roll(outcome.both()), roll(outcome.aToB())), pair, pair.ab());
-    Map<String, Integer> baDelta = attraction(sum(roll(outcome.both()), roll(outcome.bToA())), pair, pair.ba());
+    Map<String, Integer> abDelta = attraction(familiar(sum(roll(outcome.both()), roll(outcome.aToB()))), pair, pair.ab());
+    Map<String, Integer> baDelta = attraction(familiar(sum(roll(outcome.both()), roll(outcome.bToA()))), pair, pair.ba());
     Rel ab = pair.ab().plus(abDelta);
     Rel ba = pair.ba().plus(baDelta);
     int together = pair.together() + 1;
@@ -291,8 +316,8 @@ public class GuildInteractionService {
     jdbc.update("INSERT INTO T_GUILD_INTERACTION_PARTICIPANT (interaction_id,character_id,position) VALUES (?,?,0)", id, pair.a().id());
     jdbc.update("INSERT INTO T_GUILD_INTERACTION_PARTICIPANT (interaction_id,character_id,position) VALUES (?,?,1)", id, pair.b().id());
     thoughts.save(id, pair.a(), pair.b(), minds);
-    save(id, pair.a().id(), pair.b().id(), ab, abDelta, card.kind() + "：" + summary);
-    save(id, pair.b().id(), pair.a().id(), ba, baDelta, card.kind() + "：" + summary);
+    save(id, pair.a().id(), pair.b().id(), ab, abDelta, card.kind() + "：" + summary, local.toOffsetDateTime());
+    save(id, pair.b().id(), pair.a().id(), ba, baDelta, card.kind() + "：" + summary, local.toOffsetDateTime());
     if (!after.equals(before)) bond(id, pair, before, after, local.toOffsetDateTime(), summary);
     if (resolved != null) {
       jdbc.update("UPDATE T_GUILD_THREAD SET status = 'RESOLVED', resolved_interaction_id = ? WHERE id = ?", id, resolved.id());
@@ -311,7 +336,53 @@ public class GuildInteractionService {
           + "VALUES (?,?,?,?,?,?,?,?)", pair.a().id(), change.field(), change.from(), change.to(), change.kind(), shorten(summary), id,
           local.toOffsetDateTime());
     }
+    talkOfTheTown(id, pair, before, after, change, ab, ba);
     return record(slot, "SUCCEEDED", summary + "（" + SELECTIONS.get(selection) + note + "）");
+  }
+
+  /**
+   * What the town hears of this interaction (GuildRumors): big news reaches a few friends of the two, and a partner may hear
+   * that their lover grew close to someone else. ab and ba are the relations after it.
+   */
+  private void talkOfTheTown(long id, Pair pair, String before, String after, Change change, Rel ab, Rel ba) {
+    List<Long> jealous = new ArrayList<>();
+    for (Pair side : List.of(pair, pair.swap())) {
+      // side.b grows close to side.a, who has a partner elsewhere: smitten and warm now, or newly close friends across genders.
+      Rel toward = side == pair ? ba : ab;
+      boolean close = toward.smitten() && toward.affinity() >= JEALOUS_AT && (side == pair ? pair.ba() : pair.ab()).affinity() < toward.affinity()
+          || "close_friend".equals(after) && !after.equals(before) && Boolean.FALSE.equals(pair.sameGender());
+      if (!close || PARTNERS.contains(after)) continue;
+      var partner = partner(side.a().id(), side.b().id());
+      if (partner == null || !GuildRumors.heard()) continue;
+      rumors.jealous(id, partner.getKey(), partner.getValue(), side.a().id(), side.a().name(), side.b().id(), side.b().name());
+      jealous.add(partner.getKey());
+    }
+    String news = news(pair, before, after, change);
+    if (news != null) rumors.spread(id, pair.a().id(), pair.b().id(), news, jealous);
+  }
+
+  /** The news others pass on, or null when nothing much happened. Code-made, from what code decided. */
+  static String news(Pair pair, String before, String after, Change change) {
+    String a = pair.a().name();
+    String b = pair.b().name();
+    if (change != null) return change.text().replaceAll("（[^）]*）$", "") + "と聞いた。";
+    if (after.equals(before) || before == null) return null;
+    return switch (after) {
+      case "lover" -> a + "と" + b + "が恋仲になったらしい。";
+      case "spouse" -> a + "と" + b + "が夫婦になったそうだ。";
+      case "rival" -> a + "と" + b + "が派手に決裂したと聞いた。";
+      case "close_friend" -> a + "と" + b + "はすっかり親友らしい。";
+      case "mentor" -> b + "が" + a + "に弟子入りしたそうだ。";
+      default -> null;
+    };
+  }
+
+  /** The lover or spouse of id other than not, with their name, or null. */
+  private Map.Entry<Long, String> partner(long id, long not) {
+    return jdbc.query("""
+        SELECT c.id, c.name FROM T_GUILD_BOND b JOIN M_GUILD_CHARACTER c ON c.id = CASE WHEN b.low_id = ? THEN b.high_id ELSE b.low_id END
+        WHERE (b.low_id = ? OR b.high_id = ?) AND b.label IN ('lover', 'spouse') AND c.id <> ? AND c.status = 'ALIVE'
+        """, (rs, row) -> Map.entry(rs.getLong(1), rs.getString(2)), id, id, id, not).stream().findFirst().orElse(null);
   }
 
   private String record(String slot, String status, String message) {
@@ -410,7 +481,7 @@ public class GuildInteractionService {
 
   /**
    * How much warmer one direction really gets. Same gender (or unknown): as the card says. Different
-   * genders: reserved at first (below RESERVED_BELOW affinity the gain is halved and a third of the time
+   * genders: reserved at first (below RESERVED_BELOW affinity the gain is two thirds and a quarter of the time
    * nothing), unless this one finds the other their type, which makes every gain bigger.
    */
   static Map<String, Integer> attraction(Map<String, Integer> delta, Pair pair, Rel from) {
@@ -419,7 +490,7 @@ public class GuildInteractionService {
     if (gain <= 0 || same == null || same) return delta;
     Map<String, Integer> shaped = new LinkedHashMap<>(delta);
     if (from.smitten()) shaped.put("affinity", gain + (gain + 1) / 2 + 1);
-    else if (from.affinity() < RESERVED_BELOW) shaped.put("affinity", ThreadLocalRandom.current().nextInt(3) == 0 ? 0 : (gain + 1) / 2);
+    else if (from.affinity() < RESERVED_BELOW) shaped.put("affinity", ThreadLocalRandom.current().nextInt(4) == 0 ? 0 : (gain * 2 + 2) / 3);
     return shaped;
   }
 
@@ -455,7 +526,7 @@ public class GuildInteractionService {
     Map<Pair, Integer> weights = new LinkedHashMap<>();
     for (Pair pair : pairs) {
       String key = Math.min(pair.a().id(), pair.b().id()) + "-" + Math.max(pair.a().id(), pair.b().id());
-      weights.put(pair, recent.contains(key) ? 1 : 4);
+      weights.put(pair, recent.contains(key) ? 1 : pair.together() > 0 && pair.minAffinity() >= REUNION_AFFINITY ? 4 * REUNION : 4);
     }
     return draw(weights);
   }
@@ -508,6 +579,23 @@ public class GuildInteractionService {
     return person.age() != null && person.age() >= 18;
   }
 
+  /**
+   * Two who are close talk about more than the weather: their story moves on (progress, thread and major cards are DEPTH
+   * times as likely). Two at odds are likelier to quarrel, make up or break off. Most cards are everyday talk, so without
+   * this a confession came up about once in a hundred meetings, even between two very fond of each other. A big event
+   * whose moment is ripe (RIPE_MARGIN past the card's affinity or wariness) is RIPE times likelier again.
+   */
+  static int depth(GuildCards.Card card, Pair pair) {
+    var when = card.when();
+    // The moment is ripe: well past what the card needs (a confession between two long fond of each other).
+    if (card.tier().equals("major") && ((when.affinityMin() != null && pair.minAffinity() >= when.affinityMin() + RIPE_MARGIN)
+        || (when.warinessMin() != null && pair.maxWariness() >= when.warinessMin() + RIPE_MARGIN))) return DEPTH * RIPE;
+    boolean story = !card.tier().equals("daily");
+    if (pair.minAffinity() >= DEEP_AFFINITY || (pair.label() != null && !pair.label().equals("acquaintance"))) return story ? DEPTH : 1;
+    if (pair.maxWariness() >= 20 || pair.minAffinity() <= -10) return story || card.kind().equals("口論") ? DEPTH : 1;
+    return 1;
+  }
+
   /** The selection route makes its own kind of card likelier. */
   private static int boost(String selection, GuildCards.Card card) {
     return switch (selection) {
@@ -554,9 +642,9 @@ public class GuildInteractionService {
     }
     if (AUTO_LABELS.contains(next)) {
       if (minAffinity < 0) next = "acquaintance";
-      else if (minAffinity >= 60 && minTrust >= 50 && together >= 8 && !next.equals("acquaintance")) next = "close_friend";
-      else if (next.equals("acquaintance") && minTrust >= 40 && coop >= 3) next = "companion";
-      else if (next.equals("acquaintance") && minAffinity >= 30 && together >= 3) next = "friend";
+      else if (minAffinity >= 60 && minTrust >= 50 && together >= CLOSE_FRIEND_MEETINGS && !next.equals("acquaintance")) next = "close_friend";
+      else if (next.equals("acquaintance") && minTrust >= 40 && coop >= COMPANION_COOP) next = "companion";
+      else if (next.equals("acquaintance") && minAffinity >= 30 && together >= FRIEND_MEETINGS) next = "friend";
     }
     // A pair that never met has no label yet; its first interaction makes them acquaintances.
     return pair.label() == null && next.equals("acquaintance") ? "acquaintance" : next;
@@ -611,7 +699,7 @@ public class GuildInteractionService {
           }
         }
         delta = attraction(delta, new Pair(from, to, rel, Rel.NONE, null, null, 0, 0, List.of(), null), rel);
-        store(from.id(), to.id(), rel.plus(delta));
+        store(from.id(), to.id(), rel.plus(delta), OffsetDateTime.now());
         if (delta.values().stream().allMatch(value -> value == 0)) continue;
         jdbc.update("INSERT INTO T_GUILD_RELATION_EVENT (expedition_id,from_id,to_id,change_kind,trust_delta,affinity_delta,"
             + "wariness_delta,debt_delta,reason) VALUES (?,?,?,'axes',?,?,?,0,?)", expedition, from.id(), to.id(),
@@ -620,17 +708,18 @@ public class GuildInteractionService {
     }
   }
 
-  private void store(long from, long to, Rel rel) {
-    int updated = jdbc.update("UPDATE T_GUILD_RELATION SET trust = ?, affinity = ?, wariness = ?, debt = ?, updated_at = CURRENT_TIMESTAMP "
-        + "WHERE from_id = ? AND to_id = ?", rel.trust(), rel.affinity(), rel.wariness(), rel.debt(), from, to);
+  /** at: when they were last together, which holds off drifting apart (GuildRumors.drift). */
+  private void store(long from, long to, Rel rel, OffsetDateTime at) {
+    int updated = jdbc.update("UPDATE T_GUILD_RELATION SET trust = ?, affinity = ?, wariness = ?, debt = ?, updated_at = ? "
+        + "WHERE from_id = ? AND to_id = ?", rel.trust(), rel.affinity(), rel.wariness(), rel.debt(), at, from, to);
     if (updated == 0) {
-      jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten) VALUES (?,?,?,?,?,?,?)",
-          from, to, rel.trust(), rel.affinity(), rel.wariness(), rel.debt(), rel.smitten());
+      jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten,updated_at) VALUES (?,?,?,?,?,?,?,?)",
+          from, to, rel.trust(), rel.affinity(), rel.wariness(), rel.debt(), rel.smitten(), at);
     }
   }
 
-  private void save(long interaction, long from, long to, Rel rel, Map<String, Integer> delta, String reason) {
-    store(from, to, rel);
+  private void save(long interaction, long from, long to, Rel rel, Map<String, Integer> delta, String reason, OffsetDateTime at) {
+    store(from, to, rel, at);
     if (delta.values().stream().allMatch(value -> value == 0)) return;
     jdbc.update("INSERT INTO T_GUILD_RELATION_EVENT (interaction_id,from_id,to_id,change_kind,trust_delta,affinity_delta,"
         + "wariness_delta,debt_delta,reason) VALUES (?,?,?,'axes',?,?,?,?,?)", interaction, from, to,
@@ -691,8 +780,17 @@ public class GuildInteractionService {
 
   private static Map<String, Integer> roll(GuildCards.Delta delta) {
     Map<String, Integer> values = new LinkedHashMap<>();
-    delta.ranges().forEach((axis, range) -> values.put(axis, ThreadLocalRandom.current().nextInt(range[0], range[1] + 1)));
+    delta.ranges().forEach((axis, range) -> values.put(axis, PACE * ThreadLocalRandom.current().nextInt(range[0], range[1] + 1)));
     return values;
+  }
+
+  /** A meeting that went no worse than even for one side: that side gets a little more used to the other. */
+  static Map<String, Integer> familiar(Map<String, Integer> delta) {
+    if (delta.getOrDefault("affinity", 0) < 0 || delta.getOrDefault("trust", 0) < 0 || delta.getOrDefault("wariness", 0) > 0) return delta;
+    Map<String, Integer> warmer = new LinkedHashMap<>(delta);
+    warmer.merge("affinity", FAMILIAR_AFFINITY, Integer::sum);
+    warmer.merge("trust", FAMILIAR_TRUST, Integer::sum);
+    return warmer;
   }
 
   private static Map<String, Integer> sum(Map<String, Integer> left, Map<String, Integer> right) {
