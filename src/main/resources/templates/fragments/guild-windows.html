@@ -61,6 +61,36 @@
   </section>
 </th:block>
 
+<!-- A solo werewolf game (/guild/werewolf): the traveller and some of the residents at one table (GuildWerewolf.table),
+     each seat with what that resident can say in their own voice. The game itself runs in guild-werewolf.js, without AI;
+     nothing of it is sent back. -->
+<th:block th:fragment="werewolf">
+  <section class="guild-wolf" data-wolf>
+    <p class="wolf-lead">酒場の灯りを落として、住人たちと人狼を遊ぶ。この中に人狼がまぎれている。昼は話し合って一人を処刑し、夜は人狼が一人を襲う。</p>
+    <p class="wolf-lead" th:if="${#lists.isEmpty(table)}">まだ住人が少なく、卓を囲めません。住人が増えたら、また来てください。</p>
+    <th:block th:unless="${#lists.isEmpty(table)}">
+    <ul class="wolf-seats" aria-label="卓を囲む人">
+      <li th:each="player : ${table}" class="wolf-seat"
+          th:attr="data-wolf-player=${player.character.id}, data-name=${player.character.name}, data-greet=${player.lines['greet']}, data-co=${player.lines['co']},
+                   data-white=${player.lines['white']}, data-black=${player.lines['black']}, data-counter=${player.lines['counter']},
+                   data-suspect=${player.lines['suspect']}, data-defend=${player.lines['defend']}, data-vote=${player.lines['vote']}">
+        <svg th:replace="~{fragments/guild :: sprite(${player.character})}"></svg>
+        <span class="wolf-name" th:text="${player.character.name}">リネ</span><small class="wolf-tag" data-wolf-tag></small>
+      </li>
+      <li class="wolf-seat you" data-wolf-you><span class="wolf-you-mark" aria-hidden="true">旅</span><span class="wolf-name">あなた</span><small class="wolf-tag" data-wolf-tag></small></li>
+    </ul>
+    <p class="wolf-status" data-wolf-status aria-live="polite"></p>
+    <ol class="wolf-log" data-wolf-log aria-live="polite"></ol>
+    <div class="wolf-actions" data-wolf-actions><p class="meal-note">遊ぶにはJavaScriptが必要です。</p></div>
+    <details class="wolf-rules"><summary>遊び方</summary>
+      <p>役目は人狼・占い師・狩人・村人。人数が少ないと人狼は一人、狩人はいないこともあります。村人の陣営は人狼をすべて処刑すれば勝ち、人狼は生き残りの半分に並べば勝ちです。</p>
+      <p>昼はまず占い師を名乗る人が結果を話し、あなたの番のあと、ほかの人が怪しいと思う人を名指しします。投票で一番多く票を集めた人が処刑されます（同票はくじ引き）。夜、占い師は一人を占い、狩人は一人を守り、人狼は一人を襲います。</p>
+      <p>住人は、誰が誰を名指ししたか、どの占い師を信じるかで考えを変えます。人狼が占い師を騙ることもあります。</p>
+    </details>
+    </th:block>
+  </section>
+</th:block>
+
 <th:block th:fragment="character">
   <div class="resident-heading"><svg th:replace="~{fragments/guild :: sprite(${character})}"></svg><div><p class="guild-eyebrow" th:text="${character.gameName()}">Core Keeper</p><p class="resident-profile" th:if="${!character.profile().isEmpty()}" th:text="${character.profile()}">28歳・女性・道具職人</p><p class="resident-lineage" th:if="${character.lineageName() != null}" th:text="${character.lineageName() + 'の名'}">北方系の名</p><p th:text="${#temporals.format(character.bornOn, 'yyyy年M月d日') + ' に誕生'}"></p></div></div>
   <p th:if="${character.status == 'DEAD'}">この人物は亡くなりました。その人の記録はここに残ります。</p>

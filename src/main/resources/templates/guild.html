@@ -37,7 +37,7 @@
         </label>
       </div>
       <div class="guild-extras">
-        <label class="guild-dungeon-button" for="guild-view-dungeon"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=4#tab-dungeon"></use></svg>ダンジョン<span th:if="${todayRun != null and !todayRun.back()}" class="pop-live">探索中</span></label>
+        <label class="guild-dungeon-button" for="guild-view-dungeon"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=5#tab-dungeon"></use></svg>ダンジョン<span th:if="${todayRun != null and !todayRun.back()}" class="pop-live">探索中</span></label>
       </div>
     </div>
   </div>
@@ -132,4 +132,5 @@
 </dialog>
 <nav th:replace="~{fragments/guild :: tabbar(${tab})}"></nav>
 <script defer src="/js/guild.js?v=15"></script>
+<script th:if="${window == 'werewolf'}" defer src="/js/guild-werewolf.js?v=1"></script>
 </body></html>

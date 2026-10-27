@@ -8,7 +8,7 @@ final class AccessPaths {
   /** The guild anyone may read, signed in or not. */
   static final String[] PUBLIC_GUILD = {"/", "/guild", "/guild/characters/*", "/guild/log", "/guild/log/*", "/guild/pairs/*",
       "/guild/dungeon", "/guild/dungeon/*", "/guild/towns/*", "/guild/talks/*/choices/*", "/guild/neighbor", "/guild/meal",
-      "/guild/towns/*/meal"};
+      "/guild/towns/*/meal", "/guild/werewolf"};
   /** Maintenance pages for admins only (AdminAccess). */
   static final String[] ADMIN_MAINTENANCE = {"/guild/maintenance", "/guild/maintenance/**", "/octarine/maintenance/**",
       "/luminite/maintenance/**"};

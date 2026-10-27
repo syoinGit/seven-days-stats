@@ -29,6 +29,7 @@ public class GuildController {
   private final GuildTalks talks;
   private final GuildThoughts thoughts;
   private final GuildMenus menus;
+  private final GuildWerewolf werewolf;
 
   @GetMapping("/guild")
   public String room(Model model) {
@@ -91,6 +92,13 @@ public class GuildController {
   private String meal(Model model, GuildPlaces.Place place) {
     model.addAttribute("menu", menus.of(place.key()));
     return stage(model, place, "meal", "meal", place.name() + "で食事");
+  }
+
+  /** A solo werewolf game with some of the residents, played in the browser without AI (GuildWerewolf). */
+  @GetMapping("/guild/werewolf")
+  public String werewolf(Model model) {
+    model.addAttribute("table", werewolf.table(ZonedDateTime.now(GuildService.TOKYO)));
+    return stage(model, "werewolf", "werewolf", "人狼");
   }
 
   @GetMapping("/guild/characters/{id}")

@@ -1,0 +1,125 @@
+# What residents say in the solo werewolf game (GuildWerewolf, /guild/werewolf), per voice group of guild/voices.yml.
+# No AI: the game in the browser picks one of these by what the resident decided to do, and fills in the names.
+#   {me}: their own first person (from their voice). {t}: the one it is about (the traveller is "旅の人").
+#   greet: when the day's talk opens. co: claims to be the seer. white / black: the seer's result on {t}.
+#   counter: someone else already claimed the seer. suspect: names {t} as suspicious. defend: when named themselves.
+#   vote: their vote for {t}.
+version: "2026-10-27-werewolf-a"
+lines:
+  kid:
+    greet: 人狼なんて、ほんとにいるの？ {me}、こわいよ！
+    co: "{me}、占い師なんだよ！ ちゃんと占えるんだから！"
+    white: "{t}を占ったら、人間だったよ！"
+    black: "{t}を占ったら……人狼だった！ ほんとだよ！"
+    counter: うそだよ！ ほんものの占い師は{me}なんだ！
+    suspect: "{t}、なんだかあやしいよ！"
+    defend: "{me}、人狼じゃないよ！ しんじて！"
+    vote: "{t}に入れるね。"
+  elder_m:
+    greet: やれやれ、この村にも人狼が出たか。昔を思い出すのう。
+    co: "{me}が占い師じゃ。黙っておるつもりじゃったがのう。"
+    white: "{t}を占った。人間じゃったよ。"
+    black: "{t}を占った……人狼じゃ。間違いない。"
+    counter: 待て待て、本物の占い師は{me}じゃ。
+    suspect: "{t}の目つきが、どうも気にかかるのう。"
+    defend: "{me}を疑うとは、若いのう。{me}は人狼ではないぞ。"
+    vote: "{t}に票を入れるとしよう。"
+  elder_f:
+    greet: 人狼だなんて、物騒な世の中だねえ。みんな気をつけるんだよ。
+    co: "{me}が占い師さね。黙ってても仕方ないからねえ。"
+    white: "{t}を占ったよ。人間だったねえ。"
+    black: "{t}を占ったら……人狼だったよ。かわいそうだけど、本当さね。"
+    counter: おや、偽者がいるねえ。占い師は{me}だよ。
+    suspect: "{t}、さっきから落ち着かないねえ。怪しいよ。"
+    defend: "{me}を疑うのかい？ {me}は人狼なんかじゃないよ。"
+    vote: "{t}に入れるよ。恨まないでおくれ。"
+  samurai:
+    greet: 人狼が紛れておるとは。心して見極めねばならぬ。
+    co: "{me}は占い師である。偽りなき結果を申し上げる。"
+    white: "{t}を占った。人であった。"
+    black: "{t}を占った。……人狼である。"
+    counter: 偽りを申すな。占い師は{me}である。
+    suspect: "{t}の言、筋が通らぬ。怪しいと見る。"
+    defend: "{me}を疑うか。{me}は人狼ではない。"
+    vote: "{t}に票を投ずる。"
+  polite:
+    greet: 人狼が紛れているそうですね。落ち着いて話し合いましょう。
+    co: "{me}が占い師です。結果をお伝えします。"
+    white: "{t}さんを占いました。人間でした。"
+    black: "{t}さんを占いました。……人狼です。"
+    counter: お待ちください。占い師は{me}です。その方は偽者でしょう。
+    suspect: 失礼ですが、{t}さんの発言が少し気になります。
+    defend: "{me}は人狼ではありません。信じていただけないでしょうか。"
+    vote: "{t}さんに投票します。"
+  cheerful_f:
+    greet: 本物の人狼が紛れてるの？ うそでしょ、こわーい！
+    co: はいはい！ {me}、占い師なの！
+    white: "{t}を占ったよ！ 人間だったの！"
+    black: "{t}を占ったら……人狼だったよ！ ほんとなの！"
+    counter: ちょっと待って！ 本物の占い師は{me}だよ！
+    suspect: ねえ、{t}ってなんか怪しくない？
+    defend: えー、{me}を疑うの？ 違うってば！
+    vote: "{t}に入れるね！"
+  gentle_f:
+    greet: 人狼が紛れているなんて……みなさん、気をつけてくださいね。
+    co: "{me}が占い師ですわ。黙っていられなくて。"
+    white: "{t}さんを占いましたの。人間でしたわ。"
+    black: "{t}さんを占ったら……人狼でしたわ。"
+    counter: その方は偽者ですわ。占い師は{me}です。
+    suspect: "{t}さん、少し様子がおかしいかしら。"
+    defend: "{me}は人狼ではありませんわ。どうか信じて。"
+    vote: "{t}さんに入れますわね。"
+  brisk_f:
+    greet: 人狼が混じってるって？ さっさと見つけ出してやろうじゃないか。
+    co: "{me}が占い師さ。隠してても仕方ないだろ。"
+    white: "{t}を占った。人間だったよ。"
+    black: "{t}を占ったら人狼だった。間違いないさ。"
+    counter: そいつは偽者だろ。占い師は{me}さ。
+    suspect: "{t}、さっきから言ってることがふらふらしてるじゃないか。"
+    defend: "{me}を疑うのかい？ お門違いさ。"
+    vote: "{t}に入れるよ。"
+  shy:
+    greet: じ、人狼が……いるんですか……？ こわい、です……
+    co: あ、あの……{me}、占い師です……
+    white: "{t}さんを占ったら……人間でした……"
+    black: "{t}さんを占ったら……じ、人狼でした……"
+    counter: ち、違います……本物の占い師は{me}です……
+    suspect: "{t}さんが……ちょっと、怪しいかも……"
+    defend: "{me}、人狼じゃない、です……"
+    vote: "{t}さんに……入れます……"
+  cheerful_m:
+    greet: 人狼だって？ へへ、面白くなってきたじゃん。
+    co: 実は{me}、占い師なんだぜ。
+    white: "{t}を占ったぜ。人間だったよ。"
+    black: "{t}を占ったら人狼だったぜ！ 決まりだろ！"
+    counter: おいおい、偽者だろ。占い師は{me}だぜ。
+    suspect: "{t}、なんか怪しくね？"
+    defend: "{me}が人狼？ 冗談きついぜ。"
+    vote: "{t}に入れるぜ。"
+  gentle_m:
+    greet: 人狼が紛れているのか……みんなで落ち着いて考えようね。
+    co: "{me}が占い師なんだ。結果を話すね。"
+    white: "{t}を占ったよ。人間だったよ。"
+    black: "{t}を占ったら……人狼だったんだ。"
+    counter: その人は偽者だよ。占い師は{me}なんだ。
+    suspect: "{t}の話、少し引っかかるかな。"
+    defend: "{me}は人狼じゃないよ。信じてほしいな。"
+    vote: "{t}に入れるよ。"
+  stern_m:
+    greet: 人狼か。……見つけて吊るせばいい。
+    co: "{me}が占い師だ。"
+    white: "{t}は人間だった。"
+    black: "{t}は人狼だ。占いで出た。"
+    counter: そいつは偽者だ。占い師は{me}だ。
+    suspect: "{t}が怪しい。"
+    defend: "{me}じゃない。他を見ろ。"
+    vote: "{t}だ。"
+  neutral:
+    greet: 人狼が紛れているらしい。よく見ておこう。
+    co: "{me}が占い師だ。結果を話そう。"
+    white: "{t}を占った。人間だったね。"
+    black: "{t}を占った。人狼だ。"
+    counter: それは偽者だね。占い師は{me}だ。
+    suspect: "{t}が少し怪しいと思う。"
+    defend: "{me}は人狼じゃない。"
+    vote: "{t}に入れる。"
