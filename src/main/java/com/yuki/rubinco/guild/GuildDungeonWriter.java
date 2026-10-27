@@ -33,19 +33,6 @@ public class GuildDungeonWriter {
   public record Run(String dungeon, String look, String monster, String treasure, String goal, String result, List<Member> party,
                     List<Stage> stages, List<String> others) { }
 
-  public static class WritingException extends RuntimeException {
-    private final boolean call;
-
-    WritingException(boolean call, RuntimeException cause) {
-      super(cause.getClass().getSimpleName(), cause);
-      this.call = call;
-    }
-
-    public boolean call() {
-      return call;
-    }
-  }
-
   /** The four passages, in order, ready to save. */
   public List<String> write(Run run) {
     String result;
@@ -61,12 +48,12 @@ public class GuildDungeonWriter {
           URL・記号 < > / @ は使わない。
           """, input(run), MAX_TOKENS, Duration.ofSeconds(45));
     } catch (RuntimeException failure) {
-      throw new WritingException(true, failure);
+      throw new GuildWritingException(true, failure);
     }
     try {
       return validate(result, run);
     } catch (RuntimeException failure) {
-      throw new WritingException(false, failure);
+      throw new GuildWritingException(false, failure);
     }
   }
 

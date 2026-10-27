@@ -25,27 +25,23 @@ public class WebSecurityConfig {
       GuestPrivacyFilter guestPrivacyFilter) throws Exception {
     http
         .authorizeHttpRequests(authorize -> authorize
-            .requestMatchers(
-                "/login", "/guest-login", "/portal", "/css/**", "/img/**", "/js/**",
-                "/favicon.ico", "/error")
-            .permitAll()
+            .requestMatchers("/login", "/guest-login", "/portal").permitAll()
+            .requestMatchers(AccessPaths.STATIC).permitAll()
             .requestMatchers(HttpMethod.TRACE, "/**").denyAll()
             .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
             .requestMatchers(HttpMethod.OPTIONS, "/**").denyAll()
-            .requestMatchers("/guild/maintenance", "/guild/maintenance/**").access(adminAccess.requests())
-            .requestMatchers(HttpMethod.GET, "/", "/guild", "/guild/characters/*", "/guild/log", "/guild/log/*", "/guild/pairs/*", "/guild/dungeon", "/guild/dungeon/*", "/guild/towns/*", "/guild/talks/*/choices/*", "/guild/neighbor", "/guild/meal", "/guild/towns/*/meal").permitAll()
-            .requestMatchers("/octarine/maintenance/**", "/luminite/maintenance/**").access(adminAccess.requests())
-            .requestMatchers("/maintenance/**", "/portal/maintenance/**").hasRole("ADMIN")
+            .requestMatchers(AccessPaths.ADMIN_MAINTENANCE).access(adminAccess.requests())
+            .requestMatchers(HttpMethod.GET, AccessPaths.PUBLIC_GUILD).permitAll()
+            .requestMatchers(AccessPaths.SITE_MAINTENANCE).hasRole("ADMIN")
             .requestMatchers("/portal/profile").hasAnyRole("PLAYER", "MEMBER", "ADMIN")
             .requestMatchers(HttpMethod.POST, "/api/games/*/events").hasRole("ADMIN")
             .requestMatchers(HttpMethod.PUT, "/api/games/*/events/*").hasRole("ADMIN")
-            .requestMatchers(HttpMethod.POST, "/api/games/*/start", "/api/games/*/stop",
-                "/portal/actions/games/*/start", "/portal/actions/games/*/stop")
+            .requestMatchers(HttpMethod.POST, "/api/games/*/start", "/api/games/*/stop")
             .access(gameServerAccess.requests())
+            .requestMatchers(HttpMethod.POST, AccessPaths.PORTAL_SERVER_ACTIONS).access(gameServerAccess.requests())
             // External IDs are masked only in HTML; raw API data requires a member account.
             .requestMatchers("/api/**").hasAnyRole("PLAYER", "ADMIN")
-            .requestMatchers(
-                HttpMethod.POST, "/players/*/status", "/posts", "/posts/*/react", "/posts/*/delete")
+            .requestMatchers(HttpMethod.POST, AccessPaths.PLAYER_POSTS)
             .hasAnyRole("PLAYER", "ADMIN")
             .anyRequest().authenticated())
         .formLogin(form -> form
