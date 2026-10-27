@@ -66,14 +66,6 @@ public class AiCommentService {
     return publishToTimeline(repository.save(comment));
   }
 
-  public long generatedTimelineCountSince(OffsetDateTime from) {
-    return repository.countByAiGeneratedTrueAndDiaryDateIsNullAndPublishedAtGreaterThanEqual(from);
-  }
-
-  public boolean hasPostTypeSince(AiPostType postType, OffsetDateTime from) {
-    return repository.existsByPostTypeAndPublishedAtGreaterThanEqual(postType.name(), from);
-  }
-
   private String normalize(String value) {
     return value == null ? "" : value.strip();
   }

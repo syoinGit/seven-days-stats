@@ -5,7 +5,6 @@ import com.yuki.rubinco.worldprogress.entity.M_GameWorld;
 import com.yuki.rubinco.worldprogress.entity.M_GuideArticle;
 import com.yuki.rubinco.worldprogress.entity.M_GuideRule;
 import com.yuki.rubinco.worldprogress.entity.M_ProgressDefinition;
-import com.yuki.rubinco.worldprogress.entity.T_ProgressEvent;
 import com.yuki.rubinco.worldprogress.entity.T_ProgressState;
 import com.yuki.rubinco.worldprogress.entity.T_WorldImportRun;
 import com.yuki.rubinco.worldprogress.entity.T_WorldSnapshot;

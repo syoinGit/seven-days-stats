@@ -8,7 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface M_GuideRuleRepository extends JpaRepository<M_GuideRule, Long> {
   List<M_GuideRule> findByGuideArticleIdIn(Collection<Long> articleIds);
 
-  List<M_GuideRule> findByGuideArticleId(Long articleId);
-
   void deleteByGuideArticleId(Long articleId);
 }

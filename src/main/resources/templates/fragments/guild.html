@@ -5,13 +5,12 @@
 <meta property="og:title" th:content="${title}"><meta property="og:type" content="website">
 <link th:if="${canonical != null and !#strings.isEmpty(canonical)}" rel="canonical" th:href="${canonical}">
 <meta th:if="${canonical != null and !#strings.isEmpty(canonical)}" property="og:url" th:content="${canonical}">
-<link rel="stylesheet" href="/css/app.css?v=header-5"><link rel="stylesheet" href="/css/portal.css?v=guild-1"><link rel="stylesheet" href="/css/guild.css?v=28">
+<link rel="stylesheet" href="/css/app.css?v=header-6"><link rel="stylesheet" href="/css/portal.css?v=guild-2"><link rel="stylesheet" href="/css/guild.css?v=29">
 </th:block></head><body>
-<!-- The small figure carries validated, saved portrait choices for the counter-view player. -->
+<!-- A resident's figure (SD), in their usual pose or the one given. -->
 <svg th:fragment="sprite(c)" th:replace="~{fragments/guild :: figure(${c}, ${c.pose()})}"></svg>
 <svg th:fragment="figure(c, pose)" class="guild-sprite" th:classappend="${c.appearance}" viewBox="0 0 96 144" aria-hidden="true"
-     th:style="${c.look != null ? c.look.style() : null}"
-     th:attr="data-portrait-layers=${#strings.listJoin(c.portraitLayers(), ',')}, data-outfit=${c.look != null ? c.look.outfit : 'adventurer'}, data-pose=${pose}">
+     th:style="${c.look != null ? c.look.style() : null}">
   <use th:each="layer : ${c.spriteLayers(pose)}" th:href="${'/img/guild-people.svg?v=7#' + layer}"></use>
 </svg>
 <!-- The guild's bottom tabs. Each one but maintenance opens a window over the tavern; active: tavern, dungeon, meal or log. The meal is at the place shown. -->

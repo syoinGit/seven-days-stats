@@ -63,10 +63,6 @@ public record SevenDaysDataProperties(
     return gamePath().resolve("Data").resolve("Config");
   }
 
-  public Path gamePrefabsPath() {
-    return gamePath().resolve("Data").resolve("Prefabs");
-  }
-
   public Path logPath() {
     return log.dir() == null ? root.resolve("log") : log.dir();
   }

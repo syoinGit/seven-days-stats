@@ -124,12 +124,6 @@ public class LuminiteQueryService {
         snapshot == null ? null : TIME.format(snapshot.getSourceModifiedAt())));
   }
 
-  /** Whether the world is configured but hidden from members (shown as "準備中"). */
-  public boolean hiddenWorld(boolean admin) {
-    return !admin && worlds.findFirstByGameIdAndActiveTrue(GAME_ID).map(world -> !world.isPublished())
-        .orElse(false);
-  }
-
   public Place place(TerrariaSummary summary, int x, int y) {
     var world = summary.world();
     int east = 2 * x + 1 - world.tilesWide();
@@ -399,10 +393,6 @@ public class LuminiteQueryService {
             rs.getString(1), place(context.summary(), rs.getInt(2), rs.getInt(3)),
             rs.getTimestamp(4) == null ? null : TIME.format(time(rs.getTimestamp(4))), tombstones),
         context.worldId(), TOMBSTONE);
-  }
-
-  public String itemName(int itemId) {
-    return names.item(itemId).label();
   }
 
   public boolean namesLoaded() {

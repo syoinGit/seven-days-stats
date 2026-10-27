@@ -5,18 +5,13 @@
 .octarine-topbar .nav-button:hover { border-color:#f29bd8; color:#f7bfe6; }
 .octarine-shell { width:min(1080px, calc(100% - 32px)); margin:0 auto; padding:clamp(28px, 4vw, 56px) 0; }
 .octarine-shell > a { color:#f7bfe6; font-size:12px; }
-.octarine-hero { position:relative; padding:45px; border:1px solid #4d2f45; background:radial-gradient(circle at 82% 18%, #f29bd82a, transparent 30%), radial-gradient(circle at 12% 90%, #6fd3c41a, transparent 28%), #17111a; }
-.octarine-hero h1 { margin:8px 0; color:#f7bfe6; font-size:clamp(34px, 7vw, 72px); overflow-wrap:anywhere; letter-spacing:.08em; }
-.octarine-hero p:not(.eyebrow) { color:#cdbfcb; }
-.octarine-world { display:flex; flex-wrap:wrap; gap:10px; align-items:baseline; margin:14px 0 0; }
-.octarine-world span { color:#a594a2; font:11px monospace; }
-.octarine-admin-link { position:absolute; top:18px; right:20px; color:#f7bfe6; font-size:12px; }
-.octarine-overview { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px; margin:18px 0; }
-.octarine-overview article, .octarine-panel { min-width:0; padding:22px; border:1px solid #33242f; background:#141017; overflow-wrap:anywhere; }
-.octarine-overview strong { display:block; margin:16px 0 7px; color:#f7bfe6; font-size:28px; }
-.octarine-overview .status-chip { width:fit-content; font-size:11px; }
-.octarine-overview p { margin:0; color:#a99ca7; font-size:12px; line-height:1.6; }
-.octarine-overview p + p { margin-top:4px; }
+
+
+
+
+.octarine-panel { min-width:0; padding:22px; border:1px solid #33242f; background:#141017; overflow-wrap:anywhere; }
+
+
 .octarine-warning { color:#f0bb72 !important; }
 .octarine-panel { margin-top:18px; padding:26px; background:#110e14; }
 .octarine-panel .section-heading { display:flex; justify-content:space-between; align-items:end; gap:16px; margin-bottom:16px; }
@@ -30,9 +25,8 @@
 .octarine-progress small { color:#988b96; font-size:11px; }
 .octarine-state { flex:none; min-width:64px; padding:3px 8px; border:1px solid #5d4a59; color:#c8bac5; font:11px monospace; text-align:center; }
 .state-achieved .octarine-state { border-color:#7fc66e; color:#9de28d; }
-.state-not_achieved .octarine-state { border-color:#6f6470; color:#b1a6b0; }
-.state-unknown .octarine-state, .state-unsupported .octarine-state { border-style:dashed; color:#8d828c; }
-.state-unsupported b { color:#a99ca7; }
+
+
 .octarine-guide { margin-top:12px; padding:16px; border:1px solid #2b2029; background:#18121b; }
 .octarine-guide h3 { margin:0; font-size:15px; }
 .octarine-guide p { margin:8px 0; line-height:1.7; white-space:pre-line; }
@@ -45,7 +39,7 @@
 .octarine-event.kind-regressed small, .octarine-event.kind-parser_change small { color:#f0bb72; }
 .octarine-panel .feed { display:grid; gap:10px; margin:0; padding:0; background:transparent; list-style:none; }
 .octarine-panel .feed-item { position:static; display:block; min-height:0; margin:0; padding:16px; border:1px solid #2b2029; background:#18121b; box-shadow:none; }
-.octarine-panel .feed-meta { display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; color:#f7bfe6; font:11px monospace; }
+
 .octarine-panel .feed-item h3 { clear:both; margin:12px 0 0; font-size:15px; }
 .octarine-panel .feed-item p { margin:8px 0 0; line-height:1.6; white-space:pre-line; }
 .octarine-panel .user-avatar { float:left; margin:0 12px 10px 0; }
@@ -140,18 +134,15 @@
 .octarine-changes time { color:#a99ca7; font:11px monospace; }
 .octarine-changes .up b { color:#9de28d; }
 .octarine-changes .down b { color:#ff9ca1; }
-.octarine-resources { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:6px; margin:0; padding:0; list-style:none; }
-.octarine-resources li { display:flex; justify-content:space-between; gap:8px; padding:9px 12px; border:1px solid #2b2029; background:#18121b; font-size:12px; }
-.octarine-resources li span { overflow-wrap:anywhere; }
-.octarine-resources b { color:#f7bfe6; font-family:monospace; font-weight:normal; }
-.octarine-resources li.none { opacity:.5; }
+
+
+
 .octarine-shell .portal-feed-pages span { color:#988b96; font:12px monospace; }
 .octarine-warning-inline { color:#f0bb72; font-size:12px; }
 
 @media (max-width:720px) {
-  .octarine-hero { padding:28px; }
-  .octarine-admin-link { position:static; display:inline-block; margin-top:12px; }
-  .octarine-overview, .octarine-progress, .octarine-form fieldset { grid-template-columns:1fr; }
+  
+  .octarine-progress,.octarine-form fieldset{ grid-template-columns:1fr; }
   .octarine-panel { padding:18px; }
   .octarine-panel .section-heading { align-items:flex-start; flex-direction:column; }
   .octarine-event { grid-template-columns:1fr; gap:4px; }
@@ -160,7 +151,7 @@
 }
 
 /* Connections and play time (/octarine/players). */
-.octarine-online a { color:#9de28d; font-size:12px; }
+
 .octarine-online-list { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:6px; margin:0; padding:0; list-style:none; }
 .octarine-online-list li { display:grid; gap:2px; padding:10px 12px; border:1px solid #2f5a3a; background:#132018; font-size:12px; }
 .octarine-online-list b { color:#9de28d; overflow-wrap:anywhere; }
@@ -219,25 +210,19 @@
 .oc-pages a { color:var(--oc-soft); font-size:12px; text-decoration:none; }
 
 /* Inner tiles: one surface step up, rounded, no heavy borders. */
-.octarine-body .octarine-stats li, .octarine-body .octarine-progress li, .octarine-body .octarine-guide, .octarine-body .octarine-activity li,
-.octarine-body .octarine-events .octarine-event, .octarine-body .octarine-event, .octarine-body .octarine-items a, .octarine-body .octarine-containers > li,
-.octarine-body .octarine-changes li, .octarine-body .octarine-ranking li, .octarine-body .octarine-resources li, .octarine-body .octarine-signs li,
-.octarine-body .octarine-form {
+.octarine-body .octarine-stats li,.octarine-body .octarine-progress li,.octarine-body .octarine-guide,.octarine-body .octarine-activity li,.octarine-body .octarine-events .octarine-event,.octarine-body .octarine-event,.octarine-body .octarine-items a,.octarine-body .octarine-containers > li,.octarine-body .octarine-changes li,.octarine-body .octarine-form{
   border:1px solid transparent; border-radius:10px; background:var(--rb-surface-2);
 }
 .octarine-body .octarine-items a:hover { border-color:var(--oc); }
 .octarine-body .octarine-activity li { border-left:0; box-shadow:inset 3px 0 0 var(--oc); }
 .octarine-body .octarine-activity li.kind-kills { box-shadow:inset 3px 0 0 #f0bb72; }
 .octarine-body .octarine-activity li.kind-death { box-shadow:inset 3px 0 0 #8a85a0; }
-.octarine-body .octarine-signs li.tombstone { border-top:0; box-shadow:inset 0 3px 0 #625b7a; }
-.octarine-body .octarine-stats strong, .octarine-body .octarine-count, .octarine-body .octarine-items strong, .octarine-body .octarine-ranking strong,
-.octarine-body .octarine-resources b, .octarine-body .octarine-slots b { font-family:inherit; font-variant-numeric:tabular-nums; }
-.octarine-body .octarine-activity time, .octarine-body .octarine-changes time, .octarine-body .octarine-events .octarine-event time,
-.octarine-body .octarine-container-head small, .octarine-body .octarine-ranking .rank { font-family:inherit; font-size:11px; }
+
+.octarine-body .octarine-stats strong,.octarine-body .octarine-count,.octarine-body .octarine-items strong,.octarine-body .octarine-slots b{ font-family:inherit; font-variant-numeric:tabular-nums; }
+.octarine-body .octarine-activity time,.octarine-body .octarine-changes time,.octarine-body .octarine-events .octarine-event time,.octarine-body .octarine-container-head small{ font-family:inherit; font-size:11px; }
 .octarine-body .octarine-state { border:0; border-radius:0; background:#7fe0a81f; color:#7fe0a8; font-family:inherit; font-weight:700; clip-path:var(--rb-notch); }
-.octarine-body .octarine-world-line span, .octarine-body .octarine-place b { border:0; border-radius:999px; background:var(--rb-surface-2); }
-.octarine-body .octarine-ranking .bar { border-radius:999px; background:var(--rb-bg); overflow:hidden; }
-.octarine-body .octarine-alignment { border:0; border-radius:999px; overflow:hidden; }
+.octarine-body .octarine-place b { border:0; border-radius:999px; background:var(--rb-surface-2); }
+
 .octarine-body .octarine-slots a { border:0; border-radius:6px; background:var(--rb-bg); }
 .octarine-body .octarine-search input, .octarine-body .octarine-search select, .octarine-body .octarine-form input:not([type=checkbox]),
 .octarine-body .octarine-form textarea, .octarine-body .octarine-form select { border-color:var(--rb-line); border-radius:10px; background:var(--rb-bg); }

@@ -144,178 +144,6 @@
   setTimeout(murmur, 5000);
 })();
 
-// Mire, the girl painted on the sign: one short talk a day. The script comes from /guild/signboard; the visitor
-// reads it line by line and picks from set choices. "Talked today" (the Tokyo date) stays in this browser only.
-(() => {
-  const open = document.querySelector("[data-signboard-open]");
-  const board = document.getElementById("guild-signboard");
-  if (!open || !board || typeof board.showModal !== "function") return;
-  const KEY = "guild-signboard-day";
-  const SHEET = "/img/guild-signboard.svg?v=2#mire-";
-  const OPEN_EYES = new Set(["normal", "think", "surprise", "shy", "sad"]);
-  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const face = board.querySelector(".sb-face");
-  const figure = board.querySelector(".sb-mire");
-  const text = board.querySelector(".sb-text");
-  const choices = board.querySelector(".sb-choices");
-  const next = board.querySelector(".sb-next");
-  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
-  const read = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
-  const mark = () => { try { localStorage.setItem(KEY, today); } catch { /* private window: the talk is just not remembered */ } };
-  const fresh = () => read() !== today;
-  const badge = () => { open.querySelector("[data-signboard-new]").hidden = !fresh(); };
-  let talk = null;
-  let queue = [];
-  let current = null;
-  let after = null;
-  let typing = null;
-  let menuTurn = 0;
-  let left = [];
-
-  function show(line) {
-    face.setAttribute("href", SHEET + line.face);
-    figure.classList.toggle("blinks", OPEN_EYES.has(line.face));
-    figure.classList.remove("hop");
-    void figure.getBoundingClientRect();
-    figure.classList.add("hop");
-    clearInterval(typing);
-    if (still) {
-      text.textContent = line.text;
-      typing = null;
-      return;
-    }
-    let shown = 0;
-    text.textContent = "";
-    typing = setInterval(() => {
-      shown += 1;
-      text.textContent = line.text.slice(0, shown);
-      if (shown >= line.text.length) {
-        clearInterval(typing);
-        typing = null;
-      }
-    }, 38);
-  }
-
-  // Lines one at a time; then runs. A click finishes the line being typed, the next click moves on.
-  function say(lines, then) {
-    choices.replaceChildren();
-    queue = [...lines];
-    after = then;
-    advance();
-  }
-
-  function advance() {
-    if (typing) {
-      clearInterval(typing);
-      typing = null;
-      text.textContent = current.text;
-      return;
-    }
-    const line = queue.shift();
-    if (!line) {
-      next.hidden = true;
-      const then = after;
-      after = null;
-      if (then) then();
-      return;
-    }
-    current = line;
-    next.hidden = false;
-    show(line);
-  }
-
-  function ask(options) {
-    next.hidden = true;
-    choices.replaceChildren(...options.map(([label, run]) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = label;
-      button.addEventListener("click", (event) => {
-        event.stopPropagation();
-        run();
-      });
-      return button;
-    }));
-    choices.querySelector("button")?.focus({ preventScroll: true });
-  }
-
-  function menu(first) {
-    if (!left.length) return farewell();
-    const line = first ? [] : [talk.menu[menuTurn++ % talk.menu.length]];
-    const offer = () => ask([...left.map((topic) => [topic.label, () => {
-      left = left.filter((other) => other !== topic);
-      node(topic.start);
-    }]), ["今日はこのへんで", farewell]]);
-    if (line.length) say(line, offer);
-    else offer();
-  }
-
-  function node(key) {
-    const here = talk.nodes[key];
-    say(here.lines, () => {
-      if (here.choices.length) ask(here.choices.map((choice) => [choice.label, () => node(choice.next)]));
-      else if (here.next === "menu" || !here.next) menu(false);
-      else node(here.next);
-    });
-  }
-
-  function farewell() {
-    say(talk.farewell, () => ask([["またね", close]]));
-  }
-
-  function close() {
-    clearInterval(typing);
-    typing = null;
-    if (board.open) board.close();
-  }
-
-  async function begin() {
-    board.classList.add("loading");
-    text.textContent = "……";
-    choices.replaceChildren();
-    next.hidden = true;
-    board.showModal();
-    try {
-      const response = await fetch("/guild/signboard", { headers: { Accept: "application/json" } });
-      if (!response.ok) throw new Error(String(response.status));
-      talk = await response.json();
-    } catch {
-      board.classList.remove("loading");
-      text.textContent = "……看板の絵の具がかすれて、うまく話せないみたい。また少ししてから来てね。";
-      ask([["閉じる", close]]);
-      return;
-    }
-    board.classList.remove("loading");
-    if (!fresh()) {
-      say(talk.done, () => ask([["またね", close]]));
-      return;
-    }
-    mark();
-    badge();
-    left = [...talk.topics];
-    menuTurn = 0;
-    say(talk.opener, () => menu(true));
-  }
-
-  board.querySelector(".sb-box").addEventListener("click", (event) => {
-    if (event.target.closest(".sb-choices")) return;
-    if (!next.hidden) advance();
-  });
-  board.addEventListener("keydown", (event) => {
-    // Escape closes only this, not the window under it.
-    if (event.key === "Escape") event.stopPropagation();
-    if ((event.key === "Enter" || event.key === " ") && !next.hidden && !event.target.closest("button")) {
-      event.preventDefault();
-      advance();
-    }
-  });
-  board.querySelector(".sb-close").addEventListener("click", close);
-  board.addEventListener("close", () => open.focus({ preventScroll: true }));
-  open.addEventListener("click", begin);
-  open.hidden = false;
-  badge();
-})();
-
 // GuildAdv: reads a conversation one line at a time, visual-novel style, as if from a seat at the counter of the place it
 // happens in (each place has its own backdrop). The speakers' figures stand behind the counter at the sides (the one
 // talking lit, the other dimmed), and a message box at the bottom types each line out. Narration is not boxed: it drifts
@@ -355,47 +183,6 @@ const GuildAdv = (() => {
   }
 
   const PLACES = ["guild", "grantford", "elmwood", "tsukikage"];
-  const POSES = new Set(["rest", "wave", "crossed", "mug", "think"]);
-  const PORTRAITS = "/img/guild-portraits.svg?v=1#";
-
-  function pose(slot, value) {
-    const figure = slot.querySelector(".guild-portrait");
-    const arms = figure?.querySelector('[data-portrait-pose]');
-    if (arms && POSES.has(value)) {
-      arms.setAttribute("href", PORTRAITS + "pose-" + figure.dataset.outfit + "-" + value);
-      figure.dataset.pose = value;
-    }
-  }
-
-  function portrait(source) {
-    const keys = source.dataset.portraitLayers?.split(",");
-    // Older/cached pages still have a usable SD figure until they are refreshed.
-    if (!keys?.length || keys.some((key) => !/^[a-z0-9_-]+$/.test(key))) return source.cloneNode(true);
-    const ns = "http://www.w3.org/2000/svg";
-    const image = document.createElementNS(ns, "svg");
-    image.setAttribute("class", "guild-portrait " + [...source.classList].filter((key) => key !== "guild-sprite").join(" "));
-    image.setAttribute("viewBox", "0 0 360 440");
-    image.setAttribute("aria-hidden", "true");
-    if (source.getAttribute("style")) image.setAttribute("style", source.getAttribute("style"));
-    image.dataset.outfit = /^[a-z0-9_]+$/.test(source.dataset.outfit || "") ? source.dataset.outfit : "adventurer";
-    image.dataset.basePose = POSES.has(source.dataset.pose) ? source.dataset.pose : "rest";
-    for (const key of keys) {
-      const layer = document.createElementNS(ns, "use");
-      layer.setAttribute("href", PORTRAITS + key);
-      if (key.startsWith("pose-")) layer.setAttribute("data-portrait-pose", "");
-      image.append(layer);
-    }
-    return image;
-  }
-
-  function spokenPose(text, fallback) {
-    if (/乾杯|飲|カップ|グラス|一杯/.test(text)) return "mug";
-    if (/こんにちは|こんばんは|ようこそ|おはよう|またね|手を振/.test(text)) return "wave";
-    if (/考え|悩|どうしよう|かもしれ|だろうか/.test(text)) return "think";
-    if (/任せ|譲れ|断る|腕を組/.test(text)) return "crossed";
-    return fallback;
-  }
-
   /** figures: { left: svg, right: svg } (cloned), either may be missing; place: whose counter we sit at. */
   function open(figures, place = "guild") {
     if (!dialog) build();
@@ -406,7 +193,6 @@ const GuildAdv = (() => {
       const slot = dialog.querySelector(".adv-figure." + side);
       slot.replaceChildren();
       slot.classList.remove("active", "dim");
-      // The SD figure itself; the counter busts (portrait(), guild-portraits.svg) are set aside for now.
       if (figures[side]) slot.append(figures[side].cloneNode(true));
     }
     dialog.querySelector(".adv-choices").replaceChildren();
@@ -424,10 +210,7 @@ const GuildAdv = (() => {
   function muse(text) {
     return new Promise((resolve, reject) => {
       if (!dialog?.open) { reject(new Error("closed")); return; }
-      dialog.querySelectorAll(".adv-figure").forEach((figure) => {
-        figure.classList.remove("active");
-        pose(figure, figure.querySelector(".guild-portrait")?.dataset.basePose);
-      });
+      dialog.querySelectorAll(".adv-figure").forEach((figure) => figure.classList.remove("active"));
       const mono = dialog.querySelector(".adv-mono");
       mono.classList.remove("shown", "now");
       mono.textContent = text;
@@ -457,8 +240,6 @@ const GuildAdv = (() => {
         const speaking = side !== null && figure.classList.contains(side);
         figure.classList.toggle("active", speaking);
         figure.classList.toggle("dim", side !== null && !speaking && figure.childElementCount > 0);
-        const baseline = figure.querySelector(".guild-portrait")?.dataset.basePose;
-        pose(figure, speaking ? spokenPose(text, baseline) : baseline);
       });
       const box = dialog.querySelector(".adv-box");
       box.className = "adv-box" + (kind ? " " + kind : side ? " " + side : " narration");
@@ -549,7 +330,7 @@ const GuildAdv = (() => {
   scan();
 })();
 
-// Talking with a resident (the one beside the traveller at a meal), as a conversation: they speak first, the visitor
+// A meal, and talking with the one who sits beside the traveller, as a conversation: they speak first, the visitor
 // answers in their own words (one of three), and they reply. One talk with each resident a day; "talked today", the
 // answer and the reply, and which answers were picked before stay in this browser only.
 (() => {
@@ -566,30 +347,8 @@ const GuildAdv = (() => {
     const seenKey = "guild-talk-seen-" + talkId;
     const opening = box.querySelector("[data-talk-opening]").textContent;
     const labels = [...box.querySelectorAll("[data-talk-labels] li")].map((item) => item.textContent);
-    const figure = box.querySelector(".adv-say svg");
-    const log = box.querySelector("[data-talk-log]");
-    const note = box.querySelector("[data-talk-note]");
-    const start = box.querySelector("[data-talk-start]");
+    const figure = box.querySelector("[data-talk-figure] svg");
     const place = box.dataset.place;
-
-    // What was said today, under the first line: the visitor's answer on the right, their reply on the left.
-    const written = (label, reply) => {
-      log.querySelectorAll(".adv-say:not(:first-child)").forEach((line) => line.remove());
-      const mine = document.createElement("div");
-      mine.className = "adv-say right you";
-      mine.innerHTML = '<div class="adv-bubble"><b>あなた</b><p></p></div>';
-      mine.querySelector("p").textContent = label;
-      const theirs = log.firstElementChild.cloneNode(true);
-      theirs.querySelector("p").removeAttribute("data-talk-opening");
-      theirs.querySelector("p").textContent = reply;
-      log.append(mine, theirs);
-    };
-    const day = get(dayKey);
-    const doneToday = day && day.date === today;
-    if (doneToday && day.talk === talkId) written(day.label, day.reply);
-    note.textContent = doneToday ? name + "とは今日もう話しました。また明日。" : "";
-    note.hidden = !doneToday;
-    start.hidden = false;
 
     // prelude: lines said before their own talk (how they took the meal). after: run once they have replied; may say
     // more, and returns the closing line. at: the place whose counter is behind them (where the traveller sits).
@@ -624,20 +383,12 @@ const GuildAdv = (() => {
         }
         put(dayKey, { date: today, talk: talkId, choice, label: labels[choice], reply });
         put(seenKey, [...new Set([...seen, choice])]);
-        written(labels[choice], reply);
-        note.textContent = name + "とは今日もう話しました。また明日。";
-        note.hidden = false;
         await GuildAdv.say({ side: "left", name, text: reply });
         await GuildAdv.say({ text: (after && await after()) || name + "は空になった杯を置いて、席を立った。" });
         GuildAdv.close();
       } catch { /* closed midway: what was decided is already kept */ }
     };
-    start.addEventListener("click", () => box.play());
   }
-
-  const scan = () => document.querySelectorAll("[data-talk]").forEach(setUp);
-  document.addEventListener("guild-window", scan);
-  scan();
 
   // A meal (the "食事" window). The traveller is a stranger with a few silver coins: a purse kept in this browser, 8 to
   // start and 8 more each new day (up to 20). They take a seat, and someone not yet talked with today sits beside them;
@@ -747,7 +498,7 @@ const GuildAdv = (() => {
         if (!neighbor || !box) throw new Error("empty");
         setUp(box);
         favorite = neighbor.dataset.favorite;
-        $("[data-meal-figure]").replaceChildren(box.querySelector(".adv-say svg").cloneNode(true));
+        $("[data-meal-figure]").replaceChildren(box.querySelector("[data-talk-figure] svg").cloneNode(true));
         $("[data-meal-seated]").textContent = "隣の席に、" + box.dataset.name + "が座っている。";
         $("[data-meal-hint]").textContent = neighbor.dataset.hint;
         enter.hidden = true;

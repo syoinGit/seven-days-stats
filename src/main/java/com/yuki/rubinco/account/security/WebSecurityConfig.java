@@ -33,7 +33,7 @@ public class WebSecurityConfig {
             .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
             .requestMatchers(HttpMethod.OPTIONS, "/**").denyAll()
             .requestMatchers("/guild/maintenance", "/guild/maintenance/**").access(adminAccess.requests())
-            .requestMatchers(HttpMethod.GET, "/", "/guild", "/guild/characters/*", "/guild/log", "/guild/log/*", "/guild/pairs/*", "/guild/dungeon", "/guild/dungeon/*", "/guild/towns/*", "/guild/talks/*/choices/*", "/guild/signboard", "/guild/neighbor", "/guild/meal", "/guild/towns/*/meal").permitAll()
+            .requestMatchers(HttpMethod.GET, "/", "/guild", "/guild/characters/*", "/guild/log", "/guild/log/*", "/guild/pairs/*", "/guild/dungeon", "/guild/dungeon/*", "/guild/towns/*", "/guild/talks/*/choices/*", "/guild/neighbor", "/guild/meal", "/guild/towns/*/meal").permitAll()
             .requestMatchers("/octarine/maintenance/**", "/luminite/maintenance/**").access(adminAccess.requests())
             .requestMatchers("/maintenance/**", "/portal/maintenance/**").hasRole("ADMIN")
             .requestMatchers("/portal/profile").hasAnyRole("PLAYER", "MEMBER", "ADMIN")
@@ -45,8 +45,7 @@ public class WebSecurityConfig {
             // External IDs are masked only in HTML; raw API data requires a member account.
             .requestMatchers("/api/**").hasAnyRole("PLAYER", "ADMIN")
             .requestMatchers(
-                HttpMethod.POST, "/players/*/status", "/posts", "/posts/*/like",
-                "/posts/*/like.json", "/posts/*/react", "/posts/*/delete")
+                HttpMethod.POST, "/players/*/status", "/posts", "/posts/*/react", "/posts/*/delete")
             .hasAnyRole("PLAYER", "ADMIN")
             .anyRequest().authenticated())
         .formLogin(form -> form

@@ -77,9 +77,8 @@ class GuildAppearanceTests {
     }
   }
 
-  @Test void everyPoseAndPortraitUsesDrawnPartsWithMatchingIdentityChoices() throws Exception {
+  @Test void everyPoseUsesDrawnParts() throws Exception {
     var sd = drawn("static/img/guild-people.svg", "0 0 96 144");
-    var bust = drawn("static/img/guild-portraits.svg", "0 0 360 440");
     var outfits = java.util.stream.Stream.concat(GuildPeople.OUTFITS.values().stream(), GuildPeople.WOMEN.values().stream()).distinct().toList();
     for (String outfit : outfits) {
       for (String variant : GuildPeople.OUTFIT_VARIANTS) {
@@ -88,21 +87,12 @@ class GuildAppearanceTests {
         for (String contour : GuildPeople.HEAD_SHAPES) {
           for (String pose : GuildPeople.POSES) {
             var figure = look.layers(65, "穏やか", contour, pose);
-            var portrait = look.portraitLayers(65, "穏やか", contour, pose);
             assertThat(sd).containsAll(figure);
-            assertThat(bust).containsAll(portrait);
-            assertThat(portrait).contains("head-" + contour, "eyes-almond", "brows-arched", "hair-sidebraid", "hair-back-sidebraid", "acc-glasses", "age-elder", "pose-" + outfit + "-" + pose)
-                .doesNotContain("legs-skirt", "legs-pants");
             if (!pose.equals("rest")) assertThat(figure).contains("body-posed", "outfit-" + outfit + "-posed").doesNotContain("body-core", "outfit-" + outfit);
           }
         }
       }
     }
-    for (String hair : java.util.stream.Stream.concat(GuildPeople.MALE_HAIR.stream(), GuildPeople.FEMALE_HAIR.stream()).toList()) {
-      assertThat(bust).contains("hair-" + hair, "hair-back-" + hair);
-    }
-    for (String eye : GuildPeople.EYE_STYLES) assertThat(bust).contains("eyes-" + eye);
-    assertThat(bust).contains("resident");
   }
 
   @Test void activityAndPersonalitySelectGesturesWithoutChangingStoredIdentity() {
@@ -114,7 +104,6 @@ class GuildAppearanceTests {
     assertThat(new GuildService.Visit(resident, 1, "客に挨拶している").pose()).isEqualTo("wave");
     assertThat(GuildPeople.pose("腕組みしている", "rest")).isEqualTo("crossed");
     assertThat(GuildPeople.pose(null, "rest")).isEqualTo("rest");
-    assertThat(resident.portraitLayers()).contains("head-" + resident.contour(), "hair-braid", "acc-glasses", "pose-adventurer_f-think");
     assertThat(resident.spriteLayers("mug")).contains("head-" + resident.contour(), "hair-braid", "acc-glasses", "pose-adventurer_f-mug");
     assertThat(resident.look()).isSameAs(look);
     assertThat(look.layers(28, "慎重", "invalid", "invalid")).contains("head-soft", "body-core");

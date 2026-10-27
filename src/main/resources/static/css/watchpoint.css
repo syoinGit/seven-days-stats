@@ -102,7 +102,7 @@
 .watchpoint-body .page-title { padding:0 0 4px; border-bottom:0; }
 .watchpoint-body .page-title > p:last-child { font-size:13px; }
 .watchpoint-body .breadcrumbs { margin-bottom:12px; font-size:12px; }
-.watchpoint-body .panel, .watchpoint-body .player-card, .watchpoint-body .metric-card, .watchpoint-body .leader-card, .watchpoint-body .vehicle-card, .watchpoint-body .ranking-card, .watchpoint-body .diary-metrics article { border:1px solid var(--rb-line); border-radius:var(--rb-radius); background:var(--rb-surface); box-shadow:none; }
+.watchpoint-body .panel,.watchpoint-body .player-card,.watchpoint-body .metric-card,.watchpoint-body .vehicle-card,.watchpoint-body .ranking-card,.watchpoint-body .diary-metrics article{ border:1px solid var(--rb-line); border-radius:var(--rb-radius); background:var(--rb-surface); box-shadow:none; }
 .watchpoint-body .panel-head { align-items:center; padding:14px 18px; border-bottom:1px solid var(--rb-line); background:none; }
 .watchpoint-body .panel-head small { font-size:11px; letter-spacing:0; }
 .watchpoint-body .metric-card::before { top:14px; left:auto; right:14px; width:8px; height:8px; background:var(--signal); }
@@ -113,12 +113,12 @@
 .watchpoint-body th { color:var(--rb-muted); font-size:11px; letter-spacing:0; }
 .watchpoint-body th, .watchpoint-body td { font-size:12px; }
 .watchpoint-body .num, .watchpoint-body .ranking-card dd { font-family:inherit; font-variant-numeric:tabular-nums; }
-.watchpoint-body .ranking-card .rank, .watchpoint-body .leader-card > span { font-family:inherit; }
+.watchpoint-body .ranking-card .rank{ font-family:inherit; }
 .watchpoint-body .ranking-avatar, .watchpoint-body .profile-avatar { border-radius:10px; }
 .watchpoint-body .rank-name a { font-size:15px; }
-.watchpoint-body .activity-day > span, .watchpoint-body .activity-day small, .watchpoint-body .score-chart > small, .watchpoint-body .growth-chart > small, .watchpoint-body .server-chart-axis { font-family:inherit; font-size:11px; }
+.watchpoint-body .activity-day > span,.watchpoint-body .activity-day small,.watchpoint-body .growth-chart > small,.watchpoint-body .server-chart-axis{ font-family:inherit; font-size:11px; }
 .watchpoint-body .activity-day i { border-radius:3px 3px 0 0; box-shadow:none; }
-.watchpoint-body .score-legend span, .watchpoint-body .growth-legend span { font-size:12px; }
+.watchpoint-body .growth-legend span { font-size:12px; }
 .watchpoint-body .combat-log time, .watchpoint-body .timeline time, .watchpoint-body .incident-panel time { font-family:inherit; font-size:11px; }
 .watchpoint-body .combat-log div small { font-family:inherit; font-size:11px; }
 .watchpoint-body .enemy-ranking li span small, .watchpoint-body .vehicle-type-ranking small, .watchpoint-body .poi-row span, .watchpoint-body .poi-row p, .watchpoint-body .poi-row small { font-size:11px; }
