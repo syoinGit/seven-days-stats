@@ -297,7 +297,7 @@ public class GuildInteractionService {
       body = written.body();
       minds = written.thoughts();
       writtenBy = "ai";
-    } catch (GuildInteractionWriter.WritingException failure) {
+    } catch (GuildWritingException failure) {
       log.warn("Guild interaction writing failed ({}, {})", failure.call() ? "bedrock call" : "invalid output", failure.getMessage());
       if (!properties.interactionFallback().equals("template")) {
         return record(slot, "FAILED", (failure.call() ? "Bedrockの呼び出しに失敗しました（" : "AIの応答が形式に合いませんでした（")

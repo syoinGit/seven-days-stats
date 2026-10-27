@@ -4,7 +4,6 @@ import com.yuki.rubinco.shared.DisplayTimeFormatter;
 import com.yuki.rubinco.watchpoint.readmodel.ServerOverviewService.ServerHealth;
 import com.yuki.rubinco.watchpoint.readmodel.ServerOverviewService.ServerMetricPoint;
 import com.yuki.rubinco.watchpoint.readmodel.ServerOverviewService.ServerState;
-import com.yuki.rubinco.watchpoint.ai.AiCommentService;
 import com.yuki.rubinco.watchpoint.ingest.SevenDaysDataProperties;
 import com.yuki.rubinco.watchpoint.player.PlayerStatusCatalog;
 import java.math.BigDecimal;
@@ -40,7 +39,6 @@ public class DashboardViewService {
   private final JdbcTemplate jdbcTemplate;
   private final ServerOverviewService serverOverviewService;
   private final SevenDaysDataProperties properties;
-  private final AiCommentService aiCommentService;
   private final PoiNameService poiNameService;
   private final EventMessageFormatter eventMessageFormatter;
   private final DisplayTimeFormatter displayTimeFormatter = new DisplayTimeFormatter();

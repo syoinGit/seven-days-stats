@@ -100,7 +100,7 @@ public class GuildTalks {
       talk = writer.write(new GuildTalkWriter.Speaker(character.name(), character.profile(), character.personality(), character.introduction(),
           voices.of(character).describe(), character.village(), character.faction(), character.faith(), GuildPlaces.of(place).title(), others,
           thoughts.now(id)));
-    } catch (GuildTalkWriter.WritingException failure) {
+    } catch (GuildWritingException failure) {
       log.warn("Guild talk writing failed ({}, {})", failure.call() ? "bedrock call" : "invalid output", failure.getMessage());
       return "AIが会話を書けませんでした（" + (failure.call() ? "呼び出しの失敗" : "応答が条件を満たさない") + "）。";
     }

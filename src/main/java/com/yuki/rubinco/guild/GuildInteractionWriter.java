@@ -76,27 +76,11 @@ public class GuildInteractionWriter {
     }
   }
 
-  public static class WritingException extends RuntimeException {
-    private final boolean call;
-
-    /** The message is the refusal's reason, or the failure's class name (never text from the model or the request). */
-    WritingException(boolean call, RuntimeException cause) {
-      super(cause instanceof Refused ? cause.getMessage()
-          : cause instanceof com.yuki.rubinco.watchpoint.ai.AiCallBudget.ExceededException ? "AI呼び出しの上限に達した"
-          : cause.getClass().getSimpleName(), cause);
-      this.call = call;
-    }
-
-    public boolean call() {
-      return call;
-    }
-  }
-
   /** The scene ("narration\n名前「せりふ」\n…") and thoughts. An output whose scene doesn't hold is asked for once more. */
   public Written write(Scene scene) {
     try {
       return once(scene);
-    } catch (WritingException first) {
+    } catch (GuildWritingException first) {
       return once(scene);
     }
   }
@@ -125,13 +109,13 @@ public class GuildInteractionWriter {
           40文字以内。場面にない出来事や、決まっていない大きな変化は書かない）。URL・記号 < > / @ は使わない。
           """, input(scene), MAX_TOKENS, Duration.ofSeconds(60));
     } catch (RuntimeException failure) {
-      throw new WritingException(true, failure);
+      throw new GuildWritingException(true, failure);
     }
     String body;
     try {
       body = validate(result, scene);
     } catch (RuntimeException failure) {
-      throw new WritingException(false, failure);
+      throw new GuildWritingException(false, failure);
     }
     return new Written(body, thoughts(result, scene));
   }

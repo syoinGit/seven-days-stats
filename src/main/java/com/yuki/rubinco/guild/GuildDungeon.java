@@ -257,7 +257,7 @@ public class GuildDungeon {
     List<String> bodies;
     try {
       bodies = writer.write(run);
-    } catch (GuildDungeonWriter.WritingException failure) {
+    } catch (GuildWritingException failure) {
       log.warn("Guild dungeon writing failed ({}, {})", failure.call() ? "bedrock call" : "invalid output", failure.getMessage());
       return false;
     }

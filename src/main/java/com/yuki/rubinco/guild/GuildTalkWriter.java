@@ -40,19 +40,6 @@ public class GuildTalkWriter {
 
   public record Talk(String opening, List<Choice> choices) { }
 
-  public static class WritingException extends RuntimeException {
-    private final boolean call;
-
-    WritingException(boolean call, RuntimeException cause) {
-      super(cause.getClass().getSimpleName(), cause);
-      this.call = call;
-    }
-
-    public boolean call() {
-      return call;
-    }
-  }
-
   public Talk write(Speaker speaker) {
     String result;
     try {
@@ -68,12 +55,12 @@ public class GuildTalkWriter {
           reply＝住人の返し 40〜140文字）。改行なし。地の文や括弧書きの動作は入れず、せりふだけ。URL・記号 < > / @ は使わない。
           """, input(speaker), MAX_TOKENS, Duration.ofSeconds(45));
     } catch (RuntimeException failure) {
-      throw new WritingException(true, failure);
+      throw new GuildWritingException(true, failure);
     }
     try {
       return validate(result, speaker);
     } catch (RuntimeException failure) {
-      throw new WritingException(false, failure);
+      throw new GuildWritingException(false, failure);
     }
   }
 
