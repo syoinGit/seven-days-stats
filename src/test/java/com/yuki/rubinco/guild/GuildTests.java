@@ -50,6 +50,7 @@ class GuildTests {
   @Autowired GuildThoughts thoughts;
   @Autowired GuildRumors rumors;
   @Autowired GuildMenus menus;
+  @Autowired GuildWerewolf werewolf;
   @Autowired JdbcTemplate jdbc;
   @Autowired com.yuki.rubinco.account.repository.M_WebAccountRepository accounts;
   @Autowired MockMvc mvc;
@@ -377,6 +378,34 @@ class GuildTests {
             .doesNotContain("<", ">", "@", "/");
       }
     }
+  }
+
+  /**
+   * The werewolf table: the traveller and up to seven living residents, each with their lines in their own voice (the
+   * game itself runs in the browser). Too few residents and there is no game.
+   */
+  @Test void residentsPlayWerewolfInTheirOwnVoice() throws Exception {
+    for (int i = 0; i < 3; i++) resident("住人" + i, 30, "ALIVE", i);
+    mvc.perform(get("/guild/werewolf")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("卓を囲めません")))
+        .andExpect(content().string(not(containsString("data-wolf-player"))));
+    for (int i = 3; i < 9; i++) resident("住人" + i, 30, "ALIVE", i);
+    resident("故人", 30, "DEAD", 9);
+    String page = mvc.perform(get("/guild/werewolf")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("data-co=\"私が占い師ですわ。黙っていられなくて。\"")))
+        .andExpect(content().string(containsString("data-suspect=\"{t}さん、少し様子がおかしいかしら。\"")))
+        .andExpect(content().string(containsString("/js/guild-werewolf.js")))
+        .andExpect(content().string(containsString("href=\"/guild/werewolf\" aria-current=\"page\"")))
+        .andReturn().getResponse().getContentAsString();
+    assertThat(page.split("data-wolf-player=", -1)).hasSize(GuildWerewolf.MAX + 1);
+    assertThat(page).doesNotContain("故人");
+    // The game's script is only on its own page.
+    mvc.perform(get("/guild")).andExpect(content().string(not(containsString("guild-werewolf.js"))));
+    // Every voice has every line; a first person named in the personality is used.
+    long own = resident("おいら", 30, "ALIVE", 10);
+    jdbc.update("UPDATE M_GUILD_CHARACTER SET personality = '一人称は「おいら」。気が強い。' WHERE id = ?", own);
+    assertThat(werewolf.lines(guild.character(own))).containsOnlyKeys(GuildWerewolf.KINDS).containsEntry("co", "おいらが占い師さ。隠してても仕方ないだろ。");
+    assertThat(werewolf.version()).isNotBlank();
   }
 
   /** At most five new residents a day, even when the setting asks for more. */

@@ -689,3 +689,35 @@
 .meal-level{margin:0;min-height:1.5em;font-size:14px;color:#ffd58a}
 @media(max-width:650px){.meal-neighbor-figure .guild-sprite{width:48px;height:72px}.meal-menu{padding:16px 10px 12px}.meal-sections{grid-template-columns:1fr}
   .menu-tags .meal-item{min-height:180px;padding:10px 4px}.menu-tags .meal-item-name{font-size:15px}.menu-tags .meal-sections{gap:10px}}
+/* The werewolf game: the seats around the table (greyed when dead, marked with what the traveller knows), the talk as a
+   log, and the traveller's buttons under it. */
+.guild-wolf{color:#e9dfdf}
+.guild-shell .wolf-lead,.wolf-lead{margin:0 0 12px;font-size:14px;line-height:1.8;color:#d9c3a0}
+.wolf-seats{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:8px;margin:0 0 10px;padding:10px;list-style:none;background:#2a1d26;border:3px solid #4a3438}
+.wolf-seat{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 2px;text-align:center;border:2px solid transparent}
+.wolf-seat .guild-sprite{width:40px;height:60px}
+.wolf-you-mark{display:grid;place-items:center;width:40px;height:40px;margin:10px 0;border-radius:50%;background:#7a4a24;border:2px solid #d8a35a;color:#fff3dc;font-size:16px}
+.wolf-name{font-size:12px;color:#f0d8c2;overflow-wrap:anywhere}
+.wolf-tag{min-height:1.4em;font-size:10px;line-height:1.4;color:#ffd58a}
+.wolf-seat.dead{opacity:.45}.wolf-seat.dead .guild-sprite{filter:grayscale(1)}
+.wolf-seat.wolf-mark{border-color:#c8382c}.wolf-seat.human-mark{border-color:#6fa8d8}
+.wolf-seat.revealed{opacity:1}
+.guild-shell .wolf-status,.wolf-status{margin:0 0 8px;font-size:13px;color:#ffd58a}
+.wolf-log{max-height:46vh;margin:0 0 12px;padding:8px 10px;overflow-y:auto;list-style:none;background:#1a1320;border:2px solid #3e2e41}
+.wolf-log li{margin:0;padding:5px 0;font-size:14px;line-height:1.7}
+.wolf-narr{color:#c6b8c7}.wolf-narr.big{margin-top:6px;color:#f0d8c2;font-weight:bold}
+.wolf-narr.secret{color:#bfe0ff}.wolf-narr.death{color:#ff9a8a}.wolf-narr.vote{padding:0;font-size:12px;color:#a991a3}
+.wolf-say{display:grid;grid-template-columns:auto 1fr;gap:0 8px;align-items:start}
+.wolf-say b{font-size:12px;color:#ffe0a8}.wolf-say span:last-child{grid-column:2;color:#e9dfdf}
+.wolf-face{grid-row:span 2;width:28px;height:28px;overflow:hidden}
+.wolf-face .guild-sprite{width:28px;height:42px}
+.wolf-face .wolf-you-mark{width:24px;height:24px;margin:2px;font-size:11px}
+.wolf-say.you b{color:#ffd58a}
+.wolf-actions{position:sticky;bottom:0;min-height:52px;padding:8px 0;background:#201927}
+.guild-shell .wolf-prompt,.wolf-prompt{margin:0 0 8px;font-size:14px;color:#f0d8c2}
+.wolf-buttons{display:flex;flex-wrap:wrap;gap:8px}
+.wolf-buttons .meal-button{padding:8px 14px;font-size:14px}
+.wolf-buttons .meal-button.quiet{background:none;border-color:#8c6f7d;color:#e0c8cf}
+.wolf-rules{margin:14px 0 6px;font-size:13px}.wolf-rules summary{cursor:pointer;color:#efbea9}
+@media(max-width:650px){.wolf-seats{grid-template-columns:repeat(4,1fr);gap:2px;padding:4px}.wolf-seat .guild-sprite{width:30px;height:45px}
+  .wolf-you-mark{width:30px;height:30px;margin:8px 0 7px;font-size:13px}.wolf-log{max-height:38vh}.guild-shell .wolf-lead,.wolf-lead{font-size:13px}}

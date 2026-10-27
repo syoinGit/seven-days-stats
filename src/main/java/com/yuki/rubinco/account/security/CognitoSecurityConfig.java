@@ -87,7 +87,7 @@ public class CognitoSecurityConfig {
             .requestMatchers(HttpMethod.TRACE, "/**").denyAll()
             .requestMatchers(HttpMethod.OPTIONS, "/**").denyAll()
             .requestMatchers("/guild/maintenance", "/guild/maintenance/**").access(adminAccess.requests())
-            .requestMatchers(HttpMethod.GET, "/", "/guild", "/guild/characters/*", "/guild/log", "/guild/log/*", "/guild/pairs/*", "/guild/dungeon", "/guild/dungeon/*", "/guild/towns/*", "/guild/talks/*/choices/*", "/guild/neighbor", "/guild/meal", "/guild/towns/*/meal").permitAll()
+            .requestMatchers(HttpMethod.GET, "/", "/guild", "/guild/characters/*", "/guild/log", "/guild/log/*", "/guild/pairs/*", "/guild/dungeon", "/guild/dungeon/*", "/guild/towns/*", "/guild/talks/*/choices/*", "/guild/neighbor", "/guild/meal", "/guild/towns/*/meal", "/guild/werewolf").permitAll()
             .requestMatchers("/octarine/maintenance/**", "/luminite/maintenance/**").access(adminAccess.requests())
             .requestMatchers("/maintenance/**", "/portal/maintenance/**").hasRole("ADMIN")
             .requestMatchers("/portal/profile").hasAnyRole("PLAYER", "MEMBER", "ADMIN")
