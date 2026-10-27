@@ -45,20 +45,48 @@ symbol('body', ellipse(48,136,28,4,'#171322',extra='opacity=".22"'),
     path('M24 37 Q22 14 48 14 Q74 14 72 37 L71 49 Q68 64 48 66 Q28 64 25 49Z',SKIN),
     path('M27 47 Q31 61 49 62 Q63 61 70 50 Q66 65 48 66 Q30 64 27 47Z','#a85f4b','none',extra='opacity=".18"'),
     ellipse(33,51,5,2.5,'#d27c73',extra='opacity=".3"'),ellipse(63,51,5,2.5,'#d27c73',extra='opacity=".3"'),
-    ellipse(36,43,5,6.5,'#fff5e7'),ellipse(60,43,5,6.5,'#fff5e7'),
-    ellipse(37,44,3.4,5,'var(--eye,#3f4a41)'),ellipse(59,44,3.4,5,'var(--eye,#3f4a41)'),
-    ellipse(37.5,45,1.5,3,INK),ellipse(58.5,45,1.5,3,INK),
-    ellipse(38,42,1.2,1.5,'#fff'),ellipse(60,42,1.2,1.5,'#fff'),
-    path('M32 39 Q36 36 40 39 M56 39 Q60 36 64 39',width=1.8),
     path('M47 47 L46 50 H49',stroke='#a96f59',width=1.3),
     path('M43 55 Q48 58 53 55',stroke='#935d52',width=1.6))
-symbol('face-m',path('M31 35 L40 34 M56 34 L65 35',stroke=HAIR,width=2.6))
-symbol('face-f',path('M31 40 L29 38 M65 40 L67 38',width=1.8),path('M32 35 Q36 33 40 35 M56 35 Q60 33 64 35',stroke=HAIR,width=1.7))
+symbol('face-m',path('M31 58 Q33 61 36 61 M60 61 Q63 61 65 58',stroke='#a96f59',width=1,extra='opacity=".4"'))
+symbol('face-f',ellipse(31,52,4,2,'#d27c73',extra='opacity=".2"'),ellipse(65,52,4,2,'#d27c73',extra='opacity=".2"'))
+# Each eye has its own silhouette, clipped iris, upper lash and reflected light.
+# Fixed local clipping IDs are unique across the sheet and independent of resident colours.
+eye_shapes = {
+    'round': ('M-6 0 C-6-9 6-9 6 0 C6 8-6 8-6 0Z', 'M-6-1 Q-1-10 6-1', 4, 5.5, 0),
+    'almond': ('M-7 0 Q0-8 7-1 Q1 8-7 0Z', 'M-7 0 Q0-8 7-1', 3.8, 4.8, 0),
+    'droop': ('M-7 2 Q-1-7 7-3 Q0 9-7 2Z', 'M-7 2 Q-1-7 7-3', 3.8, 4.6, 1),
+    'sharp': ('M-7-6 Q0-3 7 2 Q4 7-1 6 Q-8 4-7-6Z', 'M-7-6 Q0-3 7 2', 3.2, 4.5, 0),
+    'sleepy': ('M-7-1 L7-1 Q5 8-2 6 Q-6 5-7-1Z', 'M-7-1 L7-1', 3.7, 4.8, 2),
+    'wide': ('M-7 0 C-7-11 7-11 7 0 C7 10-7 10-7 0Z', 'M-7-1 Q0-12 7-1', 4.6, 6.2, 0),
+    'narrow': ('M-7 0 Q0-4 7-1 Q1 5-7 0Z', 'M-7 0 Q0-4 7-1', 3, 3.6, 0),
+    'sparkle': ('M-7 0 C-7-10 7-10 7 0 C7 10-7 10-7 0Z', 'M-7-1 Q0-11 7-1', 5.1, 6.5, 0),
+}
+for name,(shape,lid,rx,ry,iy) in eye_shapes.items():
+    art = ''
+    for x,mirror in [(36,1),(60,-1)]:
+        clip = f'eye-{name}-{x}'
+        eye = f'<defs><clipPath id="{clip}"><path d="{shape}"/></clipPath></defs>'
+        eye += path(shape,'#fff5eb',width=1)
+        iris = ellipse(0,iy,rx,ry,'var(--eye,#3f4a41)')
+        iris += ellipse(0,iy-2,rx,ry,INK,extra='opacity=".28"')
+        iris += path(f'M{-rx*.65} {iy+ry*.55} Q0 {iy+ry} {rx*.65} {iy+ry*.55}',stroke='#f9db9c',width=1.3,extra='opacity=".65"')
+        iris += ellipse(0,iy+.5,1.6,ry*.66,INK)
+        iris += ellipse(-1.6,iy-2.5,1.8,2,'#fff')+ellipse(2.3,iy+2.7,.9,1,'#fff',extra='opacity=".85"')
+        if name=='sparkle': iris+=path('M2-2 L2.5-.5 L4 0 L2.5.5 L2 2 L1.5.5 L0 0 L1.5-.5Z','#fff','none')
+        eye += f'<g clip-path="url(#{clip})">{iris}</g>'
+        eye += path(lid,stroke=INK,width=2.2)+path('M-6-1 L-8-3',stroke=INK,width=1.5)
+        art += f'<g transform="translate({x} 44) scale({mirror} 1)">{eye}</g>'
+    symbol('eyes-'+name,art)
+symbol('eyes-smile',path('M29 45 Q36 34 43 45 M53 45 Q60 34 67 45',width=2.7),
+       path('M30 46 Q36 42 42 46 M54 46 Q60 42 66 46',stroke='#a96f59',width=1,extra='opacity=".5"'))
+symbol('brows-natural',path('M30 34 Q36 31 42 34 M54 34 Q60 31 66 34',stroke=HAIR,width=2))
+symbol('brows-straight',path('M30 34 L42 35 M54 35 L66 34',stroke=HAIR,width=2.8))
+symbol('brows-arched',path('M30 35 Q35 29 42 33 M54 33 Q61 29 66 35',stroke=HAIR,width=1.7))
 # Expression overlays deliberately stay below hair and eyewear.
 symbol('expression-bright',ellipse(48,56,7,4,SKIN),path('M42 54 Q48 57 54 54 Q53 62 48 62 Q43 61 42 54Z','#8a474b',width=1.3),path('M44 55 H52 L51 57 H45Z',CREAM,'none'))
-symbol('expression-resolute',path('M31 34 L40 37 M56 37 L65 34',stroke=HAIR,width=2.5),ellipse(48,56,7,4,SKIN),path('M44 56 Q48 55 52 56',stroke='#935d52',width=1.7))
-symbol('expression-thoughtful',path('M31 35 Q36 31 40 34 M56 34 L64 35',stroke=HAIR,width=2),ellipse(48,56,7,4,SKIN),path('M45 57 Q49 55 53 56',stroke='#935d52',width=1.5))
-symbol('expression-gentle',path('M31 35 Q36 32 40 35 M56 35 Q60 32 65 35',stroke=HAIR,width=1.7),ellipse(48,56,7,4,SKIN),path('M42 55 Q48 61 54 55',stroke='#935d52',width=1.7))
+symbol('expression-resolute',ellipse(48,56,7,4,SKIN),path('M44 56 Q48 55 52 56',stroke='#935d52',width=1.7))
+symbol('expression-thoughtful',ellipse(48,56,7,4,SKIN),path('M45 57 Q49 55 53 56',stroke='#935d52',width=1.5))
+symbol('expression-gentle',ellipse(48,56,7,4,SKIN),path('M42 55 Q48 61 54 55',stroke='#935d52',width=1.7))
 symbol('age-mature',path('M28 47 L31 48 M65 48 L68 47 M36 54 L37 56 M59 56 L60 54',stroke='#a56d58',width=1,extra='opacity=".6"'))
 symbol('age-elder',path('M28 46 L31 47 M27 49 L31 49 M65 47 L68 46 M65 49 L69 49 M35 53 Q33 56 36 58 M61 53 Q63 56 60 58 M42 61 Q48 63 54 61',stroke='#9d6c58',width=1.2,extra='opacity=".75"'))
 symbol('age-young',ellipse(31,51,1,1,'#a96f59'),ellipse(35,53,1,1,'#a96f59'),ellipse(61,53,1,1,'#a96f59'),ellipse(65,51,1,1,'#a96f59'))
@@ -92,6 +120,66 @@ for name, d in hairs.items():
     detail = seam('M30 26 Q36 18 44 18 M58 18 Q65 20 67 26')
     tie = ellipse(73,37,4,3,SECOND,INK,1) if name in ('tied','tail','braid') else ''
     symbol('hair-'+name,extras.get(name,''),path(d,HAIR),detail,tie)
+
+# Added cuts retain the face opening; back lengths and bangs both vary.
+new_hairs = {
+ 'sidepart': 'M24 45 Q15 22 35 15 Q61 5 73 26 L70 43 L64 30 Q50 24 28 36Z',
+ 'curly': 'M23 45 Q14 39 20 30 Q13 21 25 18 Q25 9 36 13 Q44 3 53 12 Q65 7 69 18 Q81 20 74 31 Q80 42 70 47 L65 33 Q57 38 51 29 Q43 38 35 30 L29 46Z',
+ 'undercut': 'M25 44 L24 25 Q28 14 48 13 Q68 12 73 25 L66 34 L64 25 Q46 33 28 31Z',
+ 'slicked': 'M25 42 Q17 17 39 13 Q67 9 73 27 L69 43 L64 29 Q48 22 31 29 L29 43Z',
+ 'messy': 'M23 47 L18 37 L23 29 L19 22 L32 22 L30 13 L43 18 L47 9 L56 17 L69 13 L69 24 L77 27 L71 37 L75 47 L64 42 L63 32 L52 37 L44 29 L33 36 L29 49Z',
+ 'centerpart': 'M24 45 Q15 19 38 13 Q48 11 48 17 Q53 8 67 17 Q78 27 71 45 L65 33 Q53 31 48 20 Q43 32 30 34 L29 46Z',
+ 'quiff': 'M24 43 Q17 26 32 22 Q27 9 44 8 Q67 4 73 22 Q76 33 70 45 L65 30 Q48 35 30 31Z',
+ 'wolf': 'M24 54 L18 58 L21 43 L18 33 L24 22 L23 17 L39 15 L46 9 L53 16 L68 14 L75 30 L72 45 L78 59 L64 53 L64 33 L54 38 L45 28 L33 37 L31 52Z',
+ 'buzz': 'M24 41 L25 27 Q29 15 48 16 Q67 15 71 27 L72 41 L67 36 L65 27 Q48 22 31 27 L29 36Z',
+ 'layered': 'M23 49 Q15 28 28 19 Q47 7 65 17 Q79 25 73 47 L67 51 L65 32 L57 38 L51 31 L42 38 L35 31 L29 49Z',
+ 'windswept': 'M23 45 L20 32 L25 22 L39 19 L36 10 L53 16 L61 10 L66 20 L80 19 L73 30 L76 40 L66 36 L61 28 L45 35 L31 33 L28 45Z',
+ 'lowtail': 'M23 44 Q18 18 40 13 Q67 8 73 27 L71 44 L66 32 Q49 22 29 33 L29 46Z',
+ 'highknot': 'M24 44 Q17 21 37 14 Q64 9 73 27 L71 44 L65 32 Q48 24 31 33 L29 46Z',
+ 'mohawk': 'M25 42 L25 27 Q31 16 41 18 L44 7 L50 11 L55 6 L60 20 Q69 21 71 31 L70 43 L64 30 L53 34 L44 24 L30 33Z',
+ 'pixie': 'M23 44 L20 30 Q23 14 43 13 Q64 7 73 25 L72 43 L65 35 L60 25 L47 35 L39 28 L28 41Z',
+ 'lob': 'M22 67 L21 31 Q25 11 47 12 Q70 9 75 31 L75 67 Q68 73 62 65 L66 34 Q51 34 47 24 Q40 35 29 35 L34 65 Q27 72 22 67Z',
+ 'sidebraid': 'M23 57 Q16 29 25 20 Q43 5 62 15 Q76 21 73 41 L66 35 L64 26 Q44 37 29 35 L32 56Z',
+ 'doublebraid': 'M23 45 Q17 18 41 12 Q67 8 73 27 L73 45 L66 35 L63 25 L53 33 L46 24 L32 35 L29 46Z',
+ 'lowbun': 'M23 43 Q17 20 36 15 Q61 6 74 26 L72 44 L65 33 Q49 25 29 34Z',
+ 'doublebun': 'M24 43 Q17 20 37 14 Q64 8 73 28 L71 44 L65 34 L58 28 L48 34 L38 27 L30 35 L29 44Z',
+ 'highpony': 'M24 44 Q17 21 37 13 Q64 7 73 27 L71 44 L65 33 Q50 23 29 34Z',
+ 'sidepony': 'M24 44 Q17 24 35 16 Q57 6 72 24 L72 43 L65 32 Q52 33 45 25 Q39 37 29 36Z',
+ 'ringlets': 'M21 70 Q14 62 21 53 Q13 44 21 35 Q17 17 37 13 Q65 7 74 28 L73 40 Q82 48 75 56 Q83 64 76 74 L65 74 Q60 66 66 59 Q59 51 65 43 L65 32 L54 34 L46 24 L30 35 Q36 44 29 52 Q36 60 29 68 Q32 77 21 70Z',
+ 'feathered': 'M23 58 L16 60 L22 47 L18 40 L24 24 Q34 10 52 13 Q70 11 75 29 L73 43 L79 56 L67 59 L64 34 L55 39 L48 28 L37 38 L30 35 L30 55Z',
+ 'straight': 'M22 82 L22 29 Q25 12 48 12 Q71 12 74 29 L74 82 L63 82 L65 34 L31 34 L33 82Z',
+ 'halfup': 'M22 73 Q17 30 24 22 Q30 12 48 12 Q70 9 74 28 L76 75 L63 76 L65 35 Q54 33 49 25 Q41 36 29 35 L34 75Z',
+ 'crown': 'M23 69 Q17 29 25 20 Q44 5 64 16 Q76 24 73 44 L76 70 L64 73 L65 34 L51 31 L46 24 L29 35 L33 71Z',
+ 'shortwave': 'M22 57 Q13 49 21 40 Q16 29 24 21 Q34 9 51 12 Q70 10 75 30 Q81 41 74 48 Q79 60 65 62 L63 51 L66 35 Q52 35 47 25 Q40 36 29 35 L32 50 L31 60Z',
+ 'ribbonbraid': 'M23 43 Q17 21 37 14 Q64 9 73 27 L71 44 L65 33 L55 32 L48 25 L37 35 L29 33Z',
+ 'sidelong': 'M22 75 Q16 28 26 20 Q44 7 63 16 Q77 25 72 44 L66 35 L64 26 Q46 39 29 36 L33 76Z',
+}
+new_extras = {
+ 'lowtail':path('M69 43 Q84 45 79 64 L83 73 Q67 71 68 53Z',HAIR),
+ 'highknot':ellipse(51,9,11,7,HAIR,INK)+rect(41,14,20,4,SECOND),
+ 'lowbun':ellipse(73,45,10,11,HAIR,INK),
+ 'doublebun':ellipse(23,19,10,10,HAIR,INK)+ellipse(73,19,10,10,HAIR,INK),
+ 'highpony':path('M64 16 Q91 10 84 43 L90 70 Q70 74 73 46 L68 28Z',HAIR),
+ 'sidepony':path('M71 27 Q91 24 84 49 L89 77 Q76 79 72 63 L75 45Z',HAIR),
+ 'halfup':path('M70 24 Q87 20 80 43 L84 58 Q71 57 71 40Z',HAIR),
+ 'sidelong':path('M28 51 Q13 59 20 83 Q32 94 37 78 L34 60Z',HAIR),
+}
+for name in ('sidebraid','doublebraid','ribbonbraid'):
+    xs = [24,72] if name=='doublebraid' else [72]
+    new_extras[name] = ''.join(ellipse(x+(i%2)*2,48+i*6,5,5,HAIR,INK,1.3) for x in xs for i in range(7))
+    new_extras[name] += ''.join(path(f'M{x-3} 87 L{x+5} 87 L{x+2} 94Z',HAIR) for x in xs)
+for name,d in new_hairs.items():
+    art = new_extras.get(name,'')+path(d,HAIR)
+    art += path(d,'#120c20','none',extra='opacity=".05"')
+    art += seam('M30 25 Q36 18 42 18 M58 18 Q64 20 67 26')
+    if name in ('slicked','undercut','buzz'):
+        art += path('M31 26 Q45 17 62 22 M33 23 Q47 15 59 19',stroke='#fff5dd',width=1,extra='opacity=".3"')
+    if name=='crown':
+        art += ''.join(ellipse(29+i*6,25-((i-3)**2)*-.35,4,3,HAIR,INK,1) for i in range(7))
+    if name=='ribbonbraid':
+        art += path('M69 52 L77 59 L70 66 L77 73 L70 80',stroke=SECOND,width=2.5)
+        art += path('M73 87 L64 81 L64 90 L73 88 L82 91 L82 82Z',SECOND)
+    symbol('hair-'+name,art)
 
 # Clothes share tailoring primitives but every profession has a distinct silhouette/prop.
 def coat(female=False, long=False, fill=CLOTH):
@@ -162,6 +250,34 @@ for job in jobs:
         if job=='miko_m': art+=path('M77 115 V79',stroke=LEATHER,width=3)+path('M77 81 L86 85 L80 91 L87 96 L81 103 L74 96 L80 91 L73 85Z',CREAM,width=1)
     symbol('outfit-'+name,art)
 
+# Three cuts per profession: classic, a practical travel cut, and ornamented formal dress.
+for job in jobs:
+  for female in (False,True):
+    name = ('miko' if female else 'miko_m') if job=='miko_m' else job+('_f' if female else '')
+    travel = path('M32 69 Q48 78 64 69 L62 79 Q48 88 34 79Z',SECOND)
+    travel += path('M58 80 L67 82 L71 97 L62 93Z',SECOND)+ellipse(36,76,2,2,GOLD,INK,1)
+    travel += path('M34 109 L42 107 L44 116 L36 118Z',LEATHER,width=1.4)+seam('M36 111 L41 114')
+    formal = path('M33 70 L39 74 L35 88 L30 84Z',SECOND)+path('M63 70 L57 74 L61 88 L66 84Z',SECOND)
+    formal += path('M34 72 L37 75 L33 84 M62 72 L59 75 L63 84',stroke=GOLD,width=1.4)
+    formal += path('M25 91 L30 93 M66 93 L71 91',stroke=GOLD,width=2.4)
+    if job in ('samurai','ronin','miko_m'):
+        travel = rect(31,95,34,8,SECOND)+path('M33 108 L39 105 L42 113 L36 116Z',LEATHER)
+        travel += path('M60 98 L66 106 L59 110 L55 102Z',SECOND)
+        formal = path('M34 72 L54 94 M62 72 L42 94',stroke=GOLD,width=1.5)+rect(31,95,34,8,SECOND)
+        formal += ''.join(ellipse(x,99,1.5,1.5,GOLD) for x in [36,42,48,54,60])
+    elif job in ('farmer','cook','crafter'):
+        travel += rect(42,90,13,8,LEATHER,1)+path('M45 91 V97 M50 91 V97',stroke=GOLD,width=1)
+        formal += path('M39 93 H57 M38 96 H58 M37 111 Q48 115 59 111',stroke=GOLD,width=1.2)
+        formal += ellipse(48,85,2.5,3,GOLD,INK,1)
+    elif job=='knight':
+        travel += path('M37 86 L42 94 M59 86 L54 94',stroke=LEATHER,width=3)
+        formal += path('M24 76 Q28 70 33 77 M63 77 Q68 70 72 76',stroke=GOLD,width=2)
+        formal += path('M36 109 Q48 115 60 109',stroke=GOLD,width=2)
+    else:
+        formal += path('M39 81 Q48 94 57 81',stroke=GOLD,width=1.5)+ellipse(48,88,2,3,GOLD)
+    symbol('dress-'+name+'-travel',travel)
+    symbol('dress-'+name+'-formal',formal)
+
 # Hats leave eyes and most of the fringe visible.
 hats = {
 'farmer':path('M29 25 Q30 7 48 8 Q66 7 67 25Z','#d9b979')+ellipse(48,26,33,6,'#dfc28a',INK)+path('M30 20 Q48 25 66 20',stroke=LEATHER,width=4)+seam('M34 12 L33 18 M41 10 L40 20 M54 10 L55 20 M62 13 L63 18'),
@@ -191,7 +307,7 @@ symbol('acc-earrings',ellipse(24,51,3,4,GOLD,INK,1),ellipse(72,51,3,4,GOLD,INK,1
 symbol('acc-hairband',path('M24 31 Q48 9 72 31',stroke=SECOND,width=5),path('M26 29 Q48 12 70 29',stroke=GOLD,width=1))
 symbol('acc-glasses',ellipse(36,44,8,7,'none',LEATHER,1.8),ellipse(60,44,8,7,'none',LEATHER,1.8),path('M44 43 Q48 40 52 43 M28 43 L24 41 M68 43 L72 41',stroke=LEATHER,width=1.5),seam('M31 43 L35 39 M55 43 L59 39'))
 # Legacy/invalid records also get SD artwork; currentColor retains their old tint.
-symbol('resident','<g style="--cloth:currentColor">'+''.join(parts[k] for k in ['body','face-m','legs-pants','outfit-adventurer','hair-short'])+'</g>')
+symbol('resident','<g style="--cloth:currentColor">'+''.join(parts[k] for k in ['body','eyes-round','face-m','brows-natural','legs-pants','outfit-adventurer','hair-short'])+'</g>')
 
 out = ['<svg xmlns="http://www.w3.org/2000/svg">',
        '  <!-- Generated by scripts/guild/generate-people.py. Stable IDs preserve saved residents. -->']

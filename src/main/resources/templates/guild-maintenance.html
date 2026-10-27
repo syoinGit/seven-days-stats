@@ -63,18 +63,26 @@
 </section>
 
 <section class="guild-panel" id="residents"><h2>住人（新しい順）</h2>
+  <p>目元や外見を引き直せます。名前・年齢・性別・職業・性格・記憶はそのままです。「外見」は肌の色を保ち、髪・服の配色・衣装の差分・小物も選び直します。変更はすぐに保存され、街と立ち絵に反映されます。</p>
   <p th:if="${#lists.isEmpty(characters)}">まだ住人はいません。</p>
   <ul class="guild-jobs guild-admin-residents">
-    <li th:each="character : ${characters}">
+    <li th:each="character : ${characters}" th:id="${'resident-' + character.id}">
+      <svg th:replace="~{fragments/guild :: sprite(${character})}"></svg>
       <div><a th:href="@{/guild/characters/{id}(id=${character.id})}" th:text="${character.name}">リネ</a>
         <small th:text="${#temporals.format(character.bornOn, 'yyyy年M月d日') + ' 誕生' + (character.profile().isEmpty() ? '' : ' / ' + character.profile())}"></small>
         <p th:text="${character.memoryLabel ?: character.gameName() + '（記憶の記録なし）'}"></p>
         <details th:if="${worlds[character.id] != null}"><summary>AIが読んだ「その頃の世界」</summary>
           <pre class="guild-world" th:text="${worlds[character.id]}"></pre></details></div>
+      <div class="guild-appearance-actions">
+      <form method="post" th:action="@{/guild/maintenance/characters/{id}/appearance(id=${character.id})}">
+        <button type="submit" name="mode" value="eyes">目元を引き直す</button>
+        <button type="submit" name="mode" value="all">外見を引き直す</button>
+      </form>
       <form method="post" th:action="@{/guild/maintenance/characters/{id}/delete(id=${character.id})}">
         <label><input type="checkbox" name="confirm" required> 削除する</label>
         <button type="submit">削除</button>
       </form>
+      </div>
     </li>
   </ul>
   <p>削除すると、その住人の来店記録も消えます。使っていた記憶は、また別の住人に使われることがあります。</p>

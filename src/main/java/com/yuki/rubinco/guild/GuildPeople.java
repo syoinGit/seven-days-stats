@@ -83,8 +83,15 @@ public class GuildPeople {
   }
 
   /** Hair styles and accessories are split by gender; glasses suit anyone. "none" leaves the face bare. */
-  static final List<String> MALE_HAIR = List.of("short", "cropped", "spiky", "swept", "shaggy", "topknot", "tail");
-  static final List<String> FEMALE_HAIR = List.of("long", "bob", "tied", "braid", "twintail", "bun", "wavy", "hime");
+  static final List<String> MALE_HAIR = List.of("short", "cropped", "spiky", "swept", "shaggy", "topknot", "tail",
+      "sidepart", "curly", "undercut", "slicked", "messy", "centerpart", "quiff", "wolf", "buzz",
+      "layered", "windswept", "lowtail", "highknot", "mohawk");
+  static final List<String> FEMALE_HAIR = List.of("long", "bob", "tied", "braid", "twintail", "bun", "wavy", "hime",
+      "pixie", "lob", "sidebraid", "doublebraid", "lowbun", "doublebun", "highpony", "sidepony",
+      "ringlets", "feathered", "straight", "halfup", "crown", "shortwave", "ribbonbraid", "sidelong");
+  static final List<String> EYE_STYLES = List.of("round", "almond", "droop", "sharp", "sleepy", "wide", "narrow", "sparkle", "smile");
+  static final List<String> BROW_STYLES = List.of("natural", "straight", "arched");
+  static final List<String> OUTFIT_VARIANTS = List.of("classic", "travel", "formal");
   static final List<String> MALE_ACCESSORIES = List.of("none", "none", "none", "beard", "mustache", "stubble", "eyepatch", "scar", "glasses");
   static final List<String> FEMALE_ACCESSORIES = List.of("none", "none", "none", "ribbon", "flower", "earrings", "hairband", "glasses");
   private static final List<String> HAIR_COLORS = List.of("#2b2224", "#4a2f25", "#6e4630", "#a0683a", "#d6a85a", "#e8d6b0", "#8c8c96", "#a0413c",
@@ -103,13 +110,16 @@ public class GuildPeople {
    * unknown); accessory and eye are null for residents born before V60.
    */
   public record Look(String outfit, String hair, String hairColor, String skin, String cloth, String cloth2, String legs,
-                     String face, String accessory, String eye) {
+                     String face, String accessory, String eye, String eyeStyle, String browStyle, String outfitVariant) {
     /** Symbol ids in /img/guild-people.svg, drawn bottom to top. */
     public List<String> layers() {
       List<String> layers = new ArrayList<>(List.of("body"));
+      layers.add("eyes-" + eyeStyle);
       if (face != null) layers.add("face-" + face);
+      layers.add("brows-" + browStyle);
       if (legs != null) layers.add("legs-" + legs);
       layers.add("outfit-" + outfit);
+      if (!outfitVariant.equals("classic")) layers.add("dress-" + outfit + "-" + outfitVariant);
       layers.add("hair-" + hair);
       if (accessory != null && !accessory.equals("none")) layers.add("acc-" + accessory);
       if (HATS.contains(outfit)) layers.add("hat-" + outfit);
@@ -119,7 +129,7 @@ public class GuildPeople {
     /** Permanent character cues, not the emotion of the current dialogue. No new stored/random choices. */
     public List<String> layers(Integer age, String personality) {
       List<String> layers = layers();
-      int faceEnd = face == null ? 1 : 2;
+      int faceEnd = face == null ? 3 : 4;
       if (age != null) {
         if (age >= 60) layers.add(faceEnd, "age-elder");
         else if (age >= 40) layers.add(faceEnd, "age-mature");
@@ -141,6 +151,11 @@ public class GuildPeople {
     /** Null unless every part is a known one; old or edited rows fall back to the plain resident. */
     static Look of(String outfit, String hair, String hairColor, String skin, String cloth, String cloth2, String gender,
                    String accessory, String eye) {
+      return of(outfit, hair, hairColor, skin, cloth, cloth2, gender, accessory, eye, null, null, null);
+    }
+
+    static Look of(String outfit, String hair, String hairColor, String skin, String cloth, String cloth2, String gender,
+                   String accessory, String eye, String eyeStyle, String browStyle, String outfitVariant) {
       if (outfit == null || !ALL_OUTFITS.contains(outfit)) return null;
       if (!MALE_HAIR.contains(hair) && !FEMALE_HAIR.contains(hair)) return null;
       if (accessory != null && !MALE_ACCESSORIES.contains(accessory) && !FEMALE_ACCESSORIES.contains(accessory)) return null;
@@ -148,9 +163,13 @@ public class GuildPeople {
         if (color == null || !color.matches("#[0-9a-f]{6}")) return null;
       }
       if (eye != null && !eye.matches("#[0-9a-f]{6}")) return null;
+      if (eyeStyle == null) eyeStyle = "round";
+      if (browStyle == null) browStyle = "natural";
+      if (outfitVariant == null) outfitVariant = "classic";
+      if (!EYE_STYLES.contains(eyeStyle) || !BROW_STYLES.contains(browStyle) || !OUTFIT_VARIANTS.contains(outfitVariant)) return null;
       String legs = FULL_OUTFITS.contains(outfit) ? null : "女性".equals(gender) ? "skirt" : "pants";
       String face = "女性".equals(gender) ? "f" : "男性".equals(gender) ? "m" : null;
-      return new Look(outfit, hair, hairColor, skin, cloth, cloth2, legs, face, accessory, eye);
+      return new Look(outfit, hair, hairColor, skin, cloth, cloth2, legs, face, accessory, eye, eyeStyle, browStyle, outfitVariant);
     }
   }
 
@@ -215,14 +234,30 @@ public class GuildPeople {
 
   /** The illustration parts for a gender and occupation; hair and colours are drawn from the palettes. */
   public Look look(String gender, String occupation) {
-    boolean woman = gender.equals("女性");
-    String outfit = OUTFITS.get(occupation);
+    return redraw(gender, occupation, null, false);
+  }
+
+  /** Redraw only stored visual choices; a full redraw retains an established skin tone. */
+  public Look redraw(String gender, String occupation, Look previous, boolean eyesOnly) {
+    if (eyesOnly && previous != null) {
+      return Look.of(previous.outfit(), previous.hair(), previous.hairColor(), previous.skin(), previous.cloth(), previous.cloth2(),
+          gender, previous.accessory(), previous.eye(), other(EYE_STYLES, previous.eyeStyle()),
+          other(BROW_STYLES, previous.browStyle()), previous.outfitVariant());
+    }
+    boolean woman = "女性".equals(gender);
+    String outfit = occupation == null ? "adventurer" : OUTFITS.getOrDefault(occupation, "adventurer");
     if (woman) outfit = WOMEN.getOrDefault(outfit, outfit);
     // A topknot goes with Tsukikage's swords; elsewhere it is rare.
-    List<String> hair = woman ? FEMALE_HAIR : outfit.equals("samurai") || outfit.equals("ronin") ? List.of("topknot", "topknot", "tail", "shaggy")
-        : MALE_HAIR.stream().filter(style -> !style.equals("topknot")).toList();
-    return Look.of(outfit, any(hair), any(HAIR_COLORS), any(SKINS), any(CLOTHS), any(SECOND), gender,
-        any(woman ? FEMALE_ACCESSORIES : MALE_ACCESSORIES), any(EYES));
+    List<String> hair = woman ? FEMALE_HAIR : outfit.equals("samurai") || outfit.equals("ronin") ? List.of("topknot", "highknot", "tail", "lowtail", "shaggy", "layered", "slicked", "swept")
+        : MALE_HAIR.stream().filter(style -> !List.of("topknot", "highknot").contains(style)).toList();
+    return Look.of(outfit, other(hair, previous == null ? null : previous.hair()), any(HAIR_COLORS),
+        previous == null ? any(SKINS) : previous.skin(), any(CLOTHS), any(SECOND), gender,
+        any(woman ? FEMALE_ACCESSORIES : MALE_ACCESSORIES), any(EYES),
+        other(EYE_STYLES, previous == null ? null : previous.eyeStyle()), any(BROW_STYLES), any(OUTFIT_VARIANTS));
+  }
+
+  private static String other(List<String> values, String previous) {
+    return any(values.stream().filter(value -> !value.equals(previous)).toList());
   }
 
   private static String any(List<String> values) {
