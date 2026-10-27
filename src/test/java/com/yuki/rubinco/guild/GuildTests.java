@@ -408,6 +408,67 @@ class GuildTests {
     assertThat(werewolf.version()).isNotBlank();
   }
 
+  /**
+   * The relationship chart: the overview draws the living with a bond beyond acquaintance or an open crush; around one
+   * resident it shows the ones they are most tied to, how each feels, open threads, and the bonds among them.
+   */
+  @Test void theRelationChartShowsBondsFeelingsAndCrushes() throws Exception {
+    long rine = resident("リネ", 28, "ALIVE", 0);
+    long roan = resident("ロアン", 30, "ALIVE", 1);
+    long mira = resident("ミラ", 24, "ALIVE", 2);
+    long gard = resident("ガルド", 40, "ALIVE", 3);
+    long old = resident("故人", 70, "DEAD", 4);
+    long stranger = resident("ひとり", 33, "ALIVE", 5);
+    var now = OffsetDateTime.now();
+    for (long[] bond : new long[][] {{rine, roan}, {rine, gard}, {roan, mira}, {rine, old}, {rine, stranger}}) {
+      String label = bond[1] == roan ? "close_friend" : bond[1] == gard ? "rival" : bond[1] == mira ? "lover" : bond[1] == old ? "spouse" : "acquaintance";
+      jdbc.update("INSERT INTO T_GUILD_BOND (low_id,high_id,label,since) VALUES (?,?,?,?)", Math.min(bond[0], bond[1]), Math.max(bond[0], bond[1]), label, now);
+    }
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,20,50,0,0)", rine, roan);
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,10,40,0,0)", roan, rine);
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,-20,-40,60,0)", rine, gard);
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,0,5,0,0)", rine, mira);
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,0,45,0,0)", mira, rine);
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,30,70,0,0)", rine, old);
+    jdbc.update("INSERT INTO T_GUILD_INTERACTION (slot_key,happened_at,card_id,cards_version,kind,selection,outcome,summary,body,written_by) "
+        + "VALUES ('map-test',?,'c','v','雑談','random','warm','ミラはリネに片思いしている','本文','template')", now.minusDays(30));
+    long scene = jdbc.queryForObject("SELECT id FROM T_GUILD_INTERACTION WHERE slot_key = 'map-test'", Long.class);
+    jdbc.update("INSERT INTO T_GUILD_THREAD (kind,a_id,b_id,summary,origin_interaction_id,expires_on) VALUES ('crush',?,?,'ミラはリネに片思いしている',?,?)",
+        mira, rine, scene, LocalDate.now().plusDays(10));
+
+    String all = mvc.perform(get("/guild/relations")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("rmap-edge e-close_friend")))
+        .andExpect(content().string(containsString("rmap-edge e-rival")))
+        .andExpect(content().string(containsString("rmap-edge e-lover")))
+        .andExpect(content().string(containsString("marker-end=\"url(#rmap-arrow)\"")))
+        .andExpect(content().string(containsString("href=\"/guild/relations?center=" + gard + "\"")))
+        .andExpect(content().string(containsString("n-grantford")))
+        .andReturn().getResponse().getContentAsString();
+    // The dead and those who are only acquaintances are not in the overview.
+    assertThat(all).doesNotContain("e-spouse", "relations?center=" + old + "\"", "relations?center=" + stranger + "\"");
+
+    var around = new GuildRelationMap(jdbc, guild).around(rine);
+    // Those around her are the ones she has feelings about (an acquaintance she never met as a relation is not).
+    assertThat(around.rows()).extracting(row -> row.other().name()).containsExactlyInAnyOrder("ロアン", "ガルド", "ミラ", "故人");
+    var byName = around.rows().stream().collect(java.util.stream.Collectors.toMap(row -> row.other().name(), row -> row));
+    assertThat(byName.get("ロアン")).extracting(GuildRelationMap.Row::label, GuildRelationMap.Row::toward, GuildRelationMap.Row::back)
+        .containsExactly("親友", "好き", "好き");
+    assertThat(byName.get("ガルド")).extracting(GuildRelationMap.Row::label, GuildRelationMap.Row::toward, GuildRelationMap.Row::back)
+        .containsExactly("宿敵", "警戒している", "まだ知らない");
+    assertThat(byName.get("ミラ").threads()).containsExactly("片思いされている");
+    assertThat(byName.get("故人").other().dead()).isTrue();
+    // The lovers around her are joined too; the crush is an arrow from Mira.
+    assertThat(around.edges()).extracting(GuildRelationMap.Edge::kind).contains("lover", "close_friend", "rival", "spouse", "crush");
+    mvc.perform(get("/guild/relations").param("center", String.valueOf(rine))).andExpect(status().isOk())
+        .andExpect(content().string(containsString("リネの相関図")))
+        .andExpect(content().string(containsString("警戒している")))
+        .andExpect(content().string(containsString("片思いされている")))
+        .andExpect(content().string(containsString("href=\"/guild/pairs/" + Math.min(rine, roan) + "-" + Math.max(rine, roan) + "\"")));
+    mvc.perform(get("/guild/relations").param("center", "999999")).andExpect(status().isNotFound());
+    mvc.perform(get("/guild/characters/" + rine)).andExpect(content().string(containsString("相関図で見る")));
+    mvc.perform(get("/guild/log")).andExpect(content().string(containsString("href=\"/guild/relations\"")));
+  }
+
   /** At most five new residents a day, even when the setting asks for more. */
   @Test void theDailyLimitStopsAtFive() {
     var p = properties;

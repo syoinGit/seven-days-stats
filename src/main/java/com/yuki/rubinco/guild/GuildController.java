@@ -30,6 +30,7 @@ public class GuildController {
   private final GuildThoughts thoughts;
   private final GuildMenus menus;
   private final GuildWerewolf werewolf;
+  private final GuildRelationMap relationMap;
 
   @GetMapping("/guild")
   public String room(Model model) {
@@ -114,6 +115,14 @@ public class GuildController {
     model.addAttribute("minds", thoughts.history(id, 5));
     model.addAttribute("abouts", thoughts.abouts(id));
     return stage(model, "tavern", "character", character.name());
+  }
+
+  /** The relationship chart: everyone with a bond, or one resident (center) and those around them. */
+  @GetMapping("/guild/relations")
+  public String relations(Model model, @RequestParam(required = false) Long center) {
+    var map = center == null ? relationMap.overview() : relationMap.around(center);
+    model.addAttribute("map", map);
+    return stage(model, "log", "relations", center == null ? "相関図" : map.center().name() + "の相関図");
   }
 
   /** The interaction log, filtered by resident, pair ("3-8"), kind or the pair's current label. */
