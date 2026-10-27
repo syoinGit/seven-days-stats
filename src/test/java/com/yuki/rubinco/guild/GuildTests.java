@@ -1257,9 +1257,9 @@ class GuildTests {
         .andExpect(content().string(containsString("ヨーロッパ系の名")))
         .andExpect(content().string(containsString("<dt>出身地</dt><dd>グランフォード</dd>")))
         .andExpect(content().string(containsString("<dt>信仰</dt><dd>無信仰</dd>")))
-        .andExpect(content().string(containsString("guild-people.svg?v=4#outfit-")))
+        .andExpect(content().string(containsString("guild-people.svg?v=5#outfit-")))
         .andExpect(content().string(containsString("viewBox=\"0 0 96 144\"")))
-        .andExpect(content().string(containsString("guild-people.svg?v=4#expression-thoughtful")))
+        .andExpect(content().string(containsString("guild-people.svg?v=5#expression-thoughtful")))
         .andExpect(content().string(containsString("7 Days to Die・")))
         .andExpect(content().string(containsString("zombieGuild10を1体倒した日から生まれました")))
         .andExpect(content().string(containsString("10:00 古い家でzombieGuild10を倒した")))
@@ -1446,9 +1446,9 @@ class GuildTests {
       assertThat(look.style()).matches("(--[a-z0-9]+:#[0-9a-f]{6};?)+");
     }
     assertThat(GuildPeople.Look.of("knight", "short", "#000000", "#ffffff", "#123456", "#654321", "男性").layers())
-        .containsExactly("body", "face-m", "outfit-knight", "hair-short", "hat-knight");
+        .containsExactly("body", "eyes-round", "face-m", "brows-natural", "outfit-knight", "hair-short", "hat-knight");
     assertThat(GuildPeople.Look.of("cook_f", "bob", "#000000", "#ffffff", "#123456", "#654321", "女性", "ribbon", "#3a5a8a").layers())
-        .containsExactly("body", "face-f", "outfit-cook_f", "hair-bob", "acc-ribbon", "hat-cook_f");
+        .containsExactly("body", "eyes-round", "face-f", "brows-natural", "outfit-cook_f", "hair-bob", "acc-ribbon", "hat-cook_f");
     assertThat(GuildPeople.Look.of("adventurer", "short", "#000000", "#ffffff", "#123456", "#654321", "男性", "glasses", "#3a5a8a").style())
         .endsWith(";--eye:#3a5a8a");
     assertThat(GuildPeople.Look.of("cook", "bob", "red;background:url(x)", "#ffffff", "#123456", "#654321", "女性")).isNull();
@@ -1503,6 +1503,71 @@ class GuildTests {
     mvc.perform(get("/guild/characters/" + id)).andExpect(status().isNotFound());
   }
 
+  @Test void maintenanceRedrawChangesOnlyAppearanceAndNeedsAdminWithCsrf() throws Exception {
+    source();
+    guild.generateToday();
+    long id = guild.characters(0).getFirst().id();
+    String path = "/guild/maintenance/characters/" + id + "/appearance";
+    var admin = user("admin").roles("ADMIN");
+    var before = jdbc.queryForMap("SELECT * FROM M_GUILD_CHARACTER WHERE id = ?", id);
+    var history = new java.util.HashMap<String, Object>();
+    for (String table : List.of("T_GUILD_SOURCE", "T_GUILD_VISIT", "T_GUILD_TALK", "T_GUILD_THOUGHT", "T_GUILD_RELATION", "T_GUILD_AFFILIATION_HISTORY")) {
+      history.put(table, jdbc.queryForList("SELECT * FROM " + table));
+    }
+    clearInvocations(bedrock);
+    mvc.perform(post(path).with(user("member").roles("PLAYER")).with(csrf())).andExpect(status().isForbidden());
+    mvc.perform(post(path).with(admin)).andExpect(status().isForbidden());
+    mvc.perform(post(path).with(admin).with(csrf()).param("mode", "invalid")).andExpect(status().isBadRequest());
+    assertThat(jdbc.queryForMap("SELECT * FROM M_GUILD_CHARACTER WHERE id = ?", id)).isEqualTo(before);
+    mvc.perform(post(path).with(admin).with(csrf()).param("mode", "eyes"))
+        .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/guild/maintenance#resident-" + id));
+    var eyes = jdbc.queryForMap("SELECT * FROM M_GUILD_CHARACTER WHERE id = ?", id);
+    assertThat(eyes.get("eye_style")).isNotEqualTo(before.get("eye_style"));
+    assertThat(eyes.get("brow_style")).isNotEqualTo(before.get("brow_style"));
+    for (String key : before.keySet()) {
+      if (!List.of("eye_style", "brow_style").contains(key.toLowerCase(java.util.Locale.ROOT))) {
+        assertThat(eyes.get(key)).as(key).isEqualTo(before.get(key));
+      }
+    }
+    mvc.perform(post(path).with(admin).with(csrf()).param("mode", "all")).andExpect(status().is3xxRedirection());
+    var all = jdbc.queryForMap("SELECT * FROM M_GUILD_CHARACTER WHERE id = ?", id);
+    var visual = java.util.Set.of("outfit", "hair_style", "hair_color", "cloth_color", "cloth2_color", "accessory", "eye_color", "eye_style", "brow_style", "outfit_variant");
+    for (String key : before.keySet()) {
+      if (!visual.contains(key.toLowerCase(java.util.Locale.ROOT))) assertThat(all.get(key)).as(key).isEqualTo(before.get(key));
+    }
+    var saved = guild.character(id).look();
+    assertThat(saved).isNotNull();
+    assertThat(saved.hair()).isNotEqualTo(eyes.get("hair_style"));
+    assertThat(saved.eyeStyle()).isNotEqualTo(eyes.get("eye_style"));
+    assertThat(guild.character(id).look()).isEqualTo(saved);
+    for (String table : history.keySet()) assertThat(jdbc.queryForList("SELECT * FROM " + table)).as(table).isEqualTo(history.get(table));
+    verifyNoInteractions(bedrock);
+    mvc.perform(post("/guild/maintenance/characters/999999/appearance").with(admin).with(csrf())).andExpect(status().isNotFound());
+    var response = mvc.perform(get("/guild/maintenance").with(admin)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("目元を引き直す")))
+        .andExpect(content().string(containsString("外見を引き直す")))
+        .andExpect(content().string(containsString("guild-people.svg?v=5#eyes-")))
+        .andExpect(content().string(containsString("name=\"_csrf\"")))
+        .andReturn().getResponse();
+    var preview = java.nio.file.Path.of("target/guild-preview/maintenance.html");
+    java.nio.file.Files.createDirectories(preview.getParent());
+    java.nio.file.Files.writeString(preview, response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+  }
+
+  @Test void legacyResidentCanReceiveALookWithoutChangingTheirUnknownProfile() {
+    jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance) VALUES (?, 'terraria', '旧住人', '紹介', '由来', '穏やか', 'moss')",
+        LocalDate.now(GuildService.TOKYO));
+    var old = guild.characters(0).getFirst();
+    assertThat(old.look()).isNull();
+    guild.redrawAppearance(old.id(), true);
+    var redrawn = guild.character(old.id());
+    assertThat(redrawn.look()).isNotNull();
+    assertThat(redrawn.gender()).isNull();
+    assertThat(redrawn.occupation()).isNull();
+    assertThat(redrawn.name()).isEqualTo(old.name());
+    assertThat(redrawn.personality()).isEqualTo(old.personality());
+  }
+
   @Test void savedRosterDoesNotChangeAfterBirthAndRenderPreviewFixtures() throws Exception {
     // Explicitly synthetic preview residents, never inserted in a real application database.
     List<String> jobs = List.of("騎士", "料理人", "侍", "巫女", "商人", "猟師", "聖職者", "冒険者", "浪人", "農家");
@@ -1510,11 +1575,11 @@ class GuildTests {
       String gender = i % 2 == 0 ? "女性" : "男性";
       var look = people.look(gender, jobs.get(i - 1));
       jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,gender,occupation,outfit,"
-          + "hair_style,hair_color,skin_color,cloth_color,cloth2_color,accessory,eye_color) VALUES (?,'terraria',?,'小さな街で暮らす職人。今日は道具の手入れをしています。',"
-          + "'表示確認用の架空データです。','静かな話し方。手仕事が好きで、方向音痴。',?,?,?,?,?,?,?,?,?,?,?)",
+          + "hair_style,hair_color,skin_color,cloth_color,cloth2_color,accessory,eye_color,eye_style,brow_style,outfit_variant) VALUES (?,'terraria',?,'小さな街で暮らす職人。今日は道具の手入れをしています。',"
+          + "'表示確認用の架空データです。','静かな話し方。手仕事が好きで、方向音痴。',?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
           LocalDate.now(GuildService.TOKYO).minusDays(i), List.of("ロアン", "ミナ", "エルド", "トト", "シエラ", "カイ", "ノエル", "ユナ", "ガロ", "リタ").get(i - 1),
           List.of("ember", "moss", "violet").get(i % 3), gender, jobs.get(i - 1), look.outfit(), look.hair(), look.hairColor(), look.skin(),
-          look.cloth(), look.cloth2(), look.accessory(), look.eye());
+          look.cloth(), look.cloth2(), look.accessory(), look.eye(), look.eyeStyle(), look.browStyle(), look.outfitVariant());
     }
     // Fifteen more, five living in each nation, so the nations' taverns have someone in them too.
     for (int i = 0; i < 15; i++) {
@@ -1522,11 +1587,11 @@ class GuildTests {
       String gender = i % 2 == 0 ? "男性" : "女性";
       var look = people.look(gender, jobs.get(i % jobs.size()));
       jdbc.update("INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,gender,occupation,outfit,"
-          + "hair_style,hair_color,skin_color,cloth_color,cloth2_color,accessory,eye_color,home_village,current_village) VALUES (?,'terraria',?,'国で暮らす住人。',"
-          + "'表示確認用の架空データです。','穏やか。',?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          + "hair_style,hair_color,skin_color,cloth_color,cloth2_color,accessory,eye_color,home_village,current_village,eye_style,brow_style,outfit_variant) VALUES (?,'terraria',?,'国で暮らす住人。',"
+          + "'表示確認用の架空データです。','穏やか。',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
           LocalDate.now(GuildService.TOKYO).minusDays(40 + i), "見本" + (i + 1), List.of("ember", "moss", "violet").get(i % 3), gender,
           jobs.get(i % jobs.size()), look.outfit(), look.hair(), look.hairColor(), look.skin(), look.cloth(), look.cloth2(), look.accessory(), look.eye(),
-          nation, nation);
+          nation, nation, look.eyeStyle(), look.browStyle(), look.outfitVariant());
     }
     guild.prepareToday();
     var before = guild.room(ZonedDateTime.now());

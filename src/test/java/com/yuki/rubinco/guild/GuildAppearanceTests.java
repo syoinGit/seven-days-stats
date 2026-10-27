@@ -50,6 +50,41 @@ class GuildAppearanceTests {
       }
       assertThat(ids).containsAll(List.of("resident", "expression-bright", "expression-gentle", "expression-resolute",
           "expression-thoughtful", "age-young", "age-mature", "age-elder"));
+      for (String eyes : GuildPeople.EYE_STYLES) assertThat(ids).contains("eyes-" + eyes);
+      for (String brow : GuildPeople.BROW_STYLES) assertThat(ids).contains("brows-" + brow);
+      for (String outfit : java.util.stream.Stream.concat(GuildPeople.OUTFITS.values().stream(), GuildPeople.WOMEN.values().stream()).toList()) {
+        for (String variant : List.of("travel", "formal")) assertThat(ids).contains("dress-" + outfit + "-" + variant);
+      }
+    }
+  }
+
+  @Test void missingVariantColumnsUseCompatibleDefaultsAndUnknownPartsAreRejected() {
+    var old = look("knight", "short", "glasses", "男性");
+    assertThat(old.eyeStyle()).isEqualTo("round");
+    assertThat(old.browStyle()).isEqualTo("natural");
+    assertThat(old.outfitVariant()).isEqualTo("classic");
+    assertThat(GuildPeople.Look.of("knight", "short", "#6e4630", "#e6b48e", "#5f7d4a", "#3a4f6a", "男性",
+        "glasses", "#3f6b3a", "unknown", "natural", "classic")).isNull();
+  }
+
+  @Test void migrationDiversifiesExistingEyesWithoutChangingOldPartsOrLegacyRows() {
+    var data = new org.springframework.jdbc.datasource.DriverManagerDataSource("jdbc:h2:mem:appearanceMigration;MODE=PostgreSQL", "sa", "");
+    // Keep the connection open: the minimal fixture needs only the columns this migration uses.
+    try (var connection = data.getConnection()) {
+      var jdbc = new org.springframework.jdbc.core.JdbcTemplate(new org.springframework.jdbc.datasource.SingleConnectionDataSource(connection, true));
+      jdbc.execute("CREATE TABLE M_GUILD_CHARACTER (id BIGINT PRIMARY KEY, outfit VARCHAR(20), hair_style VARCHAR(20), skin_color VARCHAR(7))");
+      for (int i = 1; i <= 9; i++) jdbc.update("INSERT INTO M_GUILD_CHARACTER VALUES (?, 'knight', 'short', '#e6b48e')", i);
+      jdbc.execute("INSERT INTO M_GUILD_CHARACTER VALUES (10, NULL, NULL, NULL)");
+      new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(new ClassPathResource("db/migration/V70__guild_look_variants.sql"))
+          .execute(jdbc.getDataSource());
+      assertThat(jdbc.queryForList("SELECT DISTINCT eye_style FROM M_GUILD_CHARACTER WHERE outfit IS NOT NULL", String.class))
+          .containsExactlyInAnyOrderElementsOf(GuildPeople.EYE_STYLES);
+      assertThat(jdbc.queryForList("SELECT hair_style FROM M_GUILD_CHARACTER WHERE outfit IS NOT NULL", String.class)).containsOnly("short");
+      assertThat(jdbc.queryForList("SELECT skin_color FROM M_GUILD_CHARACTER WHERE outfit IS NOT NULL", String.class)).containsOnly("#e6b48e");
+      assertThat(jdbc.queryForObject("SELECT outfit FROM M_GUILD_CHARACTER WHERE id = 10", String.class)).isNull();
+      assertThat(jdbc.queryForObject("SELECT eye_style FROM M_GUILD_CHARACTER WHERE id = 10", String.class)).isEqualTo("round");
+    } catch (java.sql.SQLException exception) {
+      throw new AssertionError(exception);
     }
   }
 }

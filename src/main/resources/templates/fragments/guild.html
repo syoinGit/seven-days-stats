@@ -10,7 +10,7 @@
 <!-- Shared SD figure: saved parts/colours, age and temperament; also used by dialogue portraits. -->
 <svg th:fragment="sprite(c)" class="guild-sprite" th:classappend="${c.appearance}" viewBox="0 0 96 144" aria-hidden="true"
      th:style="${c.look != null ? c.look.style() : null}">
-  <use th:each="layer : ${c.spriteLayers()}" th:href="${'/img/guild-people.svg?v=4#' + layer}"></use>
+  <use th:each="layer : ${c.spriteLayers()}" th:href="${'/img/guild-people.svg?v=5#' + layer}"></use>
 </svg>
 <!-- The guild's bottom tabs. Each one but maintenance opens a window over the tavern; active: tavern, dungeon or log. -->
 <nav th:fragment="tabbar(active)" class="guild-tabbar" aria-label="ギルド" data-guild-tabbar>

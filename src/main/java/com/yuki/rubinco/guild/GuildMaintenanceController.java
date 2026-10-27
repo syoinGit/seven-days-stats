@@ -89,4 +89,14 @@ public class GuildMaintenanceController {
     redirect.addFlashAttribute("notice", guild.delete(id));
     return "redirect:/guild/maintenance#residents";
   }
+
+  @PostMapping("/guild/maintenance/characters/{id}/appearance")
+  public String appearance(@PathVariable long id,
+      @org.springframework.web.bind.annotation.RequestParam(defaultValue = "eyes") String mode, RedirectAttributes redirect) {
+    if (!mode.equals("eyes") && !mode.equals("all")) {
+      throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST);
+    }
+    redirect.addFlashAttribute("notice", guild.redrawAppearance(id, mode.equals("eyes")));
+    return "redirect:/guild/maintenance#resident-" + id;
+  }
 }
