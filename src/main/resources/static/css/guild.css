@@ -612,26 +612,41 @@
 .guild-admin-residents li:target{outline:2px solid #d7b46c;outline-offset:6px;scroll-margin-top:24px}
 @media(max-width:650px){.guild-admin-residents .guild-appearance-actions{flex-basis:100%;align-items:flex-start}.guild-admin-residents .guild-appearance-actions form{justify-content:flex-start}}
 
-/* Counter-view busts: forearms meet the counter instead of cropping an enlarged SD body. */
-.adv-player{--adv-counter-height:290px}
-.adv-stage{bottom:calc(var(--adv-counter-height) - 18px);max-width:1100px}
+/* The conversation player shows the SD figures (the counter busts are set aside for now): big, standing behind the counter
+   with their legs hidden by it, one in the middle when alone. The message box is large, with large type. */
+.adv-player{--adv-counter-height:330px}
+.adv-stage{bottom:calc(var(--adv-counter-height) - 24px);max-width:1100px}
 .adv-counter{height:var(--adv-counter-height)}
-.adv-figure{bottom:0}
-.adv-figure.left{left:3%}.adv-figure.right{right:3%}
-.adv-figure .guild-portrait{display:block;width:clamp(280px,35vw,420px);height:auto;aspect-ratio:9/11;filter:drop-shadow(0 7px 5px #0d0a1266)}
-.adv-figure.active{translate:0 -3px;z-index:1}
+.adv-figure{bottom:-95px}
+.adv-figure.left{left:5%}.adv-figure.right{right:5%}
+.adv-figure .guild-sprite{width:clamp(200px,24vw,290px)}
+.adv-figure.active{z-index:1}
+.adv-figure.right .guild-sprite{transform:none}
 .adv-player.adv-solo .adv-figure.left{left:50%;transform:translateX(-50%)}
 .adv-player.adv-solo .adv-figure.right{right:50%;transform:translateX(50%)}
+.adv-box{width:min(1120px,calc(100% - 28px));min-height:250px;padding:40px 40px 30px;bottom:20px}
+.adv-name{top:-24px;left:26px;padding:6px 22px;font-size:19px}
+.adv-text{font-size:clamp(20px,2.9vw,27px);line-height:1.8;min-height:5.4em}
+.adv-choices{gap:12px}
+.adv-choices button{padding:14px 20px;font-size:clamp(18px,2.4vw,22px)}
+.adv-mono{font-size:clamp(20px,2.8vw,26px)}
 @media(max-width:650px){
-.adv-player{--adv-counter-height:270px}
-.adv-figure.left{left:-6%}.adv-figure.right{right:-6%}
-.adv-figure .guild-portrait{width:clamp(220px,65vw,300px)}
-.adv-player.adv-solo .guild-portrait{width:min(82vw,340px)}
+.adv-player{--adv-counter-height:300px}
+.adv-figure{bottom:-30px}
+.adv-figure.left{left:-4%}.adv-figure.right{right:-4%}
+.adv-figure .guild-sprite{width:clamp(150px,48vw,210px)}
+.adv-box{min-height:260px;padding:32px 20px 22px;bottom:12px;width:calc(100% - 16px)}
+.adv-text{font-size:19px}
+.adv-name{font-size:16px;top:-22px}
+.adv-choices button{font-size:17px;padding:12px 14px}
 }
 @media(max-height:520px){
-.adv-player{--adv-counter-height:150px}
-.adv-figure .guild-portrait,.adv-player.adv-solo .guild-portrait{width:auto;height:calc(100dvh - 138px);max-height:330px}
-.adv-figure.left{left:9%}.adv-figure.right{right:9%}
+.adv-player{--adv-counter-height:170px}
+.adv-figure{bottom:-60px}
+.adv-figure .guild-sprite{width:auto;height:calc(100dvh - 90px);max-height:330px}
+.adv-box{min-height:140px;padding:26px 22px 14px;bottom:10px}
+.adv-text{min-height:2.6em;font-size:18px;line-height:1.65}
+.adv-choices{gap:6px}.adv-choices button{padding:7px 14px;font-size:16px}
 }
 /* A thought that is a rumor they heard. */
 .mind-rumor{display:inline-block;margin-right:6px;padding:0 6px;font-size:10px;letter-spacing:.1em;color:#2a1d24;background:#d9b37a;vertical-align:1px}

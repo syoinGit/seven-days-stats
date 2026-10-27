@@ -406,10 +406,8 @@ const GuildAdv = (() => {
       const slot = dialog.querySelector(".adv-figure." + side);
       slot.replaceChildren();
       slot.classList.remove("active", "dim");
-      if (figures[side]) {
-        slot.append(portrait(figures[side]));
-        pose(slot, slot.querySelector(".guild-portrait")?.dataset.basePose);
-      }
+      // The SD figure itself; the counter busts (portrait(), guild-portraits.svg) are set aside for now.
+      if (figures[side]) slot.append(figures[side].cloneNode(true));
     }
     dialog.querySelector(".adv-choices").replaceChildren();
     dialog.showModal();
