@@ -80,22 +80,16 @@ public class CognitoSecurityConfig {
       PortalPlatformProperties properties) throws Exception {
     http
         .authorizeHttpRequests(authorize -> authorize
-            .requestMatchers(
-                "/login", "/portal", "/oauth2/**", "/login/oauth2/**", "/css/**",
-                "/img/**", "/js/**", "/favicon.ico", "/error")
-            .permitAll()
+            .requestMatchers("/login", "/portal", "/oauth2/**", "/login/oauth2/**").permitAll()
+            .requestMatchers(AccessPaths.STATIC).permitAll()
             .requestMatchers(HttpMethod.TRACE, "/**").denyAll()
             .requestMatchers(HttpMethod.OPTIONS, "/**").denyAll()
-            .requestMatchers("/guild/maintenance", "/guild/maintenance/**").access(adminAccess.requests())
-            .requestMatchers(HttpMethod.GET, "/", "/guild", "/guild/characters/*", "/guild/log", "/guild/log/*", "/guild/pairs/*", "/guild/dungeon", "/guild/dungeon/*", "/guild/towns/*", "/guild/talks/*/choices/*", "/guild/neighbor", "/guild/meal", "/guild/towns/*/meal").permitAll()
-            .requestMatchers("/octarine/maintenance/**", "/luminite/maintenance/**").access(adminAccess.requests())
-            .requestMatchers("/maintenance/**", "/portal/maintenance/**").hasRole("ADMIN")
+            .requestMatchers(AccessPaths.ADMIN_MAINTENANCE).access(adminAccess.requests())
+            .requestMatchers(HttpMethod.GET, AccessPaths.PUBLIC_GUILD).permitAll()
+            .requestMatchers(AccessPaths.SITE_MAINTENANCE).hasRole("ADMIN")
             .requestMatchers("/portal/profile").hasAnyRole("PLAYER", "MEMBER", "ADMIN")
-            .requestMatchers(HttpMethod.POST,
-                "/portal/actions/games/*/start", "/portal/actions/games/*/stop")
-            .access(gameServerAccess.requests())
-            .requestMatchers(
-                HttpMethod.POST, "/players/*/status", "/posts", "/posts/*/react", "/posts/*/delete")
+            .requestMatchers(HttpMethod.POST, AccessPaths.PORTAL_SERVER_ACTIONS).access(gameServerAccess.requests())
+            .requestMatchers(HttpMethod.POST, AccessPaths.PLAYER_POSTS)
             .hasAnyRole("MEMBER", "PLAYER", "ADMIN")
             .anyRequest().authenticated())
         .oauth2Login(oauth -> oauth

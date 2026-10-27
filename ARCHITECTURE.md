@@ -139,7 +139,7 @@ generates an image.
 
 ## Web privacy boundary
 
-`WebSecurityConfig` and the profile-specific `CognitoSecurityConfig` define authorization.
+`WebSecurityConfig` and the profile-specific `CognitoSecurityConfig` define authorization; the path lists both use (public guild pages, admin maintenance, player posts, static files) live in `AccessPaths`.
 The local/form-login API requires a `PLAYER` or `ADMIN` account because external-ID masking
 applies to HTML responses, not raw JSON. `GuestPrivacyFilter` runs only after
 Spring Security has authenticated a `VIEWER` request, and delegates response rewriting to

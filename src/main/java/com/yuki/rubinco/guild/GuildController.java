@@ -1,6 +1,12 @@
 package com.yuki.rubinco.guild;
 
 import java.time.ZonedDateTime;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
@@ -44,10 +50,10 @@ public class GuildController {
    */
   @GetMapping(value = "/guild/talks/{id}/choices/{position}", produces = "application/json")
   @ResponseBody
-  public java.util.Map<String, String> reply(@PathVariable long id, @PathVariable int position) {
+  public Map<String, String> reply(@PathVariable long id, @PathVariable int position) {
     String reply = position < 0 || position > 2 ? null : talks.reply(id, position);
     if (reply == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-    return java.util.Map.of("reply", reply);
+    return Map.of("reply", reply);
   }
 
   /**
@@ -58,8 +64,8 @@ public class GuildController {
   @GetMapping("/guild/neighbor")
   public String neighbor(Model model, @RequestParam(defaultValue = GuildPlaces.GUILD) String place, @RequestParam(defaultValue = "") String skip) {
     if (GuildPlaces.of(place) == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-    java.util.Set<Long> skipped = java.util.Arrays.stream(skip.split(",")).limit(200).filter(id -> id.matches("\\d{1,18}"))
-        .map(Long::parseLong).collect(java.util.stream.Collectors.toSet());
+    Set<Long> skipped = Arrays.stream(skip.split(",")).limit(200).filter(id -> id.matches("\\d{1,18}"))
+        .map(Long::parseLong).collect(Collectors.toSet());
     Long id = talks.draw(skipped, place);
     if (id == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     model.addAttribute("character", guild.character(id));
@@ -108,7 +114,7 @@ public class GuildController {
                     @RequestParam(required = false) String kind, @RequestParam(required = false) String label,
                     @RequestParam(defaultValue = "0") int page) {
     long[] ids = pair == null || !pair.matches("\\d{1,18}-\\d{1,18}") ? null
-        : java.util.Arrays.stream(pair.split("-")).mapToLong(Long::parseLong).toArray();
+        : Arrays.stream(pair.split("-")).mapToLong(Long::parseLong).toArray();
     String safeKind = kind == null || kind.isBlank() || kind.length() > 20 ? null : kind;
     String safeLabel = label == null || !GuildInteractionService.LABELS.containsKey(label) ? null : label;
     var filter = new GuildChronicle.Filter(character, ids == null ? null : ids[0], ids == null ? null : ids[1], safeKind, safeLabel);
@@ -130,7 +136,7 @@ public class GuildController {
     var detail = chronicle.detail(id);
     model.addAttribute("detail", detail);
     // Each participant's figure, shown beside their lines.
-    java.util.Map<Long, GuildService.Character> cast = new java.util.HashMap<>();
+    Map<Long, GuildService.Character> cast = new HashMap<>();
     for (var person : detail.entry().people()) cast.put(person.id(), guild.character(person.id()));
     model.addAttribute("cast", cast);
     return stage(model, "log", "entry", "交流の記録");
@@ -151,10 +157,10 @@ public class GuildController {
 
   private String run(Model model, GuildDungeon.Expedition expedition, ZonedDateTime now) {
     model.addAttribute("expedition", expedition);
-    model.addAttribute("members", expedition == null ? java.util.List.of()
+    model.addAttribute("members", expedition == null ? List.of()
         : expedition.members().stream().map(member -> guild.character(member.id())).toList());
     model.addAttribute("runs", dungeon.recent(now, null, 10));
-    model.addAttribute("bonds", expedition == null || !expedition.back() ? java.util.List.of() : dungeon.bonds(expedition.id()));
+    model.addAttribute("bonds", expedition == null || !expedition.back() ? List.of() : dungeon.bonds(expedition.id()));
     return stage(model, "dungeon", "dungeon", "ダンジョン");
   }
 
@@ -184,15 +190,15 @@ public class GuildController {
     model.addAttribute("room", room);
     var scene = chronicle.scene(now, room.date(), place);
     model.addAttribute("scene", scene);
-    java.util.Set<Long> talking = scene == null ? java.util.Set.of() : scene.lines().keySet();
-    java.util.Map<Long, String> idle = new java.util.HashMap<>();
+    Set<Long> talking = scene == null ? Set.of() : scene.lines().keySet();
+    Map<Long, String> idle = new HashMap<>();
     if (place.guild()) {
       var todayRun = dungeon.day(room.date(), now);
       model.addAttribute("todayRun", todayRun);
-      model.addAttribute("runMembers", todayRun == null ? java.util.List.of()
+      model.addAttribute("runMembers", todayRun == null ? List.of()
           : todayRun.members().stream().map(member -> guild.character(member.id())).toList());
-      java.util.Set<Long> returned = todayRun == null || !todayRun.back() ? java.util.Set.of()
-          : todayRun.members().stream().map(GuildChronicle.Ref::id).collect(java.util.stream.Collectors.toSet());
+      Set<Long> returned = todayRun == null || !todayRun.back() ? Set.of()
+          : todayRun.members().stream().map(GuildChronicle.Ref::id).collect(Collectors.toSet());
       var tavern = GuildTavern.arrange(room.visits(), chronicle.groups(now, room.date(), place), talking, returned, room.date(), room.phase());
       model.addAttribute("tavern", tavern);
       // What each one says to no one in particular, in their own voice and fitting where they are; the party keeps its return line.
