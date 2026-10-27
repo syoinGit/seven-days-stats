@@ -4,6 +4,7 @@ Run this, then: python3 -m http.server 18765 --bind 127.0.0.1 --directory target
 """
 from pathlib import Path
 import argparse
+import re
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
@@ -14,7 +15,7 @@ out.mkdir(parents=True, exist_ok=True)
 arguments = argparse.ArgumentParser(description=__doc__)
 arguments.add_argument('--compare-ref', help='Git revision whose artwork is shown next to the current version')
 options = arguments.parse_args()
-for name in ('img/guild-people.svg', 'css/guild.css'):
+for name in ('img/guild-people.svg', 'img/guild-portraits.svg', 'css/guild.css'):
     target = out/name
     target.parent.mkdir(exist_ok=True)
     shutil.copyfile(root/'src/main/resources/static'/name, target)
@@ -31,18 +32,24 @@ hats = {'farmer','watch','knight','knight_f','crafter','crafter_f','merchant','h
 full = {'farmer','knight','knight_f','cleric','cleric_f','farmer_f','merchant_f','cook_f','samurai','samurai_f','ronin','ronin_f','miko','miko_m'}
 palettes = [('#6e4630','#e6b48e','#668276','#415653'),('#d6a85a','#f3d2b3','#596f8a','#3a405c'),('#2b2224','#a8704c','#a05b56','#603b47'),('#8c8c96','#c48a62','#887454','#535e70')]
 
-def figure(outfit='adventurer_f',hair='bob',eye='round',brow='natural',variant='classic',female=True,palette=0,hat=False,face=False):
-    layers = ['body','eyes-'+eye,'face-f' if female else 'face-m','brows-'+brow]
-    if outfit not in full: layers+=['legs-skirt' if female else 'legs-pants']
-    layers+=['outfit-'+outfit]
-    if variant!='classic': layers+=['dress-'+outfit+'-'+variant]
+def figure(outfit='adventurer_f',hair='bob',eye='round',brow='natural',variant='classic',female=True,palette=0,hat=False,face=False,pose='rest',contour='soft',portrait=False):
+    posed = pose!='rest' and not portrait
+    cut = '-posed' if posed else ''
+    layers = ['body' if portrait else 'body-posed' if posed else 'body-core','head-'+contour,'eyes-'+eye,'face-f' if female else 'face-m','brows-'+brow]
+    if outfit not in full and not portrait: layers+=['legs-skirt' if female else 'legs-pants']
+    layers+=['outfit-'+outfit+cut]
+    if variant!='classic': layers+=['dress-'+outfit+'-'+variant+cut]
+    if portrait: layers+=['pose-'+outfit+'-'+pose]
     layers+=['hair-'+hair]
     if hat and outfit in hats: layers+=['hat-'+outfit]
-    assert all(layer in ids for layer in layers), layers
+    if posed: layers+=['pose-'+outfit+'-'+pose]
+    if portrait: layers.insert(0,'hair-back-'+hair)
+    source = 'guild-portraits.svg?v=1' if portrait else 'guild-people.svg?v=7'
+    viewport = '0 0 360 440' if portrait else '16 8 64 64' if face else '0 0 96 144'
     hc,skin,c1,c2 = palettes[palette%4]
     style=f'--hair:{hc};--skin:{skin};--cloth:{c1};--cloth2:{c2};--eye:#4d6455'
-    uses=''.join(f'<use width="96" height="144" href="img/guild-people.svg?v=6#{layer}"/>' for layer in layers)
-    return f'<svg class="guild-sprite" viewBox="{"16 8 64 64" if face else "0 0 96 144"}" style="{style}" aria-hidden="true">{uses}</svg>'
+    uses=''.join(f'<use width="{360 if portrait else 96}" height="{440 if portrait else 144}" href="img/{source}#{layer}"/>' for layer in layers)
+    return f'<svg class="{"guild-portrait" if portrait else "guild-sprite"}" viewBox="{viewport}" style="{style}" aria-hidden="true">{uses}</svg>'
 
 def cards(items, scales=True):
     html='<div class="gallery">'
@@ -63,9 +70,23 @@ if options.compare_ref:
     html+='<section id="comparison"><h2>仕上げの比較</h2><p>同じ髪型・目・衣装・配色で比較。左が変更前、右が変更後です。</p><div class="gallery">'
     for label, settings in showcase:
         svg = figure(**settings)
-        old = svg.replace('guild-people.svg?', 'guild-people-before.svg?')
+        old = svg.replace('guild-people.svg?', 'guild-people-before.svg?').replace('#body-core', '#body')
+        old = re.sub(r'<use[^>]+#head-[^>]+/>','',old)
         html+=f'<article class="sample"><h3>{label}</h3><div class="compare-pair"><div><small>変更前</small>{old}</div><div><small>変更後</small>{svg}</div></div></article>'
     html+='</div></section><style>#comparison .gallery{grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr))}.compare-pair{display:flex;justify-content:center;gap:14px}.compare-pair>div{flex:1;min-width:0}.compare-pair small{display:block;color:#c5b7ae;margin:12px}.compare-pair .guild-sprite{width:min(100%,192px);height:auto;aspect-ratio:2/3}</style>'
+poses=[('rest','通常'),('wave','手を振る'),('crossed','腕組み'),('mug','カップを持つ'),('think','考える')]
+html+='<section id="contours" class="faces"><h2>顔の輪郭</h2>'+cards([(label,figure(contour=contour,face=True)) for contour,label in [('soft','柔らかい輪郭'),('round','丸い輪郭'),('angular','顎がはっきりした輪郭')]],False)+'</section>'
+html+='<section id="poses"><h2>SDの5ポーズ</h2>'+cards([(label,figure(pose=pose,hair='sidebraid',eye='almond')) for pose,label in poses])+'</section>'
+html+='<section id="portraits"><h2>カウンター越しの専用立ち絵</h2><p>同じ住人の髪・目・色を引き継ぐ、上半身専用の360×440の描画。</p>'+cards([(label,figure(pose=pose,hair='sidebraid',eye='almond',portrait=True)) for pose,label in poses],False)+'</section>'
+html+='<section id="identity"><h2>SDと専用立ち絵</h2>'+cards([(label+'・'+kind,figure(**settings,portrait=isportrait)) for label,settings in showcase for kind,isportrait in [('SD',False),('立ち絵',True)]],False)+'</section>'
+portrait_outfits=[]
+for i,(job,label) in enumerate(jobs):
+    for female in (False,True):
+        outfit=('miko' if female else 'miko_m') if job=='miko_m' else job+('_f' if female else '')
+        portrait_outfits.append((label,figure(outfit=outfit,hair=hairs[(i*2+int(female))%len(hairs)],eye=eyes[i%9],palette=i,hat=True,
+            pose=poses[i%5][0],female=female,portrait=True)))
+html+='<section id="portrait-wardrobe"><h2>全職業の専用立ち絵</h2>'+cards(portrait_outfits,False)+'</section>'
+html+='<style>.sample .guild-portrait{width:min(100%,220px);height:auto;aspect-ratio:9/11}#identity .gallery{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}</style>'
 html+='<section class="faces"><h2>目の形（髪・肌・瞳の色は共通）</h2><p>形の差を比べるため、基本表情と装飾品は付けていません。</p>'
 html+=cards([(label,figure(eye=eye,face=True)) for eye,label in zip(eyes,eye_names)],False)+'</section>'
 html+='<h2>眉の形</h2>'+cards([(brow,figure(brow=brow,face=True)) for brow in ['natural','straight','arched']],False)
@@ -78,6 +99,6 @@ for i,(job,label) in enumerate(jobs):
         for variant,cut in [('classic','普段着'),('travel','旅装'),('formal','晴れ着')]:
             figures.append((label+'・'+cut,figure(outfit,hairs[i%len(hairs)],eyes[i%9],variant=variant,female=female,palette=i,hat=True)))
 html+='<h2>衣装72パターン</h2>'+cards(figures)
-html+='<div class="legacy">旧データの表示：'+''.join(f'<svg class="guild-sprite {tint}" viewBox="0 0 96 144"><use href="img/guild-people.svg?v=6#resident"/></svg>' for tint in ['ember','moss','violet'])+'</div></main></html>'
+html+='<div class="legacy">旧データの表示：'+''.join(f'<svg class="guild-sprite {tint}" viewBox="0 0 96 144"><use href="img/guild-people.svg?v=7#resident"/></svg>' for tint in ['ember','moss','violet'])+'</div></main></html>'
 (out/'index.html').write_text(html)
 print(out/'index.html')

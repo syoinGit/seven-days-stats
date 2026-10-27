@@ -5,12 +5,14 @@
 <meta property="og:title" th:content="${title}"><meta property="og:type" content="website">
 <link th:if="${canonical != null and !#strings.isEmpty(canonical)}" rel="canonical" th:href="${canonical}">
 <meta th:if="${canonical != null and !#strings.isEmpty(canonical)}" property="og:url" th:content="${canonical}">
-<link rel="stylesheet" href="/css/app.css?v=header-5"><link rel="stylesheet" href="/css/portal.css?v=guild-1"><link rel="stylesheet" href="/css/guild.css?v=22">
+<link rel="stylesheet" href="/css/app.css?v=header-5"><link rel="stylesheet" href="/css/portal.css?v=guild-1"><link rel="stylesheet" href="/css/guild.css?v=23">
 </th:block></head><body>
-<!-- Shared SD figure: saved parts/colours, age and temperament; also used by dialogue portraits. -->
-<svg th:fragment="sprite(c)" class="guild-sprite" th:classappend="${c.appearance}" viewBox="0 0 96 144" aria-hidden="true"
-     th:style="${c.look != null ? c.look.style() : null}">
-  <use th:each="layer : ${c.spriteLayers()}" th:href="${'/img/guild-people.svg?v=6#' + layer}"></use>
+<!-- The small figure carries validated, saved portrait choices for the counter-view player. -->
+<svg th:fragment="sprite(c)" th:replace="~{fragments/guild :: figure(${c}, ${c.pose()})}"></svg>
+<svg th:fragment="figure(c, pose)" class="guild-sprite" th:classappend="${c.appearance}" viewBox="0 0 96 144" aria-hidden="true"
+     th:style="${c.look != null ? c.look.style() : null}"
+     th:attr="data-portrait-layers=${#strings.listJoin(c.portraitLayers(), ',')}, data-outfit=${c.look != null ? c.look.outfit : 'adventurer'}, data-pose=${pose}">
+  <use th:each="layer : ${c.spriteLayers(pose)}" th:href="${'/img/guild-people.svg?v=7#' + layer}"></use>
 </svg>
 <!-- The guild's bottom tabs. Each one but maintenance opens a window over the tavern; active: tavern, dungeon or log. -->
 <nav th:fragment="tabbar(active)" class="guild-tabbar" aria-label="ギルド" data-guild-tabbar>
