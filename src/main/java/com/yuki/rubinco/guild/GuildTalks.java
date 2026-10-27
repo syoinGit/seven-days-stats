@@ -3,6 +3,7 @@ package com.yuki.rubinco.guild;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -155,6 +156,19 @@ public class GuildTalks {
   public Set<Long> talkers() {
     return Set.copyOf(jdbc.queryForList("SELECT DISTINCT t.character_id FROM T_GUILD_TALK t JOIN M_GUILD_CHARACTER c ON c.id = t.character_id "
         + "WHERE c.status = 'ALIVE'", Long.class));
+  }
+
+  /**
+   * Who comes over when the visitor serves a beer: a living resident with a talk, at random, not one of skip (those the
+   * visitor already talked with today, as their browser says) while anyone else is left. Null when nobody has a talk.
+   */
+  public Long draw(Collection<Long> skip) {
+    String sql = "SELECT DISTINCT t.character_id FROM T_GUILD_TALK t JOIN M_GUILD_CHARACTER c ON c.id = t.character_id WHERE c.status = 'ALIVE'";
+    List<Long> all = jdbc.queryForList(sql, Long.class);
+    if (all.isEmpty()) return null;
+    List<Long> fresh = all.stream().filter(id -> !skip.contains(id)).toList();
+    List<Long> pool = fresh.isEmpty() ? all : fresh;
+    return pool.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(pool.size()));
   }
 
   public List<Row> recent(int limit) {
