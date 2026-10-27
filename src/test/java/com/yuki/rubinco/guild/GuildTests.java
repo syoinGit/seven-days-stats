@@ -584,7 +584,7 @@ class GuildTests {
     assertThat(signboard.talk(LocalDate.of(2026, 10, 25), busy)).isEqualTo(signboard.talk(LocalDate.of(2026, 10, 25), busy));
   }
 
-  /** Anyone may fetch today's talk; it carries only what the public tavern already shows, and the tavern has the button. */
+  /** Anyone may fetch today's talk; it carries only what the public tavern already shows. Mire is paused: no button, no dialog. */
   @Test void mireTalksToAnyoneWithPublicFactsOnly() throws Exception {
     resident("リネ", 28, "ALIVE", 0);
     var facts = signboard.facts(ZonedDateTime.now(GuildService.TOKYO));
@@ -596,9 +596,8 @@ class GuildTests {
         .andExpect(content().string(not(containsString("core-keeper"))))
         .andExpect(content().string(not(containsString("記録から。"))));
     mvc.perform(get("/guild")).andExpect(status().isOk())
-        .andExpect(content().string(containsString("data-signboard-open")))
-        .andExpect(content().string(containsString("id=\"guild-signboard\"")))
-        .andExpect(content().string(containsString("guild-signboard.svg?v=2#mire-normal")));
+        .andExpect(content().string(not(containsString("data-signboard-open"))))
+        .andExpect(content().string(not(containsString("id=\"guild-signboard\""))));
   }
 
   @Test void writerAcceptsOnlyParticipantsAndChangesCodeMade() {
@@ -958,7 +957,18 @@ class GuildTests {
         .andExpect(content().string(containsString("店主の秘密")));
     mvc.perform(get("/guild/talks/" + talk.id() + "/choices/3")).andExpect(status().isNotFound());
     mvc.perform(get("/guild/talks/999999/choices/0")).andExpect(status().isNotFound());
-    mvc.perform(get("/guild")).andExpect(content().string(containsString("person-talkable")));
+    mvc.perform(get("/guild")).andExpect(content().string(containsString("person-talkable")))
+        .andExpect(content().string(containsString("data-beer-serve")));
+    // Serving a beer brings someone with a talk, not one already talked with today while anyone else is left.
+    for (int i = 0; i < 5; i++) {
+      mvc.perform(get("/guild/beer").param("skip", rine + ",x,<b>")).andExpect(status().isOk())
+          .andExpect(content().string(containsString("data-beer=\"1\"")))
+          .andExpect(content().string(containsString("data-character-id=\"" + roan + "\"")))
+          .andExpect(content().string(containsString("ロアンに話しかける")))
+          .andExpect(content().string(not(containsString("guild-window"))));
+    }
+    mvc.perform(get("/guild/beer").param("skip", rine + "," + roan)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("data-beer=\"1\"")));
     // The dead don't talk; deleting a resident takes their talks too.
     jdbc.update("UPDATE M_GUILD_CHARACTER SET status = 'DEAD' WHERE id = ?", rine);
     assertThat(talks.latest(rine)).isNull();
@@ -966,6 +976,9 @@ class GuildTests {
     guild.delete(roan);
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_TALK WHERE character_id = ?", roan)).isZero();
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_TALK_CHOICE")).isEqualTo(3);
+    // Nobody left to talk: no beer to serve.
+    mvc.perform(get("/guild/beer")).andExpect(status().isNotFound());
+    mvc.perform(get("/guild")).andExpect(content().string(not(containsString("data-beer-serve"))));
   }
 
   @Test void talksNeedSomeoneInAPlaceAndAValidText() throws Exception {
@@ -1367,9 +1380,9 @@ class GuildTests {
         .andExpect(content().string(containsString("ヨーロッパ系の名")))
         .andExpect(content().string(containsString("<dt>出身地</dt><dd>グランフォード</dd>")))
         .andExpect(content().string(containsString("<dt>信仰</dt><dd>無信仰</dd>")))
-        .andExpect(content().string(containsString("guild-people.svg?v=5#outfit-")))
+        .andExpect(content().string(containsString("guild-people.svg?v=6#outfit-")))
         .andExpect(content().string(containsString("viewBox=\"0 0 96 144\"")))
-        .andExpect(content().string(containsString("guild-people.svg?v=5#expression-thoughtful")))
+        .andExpect(content().string(containsString("guild-people.svg?v=6#expression-thoughtful")))
         .andExpect(content().string(containsString("7 Days to Die・")))
         .andExpect(content().string(containsString("zombieGuild10を1体倒した日から生まれました")))
         .andExpect(content().string(containsString("10:00 古い家でzombieGuild10を倒した")))
@@ -1656,7 +1669,7 @@ class GuildTests {
     var response = mvc.perform(get("/guild/maintenance").with(admin)).andExpect(status().isOk())
         .andExpect(content().string(containsString("目元を引き直す")))
         .andExpect(content().string(containsString("外見を引き直す")))
-        .andExpect(content().string(containsString("guild-people.svg?v=5#eyes-")))
+        .andExpect(content().string(containsString("guild-people.svg?v=6#eyes-")))
         .andExpect(content().string(containsString("name=\"_csrf\"")))
         .andReturn().getResponse();
     var preview = java.nio.file.Path.of("target/guild-preview/maintenance.html");

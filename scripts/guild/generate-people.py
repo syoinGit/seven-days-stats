@@ -6,9 +6,10 @@ refer to them. Colours inherit from the containing SVG's CSS variables.
 Run: python3 scripts/guild/generate-people.py
 """
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[2]
-INK = '#352c39'
+INK = '#342d3c'
 SKIN = 'var(--skin,#e6b48e)'
 HAIR = 'var(--hair,#6e4630)'
 CLOTH = 'var(--cloth,#5f7d4a)'
@@ -18,35 +19,112 @@ CREAM = '#f5e5c3'
 LEATHER = '#76513e'
 parts = {}
 
-def path(d, fill='none', stroke=INK, width=2, extra=''):
-    return f'<path d="{d}" fill="{fill}" stroke="{stroke}" stroke-width="{width}" {extra}/>'
+# Lighting overlays keep saved colours as the underlying fill. All stops are
+# constant colours with alpha, so external <use> instances retain their palettes.
+# Skin uses one coordinate system across face/expressions: no differently shaded
+# patch appears when a mouth or age layer is placed over the face.
+def gradient(name, stops, coordinates='', radial=False):
+    tag = 'radialGradient' if radial else 'linearGradient'
+    return f'<{tag} id="sd-{name}" {coordinates}>' + ''.join(
+        f'<stop offset="{at}" stop-color="{colour}" stop-opacity="{alpha}"/>'
+        for at, colour, alpha in stops) + f'</{tag}>'
+
+finishes = ''.join([
+    gradient('skin', [('0','#fff1ce',.18),('.45','#ffe6c0',.03),('1','#653949',.16)],
+             'gradientUnits="userSpaceOnUse" x1="26" y1="20" x2="72" y2="84"'),
+    gradient('hair', [('0','#ffefcd',.22),('.24','#fff1dc',.06),('.55','#242036',.04),('1','#1c172c',.3)],
+             'x1=".22" y1="0" x2=".75" y2="1"'),
+    gradient('cloth', [('0','#fff0ce',.13),('.45','#fff0ce',0),('1','#221c37',.25)],
+             'x1="0" y1="0" x2="1" y2=".7"'),
+    gradient('leather', [('0','#ffe3ac',.22),('.42','#ffe3ac',0),('1','#271b2b',.3)],
+             'x1="0" y1="0" x2="1" y2="1"'),
+    gradient('metal', [('0','#fff',.68),('.22','#fff6d9',.12),('.4','#32354f',.2),('.52','#fff',.55),('1','#27334e',.34)],
+             'x1="0" y1="0" x2="1" y2=".8"'),
+    gradient('gold', [('0','#fff7ca',.72),('.25','#fff0ad',.2),('.5','#9e613c',.22),('.65','#fff6cd',.45),('1','#683d32',.38)],
+             'x1="0" y1="0" x2=".8" y2="1"'),
+    gradient('eye-white', [('0','#766279',.3),('.4','#fff3da',.03),('1','#fff',.05)]),
+    gradient('iris', [('0','#15182f',.7),('.43','#292238',.13),('.72','#fff2b8',.12),('1','#a6fff1',.25)]),
+])
+
+def finish(fill):
+    if fill == SKIN: return 'skin'
+    if fill == HAIR: return 'hair'
+    if fill in (CLOTH, SECOND, CREAM, '#f2e6ce', '#f4f0e8', '#ad4c4a'): return 'cloth'
+    if fill in (LEATHER, '#a97a4d', '#ae7f52', '#c19a64', '#d9b979', '#dfc28a', '#c9aa71'): return 'leather'
+    if fill in ('#9faeb4', '#c9d3ce', '#b7c6c1', '#aebfbd', '#91a0a5', '#bac9c8'): return 'metal'
+    if fill == GOLD: return 'gold'
+    return None
+
+def painted(tag, geometry, fill, stroke, width, extra=''):
+    material = finish(fill)
+    result = f'<{tag} {geometry} fill="{fill}" stroke="{stroke}" stroke-width="{width}" {extra}/>'
+    if material:
+        result += f'<{tag} {geometry} fill="url(#sd-{material})" stroke="none" {extra}/>'
+    return result
+
+def path(d, fill='none', stroke=INK, width=1.65, extra=''):
+    return painted('path', f'd="{d}"', fill, stroke, width, extra)
 
 def ellipse(x, y, rx, ry, fill, stroke='none', width=2, extra=''):
-    return f'<ellipse cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" fill="{fill}" stroke="{stroke}" stroke-width="{width}" {extra}/>'
+    return painted('ellipse', f'cx="{x}" cy="{y}" rx="{rx}" ry="{ry}"', fill, stroke, width, extra)
 
 def rect(x, y, w, h, fill, radius=2, stroke=INK):
-    return f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{radius}" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
+    return painted('rect', f'x="{x}" y="{y}" width="{w}" height="{h}" rx="{radius}"', fill, stroke, 1.4)
 
 def symbol(name, *shapes):
     parts[name] = ''.join(shapes)
 
 def seam(d):
-    return path(d, stroke='#fff5dd', width=1.4, extra='opacity=".5"')
+    return path(d, stroke='#fff5dd', width=.85, extra='opacity=".42"')
+
+def fold(d, width=1):
+    return path(d, stroke='#252036', width=width, extra='opacity=".3"')
+
+def glint(d, width=.8):
+    return path(d, stroke='#fff6da', width=width, extra='opacity=".8"')
+
+def hair_detail(name, silhouette):
+    """Clipped, style-specific locks; the face opening and original silhouette stay intact."""
+    clip = f'sd-locks-{name}'
+    art = f'<defs><clipPath id="{clip}"><path d="{silhouette}"/></clipPath></defs>'
+    locks = path('M24 25 Q30 13 47 14 Q41 17 39 20 Q30 19 27 28Z', '#fff1cd', 'none', extra='opacity=".22"')
+    locks += path('M59 15 Q70 19 72 31 L68 35 Q66 23 59 15Z', '#1c172c', 'none', extra='opacity=".18"')
+    if name in ('curly','wavy','ringlets','shortwave','bun','doublebun','lowbun'):
+        locks += fold('M28 24 Q24 32 31 35 M38 16 Q32 24 39 27 M55 15 Q50 23 57 26 M69 29 Q76 36 69 42', .85)
+        locks += seam('M25 48 Q22 56 28 59 M69 49 Q74 55 68 61 M26 66 Q25 71 29 73')
+    elif name in ('spiky','messy','shaggy','wolf','windswept','mohawk','pixie','feathered'):
+        locks += path('M30 22 L39 20 L35 26 L28 29Z M44 16 L49 21 L44 29 L43 23Z M61 22 L65 25 L64 33 L60 28Z', '#fff1cd', 'none', extra='opacity=".13"')
+        locks += fold('M30 29 L32 34 M49 23 L46 29 M64 32 L68 39', .9)
+    elif name in ('cropped','buzz','undercut','slicked','quiff','swept','sidepart','centerpart'):
+        locks += seam('M27 29 Q35 18 43 17 M32 30 Q40 20 47 19 M58 20 Q65 24 67 30')
+        locks += fold('M38 28 Q50 17 61 22 M49 29 Q57 24 65 27', .8)
+    else:
+        locks += seam('M27 37 Q24 50 29 65 M69 37 Q73 50 68 68 M32 23 Q37 18 44 18')
+        locks += fold('M25 36 Q22 57 27 75 M71 36 Q76 57 70 77 M43 21 Q38 30 31 33', .8)
+        locks += path('M24 42 Q23 57 27 68 L29 67 Q26 54 28 43Z M69 42 Q72 53 68 67 L70 68 Q75 53 72 42Z', '#fff1cd', 'none', extra='opacity=".1"')
+    return art + f'<g clip-path="url(#{clip})">{locks}</g>'
 
 # The oversized head, small hands, short boots and soft silhouette are shared.
 symbol('body', ellipse(48,136,28,4,'#171322',extra='opacity=".22"'),
     rect(35,108,10,21,SKIN,4),rect(51,108,10,21,SKIN,4),
     path('M34 124 Q40 127 45 124 L45 134 H29 Q27 128 34 124Z',LEATHER),
     path('M51 124 Q57 127 62 124 Q69 128 67 134 H51Z',LEATHER),
-    seam('M30 131 H43 M53 131 H66'),rect(41,59,14,15,SKIN,4),
+    seam('M30 131 H43 M53 131 H66'),
+    fold('M36 126 L42 127 M54 127 L60 126',.8),
+    glint('M32 128 Q35 126 38 128 M55 128 Q59 126 62 128',.7),rect(41,59,14,15,SKIN,4),
     path('M33 69 Q48 62 63 69 L69 110 Q48 118 27 110Z',SKIN),
     ellipse(23,100,7,9,SKIN,INK),ellipse(73,100,7,9,SKIN,INK),
+    path('M20 98 Q24 97 25 101 M71 99 Q73 97 76 99',stroke='#a76b5a',width=.85,extra='opacity=".55"'),
     ellipse(24,44,5,7,SKIN,INK),ellipse(72,44,5,7,SKIN,INK),
+    path('M22 42 Q26 39 26 46 M70 42 Q74 39 74 46',stroke='#a76b5a',width=1,extra='opacity=".55"'),
     path('M24 37 Q22 14 48 14 Q74 14 72 37 L71 49 Q68 64 48 66 Q28 64 25 49Z',SKIN),
-    path('M27 47 Q31 61 49 62 Q63 61 70 50 Q66 65 48 66 Q30 64 27 47Z','#a85f4b','none',extra='opacity=".18"'),
-    ellipse(33,51,5,2.5,'#d27c73',extra='opacity=".3"'),ellipse(63,51,5,2.5,'#d27c73',extra='opacity=".3"'),
-    path('M47 47 L46 50 H49',stroke='#a96f59',width=1.3),
-    path('M43 55 Q48 58 53 55',stroke='#935d52',width=1.6))
+    path('M26 49 Q30 62 48 64 Q66 62 70 49 L69 54 Q63 66 48 66 Q32 64 27 54Z','#844458','none',extra='opacity=".12"'),
+    ellipse(32,51,5,2.6,'#dc8780',extra='opacity=".22"'),ellipse(64,51,5,2.6,'#dc8780',extra='opacity=".22"'),
+    glint('M29 48 Q31 47 33 48 M63 48 Q65 47 67 48',.65),
+    path('M47 48 Q45.5 50 48.5 50',stroke='#a96f59',width=.8,extra='opacity=".7"'),
+    ellipse(47,47.5,.8,.5,'#fff0d3',extra='opacity=".6"'),
+    path('M43 55 Q48 58 53 55',stroke='#935d52',width=1.2),
+    path('M46 59 Q48 59.5 50 59',stroke='#fff0d3',width=.7,extra='opacity=".55"'))
 symbol('face-m',path('M31 58 Q33 61 36 61 M60 61 Q63 61 65 58',stroke='#a96f59',width=1,extra='opacity=".4"'))
 symbol('face-f',ellipse(31,52,4,2,'#d27c73',extra='opacity=".2"'),ellipse(65,52,4,2,'#d27c73',extra='opacity=".2"'))
 # Each eye has its own silhouette, clipped iris, upper lash and reflected light.
@@ -66,15 +144,20 @@ for name,(shape,lid,rx,ry,iy) in eye_shapes.items():
     for x,mirror in [(36,1),(60,-1)]:
         clip = f'eye-{name}-{x}'
         eye = f'<defs><clipPath id="{clip}"><path d="{shape}"/></clipPath></defs>'
-        eye += path(shape,'#fff5eb',width=1)
+        eye += path(shape,'#fff5eb',width=.75)+path(shape,'url(#sd-eye-white)','none')
         iris = ellipse(0,iy,rx,ry,'var(--eye,#3f4a41)')
-        iris += ellipse(0,iy-2,rx,ry,INK,extra='opacity=".28"')
-        iris += path(f'M{-rx*.65} {iy+ry*.55} Q0 {iy+ry} {rx*.65} {iy+ry*.55}',stroke='#f9db9c',width=1.3,extra='opacity=".65"')
-        iris += ellipse(0,iy+.5,1.6,ry*.66,INK)
-        iris += ellipse(-1.6,iy-2.5,1.8,2,'#fff')+ellipse(2.3,iy+2.7,.9,1,'#fff',extra='opacity=".85"')
+        iris += ellipse(0,iy,rx,ry,'url(#sd-iris)')
+        iris += path(f'M{-rx*.68} {iy+ry*.55} Q0 {iy+ry} {rx*.68} {iy+ry*.55}',stroke='#f9db9c',width=.8,extra='opacity=".65"')
+        iris += ellipse(0,iy+.2,1.35,ry*.62,INK)
+        iris += ellipse(-1.5*mirror,iy-2.6,1.5,1.75,'#fff')+ellipse(2.1*mirror,iy+2.6,.65,.75,'#fff',extra='opacity=".85"')
         if name=='sparkle': iris+=path('M2-2 L2.5-.5 L4 0 L2.5.5 L2 2 L1.5.5 L0 0 L1.5-.5Z','#fff','none')
         eye += f'<g clip-path="url(#{clip})">{iris}</g>'
-        eye += path(lid,stroke=INK,width=2.2)+path('M-6-1 L-8-3',stroke=INK,width=1.5)
+        eye += path(lid,stroke=INK,width=1.85)
+        # Taper the outer lash from the actual eyelid corner (droop/sharp have different corners).
+        ox,oy = (float(value) for value in re.findall(r'-?\d+(?:\.\d+)?',lid)[:2])
+        eye += path(f'M{ox+1} {oy} L{ox-2} {oy-2.3} Q{ox-.8} {oy+1} {ox+1.2} {oy+1}Z',INK,'none')
+        if name in ('round','wide','sparkle'):
+            eye += path(f'M-4 {ry*.85} Q0 {ry+1.1} 3 {ry*.85}',stroke='#9d7269',width=.6,extra='opacity=".6"')
         art += f'<g transform="translate({x} 44) scale({mirror} 1)">{eye}</g>'
     symbol('eyes-'+name,art)
 symbol('eyes-smile',path('M29 45 Q36 34 43 45 M53 45 Q60 34 67 45',width=2.7),
@@ -119,7 +202,7 @@ extras = {
 for name, d in hairs.items():
     detail = seam('M30 26 Q36 18 44 18 M58 18 Q65 20 67 26')
     tie = ellipse(73,37,4,3,SECOND,INK,1) if name in ('tied','tail','braid') else ''
-    symbol('hair-'+name,extras.get(name,''),path(d,HAIR),detail,tie)
+    symbol('hair-'+name,extras.get(name,''),path(d,HAIR),hair_detail(name,d),detail,tie)
 
 # Added cuts retain the face opening; back lengths and bangs both vary.
 new_hairs = {
@@ -179,27 +262,40 @@ for name,d in new_hairs.items():
     if name=='ribbonbraid':
         art += path('M69 52 L77 59 L70 66 L77 73 L70 80',stroke=SECOND,width=2.5)
         art += path('M73 87 L64 81 L64 90 L73 88 L82 91 L82 82Z',SECOND)
-    symbol('hair-'+name,art)
+    symbol('hair-'+name,art,hair_detail(name,d))
+
+for name in ('long','hime','straight','lob','sidelong','halfup'):
+    parts['hair-'+name] += seam('M26 58 L28 73 M70 57 L68 74')
+for name in ('tied','highpony','sidepony'):
+    parts['hair-'+name] += seam('M79 34 Q81 45 78 56') + fold('M81 47 Q83 58 81 65', .8)
+for name in ('braid','sidebraid','doublebraid','ribbonbraid'):
+    parts['hair-'+name] += seam('M70 52 L74 55 M70 64 L74 67 M70 76 L74 79')
 
 # Clothes share tailoring primitives but every profession has a distinct silhouette/prop.
 def coat(female=False, long=False, fill=CLOTH):
     hem = 122 if long else 109
     left,right = (27,69) if female else (29,67)
-    return path(f'M34 68 L26 73 Q21 80 18 94 L29 99 L33 87 L{left} {hem} Q48 {hem+6} {right} {hem} L63 87 L67 99 L78 94 Q75 80 70 73 L62 68 Q48 74 34 68Z',fill)+seam(f'M35 91 L34 {hem-3} M61 91 L62 {hem-3}')
+    art = path(f'M34 68 L26 73 Q21 80 18 94 L29 99 L33 87 L{left} {hem} Q48 {hem+6} {right} {hem} L63 87 L67 99 L78 94 Q75 80 70 73 L62 68 Q48 74 34 68Z',fill)
+    art += path(f'M62 72 L70 76 L76 93 L69 96 L62 85 L{right} {hem} L{right-6} {hem+1} L57 92Z', '#201c34', 'none', extra='opacity=".13"')
+    art += path('M26 75 L32 71 L31 81 L24 90 L22 89Z', '#fff0ce', 'none', extra='opacity=".15"')
+    art += fold('M26 80 L29 84 M22 92 L28 93 M69 81 L65 86 M69 93 L74 92 M35 94 L33 99 M61 94 L63 99', .8)
+    art += seam(f'M35 91 L34 {hem-3} M61 91 L62 {hem-3}')
+    art += fold(f'M{left+2} {hem-2} Q48 {hem+3} {right-2} {hem-2}', .8)
+    return art
 def collar():
-    return path('M35 68 L47 73 L41 81 L33 72Z',CREAM,width=1.4)+path('M61 68 L49 73 L55 81 L63 72Z',CREAM,width=1.4)
+    return path('M35 68 L47 73 L41 81 L33 72Z',CREAM,width=1.2)+path('M61 68 L49 73 L55 81 L63 72Z',CREAM,width=1.2)+seam('M35 70 L41 77 M61 70 L55 77')+fold('M43 74 L41 78 M53 74 L55 78',.6)
 def belt():
-    return path('M31 99 Q48 103 65 99 L65 105 Q48 109 31 105Z',LEATHER)+rect(44,100,8,7,GOLD,1)+rect(47,102,3,3,LEATHER,0,'none')
+    return path('M31 99 Q48 103 65 99 L65 105 Q48 109 31 105Z',LEATHER)+seam('M33 101 L42 102 M54 102 L63 101')+rect(44,100,8,7,GOLD,1)+rect(47,102,3,3,LEATHER,0,'none')+glint('M45 101 H51 V103',.65)
 def pouch():
-    return path('M62 101 Q77 99 76 111 L75 119 Q67 123 60 117Z',LEATHER)+path('M62 103 L76 105 L70 111Z','#a97a4d',width=1.3)+ellipse(69,111,1.5,1.5,GOLD)
+    return path('M62 101 Q77 99 76 111 L75 119 Q67 123 60 117Z',LEATHER)+path('M62 103 L76 105 L70 111Z','#a97a4d',width=1.1)+ellipse(69,111,1.5,1.5,GOLD)+seam('M62 112 L63 117 Q68 120 73 117')+fold('M73 113 V116',.7)
 def book():
-    return path('M16 89 L31 86 L36 108 L20 112Z','#715573')+path('M20 91 L29 89 L32 105 L23 108Z',CREAM,width=1)+path('M24 95 L29 94 M25 99 L30 98',stroke='#b29369',width=1)
+    return path('M16 89 L31 86 L36 108 L20 112Z','#715573')+path('M20 91 L29 89 L32 105 L23 108Z',CREAM,width=.8)+path('M24 95 L29 94 M25 99 L30 98 M24 102 L30 100',stroke='#b29369',width=.6)+glint('M18 90 L22 108',.8)+path('M26 90 L27 95 L29 93 L30 94 L29 89Z',SECOND,width=.6)
 def sword():
-    return path('M74 96 L82 126 L79 132 L75 128 L68 98Z','#aebfbd')+path('M66 96 L78 92',stroke=GOLD,width=4)+path('M69 94 L66 85',stroke=LEATHER,width=4)
+    return path('M74 96 L82 126 L79 132 L75 128 L68 98Z','#aebfbd')+path('M73 99 L79 129 L76 126 L70 99Z','#fff5dc','none',extra='opacity=".65"')+fold('M74 100 L80 126',.7)+path('M66 96 L78 92',stroke=GOLD,width=3.5)+glint('M66 95 L77 91',.7)+path('M69 94 L66 85',stroke=LEATHER,width=3.8)+path('M65 87 L68 87 M66 90 L69 90',stroke='#d3b485',width=.7)
 def lantern():
     return path('M77 95 Q85 91 85 101',width=2)+rect(75,102,15,19,'#f0c46b',3)+path('M76 106 H89 M82 105 V119',stroke=LEATHER,width=2)+ellipse(82,112,3,5,'#ffebad')
 def apron(female=False):
-    return path('M37 76 H59 L58 94 L65 116 Q48 122 31 116 L38 94Z',CREAM)+path('M39 98 H57 L56 108 H40Z','#d8c29d',width=1.3)+seam('M41 79 V91')
+    return path('M37 76 H59 L58 94 L65 116 Q48 122 31 116 L38 94Z',CREAM)+path('M56 79 L58 79 L56 94 L62 115 L56 116 L52 99Z','#806d69','none',extra='opacity=".13"')+path('M39 98 H57 L56 108 H40Z','#d8c29d',width=1)+seam('M41 79 V91 M41 101 V106 H54 M34 115 Q48 120 62 115')+fold('M38 94 L41 96 M56 94 L53 96 M38 110 L36 114 M58 110 L60 115',.7)
 
 jobs = ['farmer','watch','knight','crafter','merchant','cleric','adventurer','hunter','cook','samurai','ronin','miko_m']
 for job in jobs:
@@ -248,6 +344,21 @@ for job in jobs:
         if job=='samurai': art+=path('M26 72 L34 75 L29 88 L20 84Z',SECOND)+path('M70 72 L62 75 L67 88 L76 84Z',SECOND)
         if job=='ronin': art+=path('M34 110 L41 108 L43 116 L36 118Z',LEATHER)+seam('M35 111 L42 114')
         if job=='miko_m': art+=path('M77 115 V79',stroke=LEATHER,width=3)+path('M77 81 L86 85 L80 91 L87 96 L81 103 L74 96 L80 91 L73 85Z',CREAM,width=1)
+    if job=='knight':
+        art += glint('M24 77 Q26 72 30 74 M65 74 Q68 72 71 77 M18 94 L25 92',.9)
+        art += ''.join(ellipse(x,y,.8,.8,GOLD) for x,y in [(25,81),(30,83),(66,83),(71,81),(18,99),(31,99)])
+        art += path('M24 96 L25 103 L29 105 L25 108 L24 114 L22 108 L19 106 L22 103Z',GOLD,width=.65)
+    elif job=='crafter':
+        art += seam('M35 88 L34 112 M61 89 L62 112 M41 97 H55')+fold('M42 100 V105 M47 100 V105 M52 100 V105',.65)
+        art += glint('M66 88 L78 93 M64 92 L76 97',.7)
+    elif job in ('samurai','ronin','miko_m'):
+        art += fold('M34 106 L31 120 M42 106 L40 123 M54 106 L56 123 M62 106 L65 120',.8)
+        art += seam('M36 107 L34 119 M60 107 L62 119')
+    elif job=='cleric':
+        art += glint('M77 65 Q79 63 82 66 M77 70 L79 72',.6)
+        art += path('M33 110 L35 112 L33 114 L31 112Z M63 110 L65 112 L63 114 L61 112Z',GOLD,width=.55)
+    elif job in ('adventurer','hunter','watch'):
+        art += fold('M35 90 L40 94 M61 90 L56 94',.8)+seam('M34 85 L32 96 M62 85 L64 96')
     symbol('outfit-'+name,art)
 
 # Three cuts per profession: classic, a practical travel cut, and ornamented formal dress.
@@ -307,10 +418,15 @@ symbol('acc-earrings',ellipse(24,51,3,4,GOLD,INK,1),ellipse(72,51,3,4,GOLD,INK,1
 symbol('acc-hairband',path('M24 31 Q48 9 72 31',stroke=SECOND,width=5),path('M26 29 Q48 12 70 29',stroke=GOLD,width=1))
 symbol('acc-glasses',ellipse(36,44,8,7,'none',LEATHER,1.8),ellipse(60,44,8,7,'none',LEATHER,1.8),path('M44 43 Q48 40 52 43 M28 43 L24 41 M68 43 L72 41',stroke=LEATHER,width=1.5),seam('M31 43 L35 39 M55 43 L59 39'))
 # Legacy/invalid records also get SD artwork; currentColor retains their old tint.
-symbol('resident','<g style="--cloth:currentColor">'+''.join(parts[k] for k in ['body','eyes-round','face-m','brows-natural','legs-pants','outfit-adventurer','hair-short'])+'</g>')
+legacy = ''.join(parts[k] for k in ['body','eyes-round','face-m','brows-natural','legs-pants','outfit-adventurer','hair-short'])
+# Flattened legacy parts need their own local clipping IDs; shared finish references stay global.
+for local_id in re.findall(r'\bid="([^"]+)"', legacy):
+    legacy = legacy.replace(f'id="{local_id}"', f'id="legacy-{local_id}"').replace(f'url(#{local_id})', f'url(#legacy-{local_id})')
+symbol('resident','<g style="--cloth:currentColor">'+legacy+'</g>')
 
 out = ['<svg xmlns="http://www.w3.org/2000/svg">',
-       '  <!-- Generated by scripts/guild/generate-people.py. Stable IDs preserve saved residents. -->']
+       '  <!-- Generated by scripts/guild/generate-people.py. Stable IDs preserve saved residents. -->',
+       f'  <defs id="sd-finishes">{finishes}</defs>']
 for name, art in parts.items():
     out.append(f'  <symbol id="{name}" viewBox="0 0 96 144"><g stroke-linecap="round" stroke-linejoin="round">{art}</g></symbol>')
 out.append('</svg>\n')

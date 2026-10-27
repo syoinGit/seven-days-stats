@@ -57,6 +57,21 @@ public class GuildController {
     return java.util.Map.of("reply", reply);
   }
 
+  /**
+   * Serving a beer: someone with a talk comes over. Returns their talk, ready to play (fragments/guild-windows :: beer).
+   * skip: ids the visitor already talked with today (kept in their browser); at most 200 of them are read.
+   */
+  @GetMapping("/guild/beer")
+  public String beer(Model model, @RequestParam(defaultValue = "") String skip) {
+    java.util.Set<Long> skipped = java.util.Arrays.stream(skip.split(",")).limit(200).filter(id -> id.matches("\\d{1,18}"))
+        .map(Long::parseLong).collect(java.util.stream.Collectors.toSet());
+    Long id = talks.draw(skipped);
+    if (id == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+    model.addAttribute("character", guild.character(id));
+    model.addAttribute("talk", talks.latest(id));
+    return "fragments/guild-windows :: beer";
+  }
+
   @GetMapping("/guild/characters/{id}")
   public String character(Model model, @PathVariable long id) {
     var character = guild.character(id);

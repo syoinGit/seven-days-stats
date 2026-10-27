@@ -611,5 +611,14 @@
 .guild-admin-residents .guild-appearance-actions form{flex-wrap:wrap;justify-content:flex-end}
 .guild-admin-residents li:target{outline:2px solid #d7b46c;outline-offset:6px;scroll-margin-top:24px}
 @media(max-width:650px){.guild-admin-residents .guild-appearance-actions{flex-basis:100%;align-items:flex-start}.guild-admin-residents .guild-appearance-actions form{justify-content:flex-start}}
+/* Serving a beer: a small pixel mug, foam on top, beside the dungeon button. */
+.guild-beer-button{margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:4px 12px 4px 8px;background:#2b1f1a;border:2px solid #b07a3c;color:#ffe0a8;font:inherit;font-size:12px;letter-spacing:.06em;cursor:pointer}
+.guild-beer-button:hover{background:#3d2a1f}.guild-beer-button:focus-visible{outline:3px solid #ebbe92;outline-offset:2px}.guild-beer-button[hidden]{display:none}
+.guild-beer-button:disabled{opacity:.6;cursor:progress}
+.beer-mug{position:relative;width:14px;height:16px;background:linear-gradient(#fff4dc 0 4px,#e3a33b 4px);border:2px solid #5a3a1e;border-top-width:1px;box-sizing:border-box}
+.beer-mug i{position:absolute;right:-7px;top:4px;width:5px;height:7px;border:2px solid #5a3a1e;border-left:0}
+@media(prefers-reduced-motion:no-preference){.guild-beer-button:hover .beer-mug{animation:beer-tilt .5s ease-in-out}}
+@keyframes beer-tilt{50%{transform:rotate(-12deg)}}
+@media(max-width:650px){.guild-beer-button{font-size:11px;padding:3px 8px 3px 6px}}
 /* A thought that is a rumor they heard. */
 .mind-rumor{display:inline-block;margin-right:6px;padding:0 6px;font-size:10px;letter-spacing:.1em;color:#2a1d24;background:#d9b37a;vertical-align:1px}
