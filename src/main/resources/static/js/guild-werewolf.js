@@ -13,9 +13,13 @@
 //
 // What the traveller sees: the claims and results in a table, their own notes on each seat, the room's mood, and at the
 // end a review of who did what. Their record stays in this browser only (localStorage).
-(() => {
+//
+// The window is often opened in place from the tavern (guild.js), so this is loaded on every guild page and sets up
+// each table it finds, now and whenever a window opens.
+const guildWerewolf = () => {
   const box = document.querySelector("[data-wolf]");
-  if (!box) return;
+  if (!box || box.dataset.ready) return;
+  box.dataset.ready = "1";
   const $ = (selector) => box.querySelector(selector);
   const seats = [...box.querySelectorAll("[data-wolf-player]")];
   const youSeat = $("[data-wolf-you]");
@@ -1458,4 +1462,6 @@
   place();
   addEventListener("resize", () => clearArrows());
   play();
-})();
+};
+guildWerewolf();
+document.addEventListener("guild-window", guildWerewolf);

@@ -404,9 +404,9 @@ class GuildTests {
         .andReturn().getResponse().getContentAsString();
     assertThat(page.split("data-wolf-player=", -1)).hasSize(GuildWerewolf.MAX + 1);
     assertThat(page).doesNotContain("故人");
-    // The game's script is only on its own page.
-    // A pastime in the guild's tavern, not a tab of its own.
-    mvc.perform(get("/guild")).andExpect(content().string(not(containsString("guild-werewolf.js"))))
+    // A pastime in the guild's tavern, not a tab of its own. Its script is on the tavern too, since the window is
+    // opened in place from there.
+    mvc.perform(get("/guild")).andExpect(content().string(containsString("/js/guild-werewolf.js")))
         .andExpect(content().string(containsString("guild-game-link\" href=\"/guild/werewolf\"")));
     mvc.perform(get("/guild/log")).andExpect(content().string(not(containsString("</svg>人狼</a>"))));
     // Every voice has every line; a first person named in the personality is used.
