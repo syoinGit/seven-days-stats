@@ -465,7 +465,7 @@ class GuildTests {
         .andExpect(content().string(containsString("片思いされている")))
         .andExpect(content().string(containsString("href=\"/guild/pairs/" + Math.min(rine, roan) + "-" + Math.max(rine, roan) + "\"")));
     mvc.perform(get("/guild/relations").param("center", "999999")).andExpect(status().isNotFound());
-    mvc.perform(get("/guild/characters/" + rine)).andExpect(content().string(containsString("相関図で見る")));
+    mvc.perform(get("/guild/characters/" + rine)).andExpect(content().string(containsString("href=\"/guild/relations?center=" + rine + "\">相関図</a>")));
     mvc.perform(get("/guild/log")).andExpect(content().string(containsString("href=\"/guild/relations\"")));
   }
 
@@ -1438,7 +1438,7 @@ class GuildTests {
         .andExpect(content().string(containsString("リネ")))
         .andExpect(content().string(containsString("28歳・女性・冒険者")))
         .andExpect(content().string(containsString("記録から読み取られたこと：出入りの多い短い一日から")))
-        .andExpect(content().string(containsString("ヨーロッパ系の名")))
+        .andExpect(content().string(not(containsString("系の名"))))
         .andExpect(content().string(containsString("<dt>出身地</dt><dd>グランフォード</dd>")))
         .andExpect(content().string(containsString("<dt>信仰</dt><dd>無信仰</dd>")))
         .andExpect(content().string(containsString("guild-people.svg?v=7#outfit-")))

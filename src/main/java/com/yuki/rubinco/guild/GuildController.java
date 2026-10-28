@@ -106,7 +106,6 @@ public class GuildController {
   public String character(Model model, @PathVariable long id) {
     var character = guild.character(id);
     model.addAttribute("character", character);
-    model.addAttribute("voice", voices.of(character));
     model.addAttribute("relations", chronicle.relations(id));
     model.addAttribute("history", guild.history(id));
     model.addAttribute("interactions", chronicle.list(new GuildChronicle.Filter(id, null, null, null, null), 0).stream().limit(8).toList());
