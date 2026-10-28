@@ -66,7 +66,7 @@
      nothing of it is sent back. -->
 <th:block th:fragment="werewolf">
   <section class="guild-wolf" data-wolf th:attr="data-ties=${ties}, data-bonds=${bonds}">
-    <p class="wolf-lead">酒場の余興。灯りを落として、住人たちと人狼を遊ぶ。この中に人狼がまぎれている。昼は話し合って一人を処刑し、夜は人狼が一人を襲う。</p>
+    <p class="wolf-lead">酒場の余興。灯りを落として、住人たちと人狼を遊ぶ。この中に人狼がまぎれている。昼は話し合って一人を酒場から追い出し、灯りの消えた夜には人狼が一人を襲う。</p>
     <p class="wolf-lead" th:if="${#lists.isEmpty(table)}">まだ住人が少なく、卓を囲めません。住人が増えたら、また来てください。</p>
     <th:block th:unless="${#lists.isEmpty(table)}">
     <ul class="wolf-seats" aria-label="卓を囲む人">
@@ -82,14 +82,17 @@
       <li class="wolf-seat you" data-wolf-you><span class="wolf-you-mark" aria-hidden="true">旅</span><span class="wolf-name">あなた</span><small class="wolf-tag" data-wolf-tag></small></li>
     </ul>
     <p class="wolf-ties" data-wolf-ties></p>
-    <p class="wolf-status" data-wolf-status aria-live="polite"></p>
+    <div class="wolf-board" data-wolf-board></div>
+    <div class="wolf-bar"><p class="wolf-status" data-wolf-status aria-live="polite"></p><button type="button" class="wolf-speed" data-wolf-speed hidden>すぐ表示</button></div>
     <ol class="wolf-log" data-wolf-log aria-live="polite"></ol>
     <div class="wolf-actions" data-wolf-actions><p class="meal-note">遊ぶにはJavaScriptが必要です。</p></div>
+    <p class="wolf-record" data-wolf-record></p>
     <details class="wolf-rules"><summary>遊び方</summary>
-      <p>役目は人狼・占い師・狩人・村人。人数が少ないと人狼は一人、狩人はいないこともあります。村人の陣営は人狼をすべて処刑すれば勝ち、人狼は生き残りの半分に並べば勝ちです。</p>
-      <p>昼はまず占い師を名乗る人が結果を話し、あなたの番のあと、ほかの人が怪しいと思う人を名指しします。投票で一番多く票を集めた人が処刑されます（同票はくじ引き）。夜、占い師は一人を占い、狩人は一人を守り、人狼は一人を襲います。</p>
-      <p>7人以上の卓には霊媒師がいて、処刑された人が人狼だったかを次の日に話します。同票のときは決選投票、それでも並べばくじ引きです。</p>
-      <p>住人は、誰が誰を名指ししたか、どの占い師を信じるかで考えを変えます。人狼が占い師を騙ることもあります。</p>
+      <p>役目は人狼・占い師・霊媒師・狩人・狂人・村人。人数が少ないと人狼は一人で、霊媒師・狩人・狂人はいないこともあります。村人の陣営は人狼をすべて追い出せば勝ち、人狼は生き残りの半分に並べば勝ちです。狂人は人間ですが、人狼の勝ちを願っています（人狼の陣営。占っても人間と出ます）。</p>
+      <p>昼はまず霊媒師と占い師を名乗る人が結果を話し、あなたの番のあと、ほかの人が怪しいと思う人を理由つきで名指しします。投票で一番多く票を集めた人が酒場から追い出されます。同票のときは決選投票、それでも並べばくじ引きです。夜、占い師は一人を占い、狩人は一人を守り、人狼は一人を襲います。</p>
+      <p>あなたの番には、名乗る・名指しする・かばうのほか、住人に話しかけて誰に入れるつもりか聞いたり、説得したりできます（1日1回）。説得が通るかは、これまであなたの言ったことが当たっていたかで変わります。</p>
+      <p>名乗った人とその結果は、席の下の表にまとまります。席の「メモ」を押すと、白・黒・灰の印を付けられます。決着すると、その回の振り返りが出ます。戦績はこのブラウザにだけ残ります。</p>
+      <p>住人は、誰が誰を名指ししたか、どの占い師・霊媒師を信じるかで考えを変えます。人狼や狂人が占い師や霊媒師を騙ることもあります。</p>
       <p>住人どうしの仲も効きます。仲のいい相手は疑いにくく、名指しされればかばい、恋人や夫婦は票をそろえがちです。苦手な相手には疑いが向きやすくなります。人狼も仲間をかばうことがあるので、誰が誰をかばったかは手がかりになります。座席の赤い縁は、いま疑いが集まっている人です。</p>
     </details>
     </th:block>

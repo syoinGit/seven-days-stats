@@ -413,8 +413,9 @@ class GuildTests {
     assertThat(werewolf.lines(guild.character(own)).get("defend").split("\n")).hasSizeGreaterThan(1).allMatch(line -> !line.contains("{me}"));
     // How those at the table stand with each other goes to the game: numbers, ids and bond keys only.
     var table = werewolf.table(ZonedDateTime.now(GuildService.TOKYO));
-    long a = table.get(0).character().id();
-    long b = table.get(1).character().id();
+    var seated = table.stream().map(player -> player.character().id()).filter(id -> id != own).toList();
+    long a = seated.get(0);
+    long b = seated.get(1);
     jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten) VALUES (?,?,10,40,5,0,TRUE)", a, b);
     jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,-20,-10,30,0)", b, a);
     jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,0,0,0,0)", a, own);
