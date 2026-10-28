@@ -26,9 +26,17 @@
   const board = $("[data-wolf-board]");
   const recordNote = $("[data-wolf-record]");
   const speed = $("[data-wolf-speed]");
+  const table = $("[data-wolf-table]");
+  const arrows = $("[data-wolf-arrows]");
+  const phaseNote = $("[data-wolf-phase]");
+  const headline = $("[data-wolf-headline]");
   if (seats.length < 4 || !youSeat || !log || !actions || !status) return;
 
   const ROLES = { wolf: "人狼", seer: "占い師", medium: "霊媒師", hunter: "狩人", madman: "狂人", villager: "村人" };
+  /** The badge on the seat of one who claims a role. */
+  const CLAIMED = { seer: "占", medium: "霊", hunter: "狩" };
+  /** The lines that speak for whom they are about (a blue arrow; the rest that are about someone, red). */
+  const COVERING = ["white", "cover", "spirit_white"];
   // By how many sit at the table, the traveller included.
   const DEAL = {
     5: ["wolf", "seer", "madman", "villager", "villager"],
@@ -128,9 +136,11 @@
     asked = null;
     log.replaceChildren();
     chapter("はじまり");
+    clearTable();
     for (const person of people) {
-      person.seat.classList.remove("dead", "wolf-mark", "human-mark", "revealed", "hot", "warm");
+      person.seat.classList.remove("dead", "wolf-mark", "human-mark", "revealed", "hot", "warm", ...Object.keys(ROLES).map((role) => "role-" + role));
       tag(person, "");
+      person.seat.querySelector("[data-wolf-marks]")?.replaceChildren();
       memoButton(person);
     }
   }
@@ -362,41 +372,59 @@
 
   // ---- Showing it ---------------------------------------------------------------------------------------------------
 
-  // Lines appear one by one (unless the traveller asked to see them at once); the buttons wait until all are shown.
+  // Lines appear one by one (unless the traveller asked to see them at once), and the table changes along with them
+  // (cues: the seats, bubbles and arrows as they were when the line was said); the buttons wait until all are shown.
   let fast = stored(FAST) === "1";
   let shown = [];
   let pumping = false;
   let waiting = [];
   let page = null;
 
+  /** Shows a log item or makes a change to the table; how long to wait before the next. */
+  function reveal(entry) {
+    if (typeof entry === "function") {
+      entry();
+      return 0;
+    }
+    entry.hidden = false;
+    entry.cue?.();
+    log.scrollTop = log.scrollHeight;
+    return entry.classList.contains("vote") ? 280 : entry.classList.contains("wolf-say") ? 1100 : 650;
+  }
+
   function pump() {
     if (pumping) return;
     pumping = true;
     const step = () => {
-      const item = shown.shift();
-      if (!item) {
-        pumping = false;
-        waiting.splice(0).forEach((resolve) => resolve());
-        return;
+      while (shown.length) {
+        const wait = reveal(shown.shift());
+        if (wait && !fast) {
+          setTimeout(step, wait);
+          return;
+        }
       }
-      item.hidden = false;
-      log.scrollTop = log.scrollHeight;
-      setTimeout(step, fast ? 0 : item.classList?.contains("vote") ? 90 : 420);
+      pumping = false;
+      waiting.splice(0).forEach((resolve) => resolve());
     };
     step();
   }
 
   const drained = () => (shown.length || pumping ? new Promise((resolve) => waiting.push(resolve)) : Promise.resolve());
 
-  function post(item) {
+  /** A log item, and what changes on the table when it is shown (change). */
+  function post(item, change = null) {
     if (!page) chapter("");
-    item.hidden = !fast;
+    item.hidden = true;
+    item.cue = change;
     page.append(item);
-    if (fast) log.scrollTop = log.scrollHeight;
-    else {
-      shown.push(item);
-      pump();
-    }
+    shown.push(item);
+    pump();
+  }
+
+  /** A change to the table once the lines before it are shown. */
+  function cue(change) {
+    shown.push(change);
+    pump();
   }
 
   /** A new part of the log (a day), the earlier ones folded away. */
@@ -414,15 +442,26 @@
     log.append(item);
   }
 
-  function narrate(text, kind = "") {
+  /** A line of the story; the big ones (a new day, a death, what only the traveller learns) also at the table's centre. */
+  function narrate(text, kind = "", change = null) {
     const item = document.createElement("li");
     item.className = "wolf-narr" + (kind ? " " + kind : "");
     item.textContent = text;
-    post(item);
+    const told = /^(big|death|secret)$/.test(kind);
+    post(item, () => {
+      if (told && headline) {
+        headline.textContent = text;
+        headline.className = "wolf-headline " + kind;
+      }
+      change?.();
+    });
   }
 
-  /** A line said by person, with the reason they give (why), if any. */
-  function speak(person, text, why = null) {
+  /**
+   * A line said by person, with the reason they give (why), if any: in a bubble over their seat, with an arrow to whom
+   * it is about (target), red when they are named (tone "point"), blue when vouched for ("cover").
+   */
+  function speak(person, text, why = null, target = null, tone = "point") {
     const item = document.createElement("li");
     item.className = "wolf-say" + (person.you ? " you" : "");
     const figure = person.seat.querySelector(".guild-sprite, .wolf-you-mark");
@@ -443,7 +482,11 @@
       note.textContent = "理由：" + why;
       item.append(note);
     }
-    post(item);
+    post(item, () => {
+      bubble(person, text);
+      clearArrows("point", "cover");
+      if (target) arrow(person, target, tone);
+    });
   }
 
   /** A resident's line of this kind about target ("さん" is left off for the traveller), one of its wordings. */
@@ -453,7 +496,117 @@
       const name = nameOf(target);
       text = text.replaceAll("{t}さん", target.you ? name : name + "さん").replaceAll("{t}", name);
     }
-    speak(person, text, why);
+    speak(person, text, why, target, COVERING.includes(kind) ? "cover" : "point");
+  }
+
+  // ---- The round table ----------------------------------------------------------------------------------------------
+
+  /** The seats around the table: the traveller nearest (at the bottom), the residents round from their left. */
+  function place() {
+    const order = [youSeat, ...seats];
+    order.forEach((seat, i) => {
+      const angle = Math.PI / 2 + (i * 2 * Math.PI) / order.length;
+      const x = 50 + 40 * Math.cos(angle);
+      const y = 50 + 37 * Math.sin(angle);
+      seat.style.left = x.toFixed(1) + "%";
+      seat.style.top = y.toFixed(1) + "%";
+      // Which way their bubble opens: toward the middle of the table.
+      seat.dataset.side = x < 36 ? "left" : x > 64 ? "right" : "middle";
+      seat.dataset.half = y < 50 ? "top" : "bottom";
+    });
+  }
+
+  /** What part of the game it is, at the table's centre: mode day, vote, night or end. The table is cleared for it. */
+  function phase(title, mode) {
+    cue(() => {
+      clearTable();
+      if (phaseNote) phaseNote.textContent = title;
+      if (table) table.className = "wolf-table " + mode;
+    });
+  }
+
+  function clearTable() {
+    clearArrows();
+    bubble(null);
+    for (const person of people) showVotes(person, 0);
+    if (headline) headline.textContent = "";
+  }
+
+  /** What person says, over their seat (none: the last bubble is taken away). */
+  function bubble(person, text = "") {
+    for (const seat of [...seats, youSeat]) {
+      seat.classList.remove("speaking");
+      seat.querySelector(".wolf-bubble")?.remove();
+    }
+    if (!person) return;
+    const note = document.createElement("span");
+    note.className = "wolf-bubble";
+    note.textContent = text;
+    person.seat.append(note);
+    person.seat.classList.add("speaking");
+  }
+
+  /** An arrow across the table from one seat to another, of a tone: vote, point or cover. */
+  function arrow(from, to, tone) {
+    if (!arrows || !table || from === to) return;
+    const box = table.getBoundingClientRect();
+    if (!box.width) return;
+    arrows.setAttribute("viewBox", "0 0 " + box.width.toFixed(0) + " " + box.height.toFixed(0));
+    const at = (person) => {
+      const figure = (person.seat.querySelector(".guild-sprite, .wolf-you-mark") || person.seat).getBoundingClientRect();
+      return [figure.left + figure.width / 2 - box.left, figure.top + figure.height / 2 - box.top];
+    };
+    const [x1, y1] = at(from);
+    const [x2, y2] = at(to);
+    const length = Math.hypot(x2 - x1, y2 - y1);
+    if (length < 70) return;
+    const ux = (x2 - x1) / length;
+    const uy = (y2 - y1) / length;
+    // Bowed to one side, so that arrows both ways between two seats do not lie on each other.
+    const bow = Math.min(36, length * 0.12);
+    const [sx, sy, ex, ey] = [x1 + ux * 28, y1 + uy * 28, x2 - ux * 32, y2 - uy * 32];
+    const [cx, cy] = [(sx + ex) / 2 - uy * bow, (sy + ey) / 2 + ux * bow];
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", [["M", sx, sy], ["Q", cx, cy], ["", ex, ey]].map(([c, x, y]) => c + x.toFixed(1) + " " + y.toFixed(1)).join(" "));
+    path.setAttribute("class", "wolf-arrow " + tone);
+    path.setAttribute("marker-end", "url(#wolf-head-" + tone + ")");
+    arrows.append(path);
+  }
+
+  /** Takes the arrows of these tones (all, without) off the table. */
+  function clearArrows(...tones) {
+    for (const path of [...(arrows?.querySelectorAll(".wolf-arrow") || [])]) {
+      if (!tones.length || tones.some((tone) => path.classList.contains(tone))) path.remove();
+    }
+  }
+
+  /** The votes on a seat so far (0: none shown). */
+  function showVotes(person, count) {
+    let badge = person.seat.querySelector(".wolf-votes");
+    if (!count) {
+      badge?.remove();
+      return;
+    }
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "wolf-votes";
+      person.seat.append(badge);
+    }
+    badge.textContent = count + "票";
+  }
+
+  /** The badges under a seat: the role they claim, and what the seers and mediums said of them. */
+  function badges(person) {
+    const out = [];
+    if (person.claim) out.push({ text: CLAIMED[person.claim], kind: "claim " + person.claim, label: "自称" + ROLES[person.claim] });
+    for (const teller of people) {
+      const said = teller.claim === "seer" ? teller.results : teller.claim === "medium" ? teller.spirits : [];
+      for (const result of said.filter((one) => one.target === person.index)) {
+        out.push({ text: short(teller).slice(0, 1) + (result.black ? "●" : "○"), kind: result.black ? "black" : "white",
+          label: short(teller) + "の" + (teller.claim === "seer" ? "占い" : "霊媒") + "：" + (result.black ? "人狼" : "人間") });
+      }
+    }
+    return out;
   }
 
   function tag(person, text) {
@@ -498,35 +651,48 @@
     return counts;
   }
 
-  /** The seats as the traveller sees them; counts: the room's mood, to show who is under suspicion. */
+  /**
+   * The seats as the traveller sees them; counts: the room's mood, to show who is under suspicion. Taken now, shown on
+   * the table when the lines before it are.
+   */
   function mark(counts = null) {
     const self = you();
-    for (const person of people) {
-      person.seat.classList.toggle("dead", !person.alive);
+    const looks = people.map((person) => {
       const known = self.known.get(person.index);
-      person.seat.classList.toggle("wolf-mark", person !== self && known === "wolf");
-      person.seat.classList.toggle("human-mark", person !== self && known === "human");
-      if (counts) {
+      const classes = { dead: !person.alive, "wolf-mark": person !== self && known === "wolf", "human-mark": person !== self && known === "human" };
+      if (counts || !person.alive) {
         const heat = person.alive ? counts.get(person) || 0 : 0;
-        person.seat.classList.toggle("hot", heat >= 2);
-        person.seat.classList.toggle("warm", heat === 1);
+        Object.assign(classes, { hot: heat >= 2, warm: heat === 1 });
       }
-      const notes = [];
-      if (person.claim) notes.push("自称" + ROLES[person.claim]);
-      if (!person.alive) notes.push(person.diedBy === "vote" ? "追放" : "襲撃");
-      tag(person, notes.join("・"));
-    }
-    status.textContent = (day === 0 ? "最初の夜" : day + "日目") + " ・ あなたは" + ROLES[self.role] + (self.alive ? "" : "（脱落）") + " ・ 残り " + living().length + "人";
-    drawBoard();
+      const words = person.alive ? "" : person.diedBy === "vote" ? "追放" : "襲撃";
+      return { person, classes, words, badges: badges(person) };
+    });
+    const line = (day === 0 ? "最初の夜" : day + "日目") + " ・ あなたは" + ROLES[self.role] + (self.alive ? "" : "（脱落）") + " ・ 残り " + living().length + "人";
+    const sheet = drawBoard();
+    cue(() => {
+      for (const look of looks) show(look);
+      status.textContent = line;
+      board?.replaceChildren(...(sheet ? [sheet] : []));
+    });
   }
 
-  /** The claims and what each said, and who left the table how. */
+  function show({ person, classes, words, badges }) {
+    for (const [name, on] of Object.entries(classes)) person.seat.classList.toggle(name, on);
+    tag(person, words);
+    person.seat.querySelector("[data-wolf-marks]")?.replaceChildren(...badges.map(({ text, kind, label }) => {
+      const badge = document.createElement("span");
+      badge.className = "wolf-badge " + kind;
+      badge.textContent = text;
+      badge.title = label;
+      return badge;
+    }));
+  }
+
+  /** The claims and what each said, and who left the table how (none when there is nothing yet). */
   function drawBoard() {
-    if (!board) return;
-    board.replaceChildren();
     const claimants = people.filter((person) => person.claim);
     const gone = people.filter((person) => !person.alive);
-    if (!claimants.length && !gone.length) return;
+    if (!claimants.length && !gone.length) return null;
     const list = document.createElement("dl");
     for (const person of claimants) {
       const term = document.createElement("dt");
@@ -561,7 +727,7 @@
       said.textContent = gone.map((person) => short(person) + "（" + (person.diedBy === "vote" ? "追放" : "襲撃") + "）").join("、");
       list.append(term, said);
     }
-    board.append(list);
+    return list;
   }
 
   /** How many living residents (other than those claiming the same) believe c over anyone else claiming it. */
@@ -621,11 +787,6 @@
       fast = !fast;
       store(FAST, fast ? "1" : "0");
       label();
-      if (fast) {
-        shown.forEach((item) => { item.hidden = false; });
-        shown = [];
-        log.scrollTop = log.scrollHeight;
-      }
     });
   }
 
@@ -671,6 +832,7 @@
     const self = you();
     showTies();
     showRecord();
+    phase("最初の夜", "night");
     mark();
     narrate("酒場の灯りが落とされ、" + people.length + "人が卓を囲んだ。この中に人狼が" + wolves().length + "人まぎれている。", "big");
     const special = DEAL[people.length].filter((role) => role !== "villager" && role !== "wolf").map((role) => ROLES[role]);
@@ -776,6 +938,7 @@
     talked = false;
     asked = request;
     request = null;
+    phase(day + "日目の昼", "day");
     narrate(day + "日目の昼。卓を囲んで話し合いが始まる。", "big");
     const npcs = shuffle(living().filter((person) => !person.you));
     if (day === 1) for (const person of npcs.slice(0, 2)) say(person, "greet");
@@ -949,7 +1112,7 @@
       if (action === "request") {
         const target = await pickPerson("占い師に、今夜誰を占ってほしい？", others(self).filter((person) => person.claim !== "seer"), true);
         if (target) {
-          speak(self, "占い師は今夜、" + target.name + "を占ってほしい。");
+          speak(self, "占い師は今夜、" + target.name + "を占ってほしい。", null, target, "ask");
           request = target;
           today().request = { by: self, target };
           mark();
@@ -979,7 +1142,7 @@
       return;
     }
     const target = await pickPerson(how === "white" ? "誰のことを伝える？（人狼じゃない）" : "誰のことを伝える？（怪しい）", others(self).filter((other) => other !== person));
-    speak(self, target.name + (how === "white" ? "は人狼じゃないと思う。" : "が怪しいと思う。"));
+    speak(self, target.name + (how === "white" ? "は人狼じゃないと思う。" : "が怪しいと思う。"), null, target, how === "white" ? "cover" : "point");
     const black = how === "black";
     const known = person.known.get(target.index);
     // A resident won't be told otherwise about what they know; a wolf agrees when it suits the wolves.
@@ -1006,7 +1169,7 @@
     }
     if (action === "suspect") {
       const target = await pickPerson("誰を名指しする？", others(self));
-      speak(self, target.name + "が怪しいと思う。");
+      speak(self, target.name + "が怪しいと思う。", null, target);
       heard(self, target);
       today().named.push({ by: self, target });
       target.namedByYou = true;
@@ -1014,7 +1177,7 @@
     }
     if (action === "cover") {
       const target = await pickPerson("誰をかばう？", others(self));
-      speak(self, target.name + "は人狼じゃないと思う。");
+      speak(self, target.name + "は人狼じゃないと思う。", null, target, "cover");
       vouched(self, target);
       return;
     }
@@ -1049,7 +1212,7 @@
       for (const reading of untold) {
         self.results.push(reading);
         today().results.push({ by: self, kind: "seer", ...reading });
-        speak(self, people[reading.target].name + "を占った。" + (reading.black ? "人狼だ！" : "人間だった。"));
+        speak(self, people[reading.target].name + "を占った。" + (reading.black ? "人狼だ！" : "人間だった。"), null, people[reading.target], reading.black ? "point" : "cover");
         if (reading.black) heard(self, people[reading.target]);
       }
       if (!untold.length) speak(self, "新しく伝えることはまだない。");
@@ -1060,7 +1223,7 @@
         const black = await ask(target.name + "の結果は？", [{ label: "人間だった", value: false }, { label: "人狼だった", value: true }]);
         self.results.push({ target: target.index, black });
         today().results.push({ by: self, kind: "seer", target: target.index, black });
-        speak(self, target.name + "を占った。" + (black ? "人狼だ！" : "人間だった。"));
+        speak(self, target.name + "を占った。" + (black ? "人狼だ！" : "人間だった。"), null, target, black ? "point" : "cover");
         if (black) heard(self, target);
       }
     }
@@ -1087,12 +1250,26 @@
       const target = choice(person, candidates(person), tally, ballots);
       if (target) cast(person, target);
     }
-    for (const [voter, target] of ballots) narrate(voter.name + " → " + target.name, "vote");
+    // The votes go up one by one, each an arrow across the table.
+    cue(() => {
+      clearArrows();
+      for (const person of people) showVotes(person, 0);
+    });
+    const counted = new Map();
+    for (const [voter, target] of ballots) {
+      const count = (counted.get(target) || 0) + 1;
+      counted.set(target, count);
+      narrate(voter.name + " → " + target.name, "vote", () => {
+        arrow(voter, target, "vote");
+        showVotes(target, count);
+      });
+    }
     return { tally, ballots };
   }
 
   /** The vote, with a run-off between those tied; true when the game ended with it. */
   async function vote() {
+    phase(day + "日目の投票", "vote");
     narrate("投票の時間だ。", "big");
     let { tally, ballots } = await ballot(living(), "誰に投票する？");
     let most = Math.max(...tally.values());
@@ -1127,6 +1304,7 @@
   /** The night: the traveller's own deed first, then the residents'; true when the game ended with it. */
   async function night() {
     const self = you();
+    phase(day + "日目の夜", "night");
     narrate("灯りの消えた酒場に、" + day + "日目の夜が来た。", "big");
     let guard = null;
     let prey = null;
@@ -1177,6 +1355,7 @@
     if (!prey && wolves().length) prey = pickPrey();
     mark();
     await next("朝を迎える");
+    phase((day + 1) + "日目の朝", "day");
     narrate((day + 1) + "日目の朝。", "big");
     if (prey && prey !== guard) {
       prey.alive = false;
@@ -1200,15 +1379,19 @@
     const villageWon = left === 0;
     const self = you();
     const won = villageWon === (side(self.role) === "village");
+    phase(villageWon ? "村人の勝利" : "人狼の勝利", "end " + (villageWon ? "village" : "wolves"));
     narrate(villageWon ? "人狼はすべて追い出された。村人の勝利！" : "人狼が卓を支配した。人狼の勝利……", "big");
     narrate(won ? "あなたの陣営の勝ちだ。" : "あなたの陣営の負けだ。", "secret");
     narrate("役目：" + people.filter((person) => !person.you).map((person) => person.name + "＝" + ROLES[person.role]).join("、") + "。");
-    for (const person of people) {
-      person.seat.classList.add("revealed");
-      person.seat.classList.remove("hot", "warm");
-      tag(person, ROLES[person.role] + (person.alive ? "" : person.diedBy === "vote" ? "・追放" : "・襲撃"));
-    }
-    status.textContent = "決着 ・ あなたは" + ROLES[self.role];
+    const roles = people.map((person) => [person, ROLES[person.role] + (person.alive ? "" : person.diedBy === "vote" ? "・追放" : "・襲撃")]);
+    cue(() => {
+      for (const [person, words] of roles) {
+        person.seat.classList.add("revealed", "role-" + person.role);
+        person.seat.classList.remove("hot", "warm");
+        tag(person, words);
+      }
+      status.textContent = "決着 ・ あなたは" + ROLES[self.role];
+    });
     review();
     keepRecord(won);
     ask(null, [{ label: "もう一度遊ぶ", value: true }]).then(play);
@@ -1272,5 +1455,7 @@
     }
   }
 
+  place();
+  addEventListener("resize", () => clearArrows());
   play();
 })();

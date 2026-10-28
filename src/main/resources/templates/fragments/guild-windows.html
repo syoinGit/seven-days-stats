@@ -69,23 +69,31 @@
     <p class="wolf-lead">酒場の余興。灯りを落として、住人たちと人狼を遊ぶ。この中に人狼がまぎれている。昼は話し合って一人を酒場から追い出し、灯りの消えた夜には人狼が一人を襲う。</p>
     <p class="wolf-lead" th:if="${#lists.isEmpty(table)}">まだ住人が少なく、卓を囲めません。住人が増えたら、また来てください。</p>
     <th:block th:unless="${#lists.isEmpty(table)}">
-    <ul class="wolf-seats" aria-label="卓を囲む人">
-      <li th:each="player : ${table}" class="wolf-seat"
-          th:attr="data-wolf-player=${player.character.id}, data-name=${player.character.name}, data-greet=${player.lines['greet']}, data-co=${player.lines['co']},
-                   data-white=${player.lines['white']}, data-black=${player.lines['black']}, data-counter=${player.lines['counter']},
-                   data-suspect=${player.lines['suspect']}, data-defend=${player.lines['defend']}, data-vote=${player.lines['vote']},
-                   data-cover=${player.lines['cover']}, data-medium=${player.lines['medium']}, data-spirit_white=${player.lines['spirit_white']},
-                   data-spirit_black=${player.lines['spirit_black']}, data-hunter=${player.lines['hunter']}">
-        <svg th:replace="~{fragments/guild :: sprite(${player.character})}"></svg>
-        <span class="wolf-name" th:text="${player.character.name}">リネ</span><small class="wolf-tag" data-wolf-tag></small>
-      </li>
-      <li class="wolf-seat you" data-wolf-you><span class="wolf-you-mark" aria-hidden="true">旅</span><span class="wolf-name">あなた</span><small class="wolf-tag" data-wolf-tag></small></li>
-    </ul>
-    <p class="wolf-ties" data-wolf-ties></p>
-    <div class="wolf-board" data-wolf-board></div>
-    <div class="wolf-bar"><p class="wolf-status" data-wolf-status aria-live="polite"></p><button type="button" class="wolf-speed" data-wolf-speed hidden>すぐ表示</button></div>
-    <ol class="wolf-log" data-wolf-log aria-live="polite"></ol>
-    <div class="wolf-actions" data-wolf-actions><p class="meal-note">遊ぶにはJavaScriptが必要です。</p></div>
+    <div class="wolf-main">
+      <div class="wolf-table day" data-wolf-table>
+        <svg class="wolf-arrows" data-wolf-arrows aria-hidden="true"><defs><marker id="wolf-head-vote" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#ffb27a"/></marker><marker id="wolf-head-point" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#ff7a6a"/></marker><marker id="wolf-head-cover" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8cc8ff"/></marker><marker id="wolf-head-ask" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#e6d38a"/></marker></defs></svg>
+        <div class="wolf-center" aria-live="polite"><span class="wolf-phase" data-wolf-phase>はじまり</span><p class="wolf-headline" data-wolf-headline></p></div
+        ><ul class="wolf-seats" aria-label="卓を囲む人">
+        <li th:each="player : ${table}" class="wolf-seat"
+            th:attr="data-wolf-player=${player.character.id}, data-name=${player.character.name}, data-greet=${player.lines['greet']}, data-co=${player.lines['co']},
+                     data-white=${player.lines['white']}, data-black=${player.lines['black']}, data-counter=${player.lines['counter']},
+                     data-suspect=${player.lines['suspect']}, data-defend=${player.lines['defend']}, data-vote=${player.lines['vote']},
+                     data-cover=${player.lines['cover']}, data-medium=${player.lines['medium']}, data-spirit_white=${player.lines['spirit_white']},
+                     data-spirit_black=${player.lines['spirit_black']}, data-hunter=${player.lines['hunter']}">
+          <svg th:replace="~{fragments/guild :: sprite(${player.character})}"></svg>
+          <span class="wolf-name" th:text="${player.character.name}">リネ</span><small class="wolf-tag" data-wolf-tag></small><span class="wolf-marks" data-wolf-marks></span>
+        </li>
+        <li class="wolf-seat you" data-wolf-you><span class="wolf-you-mark" aria-hidden="true">旅</span><span class="wolf-name">あなた</span><small class="wolf-tag" data-wolf-tag></small><span class="wolf-marks" data-wolf-marks></span></li>
+      </ul>
+      </div>
+      <div class="wolf-actions" data-wolf-actions><p class="meal-note">遊ぶにはJavaScriptが必要です。</p></div>
+      <aside class="wolf-side">
+        <div class="wolf-bar"><p class="wolf-status" data-wolf-status aria-live="polite"></p><button type="button" class="wolf-speed" data-wolf-speed hidden>すぐ表示</button></div>
+        <p class="wolf-ties" data-wolf-ties></p>
+        <div class="wolf-board" data-wolf-board></div>
+        <ol class="wolf-log" data-wolf-log aria-label="話し合いの記録"></ol>
+      </aside>
+    </div>
     <p class="wolf-record" data-wolf-record></p>
     <details class="wolf-rules"><summary>遊び方</summary>
       <p>役目は人狼・占い師・霊媒師・狩人・狂人・村人。5〜6人の卓は人狼一人と狂人、7人以上は人狼二人と霊媒師がいます（8人は狂人も）。村人の陣営は人狼をすべて追い出せば勝ち、人狼は生き残りの半分に並べば勝ちです。狂人は人間ですが、人狼の勝ちを願っています（人狼の陣営。占っても人間と出ます）。</p>
@@ -94,9 +102,9 @@
       <p>追い出されそうになった人が「狩人だ」と名乗ることがあります。人狼の騙りのこともあり、本物の狩人は黙っていません。あなたも占い師・霊媒師・狩人を名乗れます（本物でなくても）。</p>
       <p>昼はまず霊媒師と占い師を名乗る人が結果を話し、あなたの番のあと、ほかの人が怪しいと思う人を理由つきで名指しします。投票で一番多く票を集めた人が酒場から追い出されます。同票のときは決選投票、それでも並べばくじ引きです。夜、占い師は一人を占い、狩人は一人を守り、人狼は一人を襲います。</p>
       <p>あなたの番には、名乗る・名指しする・かばうのほか、住人に話しかけて誰に入れるつもりか聞いたり、説得したりできます（1日1回）。説得が通るかは、これまであなたの言ったことが当たっていたかで変わります。</p>
-      <p>名乗った人とその結果は、席の下の表にまとまります。席の「メモ」を押すと、白・黒・灰の印を付けられます。決着すると、その回の振り返りが出ます。戦績はこのブラウザにだけ残ります。</p>
+      <p>席の下には名乗った役目（占・霊・狩）と、占い・霊媒で言われた結果（言った人の頭文字と○人間／●人狼）が付きます。名乗った人とその結果は、ログの上の表にもまとまります。席の「メモ」を押すと、白・黒・灰の印を付けられます。決着すると、その回の振り返りが出ます。戦績はこのブラウザにだけ残ります。</p>
       <p>住人は、誰が誰を名指ししたか、どの占い師・霊媒師を信じるかで考えを変えます。人狼や狂人が占い師や霊媒師を騙ることもあります。</p>
-      <p>住人どうしの仲も効きます。仲のいい相手は疑いにくく、名指しされればかばい、恋人や夫婦は票をそろえがちです。苦手な相手には疑いが向きやすくなります。人狼も仲間をかばうことがあるので、誰が誰をかばったかは手がかりになります。座席の赤い縁は、いま疑いが集まっている人です。</p>
+      <p>住人どうしの仲も効きます。仲のいい相手は疑いにくく、名指しされればかばい、恋人や夫婦は票をそろえがちです。苦手な相手には疑いが向きやすくなります。人狼も仲間をかばうことがあるので、誰が誰をかばったかは手がかりになります。座席の赤い光は、いま疑いが集まっている人です。卓の矢印は、赤が名指し・黒、青が白・かばう、黄が占い先の依頼、橙が投票です。</p>
     </details>
     </th:block>
   </section>

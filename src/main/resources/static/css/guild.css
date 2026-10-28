@@ -688,22 +688,20 @@
 .meal-level{margin:0;min-height:1.5em;font-size:14px;color:#ffd58a}
 @media(max-width:650px){.meal-neighbor-figure .guild-sprite{width:48px;height:72px}.meal-menu{padding:16px 10px 12px}.meal-sections{grid-template-columns:1fr}
   .menu-tags .meal-item{min-height:180px;padding:10px 4px}.menu-tags .meal-item-name{font-size:15px}.menu-tags .meal-sections{gap:10px}}
-/* The werewolf game: the seats around the table (greyed when dead, marked with what the traveller knows), the talk as a
-   log, and the traveller's buttons under it. */
+/* The werewolf game: a round table (lit by day, blue by night, red at the vote) with the seats around it, a bubble over
+   whoever speaks and arrows for whom they name, vouch for or vote for; the phase and the big news at its centre. The
+   claims, results and the talk as a log beside it on a wide screen, under it on a phone; the traveller's buttons under
+   the table. */
 .guild-wolf{color:#e9dfdf}
 .guild-shell .wolf-lead,.wolf-lead{margin:0 0 12px;font-size:14px;line-height:1.8;color:#d9c3a0}
-.wolf-seats{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:8px;margin:0 0 10px;padding:10px;list-style:none;background:#2a1d26;border:3px solid #4a3438}
-.wolf-seat{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 2px;text-align:center;border:2px solid transparent}
 .wolf-seat .guild-sprite{width:40px;height:60px}
 .wolf-you-mark{display:grid;place-items:center;width:40px;height:40px;margin:10px 0;border-radius:50%;background:#7a4a24;border:2px solid #d8a35a;color:#fff3dc;font-size:16px}
-.wolf-name{font-size:12px;color:#f0d8c2;overflow-wrap:anywhere}
-.wolf-tag{min-height:1.4em;font-size:10px;line-height:1.4;color:#ffd58a}
 .wolf-seat.dead{opacity:.45}.wolf-seat.dead .guild-sprite{filter:grayscale(1)}
 .wolf-seat.wolf-mark{border-color:#c8382c}.wolf-seat.human-mark{border-color:#6fa8d8}
 .wolf-seat.revealed{opacity:1}
 .guild-shell .wolf-status,.wolf-status{margin:0 0 8px;font-size:13px;color:#ffd58a}
-.wolf-log{max-height:46vh;margin:0 0 12px;padding:8px 10px;overflow-y:auto;list-style:none;background:#1a1320;border:2px solid #3e2e41}
-.wolf-log li{margin:0;padding:5px 0;font-size:14px;line-height:1.7}
+.wolf-log{max-height:360px;margin:0 0 12px;padding:8px 10px;overflow-y:auto;list-style:none;background:#1a1320;border:2px solid #3e2e41}
+.wolf-log li{margin:0;padding:5px 0;font-size:14px;line-height:1.7}.wolf-log li[hidden]{display:none}
 .wolf-narr{color:#c6b8c7}.wolf-narr.big{margin-top:6px;color:#f0d8c2;font-weight:bold}
 .wolf-narr.secret{color:#bfe0ff}.wolf-narr.death{color:#ff9a8a}.wolf-narr.vote{padding:0;font-size:12px;color:#a991a3}
 .wolf-say{display:grid;grid-template-columns:auto 1fr;gap:0 8px;align-items:start}
@@ -712,14 +710,12 @@
 .wolf-face .guild-sprite{width:28px;height:42px}
 .wolf-face .wolf-you-mark{width:24px;height:24px;margin:2px;font-size:11px}
 .wolf-say.you b{color:#ffd58a}
-.wolf-actions{position:sticky;bottom:0;min-height:52px;padding:8px 0;background:#201927}
+.wolf-actions{grid-area:actions;position:sticky;bottom:0;z-index:4;min-height:52px;padding:8px 0;background:#201927}
 .guild-shell .wolf-prompt,.wolf-prompt{margin:0 0 8px;font-size:14px;color:#f0d8c2}
 .wolf-buttons{display:flex;flex-wrap:wrap;gap:8px}
 .wolf-buttons .meal-button{padding:8px 14px;font-size:14px}
 .wolf-buttons .meal-button.quiet{background:none;border-color:#8c6f7d;color:#e0c8cf}
 .wolf-rules{margin:14px 0 6px;font-size:13px}.wolf-rules summary{cursor:pointer;color:#efbea9}
-@media(max-width:650px){.wolf-seats{grid-template-columns:repeat(4,1fr);gap:2px;padding:4px}.wolf-seat .guild-sprite{width:30px;height:45px}
-  .wolf-you-mark{width:30px;height:30px;margin:8px 0 7px;font-size:13px}.wolf-log{max-height:38vh}.guild-shell .wolf-lead,.wolf-lead{font-size:13px}}
 /* The relationship chart: lines in an SVG square, the residents and the words on the lines placed over it by percent. */
 .rmap{position:relative;width:100%;max-width:560px;aspect-ratio:1;margin:4px auto 10px;background:radial-gradient(circle,#2e2230,#1a1320 72%);border:3px solid #4a3438}
 .rmap-lines{position:absolute;inset:0;width:100%;height:100%}
@@ -788,7 +784,6 @@
 .guild-news-quiet{margin:0;font-size:13px;color:#a898a8}
 @media (max-width:640px){.guild-news{padding:0 16px}}
 .guild-shell .wolf-ties,.wolf-ties{margin:0 0 8px;font-size:12px;line-height:1.7;color:#c6b8c7}
-.wolf-seat.warm{box-shadow:inset 0 -3px 0 #c98a4a}.wolf-seat.hot{box-shadow:inset 0 -3px 0 #e0503e;background:#3a1f24}
 .wolf-narr.air{color:#ffc58a;font-size:13px}
 .wolf-why{grid-column:2;font-size:11px;color:#b9a3c0}
 .wolf-board dl{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:0 0 10px;padding:8px 10px;font-size:12px;background:#1a1320;border:2px solid #3e2e41}
@@ -804,3 +799,44 @@
 .guild-shell .wolf-record,.wolf-record{margin:8px 0 0;font-size:12px;color:#a898a8}
 .wolf-memo:focus-visible,.wolf-speed:focus-visible{outline:2px solid #ebbe92;outline-offset:1px}
 .wolf-believers{margin-left:auto;padding:0 6px;font-size:11px;color:#2e2024;background:#ebbe92}
+.guild-window:has(.guild-wolf){width:min(1060px,calc(100% - 24px))}
+.wolf-main{display:grid;grid-template-columns:minmax(0,1fr) 320px;grid-template-areas:"table side" "actions side";align-items:start;gap:8px 16px}
+.wolf-side{grid-area:side;min-width:0}
+.wolf-table{grid-area:table;position:relative;height:520px;overflow:hidden;border:3px solid #4a3438;background:radial-gradient(ellipse at 50% 48%,#5e3e2c 0,#2e1f22 60%,#1a1217 100%);transition:background .8s}
+.wolf-table::before{content:"";position:absolute;inset:27% 23%;border-radius:50%;background:radial-gradient(ellipse at 50% 38%,#94623a,#5c3a24 72%);border:7px solid #3a2418;box-shadow:inset 0 0 0 2px #c08a5a55,0 14px 34px #000a;transition:filter .8s}
+.wolf-table.night{background:radial-gradient(ellipse at 50% 48%,#262a52 0,#14152c 60%,#0b0a16 100%)}.wolf-table.night::before{filter:brightness(.42) saturate(.7)}
+.wolf-table.vote{background:radial-gradient(ellipse at 50% 48%,#64302c 0,#301a1e 60%,#1b1015 100%)}
+.wolf-table.end.village{background:radial-gradient(ellipse at 50% 48%,#6e5a2c 0,#33281e 60%,#1a1517 100%)}.wolf-table.end.wolves{background:radial-gradient(ellipse at 50% 48%,#4a1418 0,#220c12 60%,#100609 100%)}
+.wolf-arrows{position:absolute;inset:0;z-index:2;width:100%;height:100%;pointer-events:none}
+.wolf-arrow{fill:none;stroke-width:3;stroke-linecap:round;animation:wolf-draw .35s ease-out}
+.wolf-arrow.vote{stroke:#ffb27a;opacity:.9}.wolf-arrow.point{stroke:#ff7a6a;stroke-dasharray:8 6}.wolf-arrow.cover{stroke:#8cc8ff;stroke-dasharray:8 6}.wolf-arrow.ask{stroke:#e6d38a;stroke-dasharray:2 7}
+.wolf-center{position:absolute;inset:31% 27%;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;pointer-events:none}
+.wolf-phase{padding:2px 14px;font-size:13px;letter-spacing:.12em;color:#2e2024;background:#ebbe92;border-radius:999px}
+.wolf-table.night .wolf-phase{color:#14152c;background:#a9b8ff}.wolf-table.vote .wolf-phase{background:#ff9a8a}.wolf-table.end .wolf-phase{color:#2e2024;background:#ffe0a8}
+.guild-shell .wolf-headline,.wolf-headline{margin:0;max-height:100%;overflow:hidden;font-size:13px;line-height:1.65;color:#fff3dc;text-shadow:0 1px 3px #000}
+.guild-shell .wolf-headline.death,.wolf-headline.death{color:#ffb4a8}.guild-shell .wolf-headline.secret,.wolf-headline.secret{color:#bfe0ff}
+.wolf-seats{position:absolute;inset:0;z-index:3;margin:0;padding:0;list-style:none;pointer-events:none}
+.wolf-seat{position:absolute;display:flex;flex-direction:column;align-items:center;gap:1px;width:86px;padding:3px 2px;text-align:center;border:2px solid transparent;border-radius:10px;transform:translate(-50%,-50%);pointer-events:auto;transition:transform .25s,opacity .5s,background .3s}
+.wolf-seat.speaking{z-index:5;background:#ffe0a81f;border-color:#ffe0a8;transform:translate(-50%,-50%) scale(1.08)}
+.wolf-seat.warm{box-shadow:0 0 0 2px #c98a4a}.wolf-seat.hot{box-shadow:0 0 0 2px #e0503e,0 0 16px #e0503e99}
+.wolf-seat.dead{opacity:.4}.wolf-seat.revealed{opacity:1}.wolf-seat.revealed.dead{opacity:.6}
+.wolf-seat.revealed.role-wolf{background:#5a1a1a99;border-color:#e0503e}
+.wolf-name{max-width:100%;padding:0 6px;overflow:hidden;font-size:12px;line-height:1.6;color:#f0d8c2;white-space:nowrap;text-overflow:ellipsis;background:#1a1320cc;border-radius:6px}
+.wolf-tag{font-size:10px;line-height:1.4;color:#ffd58a}.wolf-tag:empty{display:none}
+.wolf-marks{display:flex;flex-wrap:wrap;justify-content:center;gap:2px}.wolf-marks:empty{display:none}
+.wolf-badge{padding:0 4px;font-size:10px;line-height:1.5;border:1px solid;border-radius:4px}
+.wolf-badge.claim{font-weight:bold;color:#2e2024;background:#ebbe92;border-color:#ebbe92}.wolf-badge.claim.medium{background:#c7a6ff;border-color:#c7a6ff}.wolf-badge.claim.hunter{background:#9fd8a8;border-color:#9fd8a8}
+.wolf-badge.white{color:#bfe0ff;background:#10202e;border-color:#4f7ea6}.wolf-badge.black{color:#ffb4a8;background:#2e1210;border-color:#a8483c}
+.wolf-votes{position:absolute;top:-6px;right:-2px;padding:0 7px;font-size:12px;font-weight:bold;line-height:1.6;color:#2e2024;background:#ffb27a;border-radius:999px;box-shadow:0 2px 5px #000a;animation:wolf-pop .2s ease-out}
+.wolf-bubble{position:absolute;z-index:6;width:max-content;max-width:220px;padding:6px 10px;font-size:12px;line-height:1.55;text-align:left;color:#2a1d26;background:#fff3dc;border-radius:10px;box-shadow:0 4px 14px #000b;animation:wolf-pop .2s ease-out}
+.wolf-seat.you .wolf-bubble{background:#ffe0a8}
+.wolf-seat[data-half=bottom] .wolf-bubble{bottom:calc(100% + 6px)}.wolf-seat[data-half=top] .wolf-bubble{top:calc(100% + 6px)}
+.wolf-seat[data-side=middle] .wolf-bubble{left:50%;translate:-50% 0}.wolf-seat[data-side=left] .wolf-bubble{left:0}.wolf-seat[data-side=right] .wolf-bubble{right:0}
+@keyframes wolf-pop{from{opacity:0;transform:scale(.85)}}
+@keyframes wolf-draw{from{opacity:0}}
+@media(prefers-reduced-motion:reduce){.wolf-arrow,.wolf-bubble,.wolf-votes{animation:none}.wolf-seat,.wolf-table,.wolf-table::before{transition:none}}
+@media(max-width:760px){.wolf-main{grid-template-columns:minmax(0,1fr);grid-template-areas:"table" "actions" "side"}.wolf-log{max-height:38vh}}
+@media(max-width:650px){.wolf-table{height:420px}.wolf-table::before{inset:30% 22%}.wolf-center{inset:33% 24%;gap:4px}
+  .guild-shell .wolf-headline,.wolf-headline{font-size:11px;line-height:1.5}.wolf-phase{font-size:11px}
+  .wolf-seat{width:64px}.wolf-seat .guild-sprite{width:30px;height:45px}.wolf-you-mark{width:30px;height:30px;margin:8px 0 7px;font-size:13px}
+  .wolf-name{font-size:10px;padding:0 4px}.wolf-bubble{max-width:150px;padding:5px 8px;font-size:11px}.guild-shell .wolf-lead,.wolf-lead{font-size:13px}}

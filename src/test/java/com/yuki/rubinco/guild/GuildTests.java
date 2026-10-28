@@ -398,6 +398,8 @@ class GuildTests {
         .andExpect(content().string(containsString("data-suspect=\"{t}さん、少し様子がおかしいかしら。\n{t}さんのお言葉、少し気になりますわ。\n")))
         .andExpect(content().string(containsString("/js/guild-werewolf.js")))
         .andExpect(content().string(containsString("data-hunter=\"")))
+        .andExpect(content().string(containsString("data-wolf-table")))
+        .andExpect(content().string(containsString("id=\"wolf-head-vote\"")))
         .andExpect(content().string(containsString("酒場の余興：人狼")))
         .andReturn().getResponse().getContentAsString();
     assertThat(page.split("data-wolf-player=", -1)).hasSize(GuildWerewolf.MAX + 1);
