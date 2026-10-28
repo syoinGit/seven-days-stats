@@ -386,12 +386,20 @@ const guildWerewolf = () => {
 
   /** Shows a log item or makes a change to the table; how long to wait before the next. */
   function reveal(entry) {
+    // A change to the table that fails is left out; the game goes on.
+    const run = (change) => {
+      try {
+        change?.();
+      } catch (failure) {
+        console.error(failure);
+      }
+    };
     if (typeof entry === "function") {
-      entry();
+      run(entry);
       return 0;
     }
     entry.hidden = false;
-    entry.cue?.();
+    run(entry.cue);
     log.scrollTop = log.scrollHeight;
     return entry.classList.contains("vote") ? 280 : entry.classList.contains("wolf-say") ? 1100 : 650;
   }
@@ -1459,6 +1467,8 @@ const guildWerewolf = () => {
     }
   }
 
+  // The note for browsers without JavaScript would stay until the first button otherwise.
+  actions.replaceChildren();
   place();
   addEventListener("resize", () => clearArrows());
   play();
