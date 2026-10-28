@@ -51,6 +51,7 @@ class GuildTests {
   @Autowired GuildRumors rumors;
   @Autowired GuildMenus menus;
   @Autowired GuildWerewolf werewolf;
+  @Autowired GuildNews news;
   @Autowired JdbcTemplate jdbc;
   @Autowired com.yuki.rubinco.account.repository.M_WebAccountRepository accounts;
   @Autowired MockMvc mvc;
@@ -287,7 +288,8 @@ class GuildTests {
       }
     }
     // While the server is up (20:00-23:30): a slot each quarter hour from 20:00 to 23:15, fourteen a day; at most twelve interactions.
-    assertThat(count("SELECT COUNT(*) FROM T_GUILD_HOURLY_JOB")).isEqualTo(60 * 14);
+    // Only the simulated days are counted: the real scheduler may run today's slot while the test runs in the evening.
+    assertThat(count("SELECT COUNT(*) FROM T_GUILD_HOURLY_JOB WHERE slot_key > ?", HOUR.toLocalDate().plusDays(1).toString())).isEqualTo(60 * 14);
     assertThat(count("SELECT COUNT(*) FROM T_GUILD_INTERACTION")).isGreaterThan(60 * 11);
     assertThat(jdbc.queryForList("SELECT DISTINCT SUBSTRING(slot_key, 14, 3) FROM T_GUILD_HOURLY_JOB ORDER BY 1", String.class))
         .containsExactly(":00", ":15", ":30", ":45");
@@ -393,19 +395,71 @@ class GuildTests {
     resident("故人", 30, "DEAD", 9);
     String page = mvc.perform(get("/guild/werewolf")).andExpect(status().isOk())
         .andExpect(content().string(containsString("data-co=\"私が占い師ですわ。黙っていられなくて。\"")))
-        .andExpect(content().string(containsString("data-suspect=\"{t}さん、少し様子がおかしいかしら。\"")))
+        .andExpect(content().string(containsString("data-suspect=\"{t}さん、少し様子がおかしいかしら。\n{t}さんのお言葉、少し気になりますわ。\n")))
         .andExpect(content().string(containsString("/js/guild-werewolf.js")))
-        .andExpect(content().string(containsString("href=\"/guild/werewolf\" aria-current=\"page\"")))
+        .andExpect(content().string(containsString("酒場の余興：人狼")))
         .andReturn().getResponse().getContentAsString();
     assertThat(page.split("data-wolf-player=", -1)).hasSize(GuildWerewolf.MAX + 1);
     assertThat(page).doesNotContain("故人");
     // The game's script is only on its own page.
-    mvc.perform(get("/guild")).andExpect(content().string(not(containsString("guild-werewolf.js"))));
+    // A pastime in the guild's tavern, not a tab of its own.
+    mvc.perform(get("/guild")).andExpect(content().string(not(containsString("guild-werewolf.js"))))
+        .andExpect(content().string(containsString("guild-game-link\" href=\"/guild/werewolf\"")));
+    mvc.perform(get("/guild/log")).andExpect(content().string(not(containsString("</svg>人狼</a>"))));
     // Every voice has every line; a first person named in the personality is used.
     long own = resident("おいら", 30, "ALIVE", 10);
     jdbc.update("UPDATE M_GUILD_CHARACTER SET personality = '一人称は「おいら」。気が強い。' WHERE id = ?", own);
     assertThat(werewolf.lines(guild.character(own))).containsOnlyKeys(GuildWerewolf.KINDS).containsEntry("co", "おいらが占い師さ。隠してても仕方ないだろ。");
+    assertThat(werewolf.lines(guild.character(own)).get("defend").split("\n")).hasSizeGreaterThan(1).allMatch(line -> !line.contains("{me}"));
     assertThat(werewolf.version()).isNotBlank();
+  }
+
+  /**
+   * The guild's gossip: bonds that changed, moves, newcomers and dungeon runs of the last seven days, in fixed words,
+   * newest first; older ones and meeting for the first time are not told.
+   */
+  @Test void theTavernTellsWhatHappenedLately() throws Exception {
+    mvc.perform(get("/guild")).andExpect(content().string(containsString("噂になるようなことは起きていない")));
+    long rine = resident("リネ", 28, "ALIVE", 0);
+    long roan = resident("ロアン", 30, "ALIVE", 1);
+    long mira = resident("ミラ", 24, "ALIVE", 2);
+    var now = OffsetDateTime.now();
+    String[][] scenes = {{"news-1", "2"}, {"news-2", "1"}, {"news-3", "20"}, {"news-4", "1"}};
+    for (String[] scene : scenes) {
+      jdbc.update("INSERT INTO T_GUILD_INTERACTION (slot_key,happened_at,card_id,cards_version,kind,selection,outcome,summary,body,written_by) "
+          + "VALUES (?,?,'c','v','雑談','random','warm','話した','本文','template')", scene[0], now.minusDays(Long.parseLong(scene[1])));
+    }
+    java.util.function.Function<String, Long> scene = key -> jdbc.queryForObject("SELECT id FROM T_GUILD_INTERACTION WHERE slot_key = ?", Long.class, key);
+    String event = "INSERT INTO T_GUILD_RELATION_EVENT (interaction_id,from_id,to_id,change_kind,label_before,label_after,reason) VALUES (?,?,?,'label',?,?,'r')";
+    jdbc.update(event, scene.apply("news-1"), rine, roan, "friend", "close_friend");
+    jdbc.update(event, scene.apply("news-2"), rine, mira, "friend", "acquaintance");
+    jdbc.update(event, scene.apply("news-3"), roan, mira, "friend", "lover");
+    jdbc.update(event, scene.apply("news-4"), roan, mira, null, "acquaintance");
+    jdbc.update("INSERT INTO T_GUILD_AFFILIATION_HISTORY (character_id,kind,from_value,to_value,change_kind,reason,changed_at) VALUES (?,'village','grantford','elmwood','move','r',?)",
+        mira, now.minusHours(5));
+    jdbc.update("INSERT INTO T_GUILD_AFFILIATION_HISTORY (character_id,kind,to_value,change_kind,reason,changed_at) VALUES (?,'village','grantford','birth','r',?)",
+        roan, now.minusDays(3));
+    jdbc.update("INSERT INTO T_GUILD_AFFILIATION_HISTORY (character_id,kind,to_value,change_kind,reason,changed_at) VALUES (?,'faith','spirit','birth','r',?)",
+        roan, now.minusDays(3));
+    var departure = now.minusDays(4);
+    jdbc.update("INSERT INTO T_GUILD_EXPEDITION (expedition_date,dungeon_key,dungeon_name,goal,result,cards_version,departed_at,returned_at) "
+        + "VALUES (?,'old-mine','古い坑道','探し物','partial','test',?,?)", departure.toLocalDate(), departure, departure.plusMinutes(40));
+    long run = jdbc.queryForObject("SELECT id FROM T_GUILD_EXPEDITION", Long.class);
+    jdbc.update("INSERT INTO T_GUILD_EXPEDITION_MEMBER (expedition_id,character_id,position) VALUES (?,?,0)", run, mira);
+    jdbc.update("INSERT INTO T_GUILD_EXPEDITION_MEMBER (expedition_id,character_id,position) VALUES (?,?,1)", run, rine);
+
+    assertThat(news.recent(ZonedDateTime.now(GuildService.TOKYO))).extracting(GuildNews.Item::text).containsExactly(
+        "ミラがエルムウッドへ移り住んだそうだ。",
+        "リネとミラは、もう友達ではないらしい。",
+        "リネとロアンが親友になったらしい。",
+        "見慣れない顔がいる。ロアンというらしい。",
+        "ミラとリネが古い坑道から戻った。目的は半ばまで果たしたらしい。");
+    mvc.perform(get("/guild")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("ギルドの噂話")))
+        .andExpect(content().string(containsString("href=\"/guild/log/" + scene.apply("news-1") + "\">リネとロアンが親友になったらしい。</a>")))
+        .andExpect(content().string(containsString("href=\"/guild/dungeon/" + run + "\"")));
+    assertThat(GuildNews.bond("A", "B", "lover", "friend")).isEqualTo("AとBの仲が冷えて、友達に戻ったらしい。");
+    assertThat(GuildNews.bond("A", "B", "friend", "spouse")).isEqualTo("AとBが結ばれたそうだ。");
   }
 
   /**
@@ -446,6 +500,17 @@ class GuildTests {
         .andReturn().getResponse().getContentAsString();
     // The dead and those who are only acquaintances are not in the overview.
     assertThat(all).doesNotContain("e-spouse", "relations?center=" + old + "\"", "relations?center=" + stranger + "\"");
+    // Within one nation: only those who live there and the bonds between them.
+    jdbc.update("UPDATE M_GUILD_CHARACTER SET current_village = 'elmwood' WHERE id = ?", mira);
+    var grantford = new GuildRelationMap(jdbc, guild).overview("grantford");
+    assertThat(grantford.nodes()).extracting(GuildRelationMap.Node::name).containsExactlyInAnyOrder("リネ", "ロアン", "ガルド");
+    assertThat(grantford.edges()).extracting(GuildRelationMap.Edge::kind).containsExactlyInAnyOrder("close_friend", "rival");
+    assertThat(new GuildRelationMap(jdbc, guild).overview("elmwood").empty()).isTrue();
+    assertThat(new GuildRelationMap(jdbc, guild).overview("nowhere").nodes()).hasSize(4);
+    mvc.perform(get("/guild/relations").param("nation", "grantford")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("href=\"/guild/relations?nation=grantford\" aria-current=\"page\"")))
+        .andExpect(content().string(not(containsString("relations?center=" + mira + "\""))));
+    jdbc.update("UPDATE M_GUILD_CHARACTER SET current_village = 'grantford' WHERE id = ?", mira);
 
     var around = new GuildRelationMap(jdbc, guild).around(rine);
     // Those around her are the ones she has feelings about (an acquaintance she never met as a relation is not).

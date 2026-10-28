@@ -37,6 +37,7 @@
         </label>
       </div>
       <div class="guild-extras">
+        <a class="guild-dungeon-button guild-game-link" href="/guild/werewolf" title="酒場の余興：住人と遊ぶ人狼"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=5#tab-wolf"></use></svg>余興</a>
         <label class="guild-dungeon-button" for="guild-view-dungeon"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/guild-icons.svg?v=5#tab-dungeon"></use></svg>ダンジョン<span th:if="${todayRun != null and !todayRun.back()}" class="pop-live">探索中</span></label>
       </div>
     </div>
@@ -122,6 +123,15 @@
   </section>
   <p class="guild-caption" th:if="${scene == null}">人物を選ぶと、その人の物語が開きます。</p>
   <p class="guild-caption guild-now" th:if="${scene != null}"><th:block th:text="${place.guild() ? 'いまの酒場：' : 'いまの' + place.name + '：'}">いまの酒場：</th:block><a th:href="@{/guild/log/{id}(id=${scene.interactionId})}" th:text="${scene.summary}">リネとロアンは天気の話をした</a></p>
+  <!-- What happened in the last few days, in fixed words from what is kept (GuildNews). Those since the last visit are
+       marked in the browser (guild.js); nothing of it is sent back. -->
+  <section th:if="${place.guild()}" class="guild-news" aria-labelledby="guild-news-title" data-guild-news>
+    <h2 id="guild-news-title">ギルドの噂話<small>この7日のあいだに</small></h2>
+    <p th:if="${#lists.isEmpty(news)}" class="guild-news-quiet">このところ、噂になるようなことは起きていないらしい。</p>
+    <ul th:unless="${#lists.isEmpty(news)}">
+      <li th:each="item : ${news}" th:attr="data-at=${item.epochSecond()}"><time th:text="${item.when()}">10/27</time><a th:href="${item.href}" th:text="${item.text}">リネとロアンが親友になったらしい。</a></li>
+    </ul>
+  </section>
 </main>
 <div class="guild-scrim" data-guild-scrim th:hidden="${window == null}"></div>
 <dialog id="guild-window" class="guild-window" th:open="${window != null}" aria-labelledby="guild-window-title">
@@ -131,6 +141,6 @@
   </th:block>
 </dialog>
 <nav th:replace="~{fragments/guild :: tabbar(${tab})}"></nav>
-<script defer src="/js/guild.js?v=16"></script>
-<script th:if="${window == 'werewolf'}" defer src="/js/guild-werewolf.js?v=1"></script>
+<script defer src="/js/guild.js?v=17"></script>
+<script th:if="${window == 'werewolf'}" defer src="/js/guild-werewolf.js?v=2"></script>
 </body></html>
