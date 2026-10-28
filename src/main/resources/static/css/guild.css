@@ -790,3 +790,16 @@
 .guild-shell .wolf-ties,.wolf-ties{margin:0 0 8px;font-size:12px;line-height:1.7;color:#c6b8c7}
 .wolf-seat.warm{box-shadow:inset 0 -3px 0 #c98a4a}.wolf-seat.hot{box-shadow:inset 0 -3px 0 #e0503e;background:#3a1f24}
 .wolf-narr.air{color:#ffc58a;font-size:13px}
+.wolf-why{grid-column:2;font-size:11px;color:#b9a3c0}
+.wolf-board dl{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:0 0 10px;padding:8px 10px;font-size:12px;background:#1a1320;border:2px solid #3e2e41}
+.wolf-board dt{color:#ffe0a8}.wolf-board dd{display:flex;flex-wrap:wrap;gap:4px;margin:0;color:#c6b8c7}
+.wolf-chip{padding:0 6px;border:1px solid}.wolf-chip.white{color:#bfe0ff;border-color:#4f7ea6}.wolf-chip.black{color:#ffb4a8;border-color:#a8483c}
+.wolf-memo{margin-top:2px;padding:0 6px;min-width:34px;font-size:10px;line-height:1.6;color:#c6b8c7;background:#1a1320;border:1px solid #5a4658;cursor:pointer}
+.wolf-memo.m1{color:#10202e;background:#bfe0ff;border-color:#bfe0ff}.wolf-memo.m2{color:#fff;background:#a8483c;border-color:#e0503e}.wolf-memo.m3{color:#1a1320;background:#a898a8;border-color:#a898a8}
+.wolf-bar{display:flex;align-items:center;justify-content:space-between;gap:8px}.wolf-bar .wolf-status{margin:0 0 8px}
+.wolf-speed{padding:2px 8px;font-size:11px;color:#e0c8cf;background:none;border:1px solid #8c6f7d;cursor:pointer}
+.wolf-log .wolf-day{padding:0}.wolf-day details>summary{cursor:pointer;color:#efbea9;font-size:13px}.wolf-day details>ol{margin:0;padding:0;list-style:none}
+.wolf-day details:not([open])>summary{color:#8c7a8c}
+.wolf-narr.review{padding:2px 0;font-size:12px;color:#d6c6d6}.wolf-narr.big.review{font-size:13px;color:#ffe0a8}
+.guild-shell .wolf-record,.wolf-record{margin:8px 0 0;font-size:12px;color:#a898a8}
+.wolf-memo:focus-visible,.wolf-speed:focus-visible{outline:2px solid #ebbe92;outline-offset:1px}
