@@ -31,6 +31,7 @@ public class GuildController {
   private final GuildMenus menus;
   private final GuildWerewolf werewolf;
   private final GuildRelationMap relationMap;
+  private final GuildNews news;
 
   @GetMapping("/guild")
   public String room(Model model) {
@@ -95,11 +96,11 @@ public class GuildController {
     return stage(model, place, "meal", "meal", place.name() + "で食事");
   }
 
-  /** A solo werewolf game with some of the residents, played in the browser without AI (GuildWerewolf). */
+  /** The tavern's pastime: a solo werewolf game with some of the residents, played in the browser without AI (GuildWerewolf). */
   @GetMapping("/guild/werewolf")
   public String werewolf(Model model) {
     model.addAttribute("table", werewolf.table(ZonedDateTime.now(GuildService.TOKYO)));
-    return stage(model, "werewolf", "werewolf", "人狼");
+    return stage(model, "tavern", "werewolf", "酒場の余興：人狼");
   }
 
   @GetMapping("/guild/characters/{id}")
@@ -116,11 +117,13 @@ public class GuildController {
     return stage(model, "tavern", "character", character.name());
   }
 
-  /** The relationship chart: everyone with a bond, or one resident (center) and those around them. */
+  /** The relationship chart: everyone with a bond (or those in one nation), or one resident (center) and those around them. */
   @GetMapping("/guild/relations")
-  public String relations(Model model, @RequestParam(required = false) Long center) {
-    var map = center == null ? relationMap.overview() : relationMap.around(center);
+  public String relations(Model model, @RequestParam(required = false) Long center, @RequestParam(required = false) String nation) {
+    String safeNation = GuildPlaces.TOWNS.stream().map(GuildPlaces.Place::nation).filter(n -> n.equals(nation)).findFirst().orElse(null);
+    var map = center == null ? relationMap.overview(safeNation) : relationMap.around(center);
     model.addAttribute("map", map);
+    model.addAttribute("nation", center == null ? safeNation : null);
     return stage(model, "log", "relations", center == null ? "相関図" : map.center().name() + "の相関図");
   }
 
@@ -217,6 +220,7 @@ public class GuildController {
           : todayRun.members().stream().map(GuildChronicle.Ref::id).collect(Collectors.toSet());
       var tavern = GuildTavern.arrange(room.visits(), chronicle.groups(now, room.date(), place), talking, returned, room.date(), room.phase());
       model.addAttribute("tavern", tavern);
+      model.addAttribute("news", news.recent(now));
       // What each one says to no one in particular, in their own voice and fitting where they are; the party keeps its return line.
       for (var area : tavern.areas()) {
         if (!GuildVoice.PLACES.contains(area.key())) continue;

@@ -167,7 +167,8 @@
 
   /** A resident's line of this kind about target ("さん" is left off for the traveller). */
   function say(person, kind, target = null) {
-    let text = person.lines[kind] || "";
+    const wordings = (person.lines[kind] || "").split("\n");
+    let text = wordings[Math.floor(Math.random() * wordings.length)];
     if (target) {
       const name = nameOf(target);
       text = text.replaceAll("{t}さん", target.you ? name : name + "さん").replaceAll("{t}", name);

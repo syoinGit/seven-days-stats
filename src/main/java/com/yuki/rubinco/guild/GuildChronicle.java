@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -154,6 +155,11 @@ public class GuildChronicle {
     public String labelName() {
       return label == null ? "—" : GuildInteractionService.LABELS.getOrDefault(label, label);
     }
+
+    /** How this resident sees the other, in a word (as on the relationship chart). */
+    public String feeling() {
+      return GuildRelationMap.feeling(trust, affinity, wariness, smitten);
+    }
   }
 
   public record Filter(Long character, Long pairA, Long pairB, String kind, String label) {
@@ -240,10 +246,16 @@ public class GuildChronicle {
         """, rs -> {
           long other = rs.getLong(1);
           relations.add(new Relation(new Ref(other, rs.getString(2), rs.getString(3)), rs.getString(8), rs.getInt(4), rs.getInt(5),
-              rs.getInt(6), rs.getInt(7), changes(" WHERE e.change_kind = 'label' AND ((e.from_id = ? AND e.to_id = ?) OR (e.from_id = ? AND e.to_id = ?)) ORDER BY e.id",
-                  id, other, other, id), pairPath(id, other), rs.getBoolean(9)));
+              rs.getInt(6), rs.getInt(7), List.of(), pairPath(id, other), rs.getBoolean(9)));
         }, id);
-    return relations;
+    // Every label change of theirs in one query, not one per relation.
+    Map<Long, List<Change>> history = new HashMap<>();
+    for (var change : changes(" WHERE e.change_kind = 'label' AND (e.from_id = ? OR e.to_id = ?) ORDER BY e.id", id, id)) {
+      long other = change.from().id() == id ? change.to().id() : change.from().id();
+      history.computeIfAbsent(other, key -> new ArrayList<>()).add(change);
+    }
+    return relations.stream().map(relation -> new Relation(relation.other(), relation.label(), relation.trust(), relation.affinity(),
+        relation.wariness(), relation.debt(), history.getOrDefault(relation.other().id(), List.of()), relation.pairPath(), relation.smitten())).toList();
   }
 
   /** Two residents' story: every interaction between them and every label change, oldest first. */

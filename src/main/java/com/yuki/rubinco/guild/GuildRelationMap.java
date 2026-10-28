@@ -80,7 +80,16 @@ public class GuildRelationMap {
 
   /** Everyone with a bond beyond acquaintance or an open crush, among the living. */
   public View overview() {
+    return overview(null);
+  }
+
+  /**
+   * The overview within one nation (grantford, elmwood or tsukikage): only those who live there, and the bonds between
+   * them. Any other nation is everyone.
+   */
+  public View overview(String nation) {
     var people = people();
+    if (NATIONS.contains(nation)) people.values().removeIf(person -> !nation.equals(person.village()));
     Map<Long, Integer> degree = new HashMap<>();
     List<long[]> bonds = new ArrayList<>();
     List<String> labels = new ArrayList<>();
@@ -195,16 +204,20 @@ public class GuildRelationMap {
     return new View(center, nodes, edges, rows, keys(edges));
   }
 
-  /** How one sees the other, in a word. */
   static String feeling(Feeling f) {
-    if (f.smitten() && f.affinity() >= 30) return "惹かれている";
-    if (f.wariness() >= 50 && f.affinity() < 10) return "警戒している";
-    if (f.affinity() >= 60) return "大好き";
-    if (f.affinity() >= 30) return "好き";
-    if (f.affinity() <= -40) return "嫌い";
-    if (f.affinity() <= -15) return "苦手";
-    if (f.trust() >= 30) return "信頼している";
-    return f.affinity() >= 10 ? "好意" : "ふつう";
+    return feeling(f.trust(), f.affinity(), f.wariness(), f.smitten());
+  }
+
+  /** How one sees the other, in a word. */
+  public static String feeling(int trust, int affinity, int wariness, boolean smitten) {
+    if (smitten && affinity >= 30) return "惹かれている";
+    if (wariness >= 50 && affinity < 10) return "警戒している";
+    if (affinity >= 60) return "大好き";
+    if (affinity >= 30) return "好き";
+    if (affinity <= -40) return "嫌い";
+    if (affinity <= -15) return "苦手";
+    if (trust >= 30) return "信頼している";
+    return affinity >= 10 ? "好意" : "ふつう";
   }
 
   /**

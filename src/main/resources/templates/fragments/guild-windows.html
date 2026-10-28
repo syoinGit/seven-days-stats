@@ -66,7 +66,7 @@
      nothing of it is sent back. -->
 <th:block th:fragment="werewolf">
   <section class="guild-wolf" data-wolf>
-    <p class="wolf-lead">酒場の灯りを落として、住人たちと人狼を遊ぶ。この中に人狼がまぎれている。昼は話し合って一人を処刑し、夜は人狼が一人を襲う。</p>
+    <p class="wolf-lead">酒場の余興。灯りを落として、住人たちと人狼を遊ぶ。この中に人狼がまぎれている。昼は話し合って一人を処刑し、夜は人狼が一人を襲う。</p>
     <p class="wolf-lead" th:if="${#lists.isEmpty(table)}">まだ住人が少なく、卓を囲めません。住人が増えたら、また来てください。</p>
     <th:block th:unless="${#lists.isEmpty(table)}">
     <ul class="wolf-seats" aria-label="卓を囲む人">
@@ -112,7 +112,9 @@
       <th:block th:if="${node.character != null}"><svg th:replace="~{fragments/guild :: sprite(${node.character})}"></svg></th:block><span th:text="${node.name}">ロアン</span></a>
   </div>
   <ul class="rmap-keys" th:unless="${#lists.isEmpty(map.keys)}"><li th:each="key : ${map.keys}" th:classappend="${'e-' + key.kind}" th:text="${key.name}">親友</li></ul>
-  <ul class="rmap-nations" th:if="${map.center == null and !map.empty()}"><li class="n-grantford">グランフォード</li><li class="n-elmwood">エルムウッド</li><li class="n-tsukikage">月影郷</li></ul>
+  <ul class="rmap-nations" th:if="${map.center == null}" aria-label="国で絞る">
+    <li><a href="/guild/relations" th:attr="aria-current=${nation == null} ? 'page'">すべて</a></li>
+    <li th:each="town : ${T(com.yuki.rubinco.guild.GuildPlaces).TOWNS}" th:class="${'n-' + town.nation}"><a th:href="@{/guild/relations(nation=${town.nation})}" th:attr="aria-current=${nation == town.nation} ? 'page'" th:text="${town.nationName}">グランフォード</a></li></ul>
   <table class="rmap-rows" th:unless="${#lists.isEmpty(map.rows)}">
     <thead><tr><th>相手</th><th>関係</th><th th:text="${map.center.name + 'から'}">リネから</th><th>相手から</th></tr></thead>
     <tbody><tr th:each="row : ${map.rows}">
@@ -155,15 +157,13 @@
   <h3>人となり</h3><p class="resident-nature" th:text="${character.personality}"></p>
   <h3>この街での関係</h3>
   <p th:if="${#lists.isEmpty(relations)}">まだ誰とも言葉を交わしていません。</p>
+  <!-- The eight closest first; the rest fold away. Each with how this resident feels about them, in a word. -->
   <ul class="guild-relations" th:unless="${#lists.isEmpty(relations)}">
-    <li th:each="rel : ${relations}">
-      <div class="rel-head"><a th:href="${rel.pairPath}"><strong th:text="${rel.other.name}">ロアン</strong></a>
-        <span class="guild-label" th:if="${rel.label != null and rel.label != 'acquaintance'}" th:text="${rel.labelName()}">友達</span><em th:if="${rel.smitten}">気になっている</em><em th:if="${rel.other.status == 'DEAD'}">故人</em></div>
-      <q class="mind-about" th:if="${abouts.get(rel.other.id) != null}" th:text="${abouts.get(rel.other.id)}">頼りになるけど、少し無茶をする。</q>
-      <p class="rel-axes"><span th:text="${'信頼 ' + rel.trust}">信頼 10</span><span th:text="${'親しみ ' + rel.affinity}">親しみ 20</span><span th:text="${'警戒 ' + rel.wariness}">警戒 0</span><span th:text="${'恩義 ' + rel.debt}">恩義 3</span></p>
-      <small th:unless="${#lists.isEmpty(rel.history)}" th:text="${'移り変わり：' + #strings.listJoin(rel.history.![text()], ' → ')}">知人になった → 友達</small>
-    </li>
+    <li th:each="rel, it : ${relations}" th:if="${it.index < 8}" th:insert="~{fragments/guild-windows :: relationRow(${rel})}"></li>
   </ul>
+  <details class="guild-more" th:if="${#lists.size(relations) > 8}"><summary th:text="${'ほか' + (#lists.size(relations) - 8) + '人'}">ほか3人</summary>
+    <ul class="guild-relations"><li th:each="rel, it : ${relations}" th:if="${it.index >= 8}" th:insert="~{fragments/guild-windows :: relationRow(${rel})}"></li></ul>
+  </details>
   <h3>最近の交流</h3>
   <p th:if="${#lists.isEmpty(interactions)}">交流の記録は、まだありません。</p>
   <ul class="guild-entries" th:unless="${#lists.isEmpty(interactions)}">
@@ -181,6 +181,17 @@
     <p class="guild-footer">記録の「誰か」は、その時間にいたプレイヤーです。名前は残していません。</p></th:block>
   <p th:if="${#lists.isEmpty(character.memoryLines())}" th:text="${character.origin}"></p>
   <p class="guild-footer">人物の性格・職業・信仰・暮らしは創作です。実プレイヤーの人格を推定したものではありません。</p>
+</th:block>
+
+<!-- One relation on a resident's window: the bond, how they feel about the other in a word, what they think of them,
+     and the numbers behind it (small). -->
+<th:block th:fragment="relationRow(rel)">
+  <div class="rel-head"><a th:href="${rel.pairPath}"><strong th:text="${rel.other.name}">ロアン</strong></a>
+    <span class="guild-label" th:if="${rel.label != null and rel.label != 'acquaintance'}" th:text="${rel.labelName()}">友達</span>
+    <span class="rel-feeling" th:text="${rel.feeling()}">好き</span><em th:if="${rel.smitten}">気になっている</em><em th:if="${rel.other.status == 'DEAD'}">故人</em></div>
+  <q class="mind-about" th:if="${abouts.get(rel.other.id) != null}" th:text="${abouts.get(rel.other.id)}">頼りになるけど、少し無茶をする。</q>
+  <p class="rel-axes"><span th:text="${'信頼 ' + rel.trust}">信頼 10</span><span th:text="${'親しみ ' + rel.affinity}">親しみ 20</span><span th:text="${'警戒 ' + rel.wariness}">警戒 0</span><span th:text="${'恩義 ' + rel.debt}">恩義 3</span></p>
+  <small th:unless="${#lists.isEmpty(rel.history)}" th:text="${'移り変わり：' + #strings.listJoin(rel.history.![text()], ' → ')}">知人になった → 友達</small>
 </th:block>
 
 <!-- One line of the interaction log. -->
@@ -323,6 +334,6 @@
   <th:block th:unless="${#lists.isEmpty(threads)}"><h3>二人の間の火種</h3>
     <ul class="guild-changes"><li th:each="t : ${threads}" th:text="${t.kindName() + '：' + t.summary + '（' + t.statusName() + '）'}">約束：…</li></ul></th:block>
   <th:block th:unless="${#lists.isEmpty(story)}"><h3>出来事</h3>
-    <ol class="guild-entries"><li th:each="entry : ${story}" th:insert="~{fragments/guild-windows :: entryRow(${entry})}"></li></ol></th:block>
+    <ol class="guild-entries pair-entries"><li th:each="entry : ${story}" th:insert="~{fragments/guild-windows :: entryRow(${entry})}"></li></ol></th:block>
 </th:block>
 </body></html>

@@ -613,3 +613,17 @@ const GuildAdv = (() => {
   document.addEventListener("guild-window", meals);
   meals();
 })();
+
+// The guild's gossip: what came after the traveller's last visit is marked new. The visit is kept in this browser only.
+(() => {
+  const news = document.querySelector("[data-guild-news]");
+  if (!news) return;
+  let last = null;
+  try { last = Number(localStorage.getItem("guild-last-visit")) || null; } catch { /* private window */ }
+  if (last) {
+    news.querySelectorAll("li[data-at]").forEach((item) => {
+      if (Number(item.dataset.at) > last) item.classList.add("new");
+    });
+  }
+  try { localStorage.setItem("guild-last-visit", String(Math.floor(Date.now() / 1000))); } catch { /* not remembered */ }
+})();

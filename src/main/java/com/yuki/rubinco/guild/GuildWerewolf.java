@@ -31,13 +31,16 @@ public class GuildWerewolf {
   public static final int MIN = 4;
   public static final int MAX = 7;
 
-  /** A resident at the table, with their lines ({me} already filled in, {t} left for the game). */
+  /**
+   * A resident at the table, with their lines ({me} already filled in, {t} left for the game). A kind with several
+   * wordings has them one per line; the game picks one each time.
+   */
   public record Player(GuildService.Character character, Map<String, String> lines) { }
 
   private final GuildService guild;
   private final GuildVoice voices;
   private final String version;
-  private final Map<String, Map<String, String>> lines;
+  private final Map<String, Map<String, List<String>>> lines;
 
   public GuildWerewolf(GuildService guild, GuildVoice voices) {
     this.guild = guild;
@@ -45,16 +48,22 @@ public class GuildWerewolf {
     try (InputStream in = new ClassPathResource("guild/werewolf.yml").getInputStream()) {
       Map<String, Object> root = new Yaml(new SafeConstructor(new LoaderOptions())).load(in);
       version = String.valueOf(root.get("version"));
-      Map<String, Map<String, String>> read = new LinkedHashMap<>();
+      Map<String, Map<String, List<String>>> read = new LinkedHashMap<>();
       map(root.get("lines"), "lines").forEach((group, value) -> {
         var said = map(value, group);
-        Map<String, String> kinds = new LinkedHashMap<>();
+        Map<String, List<String>> kinds = new LinkedHashMap<>();
         for (String kind : KINDS) {
-          if (!(said.get(kind) instanceof String text) || text.isBlank()) throw new IllegalStateException("werewolf.yml: " + group + " has no " + kind);
-          // Every line about someone names them; the claims and the defence are in the speaker's own words.
-          boolean about = !kind.equals("greet") && !kind.equals("co") && !kind.equals("counter") && !kind.equals("defend");
-          if (about != text.contains("{t}")) throw new IllegalStateException("werewolf.yml: " + group + "." + kind + " and {t}");
-          kinds.put(kind, text);
+          List<?> wordings = said.get(kind) instanceof List<?> list ? list : said.get(kind) == null ? List.of() : List.of(said.get(kind));
+          if (wordings.isEmpty()) throw new IllegalStateException("werewolf.yml: " + group + " has no " + kind);
+          List<String> texts = new ArrayList<>();
+          for (Object wording : wordings) {
+            if (!(wording instanceof String text) || text.isBlank() || text.contains("\n")) throw new IllegalStateException("werewolf.yml: " + group + "." + kind + " is not a line");
+            // Every line about someone names them; the claims and the defence are in the speaker's own words.
+            boolean about = !kind.equals("greet") && !kind.equals("co") && !kind.equals("counter") && !kind.equals("defend");
+            if (about != text.contains("{t}")) throw new IllegalStateException("werewolf.yml: " + group + "." + kind + " and {t}");
+            texts.add(text);
+          }
+          kinds.put(kind, List.copyOf(texts));
         }
         read.put(group, Map.copyOf(kinds));
       });
@@ -71,11 +80,11 @@ public class GuildWerewolf {
     return version;
   }
 
-  /** What this resident says, in their voice. */
+  /** What this resident says, in their voice (the wordings of a kind one per line). */
   public Map<String, String> lines(GuildService.Character character) {
     var voice = voices.of(character);
     Map<String, String> out = new LinkedHashMap<>();
-    lines.get(voice.group()).forEach((kind, text) -> out.put(kind, text.replace("{me}", voice.first())));
+    lines.get(voice.group()).forEach((kind, texts) -> out.put(kind, String.join("\n", texts).replace("{me}", voice.first())));
     return out;
   }
 
