@@ -11,7 +11,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -21,12 +23,16 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
  * A solo werewolf game played with the residents (/guild/werewolf), without AI: the traveller sits in with a few of
  * them, the roles are dealt in the browser and the residents argue, vote and hunt by rules (guild.js is not involved;
  * static/js/guild-werewolf.js). Here only who sits in and what each of them can say (guild/werewolf.yml, in their own
- * voice) are chosen. Nothing of a game is sent back or kept.
+ * voice) are chosen, and how they stand with each other (ties, bonds), which colours whom they suspect, believe and
+ * stand up for. Nothing of a game is sent back or kept.
  */
 @Component
 public class GuildWerewolf {
   /** What a resident can say, in the order the game asks for them. */
-  public static final List<String> KINDS = List.of("greet", "co", "white", "black", "counter", "suspect", "defend", "vote");
+  public static final List<String> KINDS = List.of("greet", "co", "white", "black", "counter", "suspect", "defend", "vote",
+      "cover", "medium", "spirit_white", "spirit_black");
+  /** The lines that are about someone ({t}); the rest are in the speaker's own words. */
+  static final List<String> ABOUT = List.of("white", "black", "suspect", "vote", "cover", "spirit_white", "spirit_black");
   /** The residents who play with the traveller: fewer than MIN and there is no game. */
   public static final int MIN = 4;
   public static final int MAX = 7;
@@ -39,12 +45,14 @@ public class GuildWerewolf {
 
   private final GuildService guild;
   private final GuildVoice voices;
+  private final JdbcTemplate jdbc;
   private final String version;
   private final Map<String, Map<String, List<String>>> lines;
 
-  public GuildWerewolf(GuildService guild, GuildVoice voices) {
+  public GuildWerewolf(GuildService guild, GuildVoice voices, JdbcTemplate jdbc) {
     this.guild = guild;
     this.voices = voices;
+    this.jdbc = jdbc;
     try (InputStream in = new ClassPathResource("guild/werewolf.yml").getInputStream()) {
       Map<String, Object> root = new Yaml(new SafeConstructor(new LoaderOptions())).load(in);
       version = String.valueOf(root.get("version"));
@@ -58,9 +66,7 @@ public class GuildWerewolf {
           List<String> texts = new ArrayList<>();
           for (Object wording : wordings) {
             if (!(wording instanceof String text) || text.isBlank() || text.contains("\n")) throw new IllegalStateException("werewolf.yml: " + group + "." + kind + " is not a line");
-            // Every line about someone names them; the claims and the defence are in the speaker's own words.
-            boolean about = !kind.equals("greet") && !kind.equals("co") && !kind.equals("counter") && !kind.equals("defend");
-            if (about != text.contains("{t}")) throw new IllegalStateException("werewolf.yml: " + group + "." + kind + " and {t}");
+            if (ABOUT.contains(kind) != text.contains("{t}")) throw new IllegalStateException("werewolf.yml: " + group + "." + kind + " and {t}");
             texts.add(text);
           }
           kinds.put(kind, List.copyOf(texts));
@@ -107,6 +113,37 @@ public class GuildWerewolf {
     List<GuildService.Character> seated = new ArrayList<>(picked.values());
     Collections.shuffle(seated, random);
     return seated.stream().map(character -> new Player(character, lines(character))).toList();
+  }
+
+  /**
+   * How each one at the table feels about each other one, as "from:to:trust:affinity:wariness:smitten" joined by ";"
+   * (numbers and ids only). Pairs who never met are left out.
+   */
+  public String ties(List<Player> table) {
+    var ids = ids(table);
+    if (ids.isEmpty()) return "";
+    String in = String.join(",", Collections.nCopies(ids.size(), "?"));
+    List<Object> args = new ArrayList<>(ids);
+    args.addAll(ids);
+    return jdbc.query("SELECT from_id, to_id, trust, affinity, wariness, smitten FROM T_GUILD_RELATION WHERE from_id IN (" + in
+        + ") AND to_id IN (" + in + ") ORDER BY from_id, to_id", (rs, row) -> rs.getLong(1) + ":" + rs.getLong(2) + ":" + rs.getInt(3)
+        + ":" + rs.getInt(4) + ":" + rs.getInt(5) + ":" + (rs.getBoolean(6) ? 1 : 0), args.toArray()).stream().collect(Collectors.joining(";"));
+  }
+
+  /** The bonds beyond acquaintance between those at the table, as "low:high:label" joined by ";". */
+  public String bonds(List<Player> table) {
+    var ids = ids(table);
+    if (ids.isEmpty()) return "";
+    String in = String.join(",", Collections.nCopies(ids.size(), "?"));
+    List<Object> args = new ArrayList<>(ids);
+    args.addAll(ids);
+    return jdbc.query("SELECT low_id, high_id, label FROM T_GUILD_BOND WHERE label <> 'acquaintance' AND low_id IN (" + in
+        + ") AND high_id IN (" + in + ") ORDER BY low_id, high_id", (rs, row) -> rs.getLong(1) + ":" + rs.getLong(2) + ":" + rs.getString(3),
+        args.toArray()).stream().collect(Collectors.joining(";"));
+  }
+
+  private static List<Long> ids(List<Player> table) {
+    return table.stream().map(player -> player.character().id()).toList();
   }
 
   @SuppressWarnings("unchecked")
