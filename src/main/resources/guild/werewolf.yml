@@ -3,9 +3,10 @@
 #   {me}: their own first person (from their voice). {t}: the one it is about (the traveller is "旅の人").
 #   greet: when the day's talk opens. co: claims to be the seer. white / black: the seer's result on {t}.
 #   counter: someone else already claimed the seer. suspect: names {t} as suspicious. defend: when named themselves.
-#   vote: their vote for {t}.
+#   vote: their vote for {t}. cover: stands up for {t} when someone they care for is named.
+#   medium: claims to be the medium. spirit_white / spirit_black: the medium's result on {t}, executed the day before.
 # A line may be a list: the game picks one of them each time.
-version: "2026-10-28-werewolf-b"
+version: "2026-10-28-werewolf-c"
 lines:
   kid:
     greet:
@@ -32,6 +33,12 @@ lines:
       - "{t}に入れるね。"
       - "{t}！ ごめんね！"
       - "えっと……{t}にする！"
+    cover:
+      - "{t}はいい人だよ！ {me}、知ってるもん！"
+      - "{t}をいじめないで！"
+    medium: "じつは{me}、霊媒師なの！ しんじゃった人のこと、わかるんだよ！"
+    spirit_white: "{t}はね、人間だったよ……"
+    spirit_black: "{t}、人狼だったよ！"
   elder_m:
     greet:
       - "やれやれ、この村にも人狼が出たか。昔を思い出すのう。"
@@ -57,6 +64,12 @@ lines:
       - "{t}に票を入れるとしよう。"
       - "すまんのう、{t}じゃ。"
       - "{t}に入れる。悪く思うな。"
+    cover:
+      - "待たれよ。{t}はそんな者ではない。わしが保証する。"
+      - "{t}を疑うのは早計じゃ。"
+    medium: "{me}は霊媒師じゃ。逝った者の正体が分かる。"
+    spirit_white: "{t}は人じゃった。惜しいことをしたのう。"
+    spirit_black: "{t}は人狼じゃった。吊ったのは正しかったぞ。"
   elder_f:
     greet:
       - "人狼だなんて、物騒な世の中だねえ。みんな気をつけるんだよ。"
@@ -82,6 +95,12 @@ lines:
       - "{t}に入れるよ。恨まないでおくれ。"
       - "{t}だね。ごめんよ。"
       - "{t}に入れるとするかね。"
+    cover:
+      - "{t}はそんな子じゃないよ。おばあが保証するさね。"
+      - "{t}を疑うのは、ちょいと待っておくれ。"
+    medium: "{me}は霊媒師さね。死んだ人の正体が分かるんだよ。"
+    spirit_white: "{t}は人間だったよ。かわいそうなことをしたねえ。"
+    spirit_black: "{t}は人狼だったよ。これで一安心さね。"
   samurai:
     greet:
       - "人狼が紛れておるとは。心して見極めねばならぬ。"
@@ -107,6 +126,12 @@ lines:
       - "{t}に票を投ずる。"
       - "{t}に一票。"
       - "御免。{t}に投ずる。"
+    cover:
+      - "{t}は信ずるに足る者。拙者が請け合う。"
+      - "{t}を疑うは筋違いであろう。"
+    medium: "{me}は霊媒師である。逝きし者の正体を見る。"
+    spirit_white: "{t}は人であった。無念なり。"
+    spirit_black: "{t}は人狼であった。成敗は正しかった。"
   polite:
     greet:
       - "人狼が紛れているそうですね。落ち着いて話し合いましょう。"
@@ -132,6 +157,12 @@ lines:
       - "{t}さんに投票します。"
       - "心苦しいですが、{t}さんに。"
       - "{t}さんに一票を。"
+    cover:
+      - "{t}さんは信頼できる方です。私が保証します。"
+      - "{t}さんを疑うのは、少し早いのではないでしょうか。"
+    medium: "実は{me}は霊媒師です。亡くなった方の正体が分かります。"
+    spirit_white: "{t}さんは人間でした。残念です。"
+    spirit_black: "{t}さんは人狼でした。判断は正しかったようです。"
   cheerful_f:
     greet:
       - "本物の人狼が紛れてるの？ うそでしょ、こわーい！"
@@ -157,6 +188,12 @@ lines:
       - "{t}に入れるね！"
       - "{t}で！ ごめんね！"
       - "うーん、{t}にしとく！"
+    cover:
+      - "{t}は違うって！ {me}が保証する！"
+      - "ちょっと、{t}を疑うのはやめてよ！"
+    medium: "{me}ね、霊媒師なの！ 死んじゃった人の正体がわかるよ！"
+    spirit_white: "{t}、人間だったよ……ごめんね。"
+    spirit_black: "{t}は人狼だったよ！ やったね！"
   gentle_f:
     greet:
       - "人狼が紛れているなんて……みなさん、気をつけてくださいね。"
@@ -182,6 +219,12 @@ lines:
       - "{t}さんに入れますわね。"
       - "{t}さんに……ごめんなさいね。"
       - "{t}さんにいたしますわ。"
+    cover:
+      - "{t}さんは、そんな方ではありませんわ。"
+      - "どうか{t}さんを疑わないで。"
+    medium: "{me}は霊媒師ですの。亡くなった方の正体が分かりますわ。"
+    spirit_white: "{t}さんは人間でしたわ……。"
+    spirit_black: "{t}さんは人狼でしたわ。"
   brisk_f:
     greet:
       - "人狼が混じってるって？ さっさと見つけ出してやろうじゃないか。"
@@ -207,6 +250,12 @@ lines:
       - "{t}に入れるよ。"
       - "{t}に決まりだね。"
       - "{t}だ。文句はなしだよ。"
+    cover:
+      - "{t}は違うよ。あたしが保証する。"
+      - "{t}を疑うのはお門違いだね。"
+    medium: "{me}は霊媒師さ。死んだやつの正体は分かるよ。"
+    spirit_white: "{t}は人間だったよ。しくじったね。"
+    spirit_black: "{t}は人狼だったよ。よくやった。"
   shy:
     greet:
       - "じ、人狼が……いるんですか……？ こわい、です……"
@@ -232,6 +281,12 @@ lines:
       - "{t}さんに……入れます……"
       - "ご、ごめんなさい……{t}さんに……"
       - "{t}さんに、します……"
+    cover:
+      - "あ、あの……{t}さんは、違うと思います……"
+      - "{t}さんは……いい人、です……"
+    medium: "あ、あの……{me}、霊媒師、です……"
+    spirit_white: "{t}さんは……人間、でした……"
+    spirit_black: "{t}さんは……人狼、でした……"
   cheerful_m:
     greet:
       - "人狼だって？ へへ、面白くなってきたじゃん。"
@@ -257,6 +312,12 @@ lines:
       - "{t}に入れるぜ。"
       - "{t}に一票だ！"
       - "わりいな、{t}だ。"
+    cover:
+      - "{t}は違うって。おれが保証するぜ。"
+      - "おいおい、{t}を疑うのは筋違いだろ。"
+    medium: "実は{me}、霊媒師なんだぜ。死んだやつの正体がわかるんだ。"
+    spirit_white: "{t}は人間だった。……まずったな。"
+    spirit_black: "{t}は人狼だったぜ！ 当たりだ！"
   gentle_m:
     greet:
       - "人狼が紛れているのか……みんなで落ち着いて考えようね。"
@@ -282,6 +343,12 @@ lines:
       - "{t}に入れるよ。"
       - "{t}に入れるね。ごめん。"
       - "悩んだけど、{t}にするよ。"
+    cover:
+      - "{t}はそんな人じゃないよ。僕が保証する。"
+      - "{t}を疑うのは、もう少し待ってくれないかな。"
+    medium: "{me}は霊媒師なんだ。亡くなった人の正体が分かるよ。"
+    spirit_white: "{t}は人間だったよ……。"
+    spirit_black: "{t}は人狼だったよ。"
   stern_m:
     greet:
       - "人狼か。……見つけて吊るせばいい。"
@@ -307,6 +374,12 @@ lines:
       - "{t}だ。"
       - "{t}。"
       - "{t}に入れる。"
+    cover:
+      - "{t}は違う。"
+      - "{t}を疑うのは無駄だ。"
+    medium: "{me}は霊媒師だ。"
+    spirit_white: "{t}は人間だった。"
+    spirit_black: "{t}は人狼だった。"
   neutral:
     greet:
       - "人狼が紛れているらしい。よく見ておこう。"
@@ -332,3 +405,9 @@ lines:
       - "{t}に入れる。"
       - "{t}にする。"
       - "{t}に一票。"
+    cover:
+      - "{t}は違うと思う。保証する。"
+      - "{t}を疑うのは早いんじゃないか。"
+    medium: "{me}は霊媒師だ。死んだ人の正体が分かる。"
+    spirit_white: "{t}は人間だった。"
+    spirit_black: "{t}は人狼だった。"

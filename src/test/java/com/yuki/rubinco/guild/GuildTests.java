@@ -411,6 +411,19 @@ class GuildTests {
     jdbc.update("UPDATE M_GUILD_CHARACTER SET personality = '一人称は「おいら」。気が強い。' WHERE id = ?", own);
     assertThat(werewolf.lines(guild.character(own))).containsOnlyKeys(GuildWerewolf.KINDS).containsEntry("co", "おいらが占い師さ。隠してても仕方ないだろ。");
     assertThat(werewolf.lines(guild.character(own)).get("defend").split("\n")).hasSizeGreaterThan(1).allMatch(line -> !line.contains("{me}"));
+    // How those at the table stand with each other goes to the game: numbers, ids and bond keys only.
+    var table = werewolf.table(ZonedDateTime.now(GuildService.TOKYO));
+    long a = table.get(0).character().id();
+    long b = table.get(1).character().id();
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt,smitten) VALUES (?,?,10,40,5,0,TRUE)", a, b);
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,-20,-10,30,0)", b, a);
+    jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,0,0,0,0)", a, own);
+    jdbc.update("INSERT INTO T_GUILD_BOND (low_id,high_id,label,since) VALUES (?,?,'rival',?)", Math.min(a, b), Math.max(a, b), OffsetDateTime.now());
+    String ties = werewolf.ties(table);
+    assertThat(ties.split(";")).contains(a + ":" + b + ":10:40:5:1", b + ":" + a + ":-20:-10:30:0");
+    if (table.stream().noneMatch(player -> player.character().id() == own)) assertThat(ties).doesNotContain(":" + own + ":");
+    assertThat(werewolf.bonds(table)).isEqualTo(Math.min(a, b) + ":" + Math.max(a, b) + ":rival");
+    assertThat(werewolf.ties(List.of())).isEmpty();
     assertThat(werewolf.version()).isNotBlank();
   }
 

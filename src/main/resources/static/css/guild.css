@@ -787,3 +787,6 @@
 .guild-news li.new a::after{content:"新";margin-left:6px;padding:0 4px;font-size:10px;color:#2e2024;background:#ebbe92;vertical-align:1px}
 .guild-news-quiet{margin:0;font-size:13px;color:#a898a8}
 @media (max-width:640px){.guild-news{padding:0 16px}}
+.guild-shell .wolf-ties,.wolf-ties{margin:0 0 8px;font-size:12px;line-height:1.7;color:#c6b8c7}
+.wolf-seat.warm{box-shadow:inset 0 -3px 0 #c98a4a}.wolf-seat.hot{box-shadow:inset 0 -3px 0 #e0503e;background:#3a1f24}
+.wolf-narr.air{color:#ffc58a;font-size:13px}

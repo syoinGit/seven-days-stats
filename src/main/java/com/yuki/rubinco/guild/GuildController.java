@@ -99,7 +99,10 @@ public class GuildController {
   /** The tavern's pastime: a solo werewolf game with some of the residents, played in the browser without AI (GuildWerewolf). */
   @GetMapping("/guild/werewolf")
   public String werewolf(Model model) {
-    model.addAttribute("table", werewolf.table(ZonedDateTime.now(GuildService.TOKYO)));
+    var table = werewolf.table(ZonedDateTime.now(GuildService.TOKYO));
+    model.addAttribute("table", table);
+    model.addAttribute("ties", werewolf.ties(table));
+    model.addAttribute("bonds", werewolf.bonds(table));
     return stage(model, "tavern", "werewolf", "酒場の余興：人狼");
   }
 
