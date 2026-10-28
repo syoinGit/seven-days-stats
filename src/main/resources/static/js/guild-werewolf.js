@@ -31,8 +31,8 @@
   const ROLES = { wolf: "人狼", seer: "占い師", medium: "霊媒師", hunter: "狩人", madman: "狂人", villager: "村人" };
   // By how many sit at the table, the traveller included.
   const DEAL = {
-    5: ["wolf", "seer", "villager", "villager", "villager"],
-    6: ["wolf", "seer", "hunter", "villager", "villager", "villager"],
+    5: ["wolf", "seer", "madman", "villager", "villager"],
+    6: ["wolf", "seer", "hunter", "madman", "villager", "villager"],
     7: ["wolf", "wolf", "seer", "medium", "hunter", "villager", "villager"],
     8: ["wolf", "wolf", "seer", "medium", "hunter", "madman", "villager", "villager"],
   };
@@ -95,6 +95,9 @@
   // How far the residents take the traveller's word: up when what they said turns out right, down when wrong.
   let credit = 0;
   let talked = false;
+  // Whom the room asked the seers to read tonight, and (the next day) whom they were asked to have read.
+  let request = null;
+  let asked = null;
 
   // ---- The table ----------------------------------------------------------------------------------------------------
 
@@ -121,6 +124,8 @@
     executions = [];
     story = [];
     credit = 0;
+    request = null;
+    asked = null;
     log.replaceChildren();
     chapter("はじまり");
     for (const person of people) {
@@ -150,36 +155,45 @@
   });
 
   /**
-   * How far self believes that c, one of those claiming role (seer or medium), is the real one (0..1): one who claims it
+   * How far self believes that c, one of those claiming role (seer, medium, hunter), is the real one (0..1): one who claims it
    * themselves takes the others for fakes; a claim that lies about what self knows is a lie; one the wolves killed was
    * the real one; between two, the one self trusts more.
    */
-  function trustIn(self, c, role, doubt = 1) {
+  function trustIn(self, c, role, weigh = () => 1) {
     if (self === c) return self.role === role ? 1 : 0;
     if (self.role === role && !self.you || self.claim === role) return 0;
-    if (caught(self, role === "seer" ? c.results : c.spirits)) return 0;
+    if (caught(self, role === "seer" ? c.results : role === "medium" ? c.spirits : [])) return 0;
     const all = people.filter((other) => other.claim === role && other !== self);
-    if (all.length <= 1) return (role === "seer" ? 0.85 : 0.9) * doubt;
+    if (all.length <= 1) return (role === "seer" ? 0.85 : role === "medium" ? 0.9 : 0.75) * Math.min(1, weigh(c));
     const eaten = all.find((other) => other.diedBy === "wolf");
-    if (eaten) return (eaten === c ? 0.95 : 0.1) * doubt;
-    const weight = (other) => self.prior[other.index] * (other === c ? doubt : 1);
+    if (eaten) return (eaten === c ? 0.95 : 0.1) * Math.min(1, weigh(c));
+    const weight = (other) => self.prior[other.index] * weigh(other);
     const sum = all.reduce((total, other) => total + weight(other), 0);
     return sum > 0 ? weight(c) / sum : 0.5;
   }
 
   const mediumBelief = (self, m) => trustIn(self, m, "medium");
+  const hunterBelief = (self, h) => trustIn(self, h, "hunter");
 
-  /** How far self believes that claimant c is the real seer; a reading a believed medium contradicts counts against. */
+  /**
+   * How far self believes that claimant c is the real seer. What a believed medium said of the executed weighs on each
+   * seer claimant: a reading it contradicts counts against them, a wolf it confirms counts for them.
+   */
   function belief(self, c) {
-    let doubt = 1;
-    for (const m of mediums()) {
-      if (m === c || m === self && self.role !== "medium") continue;
-      const trust = mediumBelief(self, m);
-      for (const spirit of m.spirits) {
-        if (c.results.some((result) => result.target === spirit.target && result.black !== spirit.black)) doubt *= 1 - 0.85 * trust;
+    const weigh = (claimant) => {
+      let factor = 1;
+      for (const m of mediums()) {
+        if (m === claimant || m === self && self.role !== "medium") continue;
+        const trust = mediumBelief(self, m);
+        for (const spirit of m.spirits) {
+          const said = claimant.results.find((result) => result.target === spirit.target);
+          if (!said) continue;
+          factor *= said.black !== spirit.black ? 1 - 0.85 * trust : said.black ? 1 + 2 * trust : 1;
+        }
       }
-    }
-    return trustIn(self, c, "seer", doubt);
+      return factor;
+    };
+    return trustIn(self, c, "seer", weigh);
   }
 
   /** Raises self's suspicion of target, for a reason self can give (key: the reason, so that the same one adds up). */
@@ -201,7 +215,8 @@
     for (const c of seers()) {
       if (c === self) continue;
       const trust = belief(self, c);
-      for (const result of c.results) if (result.target === target.index && result.black) parts.push({ weight: trust * 4, text: c.name + "の占いで人狼と出た" });
+      const quarrel = target.claim === "seer" ? 0.3 : 1;
+      for (const result of c.results) if (result.target === target.index && result.black) parts.push({ weight: trust * quarrel * 4, text: c.name + "の占いで人狼と出た" });
     }
     if (target.claim === "seer") {
       const doubt = (0.5 - belief(self, target)) * 3;
@@ -210,6 +225,10 @@
     if (target.claim === "medium") {
       const doubt = (0.5 - mediumBelief(self, target)) * 3;
       if (doubt > 0) parts.push({ weight: doubt, text: "本物の霊媒師とは思えない" });
+    }
+    if (target.claim === "hunter") {
+      const doubt = (0.5 - hunterBelief(self, target)) * 3;
+      if (doubt > 0) parts.push({ weight: doubt, text: "狩人を名乗ったのは追い出されたくないからだ" });
     }
     return parts.sort((a, b) => b.weight - a.weight);
   }
@@ -222,11 +241,18 @@
     for (const c of seers()) {
       if (c === self) continue;
       const trust = belief(self, c);
-      for (const result of c.results) if (result.target === target.index) score += trust * (result.black ? 4 : -2.5);
+      // A black between rival seers is part of their quarrel, and counts for little.
+      const quarrel = target.claim === "seer" ? 0.3 : 1;
+      for (const result of c.results) if (result.target === target.index) score += trust * quarrel * (result.black ? 5.5 : -2.5);
     }
     // A claimant they believe is someone they would keep; one they doubt, someone they would hang.
-    if (target.claim === "seer") score += self.role === "seer" && !self.you ? 5 : (0.5 - belief(self, target)) * 3;
+    if (target.claim === "seer") {
+      const trust = belief(self, target);
+      // While it is still unclear which seer is real, they keep both and look among the others first.
+      score += self.role === "seer" && !self.you ? 5 : (0.5 - trust) * 3 - (trust >= 0.25 && trust <= 0.75 && living().filter((p) => !p.claim).length > 3 ? 1.2 : 0);
+    }
     if (target.claim === "medium") score += self.role === "medium" && !self.you ? 5 : (0.5 - mediumBelief(self, target)) * 3;
+    if (target.claim === "hunter") score += self.role === "hunter" && !self.you ? 5 : (0.5 - hunterBelief(self, target)) * 3;
     return score;
   }
 
@@ -506,14 +532,26 @@
       const term = document.createElement("dt");
       term.textContent = short(person) + "（" + ROLES[person.claim] + "）";
       const said = document.createElement("dd");
-      const results = person.claim === "seer" ? person.results : person.spirits;
-      if (!results.length) said.textContent = "まだ結果なし";
+      const results = person.claim === "seer" ? person.results : person.claim === "medium" ? person.spirits : [];
+      if (person.claim === "hunter") said.textContent = "夜を守っていると言う";
+      else if (!results.length) said.textContent = "まだ結果なし";
       for (const result of results) {
         const chip = document.createElement("span");
         chip.className = "wolf-chip " + (result.black ? "black" : "white");
         chip.textContent = short(people[result.target]) + (result.black ? " ●人狼" : " ○人間");
         said.append(chip);
       }
+      const trust = document.createElement("span");
+      trust.className = "wolf-believers";
+      trust.textContent = "信じる人 " + believers(person) + "人";
+      said.append(trust);
+      list.append(term, said);
+    }
+    if (request && request.alive) {
+      const term = document.createElement("dt");
+      term.textContent = "今夜の占い先";
+      const said = document.createElement("dd");
+      said.textContent = short(request);
       list.append(term, said);
     }
     if (gone.length) {
@@ -524,6 +562,15 @@
       list.append(term, said);
     }
     board.append(list);
+  }
+
+  /** How many living residents (other than those claiming the same) believe c over anyone else claiming it. */
+  function believers(c) {
+    const trust = (self, other) => (other.claim === "seer" ? belief(self, other) : trustIn(self, other, other.claim));
+    return living().filter((self) => !self.you && self !== c && self.claim !== c.claim).filter((self) => {
+      const mine = trust(self, c);
+      return mine >= 0.4 && people.every((other) => other === c || other.claim !== c.claim || trust(self, other) <= mine);
+    }).length;
   }
 
   /** The bonds at the table, which everyone in the guild knows of (not the crushes, nor the numbers). */
@@ -641,7 +688,7 @@
     narrate(role, "secret");
     await firstNight();
     for (day = 1; ; day++) {
-      story.push({ day, claims: [], results: [], named: [], covers: [], executed: null, votes: 0, yourVote: null, killed: null, guarded: null, runoff: false });
+      story.push({ day, claims: [], results: [], named: [], covers: [], executed: null, votes: 0, yourVote: null, killed: null, guarded: null, runoff: false, request: null });
       chapter(day + "日目");
       mark();
       await talk();
@@ -685,13 +732,28 @@
     if (result.black) heard(person, people[result.target]);
   }
 
-  /** A made-up reading: a wolf knows whom to spare; a madman does not. */
-  function lie(liar) {
-    const pool = others(liar).filter((person) => !liar.results.some((result) => result.target === person.index));
+  /**
+   * A made-up reading. asked: whom the room asked the seers to read last night, which a fake has to answer for too (a
+   * wolf calls a partner human). Otherwise a wolf may call its partner human to vouch for them, and either may call a
+   * rival claimant, one the real seer called human (to make them clash) or one they dislike a wolf. A wolf knows whom to
+   * spare; a madman does not.
+   */
+  function lie(liar, asked = null) {
+    const told = (person) => liar.results.some((result) => result.target === person.index);
+    const wolfish = liar.role === "wolf";
+    if (asked && asked.alive && asked !== liar && !told(asked)) {
+      return { target: asked.index, black: wolfish ? asked.role !== "wolf" && Math.random() < 0.3 : Math.random() < 0.35 };
+    }
+    const pool = others(liar).filter((person) => !told(person));
     if (!pool.length) return null;
-    const humans = liar.role === "wolf" ? pool.filter((person) => person.role !== "wolf") : pool;
-    // A black, sometimes, on someone they have no love for.
-    if (humans.length && Math.random() < (liar.role === "madman" ? 0.45 : 0.35)) return { target: top(humans.map((person) => [person, Math.random() - fond(liar, person)])).index, black: true };
+    const partner = wolfish && pool.find((person) => person.role === "wolf");
+    if (partner && Math.random() < 0.2) return { target: partner.index, black: false };
+    const humans = wolfish ? pool.filter((person) => person.role !== "wolf") : pool;
+    if (humans.length && Math.random() < (liar.role === "madman" ? 0.45 : 0.4)) {
+      const whited = new Set(seers().filter((c) => c !== liar).flatMap((c) => c.results.filter((result) => !result.black).map((result) => result.target)));
+      return { target: top(humans.map((person) => [person, Math.random() - fond(liar, person) + (person.claim === "seer" ? 0.6 : 0)
+        + (whited.has(person.index) ? 0.5 : 0)])).index, black: true };
+    }
     return { target: pick(pool).index, black: false };
   }
 
@@ -712,6 +774,8 @@
   async function talk() {
     const self = you();
     talked = false;
+    asked = request;
+    request = null;
     narrate(day + "日目の昼。卓を囲んで話し合いが始まる。", "big");
     const npcs = shuffle(living().filter((person) => !person.you));
     if (day === 1) for (const person of npcs.slice(0, 2)) say(person, "greet");
@@ -729,7 +793,7 @@
         speakers.push(medium);
       }
       let fakeMedium = npcs.find((person) => person.role === "wolf" && person.claim === "medium");
-      if (!fakeMedium && wolves().length > 1 && !wolves().some((wolf) => wolf.claim) && Math.random() < (mediums().length ? 0.2 : 0.1)) {
+      if (!fakeMedium && wolves().length > 1 && !wolves().some((wolf) => wolf.claim) && Math.random() < (mediums().length ? 0.1 : 0.05)) {
         fakeMedium = npcs.find((person) => person.role === "wolf");
         if (fakeMedium) {
           say(fakeMedium, "medium");
@@ -743,18 +807,21 @@
       mark();
     }
 
-    // Then the seers: the real one comes out on the first day (always once they find a wolf); a wolf or the madman may
-    // claim too.
+    // Then the seers. The real one comes out on the first day, and someone always claims against them: the madman if
+    // there is one (most of the time), else a wolf; with two wolves, now and then both. So there is always a question
+    // of which one to believe.
     const seer = npcs.find((person) => person.role === "seer");
     const seerSpeakers = [];
-    if (seer && (seer.claim || day === 1 && Math.random() < 0.85 || seer.readings.some((reading) => reading.black))) seerSpeakers.push(seer);
-    const madman = npcs.find((person) => person.role === "madman");
-    if (madman && (madman.claim === "seer" || day === 1 && Math.random() < 0.35)) seerSpeakers.push(madman);
-    const fake = npcs.find((person) => person.role === "wolf" && person.claim === "seer");
-    if (fake) seerSpeakers.push(fake);
-    else if (day === 1 && !wolves().some((wolf) => wolf.claim) && !seerSpeakers.includes(madman)) {
-      const liar = npcs.find((person) => person.role === "wolf");
-      if (liar && Math.random() < (wolves().length > 1 ? 0.5 : 0.25)) seerSpeakers.push(liar);
+    if (seer && (seer.claim || day === 1)) seerSpeakers.push(seer);
+    seerSpeakers.push(...npcs.filter((person) => person.claim === "seer" && person.role !== "seer"));
+    if (day === 1) {
+      const madman = npcs.find((person) => person.role === "madman");
+      const liar = npcs.find((person) => person.role === "wolf" && !person.claim);
+      const fakes = [];
+      if (madman && Math.random() < 0.65) fakes.push(madman);
+      if (liar && (!fakes.length || wolves().length > 1 && Math.random() < 0.05)) fakes.push(liar);
+      if (!fakes.length && madman) fakes.push(madman);
+      seerSpeakers.push(...fakes);
     }
     for (const person of shuffle(seerSpeakers)) {
       if (!person.claim) {
@@ -762,12 +829,12 @@
         claims(person, "seer");
         // A seer's first word gives every reading so far.
         if (person.role === "seer") for (const reading of person.readings) report(person, reading);
-        else { const result = lie(person); if (result) report(person, result); }
+        else { const result = lie(person, asked); if (result) report(person, result); }
       } else if (person.role === "seer") {
         const reading = person.readings.at(-1);
         if (reading && !person.results.some((result) => result.target === reading.target)) report(person, reading);
       } else {
-        const result = lie(person);
+        const result = lie(person, asked);
         if (result) report(person, result);
       }
       speakers.push(person);
@@ -803,16 +870,56 @@
       vouched(friend, target);
       covers++;
     }
-    // Whoever is named twice (or by the traveller) answers for themselves.
+    // Whoever is named twice (or by the traveller) answers for themselves, or claims to be the hunter.
     for (const [target, count] of named) {
-      if (target.you || count < 2 && !target.namedByYou) continue;
+      if (target.you || !target.alive || count < 2 && !target.namedByYou) continue;
+      if (await dodge(target)) continue;
       say(target, "defend");
       for (const person of people) if (person !== target) person.heat[target.index] = Math.max(0, person.heat[target.index] - 0.3);
     }
     for (const person of people) person.namedByYou = false;
     const after = mood();
+    // If no one asked yet, someone asks the seers whom to read tonight: the one the room doubts most.
+    if (!request && seers().some((c) => c.alive) && Math.random() < 0.7) {
+      const asker = pick(npcs.filter((npc) => npc.alive && !npc.claim));
+      const target = top([...after].filter(([person]) => person.alive && !person.claim && person !== asker));
+      if (asker && target) {
+        request = target;
+        today().request = { by: asker, target };
+        narrate(asker.name + "が「占い師は今夜、" + nameOf(target) + "を占ってほしい」と言った。", "air");
+      }
+    }
     mark(after);
     air(after);
+  }
+
+  /**
+   * One about to be sent out may claim to be the hunter: the real one to save themselves, a cornered wolf to steal the
+   * name. The real hunter will not let it go (the traveller is asked); true when target claimed.
+   */
+  async function dodge(target) {
+    if (target.claim) return false;
+    const taken = people.some((person) => person.claim === "hunter");
+    const real = target.role === "hunter" && Math.random() < 0.75;
+    const fake = target.role === "wolf" && !taken && Math.random() < 0.35;
+    if (!real && !fake) return false;
+    say(target, "hunter");
+    claims(target, "hunter");
+    const hunter = living().find((person) => person.role === "hunter" && !person.claim);
+    if (fake && hunter) {
+      if (hunter.you) {
+        mark();
+        if (await ask(target.name + "が狩人を名乗った。本物の狩人はあなただ。名乗り出る？", [{ label: "名乗り出る", value: true }, { label: "黙っている", value: false, quiet: true }])) {
+          speak(hunter, "待ってほしい。本物の狩人はわたしだ。");
+          claims(hunter, "hunter");
+        }
+      } else if (Math.random() < 0.8) {
+        say(hunter, "hunter");
+        claims(hunter, "hunter");
+      }
+    }
+    mark();
+    return true;
   }
 
   /** The room's mood, said aloud: whom the suspicion is gathering on. */
@@ -827,16 +934,26 @@
     for (;;) {
       const options = [];
       if (!talked) options.push({ label: "住人に話しかける", value: "talk" });
-      if (self.claim !== "seer") {
-        const untold = executions.some((person) => !self.spirits.some((spirit) => spirit.target === person.index));
-        if (!self.claim) options.push({ label: "霊媒師だと名乗る", value: "medium" });
-        else if (untold) options.push({ label: "霊媒の結果を伝える", value: "medium" });
-      }
-      if (self.claim !== "medium") options.push(self.claim === "seer" ? { label: "占いの結果を伝える", value: "result" } : { label: "占い師だと名乗る", value: "claim" });
+      if (!request && seers().some((c) => c.alive && c !== self)) options.push({ label: "今夜の占い先を頼む", value: "request" });
+      const untold = executions.some((person) => !self.spirits.some((spirit) => spirit.target === person.index));
+      if (!self.claim) {
+        options.push({ label: "占い師だと名乗る", value: "claim" }, { label: "霊媒師だと名乗る", value: "medium" }, { label: "狩人だと名乗る", value: "hunter" });
+      } else if (self.claim === "seer") options.push({ label: "占いの結果を伝える", value: "result" });
+      else if (self.claim === "medium" && untold) options.push({ label: "霊媒の結果を伝える", value: "medium" });
       options.push({ label: "怪しい人を名指しする", value: "suspect" }, { label: "誰かをかばう", value: "cover" }, { label: "黙って聞いている", value: "quiet", quiet: true });
       const action = await ask("あなたの番だ。どうする？", options);
       if (action === "talk") {
         await converse();
+        continue;
+      }
+      if (action === "request") {
+        const target = await pickPerson("占い師に、今夜誰を占ってほしい？", others(self).filter((person) => person.claim !== "seer"), true);
+        if (target) {
+          speak(self, "占い師は今夜、" + target.name + "を占ってほしい。");
+          request = target;
+          today().request = { by: self, target };
+          mark();
+        }
         continue;
       }
       await act(action);
@@ -899,6 +1016,12 @@
       const target = await pickPerson("誰をかばう？", others(self));
       speak(self, target.name + "は人狼じゃないと思う。");
       vouched(self, target);
+      return;
+    }
+    if (action === "hunter") {
+      speak(self, people.some((person) => person.claim === "hunter") ? "待ってほしい。本物の狩人はわたしだ。" : "わたしは狩人だ。");
+      claims(self, "hunter");
+      mark();
       return;
     }
     if (action === "medium") {
@@ -1010,7 +1133,7 @@
     if (self.alive && self.role === "seer") {
       const pool = others(self).filter((person) => !self.known.has(person.index));
       if (pool.length) {
-        const target = await pickPerson("誰を占う？", pool);
+        const target = await pickPerson("誰を占う？" + (request && request.alive ? "（頼まれた占い先：" + short(request) + "）" : ""), pool);
         read(self, target);
         narrate(target.name + "を占った。……" + (target.role === "wolf" ? "人狼だ！" : "人間だ。"), "secret");
       }
@@ -1041,7 +1164,9 @@
 
     for (const seer of living().filter((person) => person.role === "seer" && !person.you)) {
       const pool = others(seer).filter((person) => !seer.known.has(person.index));
-      if (pool.length) read(seer, top(pool.map((target) => [target, suspicion(seer, target) + Math.random()])));
+      // The one the room asked for, unless already known.
+      const wanted = request && pool.includes(request) ? request : null;
+      if (pool.length) read(seer, wanted || top(pool.map((target) => [target, suspicion(seer, target) + Math.random()])));
     }
     const hunter = living().find((person) => person.role === "hunter" && !person.you);
     if (hunter) {
@@ -1110,7 +1235,11 @@
         const truth = target.role === "wolf";
         narrate((result.kind === "seer" ? "占い" : "霊媒") + "：" + lab(result.by) + "→" + lab(target) + "は" + (result.black ? "人狼" : "人間")
           + (result.black !== truth ? "（うそ）" : ""), "review");
+        if (result.kind === "seer" && result.by.role === "wolf" && target.role === "wolf" && !result.black && !result.by.you) {
+          moments.push(lab(result.by) + "は" + record.day + "日目、仲間の" + target.name + "を「人間」と言って囲った。");
+        }
       }
+      if (record.request) narrate("占い先の指定：" + lab(record.request.by) + "→" + lab(record.request.target), "review");
       if (record.named.length) narrate("名指し：" + record.named.map(({ by, target }) => short(by) + "→" + short(target)).join("、"), "review");
       for (const { by, target } of record.covers) {
         const pack = by.role === "wolf" && target.role === "wolf";

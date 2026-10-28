@@ -4,9 +4,9 @@
 #   greet: when the day's talk opens. co: claims to be the seer. white / black: the seer's result on {t}.
 #   counter: someone else already claimed the seer. suspect: names {t} as suspicious. defend: when named themselves.
 #   vote: their vote for {t}. cover: stands up for {t} when someone they care for is named.
-#   medium: claims to be the medium. spirit_white / spirit_black: the medium's result on {t}, executed the day before.
+#   hunter: claims to be the hunter (when about to be sent out). medium: claims to be the medium. spirit_white / spirit_black: the medium's result on {t}, executed the day before.
 # A line may be a list: the game picks one of them each time.
-version: "2026-10-28-werewolf-c"
+version: "2026-10-28-werewolf-d"
 lines:
   kid:
     greet:
@@ -39,6 +39,7 @@ lines:
     medium: "じつは{me}、霊媒師なの！ しんじゃった人のこと、わかるんだよ！"
     spirit_white: "{t}はね、人間だったよ……"
     spirit_black: "{t}、人狼だったよ！"
+    hunter: "まって！ {me}、狩人なんだよ！ 吊ったらみんなを守れなくなっちゃう！"
   elder_m:
     greet:
       - "やれやれ、この村にも人狼が出たか。昔を思い出すのう。"
@@ -70,6 +71,7 @@ lines:
     medium: "{me}は霊媒師じゃ。逝った者の正体が分かる。"
     spirit_white: "{t}は人じゃった。惜しいことをしたのう。"
     spirit_black: "{t}は人狼じゃった。吊ったのは正しかったぞ。"
+    hunter: "待たれよ。わしは狩人じゃ。わしを吊れば、夜を守る者がおらんようになるぞ。"
   elder_f:
     greet:
       - "人狼だなんて、物騒な世の中だねえ。みんな気をつけるんだよ。"
@@ -101,6 +103,7 @@ lines:
     medium: "{me}は霊媒師さね。死んだ人の正体が分かるんだよ。"
     spirit_white: "{t}は人間だったよ。かわいそうなことをしたねえ。"
     spirit_black: "{t}は人狼だったよ。これで一安心さね。"
+    hunter: "お待ち。{me}は狩人だよ。{me}を追い出したら、夜は誰が守るんだい。"
   samurai:
     greet:
       - "人狼が紛れておるとは。心して見極めねばならぬ。"
@@ -132,6 +135,7 @@ lines:
     medium: "{me}は霊媒師である。逝きし者の正体を見る。"
     spirit_white: "{t}は人であった。無念なり。"
     spirit_black: "{t}は人狼であった。成敗は正しかった。"
+    hunter: "待たれよ。{me}は狩人である。夜の守りを失ってよいのか。"
   polite:
     greet:
       - "人狼が紛れているそうですね。落ち着いて話し合いましょう。"
@@ -163,6 +167,7 @@ lines:
     medium: "実は{me}は霊媒師です。亡くなった方の正体が分かります。"
     spirit_white: "{t}さんは人間でした。残念です。"
     spirit_black: "{t}さんは人狼でした。判断は正しかったようです。"
+    hunter: "お待ちください。{me}は狩人です。{me}を追い出せば、夜の守りがなくなります。"
   cheerful_f:
     greet:
       - "本物の人狼が紛れてるの？ うそでしょ、こわーい！"
@@ -194,6 +199,7 @@ lines:
     medium: "{me}ね、霊媒師なの！ 死んじゃった人の正体がわかるよ！"
     spirit_white: "{t}、人間だったよ……ごめんね。"
     spirit_black: "{t}は人狼だったよ！ やったね！"
+    hunter: "待って待って！ {me}、狩人なの！ 追い出したら夜に守れないよ！"
   gentle_f:
     greet:
       - "人狼が紛れているなんて……みなさん、気をつけてくださいね。"
@@ -225,6 +231,7 @@ lines:
     medium: "{me}は霊媒師ですの。亡くなった方の正体が分かりますわ。"
     spirit_white: "{t}さんは人間でしたわ……。"
     spirit_black: "{t}さんは人狼でしたわ。"
+    hunter: "お待ちになって。{me}は狩人ですの。夜をお守りしているのですわ。"
   brisk_f:
     greet:
       - "人狼が混じってるって？ さっさと見つけ出してやろうじゃないか。"
@@ -256,6 +263,7 @@ lines:
     medium: "{me}は霊媒師さ。死んだやつの正体は分かるよ。"
     spirit_white: "{t}は人間だったよ。しくじったね。"
     spirit_black: "{t}は人狼だったよ。よくやった。"
+    hunter: "待ちな。{me}は狩人だよ。あたしを追い出したら、夜は丸裸さ。"
   shy:
     greet:
       - "じ、人狼が……いるんですか……？ こわい、です……"
@@ -287,6 +295,7 @@ lines:
     medium: "あ、あの……{me}、霊媒師、です……"
     spirit_white: "{t}さんは……人間、でした……"
     spirit_black: "{t}さんは……人狼、でした……"
+    hunter: "ま、待ってください……{me}、狩人、なんです……"
   cheerful_m:
     greet:
       - "人狼だって？ へへ、面白くなってきたじゃん。"
@@ -318,6 +327,7 @@ lines:
     medium: "実は{me}、霊媒師なんだぜ。死んだやつの正体がわかるんだ。"
     spirit_white: "{t}は人間だった。……まずったな。"
     spirit_black: "{t}は人狼だったぜ！ 当たりだ！"
+    hunter: "おいおい待てよ、{me}は狩人だぜ！ 追い出したら夜に守れねえぞ！"
   gentle_m:
     greet:
       - "人狼が紛れているのか……みんなで落ち着いて考えようね。"
@@ -349,6 +359,7 @@ lines:
     medium: "{me}は霊媒師なんだ。亡くなった人の正体が分かるよ。"
     spirit_white: "{t}は人間だったよ……。"
     spirit_black: "{t}は人狼だったよ。"
+    hunter: "待って。{me}は狩人なんだ。追い出されたら、夜にみんなを守れなくなるよ。"
   stern_m:
     greet:
       - "人狼か。……見つけて吊るせばいい。"
@@ -380,6 +391,7 @@ lines:
     medium: "{me}は霊媒師だ。"
     spirit_white: "{t}は人間だった。"
     spirit_black: "{t}は人狼だった。"
+    hunter: "待て。{me}が狩人だ。"
   neutral:
     greet:
       - "人狼が紛れているらしい。よく見ておこう。"
@@ -411,3 +423,4 @@ lines:
     medium: "{me}は霊媒師だ。死んだ人の正体が分かる。"
     spirit_white: "{t}は人間だった。"
     spirit_black: "{t}は人狼だった。"
+    hunter: "待ってくれ。{me}は狩人だ。追い出せば夜の守りがなくなる。"

@@ -75,7 +75,7 @@
                    data-white=${player.lines['white']}, data-black=${player.lines['black']}, data-counter=${player.lines['counter']},
                    data-suspect=${player.lines['suspect']}, data-defend=${player.lines['defend']}, data-vote=${player.lines['vote']},
                    data-cover=${player.lines['cover']}, data-medium=${player.lines['medium']}, data-spirit_white=${player.lines['spirit_white']},
-                   data-spirit_black=${player.lines['spirit_black']}">
+                   data-spirit_black=${player.lines['spirit_black']}, data-hunter=${player.lines['hunter']}">
         <svg th:replace="~{fragments/guild :: sprite(${player.character})}"></svg>
         <span class="wolf-name" th:text="${player.character.name}">リネ</span><small class="wolf-tag" data-wolf-tag></small>
       </li>
@@ -88,7 +88,10 @@
     <div class="wolf-actions" data-wolf-actions><p class="meal-note">遊ぶにはJavaScriptが必要です。</p></div>
     <p class="wolf-record" data-wolf-record></p>
     <details class="wolf-rules"><summary>遊び方</summary>
-      <p>役目は人狼・占い師・霊媒師・狩人・狂人・村人。人数が少ないと人狼は一人で、霊媒師・狩人・狂人はいないこともあります。村人の陣営は人狼をすべて追い出せば勝ち、人狼は生き残りの半分に並べば勝ちです。狂人は人間ですが、人狼の勝ちを願っています（人狼の陣営。占っても人間と出ます）。</p>
+      <p>役目は人狼・占い師・霊媒師・狩人・狂人・村人。5〜6人の卓は人狼一人と狂人、7人以上は人狼二人と霊媒師がいます（8人は狂人も）。村人の陣営は人狼をすべて追い出せば勝ち、人狼は生き残りの半分に並べば勝ちです。狂人は人間ですが、人狼の勝ちを願っています（人狼の陣営。占っても人間と出ます）。</p>
+      <p>1日目には必ず占い師が二人（ときに三人）名乗り出ます。本物は一人だけで、ほかは人狼か狂人の騙りです。どちらが本物かを見極めるのがこのゲームの軸です。表の「信じる人」は、住人がいまどちらを信じているかの人数です。</p>
+      <p>占い先は頼めます（あなたの番の「今夜の占い先を頼む」、頼まなければ住人の誰かが頼むこともあります）。本物はその人を占い、偽物もその人の結果を言わなければなりません。二人の結果が食い違ったら、どちらかがうそをついています。霊媒の結果で裏が取れた占い師は信じられ、食い違った占い師は疑われます。</p>
+      <p>追い出されそうになった人が「狩人だ」と名乗ることがあります。人狼の騙りのこともあり、本物の狩人は黙っていません。あなたも占い師・霊媒師・狩人を名乗れます（本物でなくても）。</p>
       <p>昼はまず霊媒師と占い師を名乗る人が結果を話し、あなたの番のあと、ほかの人が怪しいと思う人を理由つきで名指しします。投票で一番多く票を集めた人が酒場から追い出されます。同票のときは決選投票、それでも並べばくじ引きです。夜、占い師は一人を占い、狩人は一人を守り、人狼は一人を襲います。</p>
       <p>あなたの番には、名乗る・名指しする・かばうのほか、住人に話しかけて誰に入れるつもりか聞いたり、説得したりできます（1日1回）。説得が通るかは、これまであなたの言ったことが当たっていたかで変わります。</p>
       <p>名乗った人とその結果は、席の下の表にまとまります。席の「メモ」を押すと、白・黒・灰の印を付けられます。決着すると、その回の振り返りが出ます。戦績はこのブラウザにだけ残ります。</p>

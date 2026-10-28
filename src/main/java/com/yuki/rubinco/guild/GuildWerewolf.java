@@ -30,7 +30,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 public class GuildWerewolf {
   /** What a resident can say, in the order the game asks for them. */
   public static final List<String> KINDS = List.of("greet", "co", "white", "black", "counter", "suspect", "defend", "vote",
-      "cover", "medium", "spirit_white", "spirit_black");
+      "cover", "medium", "spirit_white", "spirit_black", "hunter");
   /** The lines that are about someone ({t}); the rest are in the speaker's own words. */
   static final List<String> ABOUT = List.of("white", "black", "suspect", "vote", "cover", "spirit_white", "spirit_black");
   /** The residents who play with the traveller: fewer than MIN and there is no game. */
