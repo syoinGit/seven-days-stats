@@ -432,6 +432,29 @@ class GuildTests {
   }
 
   /**
+   * 潜む者: a full party of seven residents and the traveller, each seat with the lines the labyrinth uses (the game
+   * itself runs in the browser). Fewer than seven living residents and there is no game.
+   */
+  @Test void residentsLoseThemselvesInTheLabyrinth() throws Exception {
+    for (int i = 0; i < 6; i++) resident("住人" + i, 30, "ALIVE", i);
+    mvc.perform(get("/guild/mimic")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("迷宮に挑めません")))
+        .andExpect(content().string(not(containsString("data-mimic-player"))));
+    resident("住人6", 30, "ALIVE", 6);
+    resident("故人", 30, "DEAD", 7);
+    String page = mvc.perform(get("/guild/mimic")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("酒場の余興：潜む者")))
+        .andExpect(content().string(containsString("/js/guild-mimic.js")))
+        .andExpect(content().string(containsString("data-mimic-table")))
+        .andExpect(content().string(containsString("data-suspect=\"")))
+        .andExpect(content().string(containsString("href=\"/guild/werewolf\"")))
+        .andReturn().getResponse().getContentAsString();
+    assertThat(page.split("data-mimic-player=", -1)).hasSize(GuildWerewolf.MAX + 1);
+    assertThat(page).doesNotContain("故人");
+    mvc.perform(get("/guild/werewolf")).andExpect(content().string(containsString("href=\"/guild/mimic\"")));
+  }
+
+  /**
    * The guild's gossip: bonds that changed, moves, newcomers and dungeon runs of the last seven days, in fixed words,
    * newest first; older ones and meeting for the first time are not told.
    */
