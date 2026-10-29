@@ -260,7 +260,7 @@
   <p class="guild-window-lead"><small th:text="${#temporals.format(detail.entry.at, 'yyyy年M月d日 H時') + '・' + detail.entry.placeName() + '・' + detail.entry.kind + '・選ばれ方: ' + detail.entry.selectionName()}">2026年10月25日 14時・無人の冒険者ギルド・雑談</small></p>
   <h3 th:text="${detail.entry.summary}">リネとロアンは天気の話をした</h3>
   <ul class="guild-cast-list"><li th:each="person : ${detail.entry.people}"><strong th:text="${person.name}">リネ</strong><small th:text="${person.profile}">28歳・女性・冒険者・グランフォード</small></li></ul>
-  <!-- The scene opens on its monologue, drifting in like mist over the place it happened; "会話を聞く" plays it line by line as
+  <!-- The scene opens on its monologue, shown on a darkened view of the place it happened; "会話を聞く" plays it line by line as
        if overheard from that place's counter (GuildAdv). The whole scene as speech bubbles stays below, folded. -->
   <section class="adv-scene" data-adv-scene th:with="prelude=${detail.entry.prelude()}"
            th:attr="data-place=${detail.entry.placeKey()}, data-place-name=${detail.entry.placeName()}">
