@@ -146,8 +146,8 @@
 
 // GuildAdv: reads a conversation one line at a time, visual-novel style, as if from a seat at the counter of the place it
 // happens in (each place has its own backdrop). The speakers' figures stand behind the counter at the sides (the one
-// talking lit, the other dimmed), and a message box at the bottom types each line out. Narration is not boxed: it drifts
-// in over a mist, like a monologue. A click, Enter or Space shows the whole line, then goes on. Used for scenes between
+// talking lit, the other dimmed), and a message box at the bottom types each line out. Narration is not boxed: the scene
+// darkens and it appears in the middle, like a monologue. A click, Enter or Space shows the whole line, then goes on. Used for scenes between
 // residents and for talking with a resident.
 const GuildAdv = (() => {
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -206,7 +206,7 @@ const GuildAdv = (() => {
     if (opener && document.contains(opener)) opener.focus({ preventScroll: true });
   }
 
-  /** Narration: the box gives way to a mist, and the text surfaces in it. Resolves once read; rejects if closed. */
+  /** Narration: the box gives way to a dark veil, and the text appears on it. Resolves once read; rejects if closed. */
   function muse(text) {
     return new Promise((resolve, reject) => {
       if (!dialog?.open) { reject(new Error("closed")); return; }
@@ -218,7 +218,7 @@ const GuildAdv = (() => {
       void mono.offsetWidth;
       mono.classList.add("shown");
       let ready = still;
-      const timer = still ? null : setTimeout(() => { ready = true; }, 1400);
+      const timer = still ? null : setTimeout(() => { ready = true; }, 250);
       const closed = () => { clearTimeout(timer); reject(new Error("closed")); };
       dialog.addEventListener("close", closed, { once: true });
       advance = () => {
