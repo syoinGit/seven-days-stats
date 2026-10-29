@@ -836,3 +836,16 @@
   .guild-shell .wolf-headline,.wolf-headline{font-size:11px;line-height:1.5}.wolf-phase{font-size:11px}
   .wolf-seat{width:64px}.wolf-seat .guild-sprite{width:30px;height:45px}.wolf-you-mark{width:30px;height:30px;margin:8px 0 7px;font-size:13px}
   .wolf-name{font-size:10px;padding:0 4px}.wolf-bubble{max-width:150px;padding:5px 8px;font-size:11px}.guild-shell .wolf-lead,.wolf-lead{font-size:13px}}
+
+/* 潜む者 (the werewolf game's look, in a labyrinth): the traveller's mana, the five places and who went where today. */
+.wolf-other{margin-top:10px;font-size:13px}.wolf-other a{color:#efbea9}
+.mimic-mana{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:0 0 8px;padding:6px 8px;background:#1a1320;border:2px solid #3e2e41;font-size:12px}
+.mimic-mana b{color:#ffe0a8;margin-right:4px}.mimic-mana small{flex-basis:100%;color:#c6b8c7}
+.mana{display:inline-block;padding:0 7px;font-size:11px;line-height:1.7;border:1px solid;border-radius:999px}
+.mana-light{color:#fff2bd;background:#3a3218;border-color:#d8c070}.mana-dark{color:#dccdff;background:#211a36;border-color:#8a72c8}
+.mana-water{color:#c4e8ff;background:#12263a;border-color:#4f8ec0}.mana-fire{color:#ffcaa8;background:#3a1a12;border-color:#c8603c}
+.mimic-map{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:5px;margin:0 0 8px}
+.mimic-place{display:flex;flex-direction:column;gap:2px;padding:5px 7px;background:#1a1320;border:2px solid #3e2e41;font-size:12px}
+.mimic-place b{color:#ffe0a8}.mimic-place span{display:flex;gap:3px}.mimic-place small{color:#c6b8c7;line-height:1.5}
+.guild-mimic .wolf-seat.revealed.role-mimic{background:#3a1a4a99;border-color:#b070e0}
+.guild-mimic .wolf-seat.revealed.role-madman{background:#4a2a1a99;border-color:#e0903e}

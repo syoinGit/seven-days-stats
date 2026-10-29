@@ -106,6 +106,20 @@ public class GuildController {
     return stage(model, "tavern", "werewolf", "酒場の余興：人狼");
   }
 
+  /**
+   * The tavern's other pastime: 潜む者, hidden roles in a labyrinth (guild-mimic.js). It needs a full party, seven
+   * residents and the traveller; who sits in, and how they stand with each other, as for the werewolf game.
+   */
+  @GetMapping("/guild/mimic")
+  public String mimic(Model model) {
+    var table = werewolf.table(ZonedDateTime.now(GuildService.TOKYO));
+    if (table.size() < GuildWerewolf.MAX) table = List.of();
+    model.addAttribute("table", table);
+    model.addAttribute("ties", werewolf.ties(table));
+    model.addAttribute("bonds", werewolf.bonds(table));
+    return stage(model, "tavern", "mimic", "酒場の余興：潜む者");
+  }
+
   @GetMapping("/guild/characters/{id}")
   public String character(Model model, @PathVariable long id) {
     var character = guild.character(id);

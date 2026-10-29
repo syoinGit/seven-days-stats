@@ -63,6 +63,7 @@ class CognitoSecurityMvpTests {
     mockMvc.perform(get("/guild")).andExpect(status().isOk());
     mockMvc.perform(get("/guild/log")).andExpect(status().isOk());
     mockMvc.perform(get("/guild/werewolf")).andExpect(status().isOk());
+    mockMvc.perform(get("/guild/mimic")).andExpect(status().isOk());
     mockMvc.perform(get("/guild/relations")).andExpect(status().isOk());
     mockMvc.perform(get("/guild/maintenance").with(user("member").roles("MEMBER")))
         .andExpect(status().isForbidden());
