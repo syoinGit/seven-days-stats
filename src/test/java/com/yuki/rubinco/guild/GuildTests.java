@@ -445,7 +445,7 @@ class GuildTests {
     String page = mvc.perform(get("/guild/mimic")).andExpect(status().isOk())
         .andExpect(content().string(containsString("酒場の余興：潜む者")))
         .andExpect(content().string(containsString("/js/guild-mimic.js")))
-        .andExpect(content().string(containsString("data-mimic-table")))
+        .andExpect(content().string(containsString("data-mz-stage")))
         .andExpect(content().string(containsString("data-suspect=\"")))
         .andExpect(content().string(containsString("href=\"/guild/werewolf\"")))
         .andReturn().getResponse().getContentAsString();

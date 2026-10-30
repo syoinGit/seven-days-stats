@@ -5,7 +5,7 @@
 <meta property="og:title" th:content="${title}"><meta property="og:type" content="website">
 <link th:if="${canonical != null and !#strings.isEmpty(canonical)}" rel="canonical" th:href="${canonical}">
 <meta th:if="${canonical != null and !#strings.isEmpty(canonical)}" property="og:url" th:content="${canonical}">
-<link rel="stylesheet" href="/css/app.css?v=header-6"><link rel="stylesheet" href="/css/portal.css?v=guild-2"><link rel="stylesheet" href="/css/guild.css?v=39">
+<link rel="stylesheet" href="/css/app.css?v=header-6"><link rel="stylesheet" href="/css/portal.css?v=guild-2"><link rel="stylesheet" href="/css/guild.css?v=40">
 </th:block></head><body>
 <!-- A resident's figure (SD), in their usual pose or the one given. -->
 <svg th:fragment="sprite(c)" th:replace="~{fragments/guild :: figure(${c}, ${c.pose()})}"></svg>

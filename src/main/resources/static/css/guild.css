@@ -837,15 +837,138 @@
   .wolf-seat{width:64px}.wolf-seat .guild-sprite{width:30px;height:45px}.wolf-you-mark{width:30px;height:30px;margin:8px 0 7px;font-size:13px}
   .wolf-name{font-size:10px;padding:0 4px}.wolf-bubble{max-width:150px;padding:5px 8px;font-size:11px}.guild-shell .wolf-lead,.wolf-lead{font-size:13px}}
 
-/* 潜む者 (the werewolf game's look, in a labyrinth): the traveller's mana, the five places and who went where today. */
+/* 潜む者: the labyrinth seen first-hand. A backdrop for each place (gradients only), those present standing in it, a
+   message box below like the conversation scenes; tabs for the chart (who suspects whom) and the notebook (who said what). */
 .wolf-other{margin-top:10px;font-size:13px}.wolf-other a{color:#efbea9}
-.mimic-mana{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:0 0 8px;padding:6px 8px;background:#1a1320;border:2px solid #3e2e41;font-size:12px}
-.mimic-mana b{color:#ffe0a8;margin-right:4px}.mimic-mana small{flex-basis:100%;color:#c6b8c7}
 .mana{display:inline-block;padding:0 7px;font-size:11px;line-height:1.7;border:1px solid;border-radius:999px}
 .mana-light{color:#fff2bd;background:#3a3218;border-color:#d8c070}.mana-dark{color:#dccdff;background:#211a36;border-color:#8a72c8}
 .mana-water{color:#c4e8ff;background:#12263a;border-color:#4f8ec0}.mana-fire{color:#ffcaa8;background:#3a1a12;border-color:#c8603c}
-.mimic-map{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:5px;margin:0 0 8px}
-.mimic-place{display:flex;flex-direction:column;gap:2px;padding:5px 7px;background:#1a1320;border:2px solid #3e2e41;font-size:12px}
-.mimic-place b{color:#ffe0a8}.mimic-place span{display:flex;gap:3px}.mimic-place small{color:#c6b8c7;line-height:1.5}
-.guild-mimic .wolf-seat.revealed.role-mimic{background:#3a1a4a99;border-color:#b070e0}
-.guild-mimic .wolf-seat.revealed.role-madman{background:#4a2a1a99;border-color:#e0903e}
+.mz-tabs{display:flex;gap:4px;margin:0 0 8px;flex-wrap:wrap}
+.mz-tabs button{padding:6px 16px;font:inherit;font-size:14px;color:#e0c8cf;background:#1a1320;border:2px solid #5a4658;cursor:pointer}
+.mz-tabs button[aria-selected=true]{color:#2a1a10;background:#ebbe92;border-color:#ebbe92}
+.mz-tabs button:focus-visible,.mz-box:focus-visible,.mz-cell:focus-visible{outline:2px solid #ebbe92;outline-offset:2px}
+.mz-stage{position:relative;height:min(72vh,600px);min-height:440px;overflow:hidden;isolation:isolate;border:3px solid #3e2e41;background:#0d0a10;color:#f3e6e6}
+.mz-bg,.mz-bg i{position:absolute;inset:0;transition:background 1s ease,opacity 1s ease}
+.mz-bg{z-index:-1}.mz-bg i{display:block;pointer-events:none}
+/* entrance: a stone wall and the sealed door */
+.mz-stage[data-bg=entrance] .mz-bg{background:repeating-linear-gradient(0deg,#00000000 0 38px,#0006 38px 41px),repeating-linear-gradient(90deg,#00000000 0 70px,#0005 70px 73px),linear-gradient(#3a3440,#1d1a22)}
+.mz-stage[data-bg=entrance] .mz-bg i:nth-child(1){left:36%;right:36%;top:8%;bottom:30%;border-radius:50% 50% 0 0/22% 22% 0 0;background:linear-gradient(#2a2018,#120c08);border:6px solid #5e5048}
+.mz-stage[data-bg=entrance] .mz-bg i:nth-child(2){background:radial-gradient(circle at 50% 38%,#c8a0ff22,#0000 40%)}
+/* corridor: torches down a passage */
+.mz-stage[data-bg=corridor] .mz-bg{background:linear-gradient(90deg,#1a1410,#3a2a1e 30%,#140f0c 50%,#3a2a1e 70%,#1a1410),#1a1410}
+.mz-stage[data-bg=corridor] .mz-bg i:nth-child(1){background:radial-gradient(circle at 18% 30%,#ffb45a66,#0000 18%),radial-gradient(circle at 82% 30%,#ffb45a66,#0000 18%);animation:mz-flicker 2.4s infinite}
+.mz-stage[data-bg=corridor] .mz-bg i:nth-child(2){background:radial-gradient(ellipse at 50% 40%,#000c 0 8%,#0000 22%)}
+/* altar: gold light from above */
+.mz-stage[data-bg=altar] .mz-bg{background:radial-gradient(ellipse at 50% 0,#ffe0a0aa,#0000 55%),linear-gradient(#4a3420,#1e1410)}
+.mz-stage[data-bg=altar] .mz-bg i:nth-child(1){top:auto;height:28%;background:linear-gradient(#6a4a2a,#2a1c12)}
+.mz-stage[data-bg=altar] .mz-bg i:nth-child(2){background:radial-gradient(circle at 50% 66%,#ff9a4a55,#0000 20%);animation:mz-flicker 3s infinite}
+/* crypt: teal wisps */
+.mz-stage[data-bg=crypt] .mz-bg{background:linear-gradient(#12201f,#060b0c)}
+.mz-stage[data-bg=crypt] .mz-bg i:nth-child(1){background:radial-gradient(circle at 20% 40%,#5ae0c033,#0000 14%),radial-gradient(circle at 75% 30%,#5ae0c02a,#0000 12%),radial-gradient(circle at 55% 60%,#8a72c82a,#0000 16%);animation:mz-drift 7s ease-in-out infinite alternate}
+.mz-stage[data-bg=crypt] .mz-bg i:nth-child(2){top:auto;height:24%;background:repeating-linear-gradient(90deg,#1e2a28 0 40px,#0000 40px 90px),linear-gradient(#0000,#0008)}
+/* lake: blue shimmer below */
+.mz-stage[data-bg=lake] .mz-bg{background:linear-gradient(#0e1a2c,#14304a 58%,#1e4a6e 60%,#0a1a2a)}
+.mz-stage[data-bg=lake] .mz-bg i:nth-child(1){top:60%;background:repeating-linear-gradient(0deg,#ffffff00 0 9px,#9ad8ff22 9px 11px);animation:mz-drift 5s ease-in-out infinite alternate}
+.mz-stage[data-bg=lake] .mz-bg i:nth-child(2){background:radial-gradient(ellipse at 50% 20%,#bfe8ff33,#0000 40%)}
+/* lava: a red glow from the floor */
+.mz-stage[data-bg=lava] .mz-bg{background:linear-gradient(#1a0a08,#3a120a 60%,#c8401a 85%,#ff8a2a)}
+.mz-stage[data-bg=lava] .mz-bg i:nth-child(1){background:radial-gradient(ellipse at 50% 100%,#ffa04a66,#0000 50%);animation:mz-flicker 1.8s infinite}
+.mz-stage[data-bg=lava] .mz-bg i:nth-child(2){background:radial-gradient(circle at 30% 70%,#ffd08a33,#0000 4%),radial-gradient(circle at 70% 60%,#ffd08a33,#0000 3%)}
+/* library: shelves of books */
+.mz-stage[data-bg=library] .mz-bg{background:repeating-linear-gradient(0deg,#3a2414 0 8px,#0000 8px 64px),repeating-linear-gradient(90deg,#5a2a2a 0 10px,#2a3a5a 10px 18px,#5a4a2a 18px 30px,#2a4a3a 30px 38px),#1a120c}
+.mz-stage[data-bg=library] .mz-bg i:nth-child(1){background:linear-gradient(#000a,#0004 40%,#000c)}
+.mz-stage[data-bg=library] .mz-bg i:nth-child(2){background:radial-gradient(circle at 50% 30%,#ffe6b033,#0000 35%)}
+/* fire: the campfire at the centre */
+.mz-stage[data-bg=fire] .mz-bg{background:radial-gradient(ellipse at 50% 78%,#ff9a4a55,#0000 45%),linear-gradient(#0c0a12,#1e1410)}
+.mz-stage[data-bg=fire] .mz-bg i:nth-child(1){background:radial-gradient(ellipse at 50% 80%,#ffc06a88,#ff6a2a33 10%,#0000 22%);animation:mz-flicker 1.4s infinite}
+.mz-stage[data-bg=fire] .mz-bg i:nth-child(2){top:auto;height:20%;background:linear-gradient(#0000,#000a)}
+/* night, morning, the open door */
+.mz-stage[data-bg=night] .mz-bg{background:radial-gradient(ellipse at 50% 30%,#2a2448,#07060c 70%)}
+.mz-stage[data-bg=night] .mz-bg i:nth-child(1){background:radial-gradient(circle at 50% 80%,#ff7a3a22,#0000 12%)}
+.mz-stage[data-bg=morning] .mz-bg{background:linear-gradient(#5a5a6a,#2a2830 70%,#1a1820)}
+.mz-stage[data-bg=morning] .mz-bg i:nth-child(1){background:radial-gradient(ellipse at 50% 0,#fff2d044,#0000 50%)}
+.mz-stage[data-bg=exit] .mz-bg{background:radial-gradient(ellipse at 50% 35%,#fffbe8,#ffe6a0 20%,#5a4a3a 60%,#1e1812)}
+.mz-hud{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;padding:8px 10px;background:linear-gradient(#000a,#0000)}
+.mz-status{margin:0;font-size:13px;color:#ffe0a8;text-shadow:0 1px 2px #000}
+.mz-mana{display:flex;gap:4px;flex-wrap:wrap}
+.mz-fx{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:0}
+.mz-fx.on{animation:mz-flash 1.2s ease-out}
+.mz-fx.mana{background:radial-gradient(circle at 50% 55%,#fff6,#0000 50%)}
+.mz-fx.light{background:radial-gradient(circle at 50% 55%,#fff2bd99,#0000 55%)}
+.mz-fx.dark{background:radial-gradient(circle at 50% 55%,#8a72c899,#0000 55%)}
+.mz-fx.water{background:radial-gradient(circle at 50% 55%,#4f8ec099,#0000 55%)}
+.mz-fx.fire{background:radial-gradient(circle at 50% 55%,#ff8a4a99,#0000 55%)}
+.mz-fx.light.dark{background:radial-gradient(circle at 40% 55%,#fff2bd88,#0000 40%),radial-gradient(circle at 60% 55%,#8a72c888,#0000 40%)}
+.mz-fx.cast{background:radial-gradient(circle at 50% 50%,#c8a0ffaa,#0000 60%)}
+.mz-fx.death{background:#7a0a0acc}
+.mz-fx.exposed{background:radial-gradient(circle,#ffe0a0cc,#e0503e66 40%,#0000 70%)}
+.mz-fx.dawn{background:#fffbe8}
+.mz-cast{position:absolute;left:0;right:0;bottom:150px;z-index:1;display:flex;justify-content:center;align-items:flex-end;gap:clamp(2px,1.5vw,18px);padding:0 10px;transition:gap .3s}
+.mz-fig{display:flex;flex-direction:column;align-items:center;transition:transform .3s,filter .3s,opacity .6s}
+.mz-fig .guild-sprite{width:clamp(56px,10vw,110px);height:auto;filter:drop-shadow(0 6px 6px #0009)}
+.mz-fig b{margin-top:2px;padding:0 6px;font-size:12px;font-weight:normal;color:#ffe0a8;background:#1a1320cc;white-space:nowrap}
+.mz-cast.has-speaker .mz-fig:not(.speaking){filter:brightness(.5)}
+.mz-fig.speaking{transform:translateY(-8px)}
+.mz-cast.solo .mz-fig .guild-sprite{width:clamp(130px,24vw,220px)}
+.mz-fig.leaving{opacity:0;transform:translateY(20px) scale(.9)}
+.mz-box{position:absolute;left:10px;right:10px;bottom:10px;z-index:4;min-height:120px;max-height:62%;overflow:auto;padding:22px 20px 14px;background:#1a1320ee;border:3px solid #89634b;color:#f3e6e6;cursor:pointer}
+.mz-box.choosing{cursor:default;max-height:75%}
+.mz-name{position:sticky;top:0;display:inline-block;margin:-34px 0 6px 2px;padding:3px 16px;background:#3a2738;border:3px solid #89634b;color:#ffe0a8;font-size:15px;letter-spacing:.1em}
+.mz-name:empty{display:none}
+.mz-text{margin:0;font-size:16px;line-height:1.8;white-space:pre-line}
+.mz-why{display:block;margin-top:4px;font-size:13px;color:#e8b0a0}
+.mz-choices{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.mz-choices:empty{display:none}
+.mz-choices .meal-button{padding:7px 14px;font-size:14px;text-align:left}
+.mz-choices .meal-button.quiet{background:#2a2030;border-color:#6a5468}
+.mz-next{position:absolute;right:14px;bottom:6px;font-size:12px;color:#ebbe92;animation:mz-bob 1s infinite}
+.mz-box:not(.reading) .mz-next{display:none}
+.mz-box.big .mz-text{font-size:18px;color:#ffe0a8;text-align:center}
+.mz-box.secret{border-color:#8a72c8;background:#16122aee}.mz-box.secret .mz-text{color:#dccdff}
+.mz-box.death{border-color:#a8483c;background:#2a0e0eee}.mz-box.death .mz-text{color:#ffb0a0}
+.mz-box.air .mz-text,.mz-box.vote .mz-text{font-size:14px;color:#d8c8cf}
+.mz-controls{display:flex;justify-content:flex-end;margin:6px 0}
+/* The chart */
+.mz-graph{display:grid;grid-template-columns:minmax(0,3fr) minmax(220px,2fr);gap:10px;align-items:start}
+.mz-graph svg{width:100%;height:auto;background:#140f18;border:2px solid #3e2e41}
+.mz-edge{fill:none;stroke-width:2.2}
+.mz-edge.point{stroke:#ff7a6a;stroke-dasharray:6 4}.mz-edge.cover{stroke:#8cc8ff}
+.mz-edge.black{stroke:#c0303a;stroke-width:3}.mz-edge.white{stroke:#e8f4ff;stroke-width:3}
+.mz-head.point{fill:#ff7a6a}.mz-head.cover{fill:#8cc8ff}.mz-head.black{fill:#c0303a}.mz-head.white{fill:#e8f4ff}
+.mz-node{cursor:pointer}
+.mz-node circle{fill:#2a2030;stroke:#89634b;stroke-width:2}
+.mz-node text{fill:#ffe0a8;font-size:13px}.mz-node .mz-node-tag{fill:#e0c8cf;font-size:11px}
+.mz-node.gone{opacity:.45}
+.mz-node.mimic circle{fill:#3a1a4a;stroke:#b070e0}.mz-node.human.gone circle{fill:#1e2a30}
+.mz-node.exposed circle{stroke:#e0503e;stroke-width:4}
+.mz-node.memo1 circle{stroke:#bfe0ff}.mz-node.memo2 circle{stroke:#e0503e}.mz-node.memo3 circle{stroke:#a898a8}
+.mz-node.focus circle{stroke:#ebbe92;stroke-width:4}
+.mz-node:focus-visible{outline:none}.mz-node:focus-visible circle{stroke:#ebbe92;stroke-width:4}
+.mz-graph-list{padding:8px 12px;background:#1a1320;border:2px solid #3e2e41;font-size:13px;color:#e9dfdf}
+.mz-graph-list h4{margin:8px 0 4px;font-size:13px;color:#ffe0a8}.mz-graph-list ul{margin:0;padding-left:18px;line-height:1.7}
+.mz-hint{margin:8px 0 0;font-size:12px;color:#c6b8c7;line-height:1.6}
+/* The notebook */
+.mz-note{overflow-x:auto}
+.mz-table{border-collapse:collapse;min-width:100%;font-size:12px;color:#e9dfdf}
+.mz-table th,.mz-table td{padding:5px 7px;border:1px solid #3e2e41;vertical-align:top;text-align:left}
+.mz-table tr:first-child th{background:#2a2030;color:#ffe0a8}
+.mz-table th b{display:block;color:#ffe0a8;white-space:nowrap}.mz-table th small{display:block;color:#efbea9}
+.mz-table tr.gone{opacity:.55}
+.mz-cell{min-width:120px;cursor:pointer;background:#1a1320}
+.mz-cell span{display:block;line-height:1.6}
+.mz-cell.marked{background:#4a3a12;box-shadow:inset 0 0 0 2px #ebbe92}
+.mz-where{color:#ffe0a8}.mz-cast-note.black{color:#ff9a8a}.mz-cast-note.unknown,.mz-gone{color:#8a7a88}
+.dot{display:inline-block;width:8px;height:8px;margin-right:2px;border-radius:50%}
+.dot.light{background:#f0d870}.dot.dark{background:#8a72c8}.dot.water{background:#4f8ec0}.dot.fire{background:#e0603c}
+.mz-log{max-height:none}
+@keyframes mz-flicker{0%,100%{opacity:1}45%{opacity:.75}60%{opacity:.9}}
+@keyframes mz-drift{from{transform:translateX(-12px)}to{transform:translateX(12px)}}
+@keyframes mz-flash{0%{opacity:0}15%{opacity:1}100%{opacity:0}}
+@keyframes mz-bob{50%{transform:translateY(3px)}}
+@media (max-width:640px){
+  .mz-stage{min-height:420px;height:76vh}
+  .mz-cast{bottom:170px}.mz-fig b{font-size:10px}
+  .mz-box{padding:20px 12px 12px}.mz-text{font-size:14px}
+  .mz-choices .meal-button{flex:1 1 100%}
+  .mz-graph{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){
+  .mz-bg i,.mz-fx.on,.mz-next{animation:none}.mz-fig,.mz-bg,.mz-bg i{transition:none}}
