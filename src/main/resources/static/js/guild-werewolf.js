@@ -14,8 +14,8 @@
 // What the traveller sees: the claims and results in a table, their own notes on each seat, the room's mood, and at the
 // end a review of who did what. Their record stays in this browser only (localStorage).
 //
-// The window is often opened in place from the tavern (guild.js), so this is loaded on every guild page and sets up
-// each table it finds, now and whenever a window opens.
+// guild.html is the one template of every guild page, so this is loaded on all of them and does nothing where there
+// is no table (only /guild/werewolf has one; it is a page of its own, not a window opened over the tavern).
 const guildWerewolf = () => {
   const box = document.querySelector("[data-wolf]");
   if (!box || box.dataset.ready) return;
@@ -45,7 +45,8 @@ const guildWerewolf = () => {
   const DEAL = {
     5: ["wolf", "seer", "madman", "villager", "villager"],
     6: ["wolf", "seer", "hunter", "madman", "villager", "villager"],
-    7: ["wolf", "wolf", "seer", "medium", "hunter", "villager", "villager"],
+    // A madman at every table, so that whoever claims against the seer may be a wolf or the madman, never surely a wolf.
+    7: ["wolf", "wolf", "seer", "medium", "madman", "villager", "villager"],
     8: ["wolf", "wolf", "seer", "medium", "hunter", "madman", "villager", "villager"],
   };
   const BONDS = { friend: "友達", close_friend: "親友", companion: "仲間", lover: "恋人", spouse: "夫婦", rival: "宿敵", mentor: "師弟" };
@@ -78,11 +79,11 @@ const guildWerewolf = () => {
   const rivals = new Set();
   const bonds = [];
   for (const tie of (box.dataset.ties || "").split(";").filter(Boolean)) {
-    const [from, to, trust, affinity, wariness, smitten] = tie.split(":");
+    const [from, to, fond] = tie.split(":");
     const a = byId.get(from);
     const b = byId.get(to);
-    if (a === undefined || b === undefined) continue;
-    fondness[a][b] += (Number(affinity) + 0.5 * Number(trust) - Number(wariness)) / 100 + (smitten === "1" ? 0.3 : 0);
+    if (a === undefined || b === undefined || !Number.isFinite(Number(fond))) continue;
+    fondness[a][b] += Number(fond);
   }
   for (const bond of (box.dataset.bonds || "").split(";").filter(Boolean)) {
     const [low, high, label] = bond.split(":");
@@ -104,8 +105,10 @@ const guildWerewolf = () => {
   let day = 0;
   let executions = [];
   let story = [];
-  // How far the residents take the traveller's word: up when what they said turns out right, down when wrong.
-  let credit = 0;
+  // How far the residents take the traveller's word: up when what they said turns out right, down when wrong. Kept per
+  // one sent out (proven), by what the medium the room believes most said of them, as far as the room believes it.
+  let proven = new Map();
+  const credit = () => [...proven.values()].reduce((total, one) => total + one.delta, 0);
   let talked = false;
   // Whom the room asked the seers to read tonight, and (the next day) whom they were asked to have read.
   let request = null;
@@ -135,7 +138,7 @@ const guildWerewolf = () => {
     day = 0;
     executions = [];
     story = [];
-    credit = 0;
+    proven = new Map();
     request = null;
     asked = null;
     log.replaceChildren();
@@ -277,9 +280,10 @@ const guildWerewolf = () => {
   };
 
   /**
-   * Whom self names or votes for among pool: a wolf against the room's favourite non-wolf, anyone else their top
-   * suspect, leaning towards whoever already has votes (votes: the tally so far) and whom someone dear voted for
-   * (ballots: who voted whom).
+   * Whom self names or votes for among pool: a wolf against the room's favourite non-wolf; the madman, who wants the
+   * wolves to win without knowing them, against whom they take for human (the seer they lie against, one they called a
+   * wolf, else the one they suspect least); anyone else their top suspect. All lean towards whoever already has votes
+   * (votes: the tally so far), and the village towards whom someone dear voted for (ballots: who voted whom).
    */
   function choice(self, pool = others(self), votes = new Map(), ballots = new Map()) {
     const candidates = pool.filter((person) => person !== self);
@@ -292,6 +296,11 @@ const guildWerewolf = () => {
       if (!prey.length) return pick(candidates);
       return top(prey.map((target) => [target, roomOn(target) + Math.random() * 0.8 - 0.3 * fond(self, target)]));
     }
+    if (self.role === "madman") {
+      return top(candidates.map((target) => [target, -suspicion(self, target) + 0.35 * (votes.get(target) || 0) + Math.random() * 0.6
+        + (self.claim === "seer" && target.claim === "seer" ? 2 : 0)
+        + (self.results.some((result) => result.target === target.index && result.black) ? 3 : 0)]));
+    }
     return top(candidates.map((target) => {
       let score = suspicion(self, target) + 0.35 * (votes.get(target) || 0) + Math.random() * 0.6;
       for (const [voter, voted] of ballots) if (voted === target && fond(self, voter) > 0.6) score += 0.5 * fond(self, voter);
@@ -299,9 +308,9 @@ const guildWerewolf = () => {
     }));
   }
 
-  /** The reason self gives for suspecting target (a wolf gives one the room would accept). */
+  /** The reason self gives for suspecting target (a wolf or the madman gives one the room would accept). */
   function reasonFor(self, target) {
-    if (self.role === "wolf") {
+    if (self.role === "wolf" || self.role === "madman") {
       const room = living().filter((person) => person !== self && person !== target && person.role !== "wolf" && !person.you);
       const all = room.flatMap((person) => reasons(person, target).slice(0, 1));
       const best = all.sort((a, b) => b.weight - a.weight)[0];
@@ -321,7 +330,7 @@ const guildWerewolf = () => {
     const text = namers.length > 1 ? "何人もが怪しいと言っている" : short(speaker) + "も怪しいと言っていた";
     for (const person of people) {
       if (person === speaker || person === target || person.you) continue;
-      const weight = speaker.you ? 0.5 * clamp(1 + 0.4 * credit, 0.3, 2) : 0.5 * (1 + 0.4 * fond(person, speaker));
+      const weight = speaker.you ? 0.5 * clamp(1 + 0.4 * credit(), 0.3, 2) : 0.5 * (1 + 0.4 * fond(person, speaker));
       warm(person, target, weight, "named", text);
       if (fond(person, target) > 0.5) warm(person, speaker, 0.25 * fond(person, target), "accused:" + target.index, "大事な" + nameOf(target) + "を疑った");
       if (person.known.get(target.index) === "human") warm(person, speaker, 0.8, "wrong:" + target.index, "人間の" + nameOf(target) + "を疑った");
@@ -342,7 +351,8 @@ const guildWerewolf = () => {
 
   /**
    * What one turned out to be, as the medium m said: whoever pushed for or stood up for them is weighed by it, as far as
-   * each one believes m; the traveller's word gains or loses its weight.
+   * each one believes m. The traveller's word gains or loses its weight as far as the room believes m; when two mediums
+   * tell of the same one, the one the room believes more counts, and only once.
    */
   function revealed(target, black, m) {
     const word = (black ? "人狼だった" : "人間だった") + nameOf(target);
@@ -361,8 +371,13 @@ const guildWerewolf = () => {
       }
     }
     const self = you();
-    if (target.named.has(self.index) || self.votedFor.at(-1) === target.index) credit += black ? 1 : -1;
-    if (target.covered.has(self.index)) credit += black ? -1 : 1;
+    const room = living().filter((person) => !person.you && person !== m);
+    const sure = room.reduce((total, person) => total + mediumBelief(person, m), 0) / Math.max(1, room.length);
+    let delta = 0;
+    if (target.named.has(self.index) || self.votedFor.at(-1) === target.index) delta += black ? 1 : -1;
+    if (target.covered.has(self.index)) delta += black ? -1 : 1;
+    const before = proven.get(target.index);
+    if (!before || sure > before.sure) proven.set(target.index, { delta: delta * sure, sure });
   }
 
   /** The wolves took someone: whom they suspected is taken more seriously (they may have been onto something). */
@@ -496,7 +511,7 @@ const guildWerewolf = () => {
     }
     post(item, () => {
       bubble(person, text);
-      clearArrows("point", "cover");
+      clearArrows("point", "cover", "ask");
       if (target) arrow(person, target, tone);
     });
   }
@@ -982,8 +997,8 @@ const guildWerewolf = () => {
       mark();
     }
 
-    // Then the seers. The real one comes out on the first day, and someone always claims against them: the madman if
-    // there is one (most of the time), else a wolf; with two wolves, now and then both. So there is always a question
+    // Then the seers. The real one comes out on the first day, and someone always claims against them: the madman
+    // most of the time, else a wolf (a wolf always when the madman is the traveller); with two wolves, now and then both. So there is always a question
     // of which one to believe.
     const seer = npcs.find((person) => person.role === "seer");
     const seerSpeakers = [];
@@ -1131,7 +1146,8 @@ const guildWerewolf = () => {
         }
         continue;
       }
-      await act(action);
+      // Backing out of whom to name or stand up for comes back here.
+      if (await act(action) === false) continue;
       return;
     }
   }
@@ -1141,19 +1157,23 @@ const guildWerewolf = () => {
     const self = you();
     const person = await pickPerson("誰に話しかける？", others(self), true);
     if (!person) return;
-    talked = true;
     const how = await ask(person.name + "に何を話す？", [
       { label: "誰に入れるつもりか聞く", value: "ask" },
       { label: "「この人は人狼じゃない」と伝える", value: "white" },
       { label: "「この人が怪しい」と伝える", value: "black" },
+      { label: "やめる", value: null, quiet: true },
     ]);
+    if (!how) return;
     if (how === "ask") {
+      talked = true;
       const target = choice(person);
       if (!target) return;
       say(person, "vote", target, reasonFor(person, target));
       return;
     }
-    const target = await pickPerson(how === "white" ? "誰のことを伝える？（人狼じゃない）" : "誰のことを伝える？（怪しい）", others(self).filter((other) => other !== person));
+    const target = await pickPerson(how === "white" ? "誰のことを伝える？（人狼じゃない）" : "誰のことを伝える？（怪しい）", others(self).filter((other) => other !== person), true);
+    if (!target) return;
+    talked = true;
     speak(self, target.name + (how === "white" ? "は人狼じゃないと思う。" : "が怪しいと思う。"), null, target, how === "white" ? "cover" : "point");
     const black = how === "black";
     const known = person.known.get(target.index);
@@ -1163,7 +1183,7 @@ const guildWerewolf = () => {
       return;
     }
     const chance = person.role === "wolf" ? (black === (target.role !== "wolf") ? 0.9 : 0.1)
-      : clamp(0.35 + 0.15 * credit + 0.3 * usual[person.index] - 0.2 * fond(person, target) * (black ? 1 : -1), 0.05, 0.9);
+      : clamp(0.35 + 0.15 * credit() + 0.3 * usual[person.index] - 0.2 * fond(person, target) * (black ? 1 : -1), 0.05, 0.9);
     if (Math.random() < chance) {
       narrate(person.name + "は少し考えて、うなずいた。");
       if (black) warm(person, target, 1.1, "told", "旅の人の話を聞いて、気になってきた");
@@ -1173,6 +1193,7 @@ const guildWerewolf = () => {
     }
   }
 
+  /** What the traveller does on their turn; false when they backed out of choosing whom. */
   async function act(action) {
     const self = you();
     if (action === "quiet") {
@@ -1180,7 +1201,8 @@ const guildWerewolf = () => {
       return;
     }
     if (action === "suspect") {
-      const target = await pickPerson("誰を名指しする？", others(self));
+      const target = await pickPerson("誰を名指しする？", others(self), true);
+      if (!target) return false;
       speak(self, target.name + "が怪しいと思う。", null, target);
       heard(self, target);
       today().named.push({ by: self, target });
@@ -1188,7 +1210,8 @@ const guildWerewolf = () => {
       return;
     }
     if (action === "cover") {
-      const target = await pickPerson("誰をかばう？", others(self));
+      const target = await pickPerson("誰をかばう？", others(self), true);
+      if (!target) return false;
       speak(self, target.name + "は人狼じゃないと思う。", null, target, "cover");
       vouched(self, target);
       return;
@@ -1354,9 +1377,11 @@ const guildWerewolf = () => {
 
     for (const seer of living().filter((person) => person.role === "seer" && !person.you)) {
       const pool = others(seer).filter((person) => !seer.known.has(person.index));
-      // The one the room asked for, unless already known.
+      // The one the room asked for, unless already known; else whom they suspect most, not counting those who claim a
+      // role (a rival seer is a liar either way, and reading them tells little).
       const wanted = request && pool.includes(request) ? request : null;
-      if (pool.length) read(seer, wanted || top(pool.map((target) => [target, suspicion(seer, target) + Math.random()])));
+      const open = pool.filter((person) => !person.claim);
+      if (pool.length) read(seer, wanted || top((open.length ? open : pool).map((target) => [target, suspicion(seer, target) + Math.random()])));
     }
     const hunter = living().find((person) => person.role === "hunter" && !person.you);
     if (hunter) {
@@ -1474,4 +1499,3 @@ const guildWerewolf = () => {
   play();
 };
 guildWerewolf();
-document.addEventListener("guild-window", guildWerewolf);

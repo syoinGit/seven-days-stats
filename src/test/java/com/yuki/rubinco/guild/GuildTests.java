@@ -404,8 +404,8 @@ class GuildTests {
         .andReturn().getResponse().getContentAsString();
     assertThat(page.split("data-wolf-player=", -1)).hasSize(GuildWerewolf.MAX + 1);
     assertThat(page).doesNotContain("故人");
-    // A pastime in the guild's tavern, not a tab of its own. Its script is on the tavern too, since the window is
-    // opened in place from there.
+    // A pastime in the guild's tavern, not a tab of its own. Its script is on every guild page (one template), and
+    // does nothing where there is no table.
     mvc.perform(get("/guild")).andExpect(content().string(containsString("/js/guild-werewolf.js")))
         .andExpect(content().string(containsString("guild-game-link\" href=\"/guild/werewolf\"")));
     mvc.perform(get("/guild/log")).andExpect(content().string(not(containsString("</svg>人狼</a>"))));
@@ -414,7 +414,8 @@ class GuildTests {
     jdbc.update("UPDATE M_GUILD_CHARACTER SET personality = '一人称は「おいら」。気が強い。' WHERE id = ?", own);
     assertThat(werewolf.lines(guild.character(own))).containsOnlyKeys(GuildWerewolf.KINDS).containsEntry("co", "おいらが占い師さ。隠してても仕方ないだろ。");
     assertThat(werewolf.lines(guild.character(own)).get("defend").split("\n")).hasSizeGreaterThan(1).allMatch(line -> !line.contains("{me}"));
-    // How those at the table stand with each other goes to the game: numbers, ids and bond keys only.
+    // How those at the table stand with each other goes to the game: ids, one fondness each way and bond keys only,
+    // so a crush cannot be told apart from liking.
     var table = werewolf.table(ZonedDateTime.now(GuildService.TOKYO));
     var seated = table.stream().map(player -> player.character().id()).filter(id -> id != own).toList();
     long a = seated.get(0);
@@ -424,11 +425,23 @@ class GuildTests {
     jdbc.update("INSERT INTO T_GUILD_RELATION (from_id,to_id,trust,affinity,wariness,debt) VALUES (?,?,0,0,0,0)", a, own);
     jdbc.update("INSERT INTO T_GUILD_BOND (low_id,high_id,label,since) VALUES (?,?,'rival',?)", Math.min(a, b), Math.max(a, b), OffsetDateTime.now());
     String ties = werewolf.ties(table);
-    assertThat(ties.split(";")).contains(a + ":" + b + ":10:40:5:1", b + ":" + a + ":-20:-10:30:0");
+    assertThat(ties.split(";")).contains(a + ":" + b + ":0.7", b + ":" + a + ":-0.5");
+    assertThat(GuildWerewolf.fondness(100, 100, 0, true)).isEqualTo("1.5");
+    assertThat(GuildWerewolf.fondness(-100, -100, 100, false)).isEqualTo("-1.5");
     if (table.stream().noneMatch(player -> player.character().id() == own)) assertThat(ties).doesNotContain(":" + own + ":");
     assertThat(werewolf.bonds(table)).isEqualTo(Math.min(a, b) + ":" + Math.max(a, b) + ":rival");
     assertThat(werewolf.ties(List.of())).isEmpty();
     assertThat(werewolf.version()).isNotBlank();
+  }
+
+  /** Living residents born long ago and not in the guild today still sit in, however many have died since. */
+  @Test void werewolfSeatsTheLivingOfAnyAge() {
+    String insert = "INSERT INTO M_GUILD_CHARACTER (born_on,game_id,name,introduction,origin,personality,appearance,status,age,gender,occupation) "
+        + "VALUES (?,'core-keeper',?,'旅の者。','記録から。','穏やか。','moss',?,30,'女性','冒険者')";
+    for (int i = 0; i < 4; i++) jdbc.update(insert, LocalDate.now(GuildService.TOKYO).minusDays(500 + i), "古株" + i, "ALIVE");
+    for (int i = 0; i < 45; i++) jdbc.update(insert, LocalDate.now(GuildService.TOKYO).minusDays(i), "故人" + i, "DEAD");
+    assertThat(werewolf.table(ZonedDateTime.now(GuildService.TOKYO))).extracting(player -> player.character().name())
+        .containsExactlyInAnyOrder("古株0", "古株1", "古株2", "古株3");
   }
 
   /**

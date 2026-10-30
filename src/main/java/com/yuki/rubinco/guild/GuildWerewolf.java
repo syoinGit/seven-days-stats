@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Stream;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import org.springframework.core.io.ClassPathResource;
@@ -95,19 +95,23 @@ public class GuildWerewolf {
   }
 
   /**
-   * Who sits in tonight: those in the guild today first, then other living residents, up to MAX, in a new order each
-   * time. Empty when fewer than MIN are alive.
+   * Who sits in tonight: those in the guild today first, then any other living residents (however long ago they were
+   * born), up to MAX, in a new order each time. Empty when fewer than MIN are alive.
    */
   public List<Player> table(ZonedDateTime now) {
     var random = ThreadLocalRandom.current();
     List<GuildService.Character> here = new ArrayList<>(guild.room(now).visits().stream().map(GuildService.Visit::character).toList());
     Collections.shuffle(here, random);
-    List<GuildService.Character> others = new ArrayList<>(guild.characters(0).stream().filter(character -> character.status().equals("ALIVE")).toList());
-    Collections.shuffle(others, random);
     Map<Long, GuildService.Character> picked = new LinkedHashMap<>();
-    for (var character : Stream.concat(here.stream(), others.stream()).toList()) {
+    for (var character : here) {
       if (picked.size() == MAX) break;
       picked.putIfAbsent(character.id(), character);
+    }
+    List<Long> others = new ArrayList<>(jdbc.queryForList("SELECT id FROM M_GUILD_CHARACTER WHERE status = 'ALIVE'", Long.class));
+    Collections.shuffle(others, random);
+    for (long id : others) {
+      if (picked.size() == MAX) break;
+      if (!picked.containsKey(id)) picked.put(id, guild.character(id));
     }
     if (picked.size() < MIN) return List.of();
     List<GuildService.Character> seated = new ArrayList<>(picked.values());
@@ -116,8 +120,9 @@ public class GuildWerewolf {
   }
 
   /**
-   * How each one at the table feels about each other one, as "from:to:trust:affinity:wariness:smitten" joined by ";"
-   * (numbers and ids only). Pairs who never met are left out.
+   * How fond each one at the table is of each other one, as "from:to:fondness" joined by ";" (ids and one number, to a
+   * tenth: about -1.5 can't stand them, 1.5 would die for them). Liking and trust count for it, wariness against it, and
+   * a crush adds to it; only the sum goes to the page, so a crush cannot be read from it. Pairs who never met are left out.
    */
   public String ties(List<Player> table) {
     var ids = ids(table);
@@ -126,8 +131,14 @@ public class GuildWerewolf {
     List<Object> args = new ArrayList<>(ids);
     args.addAll(ids);
     return jdbc.query("SELECT from_id, to_id, trust, affinity, wariness, smitten FROM T_GUILD_RELATION WHERE from_id IN (" + in
-        + ") AND to_id IN (" + in + ") ORDER BY from_id, to_id", (rs, row) -> rs.getLong(1) + ":" + rs.getLong(2) + ":" + rs.getInt(3)
-        + ":" + rs.getInt(4) + ":" + rs.getInt(5) + ":" + (rs.getBoolean(6) ? 1 : 0), args.toArray()).stream().collect(Collectors.joining(";"));
+        + ") AND to_id IN (" + in + ") ORDER BY from_id, to_id", (rs, row) -> rs.getLong(1) + ":" + rs.getLong(2) + ":"
+        + fondness(rs.getInt(3), rs.getInt(4), rs.getInt(5), rs.getBoolean(6)), args.toArray()).stream().collect(Collectors.joining(";"));
+  }
+
+  /** One's fondness of another, from how they stand: to a tenth, kept within -1.5..1.5. */
+  static String fondness(int trust, int affinity, int wariness, boolean smitten) {
+    double fond = (affinity + 0.5 * trust - wariness) / 100.0 + (smitten ? 0.3 : 0);
+    return String.format(Locale.ROOT, "%.1f", Math.max(-1.5, Math.min(1.5, fond)));
   }
 
   /** The bonds beyond acquaintance between those at the table, as "low:high:label" joined by ";". */
