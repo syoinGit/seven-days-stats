@@ -112,44 +112,54 @@
 </th:block>
 
 <!-- 潜む者 (/guild/mimic): hidden roles in a labyrinth with seven of the residents (the werewolf game's table, ties and
-     lines). The game runs in guild-mimic.js, without AI; nothing of it is sent back. It shares the werewolf game's look. -->
+     lines). The game runs in guild-mimic.js, without AI; nothing of it is sent back. Seen first-hand: a backdrop, those
+     present standing in it and a message box (like the conversation scenes); the chart and the notebook beside it. -->
 <th:block th:fragment="mimic">
   <section class="guild-wolf guild-mimic" data-mimic th:attr="data-ties=${ties}, data-bonds=${bonds}">
-    <p class="wolf-lead">酒場の余興、その二。気がつくと、住人たちと石造りの迷宮にいる。出口は、潜むミミックがすべて倒れるまで開かない。昼はマナを集め、焚き火で話し合って一人を迷宮に置いていき、夜は魔法を唱える。</p>
+    <p class="wolf-lead">酒場の余興、その二。気がつくと、住人たちと石造りの迷宮にいる。出口は、潜むミミックがすべて倒れるまで開かない。皆の話を聞き、つじつまの合わない者を見つけ出そう。</p>
     <p class="wolf-lead" th:if="${#lists.isEmpty(table)}">まだ住人が少なく、迷宮に挑めません（生きている住人が七人いると遊べます）。</p>
     <th:block th:unless="${#lists.isEmpty(table)}">
-    <div class="wolf-main">
-      <div class="wolf-table night" data-mimic-table>
-        <svg class="wolf-arrows" data-mimic-arrows aria-hidden="true"><defs><marker id="wolf-head-vote" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#ffb27a"/></marker><marker id="wolf-head-point" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#ff7a6a"/></marker><marker id="wolf-head-cover" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8cc8ff"/></marker></defs></svg>
-        <div class="wolf-center" aria-live="polite"><span class="wolf-phase" data-mimic-phase>はじまり</span><p class="wolf-headline" data-mimic-headline></p></div
-        ><ul class="wolf-seats" aria-label="迷宮にいる人">
-        <li th:each="player : ${table}" class="wolf-seat"
-            th:attr="data-mimic-player=${player.character.id}, data-name=${player.character.name}, data-greet=${player.lines['greet']},
-                     data-suspect=${player.lines['suspect']}, data-defend=${player.lines['defend']}, data-vote=${player.lines['vote']},
-                     data-cover=${player.lines['cover']}">
-          <svg th:replace="~{fragments/guild :: sprite(${player.character})}"></svg>
-          <span class="wolf-name" th:text="${player.character.name}">リネ</span><small class="wolf-tag" data-wolf-tag></small><span class="wolf-marks" data-wolf-marks></span>
-        </li>
-        <li class="wolf-seat you" data-mimic-you><span class="wolf-you-mark" aria-hidden="true">旅</span><span class="wolf-name">あなた</span><small class="wolf-tag" data-wolf-tag></small><span class="wolf-marks" data-wolf-marks></span></li>
-      </ul>
+    <ul hidden aria-hidden="true">
+      <li th:each="player : ${table}"
+          th:attr="data-mimic-player=${player.character.id}, data-name=${player.character.name}, data-greet=${player.lines['greet']},
+                   data-suspect=${player.lines['suspect']}, data-defend=${player.lines['defend']}, data-vote=${player.lines['vote']},
+                   data-cover=${player.lines['cover']}">
+        <svg th:replace="~{fragments/guild :: sprite(${player.character})}"></svg>
+      </li>
+    </ul>
+    <nav class="mz-tabs" role="tablist" aria-label="表示の切り替え">
+      <button type="button" role="tab" aria-selected="true" data-mz-tab="scene">現場</button>
+      <button type="button" role="tab" aria-selected="false" data-mz-tab="chart">相関図</button>
+      <button type="button" role="tab" aria-selected="false" data-mz-tab="note">推理ノート</button>
+      <button type="button" role="tab" aria-selected="false" data-mz-tab="log">記録</button>
+    </nav>
+    <div data-mz-panel="scene">
+      <div class="mz-stage" data-mz-stage data-bg="entrance">
+        <div class="mz-bg" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="mz-hud"><p class="mz-status" data-mz-status aria-live="polite"></p><div class="mz-mana" data-mz-mana></div></div>
+        <div class="mz-fx" data-mz-fx aria-hidden="true"></div>
+        <div class="mz-cast" data-mz-cast></div>
+        <div class="mz-box" data-mz-box tabindex="0" aria-live="polite">
+          <span class="mz-name" data-mz-name></span>
+          <p class="mz-text" data-mz-text>遊ぶにはJavaScriptが必要です。</p>
+          <div class="mz-choices" data-mz-choices></div>
+          <span class="mz-next" aria-hidden="true">▼</span>
+        </div>
       </div>
-      <div class="wolf-actions" data-mimic-actions><p class="meal-note">遊ぶにはJavaScriptが必要です。</p></div>
-      <aside class="wolf-side">
-        <div class="wolf-bar"><p class="wolf-status" data-mimic-status aria-live="polite"></p><button type="button" class="wolf-speed" data-mimic-speed hidden>すぐ表示</button></div>
-        <div class="mimic-mana" data-mimic-mana></div>
-        <div class="mimic-map" data-mimic-map></div>
-        <div class="wolf-board" data-mimic-board></div>
-        <ol class="wolf-log" data-mimic-log aria-label="迷宮の記録"></ol>
-      </aside>
+      <div class="mz-controls"><button type="button" class="wolf-speed" data-mz-skip>次の選択まで飛ばす</button></div>
     </div>
-    <p class="wolf-record" data-mimic-record></p>
+    <div data-mz-panel="chart" hidden>
+      <div class="mz-graph"><svg data-mz-graph role="img" aria-label="誰が誰を疑い、かばい、看破したかの図"></svg><div class="mz-graph-list" data-mz-graph-list></div></div>
+    </div>
+    <div data-mz-panel="note" hidden><div class="mz-note" data-mz-note></div></div>
+    <div data-mz-panel="log" hidden><ol class="wolf-log mz-log" data-mz-log aria-label="迷宮の記録"></ol></div>
+    <p class="wolf-record" data-mz-record></p>
     <details class="wolf-rules"><summary>遊び方</summary>
       <p>迷宮にいるのは、あなたと住人七人の八人。うち二人がミミック（互いを知っている）、一人が狂人（人間だが、ミミックの勝ちを願っている。ミミックが誰かは知らない）、残りが冒険者です。冒険者の陣営はミミックを二体とも追い出せば勝ち、ミミックは生き残りの人間と同じ数になれば勝ちです（狂人は人間として数えます）。</p>
-      <p>昼は五つの場所から行き先を選び、マナを集めます。場所ごとに出るマナは二色で、量は運しだい。誰がどこへ行ったかは全員に見えますが、何をいくつ得たかは本人しか知りません。祭壇の間は光・火、墓所は闇・水、地底湖は水・光、溶岩の通路は火・闇、古書庫は光・闇です。</p>
-      <p>夕方は焚き火で、昨夜の魔法の結果を話し、怪しい人を名指しし、投票で一人を迷宮に置いていきます。置いていかれた人は壁に呑まれ、ミミックか人間かが分かります。人間をミミックだと言っていた看破は、うそだったことになります。</p>
-      <p>夜は一人一つ、魔法を唱えられます。白魔法はだれでも使えます。看破（光＋闇）で一人がミミックかどうかを見て、帳（闇＋水）で一人を黒魔法から守り、残り香（火＋水）で一人がその夜に黒魔法を使ったかを知ります。</p>
-      <p>黒魔法は、ミミックが呪殺（火＋水＋闇。一晩に一体だけ）・擬態（光＋水。次の看破を一回だけ人間と見せる）・封印（光＋火。一人の今夜の魔法をかき消す）を、狂人が封印と囁き（闇＋火。相手がミミックなら互いに正体を知る）を使えます。どの色も白と黒の両方に使うので、持っている色だけでは決め手になりません。</p>
-      <p>席の下には看破で言われた結果（言った人の頭文字と○人間／●ミミック）が付き、言われた結果はログの上の表にもまとまります。席の「メモ」で白・黒・灰の印を付けられます。決着すると、その回の行き先・報告・夜の魔法がすべて振り返れます。戦績はこのブラウザにだけ残ります。</p>
+      <p>昼は五つの場所から行き先を選び、マナを集めます。場所ごとに出るマナは二色で、量は運しだい。誰がどこへ行ったかは全員に見えますが、何をいくつ得たかは本人しか知りません。祭壇の間は光・火、墓所は闇・水、地底湖は水・光、溶岩の通路は火・闇、古書庫は光・闇です。最初は誰もマナを持っていません。</p>
+      <p>夜は一人一つ、魔法を唱えられます。白魔法はだれでも使えます。看破（光＋闇）で一人がミミックかどうかを見て、帳（闇＋水）で一人を黒魔法から守り、残り香（火＋水）で一人がその夜に黒魔法を使ったかを知ります。黒魔法は、ミミックが呪殺（火＋水＋闇。一晩に一体だけ）・擬態（光＋水。次の看破を一回だけ人間と見せる）・封印（光＋火。一人の今夜の魔法をかき消す）を、狂人が封印と囁き（闇＋火。相手がミミックなら互いに正体を知る）を使えます。</p>
+      <p>夕方は焚き火で話し合います。あなたの番には、1日3回まで住人を尋問できます（手に入れたマナ・唱えた魔法・誰を疑っているか）。冒険者は本当のことを話しますが、ミミックと狂人は黒魔法を白魔法やだんまりでごまかし、呪殺に要る色を隠します。申告したマナで申告した魔法が唱えられないなら、その話はうそ。「矛盾を突きつける」で皆の前に示せます（外れると、あなたが疑われます）。最後に投票で一人を迷宮に置いていき、その正体が分かります。</p>
+      <p>「相関図」には看破の結果（白だし・黒だし）と、その日に誰が誰をなぜ疑い、誰をかばったかが一枚にまとまります。人物を押すとその人の線だけになります。「推理ノート」は人×日の表で、行き先と、本人が申告したマナと魔法が並びます。セルを押すと印、「メモ」で白・黒・灰を付けられます。決着すると、皆の本当の行動がノートに載り、振り返りが「記録」に出ます。戦績はこのブラウザにだけ残ります。</p>
     </details>
     </th:block>
     <p class="wolf-lead wolf-other">もうひとつの余興：<a href="/guild/werewolf">人狼</a></p>

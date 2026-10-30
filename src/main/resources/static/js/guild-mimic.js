@@ -1,39 +1,49 @@
-// 潜む者: a solo game of hidden roles in a labyrinth, with seven of the residents (fragments/guild-windows :: mimic,
-// GuildController.mimic). No AI and nothing sent back, like the werewolf game (guild-werewolf.js), whose table, log and
-// look it shares.
+// 潜む者: a solo game of deduction in a labyrinth, with seven of the residents (fragments/guild-windows :: mimic,
+// GuildController.mimic). No AI and nothing sent back.
 //
 // Eight are lost in a labyrinth that lets no one out while a mimic is inside: two of them are mimics, one is a madman
 // (human, but on the mimics' side, without knowing who they are), the rest are adventurers. Each day they go out to
 // one of five places and gather mana there (each place gives two of four colours, how much is chance); by the fire
 // they say what their spells showed, name whom they suspect and vote one out (the labyrinth swallows them and shows
 // what they were); at night everyone may cast one spell. White spells (sight, veil, scent) are anyone's; black ones
-// are the mimics' (curse, guise, seal) and the madman's (seal, whisper). Every colour serves both sides, so what one
-// gathers proves nothing by itself; where everyone went is seen by all.
+// are the mimics' (curse, guise, seal) and the madman's (seal, whisper). Every colour serves both sides.
 //
-// How a resident thinks follows the werewolf game: a suspicion of everyone else made of parts with reasons they can
-// say, swayed by how they stand with each other in the guild (data-ties, data-bonds), by whose spell results they
-// believe, and overridden by what they know for certain. A result that called a human a mimic is a lie, once the
-// labyrinth shows what that one was; a mimic called human may only have been in guise.
+// The game is the traveller's deduction. Everyone starts with no mana, where everyone went is seen by all, and by the
+// fire the traveller may question a few of them each day: what mana they gathered, what they cast. Adventurers tell
+// it as it was; the mimics and the madman cover their black spells with white ones and hide the colours a curse needs,
+// carefully or not. A story whose mana does not add up to the spells it claims is a lie, and the traveller can hold it
+// up to the room. The notebook (who went where, what each said) and the chart (who suspects whom and why, what each
+// sight showed) are there to work it out.
+//
+// How a resident thinks follows the werewolf game (guild-werewolf.js): a suspicion of everyone else made of parts with
+// reasons they can say, swayed by how they stand with each other in the guild (data-ties, data-bonds), by whose spell
+// results they believe, and overridden by what they know for certain.
+//
+// What is seen: the labyrinth first-hand, like the guild's conversation scenes. The place's backdrop, those who are
+// there standing in it (the one speaking lit), and a message box below that is read line by line.
 const guildMimic = () => {
   const box = document.querySelector("[data-mimic]");
   if (!box || box.dataset.ready) return;
   box.dataset.ready = "1";
   const $ = (selector) => box.querySelector(selector);
   const seats = [...box.querySelectorAll("[data-mimic-player]")];
-  const youSeat = $("[data-mimic-you]");
-  const log = $("[data-mimic-log]");
-  const actions = $("[data-mimic-actions]");
-  const status = $("[data-mimic-status]");
-  const board = $("[data-mimic-board]");
-  const manaNote = $("[data-mimic-mana]");
-  const map = $("[data-mimic-map]");
-  const recordNote = $("[data-mimic-record]");
-  const speed = $("[data-mimic-speed]");
-  const table = $("[data-mimic-table]");
-  const arrows = $("[data-mimic-arrows]");
-  const phaseNote = $("[data-mimic-phase]");
-  const headline = $("[data-mimic-headline]");
-  if (seats.length < 7 || !youSeat || !log || !actions || !status) return;
+  const stage = $("[data-mz-stage]");
+  const cast = $("[data-mz-cast]");
+  const messageBox = $("[data-mz-box]");
+  const nameTag = $("[data-mz-name]");
+  const text = $("[data-mz-text]");
+  const choices = $("[data-mz-choices]");
+  const status = $("[data-mz-status]");
+  const manaNote = $("[data-mz-mana]");
+  const fx = $("[data-mz-fx]");
+  const graph = $("[data-mz-graph]");
+  const graphList = $("[data-mz-graph-list]");
+  const note = $("[data-mz-note]");
+  const log = $("[data-mz-log]");
+  const recordNote = $("[data-mz-record]");
+  const skipButton = $("[data-mz-skip]");
+  const tabs = [...box.querySelectorAll("[data-mz-tab]")];
+  if (seats.length < 7 || !stage || !cast || !messageBox || !text || !choices || !log) return;
 
   const ROLES = { mimic: "ミミック", madman: "狂人", human: "冒険者" };
   const DEAL = ["mimic", "mimic", "madman", "human", "human", "human", "human", "human"];
@@ -55,6 +65,10 @@ const guildMimic = () => {
     seal: { name: "封印", cost: ["light", "fire"], who: ["mimic", "madman"], black: true, about: "1人の今夜の魔法をかき消す" },
     whisper: { name: "囁き", cost: ["dark", "fire"], who: ["madman"], black: true, about: "相手がミミックなら、互いに正体を知る" },
   };
+  const WHITE = ["sight", "veil", "scent"];
+  // The curse needs three colours no single place gives: hiding one of them is what a careful mimic does.
+  const CURSE = ["fire", "water", "dark"];
+  const QUESTIONS = 3;
   const BONDS = { friend: "友達", close_friend: "親友", companion: "仲間", lover: "恋人", spouse: "夫婦", rival: "宿敵", mentor: "師弟" };
   const BOND_WARMTH = { friend: 0.3, companion: 0.3, close_friend: 0.6, mentor: 0.4, lover: 0.9, spouse: 1, rival: -0.8 };
   // The residents' lines are their werewolf ones; these words make them fit the labyrinth.
@@ -63,7 +77,6 @@ const guildMimic = () => {
   const MEMOS = ["", "白", "黒", "灰"];
   const YOU = "旅の人";
   const RECORD = "guild-mimic-record";
-  const FAST = "guild-wolf-fast";
   const random = (n) => Math.floor(Math.random() * n);
   const pick = (list) => list[random(list.length)];
   const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
@@ -84,13 +97,18 @@ const guildMimic = () => {
   };
   const stored = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
   const store = (key, value) => { try { localStorage.setItem(key, value); } catch { /* private window: not kept */ } };
+  const el = (tag, className = "", content = "") => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (content) node.textContent = content;
+    return node;
+  };
 
   // ---- How the residents stand with each other (from the guild) --------------------------------------------------
 
   const byId = new Map(seats.map((seat, index) => [seat.dataset.mimicPlayer, index]));
   const fondness = seats.map(() => seats.map(() => 0));
   const rivals = new Set();
-  const bonds = [];
   for (const tie of (box.dataset.ties || "").split(";").filter(Boolean)) {
     const parts = tie.split(":");
     const a = byId.get(parts[0]);
@@ -109,7 +127,6 @@ const guildMimic = () => {
     fondness[a][b] += BOND_WARMTH[label];
     fondness[b][a] += BOND_WARMTH[label];
     if (label === "rival") rivals.add(a + ":" + b).add(b + ":" + a);
-    bonds.push({ a, b, label });
   }
   // The traveller is a stranger to all of them: each sees them as they see the others on average.
   const usual = fondness.map((row, a) => row.reduce((total, value, b) => total + (a === b ? 0 : clamp(value, -1.5, 1.5)), 0) / Math.max(1, row.length - 1));
@@ -118,31 +135,32 @@ const guildMimic = () => {
   let people = [];
   let day = 0;
   let story = [];
+  let marks = new Set();
+  let focus = null;
 
   // ---- The party ----------------------------------------------------------------------------------------------------
 
   const voice = (data) => {
     const lines = {};
     for (const kind of ["greet", "suspect", "defend", "vote", "cover"]) {
-      lines[kind] = REWORD.reduce((text, [from, to]) => text.replaceAll(from, to), data[kind] || "");
+      lines[kind] = REWORD.reduce((said, [from, to]) => said.replaceAll(from, to), data[kind] || "");
     }
     return lines;
   };
   const noMana = () => ({ light: 0, dark: 0, water: 0, fire: 0 });
 
   function deal() {
-    const cast = seats.map((seat) => ({ name: seat.dataset.name, seat, you: false, lines: voice(seat.dataset) }));
-    cast.push({ name: "あなた", seat: youSeat, you: true, lines: {} });
+    const party = seats.map((seat) => ({ name: seat.dataset.name, figure: seat.querySelector(".guild-sprite"), you: false, lines: voice(seat.dataset) }));
+    party.push({ name: "あなた", figure: null, you: true, lines: {} });
     const roles = shuffle(DEAL);
-    people = cast.map((person, index) => ({
-      ...person, index, role: roles[index], alive: true, diedBy: null, revealed: null, mana: noMana(), history: [], goal: null,
-      known: new Map(), allies: new Set(), hunch: [], heat: [], why: [], prior: [], claims: [], fresh: [], exposed: false,
-      guised: false, named: new Set(), covered: new Set(), lastSuspect: null, votedFor: [], memo: 0, threat: 0,
+    people = party.map((person, index) => ({
+      ...person, index, role: roles[index], alive: true, diedBy: null, diedOn: null, revealed: null, mana: noMana(), history: [],
+      gains: [], spells: [], said: { gains: new Map(), spells: new Map() }, goal: null, known: new Map(), allies: new Set(),
+      hunch: [], heat: [], why: [], prior: [], claims: [], fresh: [], exposed: false, guised: false, named: new Set(),
+      covered: new Set(), lastSuspect: null, votedFor: [], memo: 0, threat: 0,
     }));
     for (const self of people) {
       self.known.set(self.index, self.role === "mimic" ? "mimic" : "human");
-      // Two colours of mana to start with, so that the first night is not empty.
-      for (let i = 0; i < 2; i++) self.mana[pick(Object.keys(COLORS))]++;
       for (const other of people) {
         self.hunch[other.index] = Math.random();
         self.heat[other.index] = 0;
@@ -156,15 +174,10 @@ const guildMimic = () => {
     }
     day = 0;
     story = [];
+    marks = new Set();
+    focus = null;
     log.replaceChildren();
     chapter("はじまり");
-    clearTable();
-    for (const person of people) {
-      person.seat.classList.remove("dead", "wolf-mark", "human-mark", "revealed", "hot", "warm", ...Object.keys(ROLES).map((role) => "role-" + role));
-      tag(person, "");
-      person.seat.querySelector("[data-wolf-marks]")?.replaceChildren();
-      memoButton(person);
-    }
   }
 
   const you = () => people.find((person) => person.you);
@@ -182,13 +195,104 @@ const guildMimic = () => {
   function can(person, key) {
     const spell = SPELLS[key];
     if (spell.who && !spell.who.includes(person.role)) return false;
+    return covers(person.mana, key);
+  }
+
+  /** Whether mana is enough for spell's cost. */
+  function covers(mana, key) {
     const need = noMana();
-    for (const color of spell.cost) need[color]++;
-    return Object.keys(need).every((color) => person.mana[color] >= need[color]);
+    for (const color of SPELLS[key].cost) need[color]++;
+    return Object.keys(need).every((color) => mana[color] >= need[color]);
   }
 
   function pay(person, key) {
     for (const color of SPELLS[key].cost) person.mana[color] = Math.max(0, person.mana[color] - 1);
+  }
+
+  // ---- What they say they did (testimony) ---------------------------------------------------------------------------
+
+  /**
+   * What person says they gathered on day d. An adventurer tells it as it was; one on the mimics' side often moves one
+   * of the curse's colours to the place's other colour, to hide it (always a colour that place gives).
+   */
+  function toldGains(person, d) {
+    if (person.said.gains.has(d)) return person.said.gains.get(d);
+    const real = person.gains[d - 1] || noMana();
+    const told = { ...real };
+    if (person.role !== "human" && Math.random() < (person.role === "mimic" ? 0.6 : 0.35)) {
+      const spot = placeOf(person.history[d - 1]);
+      const hide = spot.colors.find((color) => CURSE.includes(color) && told[color] > 0);
+      const other = spot.colors.find((color) => color !== hide);
+      if (hide && other) {
+        told[hide]--;
+        told[other]++;
+      }
+    }
+    person.said.gains.set(d, told);
+    return told;
+  }
+
+  /**
+   * The mana person's own story leaves them before night n's spell: what they say they gathered up to day n, less what
+   * they say they cast on the nights before (a night they said nothing of counts as nothing cast). Null when they have
+   * not said what they gathered on every one of those days (fill: make up what they would say instead).
+   */
+  function storyMana(person, n, fill = false) {
+    const mana = noMana();
+    for (let d = 1; d <= n; d++) {
+      if (!person.said.gains.has(d) && !fill) return null;
+      const got = toldGains(person, d);
+      for (const color of Object.keys(mana)) mana[color] += got[color];
+      if (d < n) {
+        const spent = person.said.spells.get(d);
+        if (spent?.spell) for (const color of SPELLS[spent.spell].cost) mana[color]--;
+      }
+    }
+    return mana;
+  }
+
+  /** Whether person's story (filled in as they would tell it) leaves the mana for spell on night n. */
+  const fits = (person, n, spell) => n >= 1 && covers(storyMana(person, n, true), spell);
+
+  /**
+   * What person says they cast on night n ({ spell: null } for nothing). An adventurer tells it as it was; a black spell
+   * is covered by a white one or by nothing, which a careful liar makes sure their mana story allows.
+   */
+  function toldSpell(person, n) {
+    if (person.said.spells.has(n)) return person.said.spells.get(n);
+    const real = person.spells[n - 1] || null;
+    let told;
+    if (!real) told = { spell: null };
+    else if (!SPELLS[real.spell].black) told = { ...real };
+    else {
+      const careful = Math.random() < 0.6;
+      const options = careful ? WHITE.filter((spell) => fits(person, n, spell)) : WHITE;
+      if (!options.length || Math.random() < 0.35) told = { spell: null };
+      else {
+        const spell = pick(options);
+        const target = pick(people.filter((other) => other !== person && (other.alive || other.diedOn > n)));
+        told = { spell, target: target.index, result: spell === "sight" ? "human" : spell === "scent" ? "white" : null };
+      }
+    }
+    person.said.spells.set(n, told);
+    return told;
+  }
+
+  /**
+   * Whether what person said they cast on night n is more than their own story's mana allows: the missing colours, an
+   * empty list when it adds up, or null when they have not said enough to tell.
+   */
+  function shortfall(person, n) {
+    const told = person.said.spells.get(n);
+    if (!told?.spell) return [];
+    const mana = storyMana(person, n);
+    if (!mana) return null;
+    const missing = [];
+    for (const color of SPELLS[told.spell].cost) {
+      if (mana[color] > 0) mana[color]--;
+      else missing.push(color);
+    }
+    return missing;
   }
 
   // ---- What a resident thinks ---------------------------------------------------------------------------------------
@@ -207,13 +311,13 @@ const guildMimic = () => {
   }
 
   /** Raises self's suspicion of target, for a reason self can give (key: the reason, so that the same one adds up). */
-  function warm(self, target, amount, key, text) {
+  function warm(self, target, amount, key, reason) {
     self.heat[target.index] += amount;
     if (amount <= 0) return;
-    const reason = self.why[target.index].get(key) || { weight: 0, text };
-    reason.weight += amount;
-    reason.text = text;
-    self.why[target.index].set(key, reason);
+    const part = self.why[target.index].get(key) || { weight: 0, text: reason };
+    part.weight += amount;
+    part.text = reason;
+    self.why[target.index].set(key, part);
   }
 
   /** What c's spells said of target, each with how much it weighs on self. */
@@ -233,7 +337,7 @@ const guildMimic = () => {
   /** Why self suspects target, each part with its weight; the strongest first. */
   function reasons(self, target) {
     const parts = [{ weight: self.hunch[target.index] * 0.8, text: "どうも引っかかる" }];
-    for (const reason of self.why[target.index].values()) parts.push(reason);
+    for (const part of self.why[target.index].values()) parts.push(part);
     const dislike = -0.9 * fond(self, target);
     if (dislike > 0.2) parts.push({ weight: dislike, text: rivals.has(self.index + ":" + target.index) ? "宿敵に気を許すわけにはいかない" : "前から反りが合わない" });
     for (const part of results(self, target)) if (part.weight > 0) parts.push(part);
@@ -301,10 +405,10 @@ const guildMimic = () => {
   function heard(speaker, target, weight = 0.5) {
     target.named.add(speaker.index);
     const namers = [...target.named].filter((index) => index !== target.index);
-    const text = namers.length > 1 ? "何人もが怪しいと言っている" : short(speaker) + "も怪しいと言っていた";
+    const reason = namers.length > 1 ? "何人もが怪しいと言っている" : short(speaker) + "も怪しいと言っていた";
     for (const person of people) {
       if (person === speaker || person === target || person.you) continue;
-      warm(person, target, weight * (1 + 0.4 * fond(person, speaker)), "named", text);
+      warm(person, target, weight * (1 + 0.4 * fond(person, speaker)), "named", reason);
       if (fond(person, target) > 0.5) warm(person, speaker, 0.25 * fond(person, target), "accused:" + target.index, "大事な" + nameOf(target) + "を疑った");
       if (person.known.get(target.index) === "human") warm(person, speaker, 0.8, "wrong:" + target.index, "人間の" + nameOf(target) + "を疑った");
     }
@@ -322,6 +426,12 @@ const guildMimic = () => {
     }
   }
 
+  /** Everyone turns on one whose lie came out (a false sight, or a story whose mana does not add up). */
+  function expose(liar, reason) {
+    liar.exposed = true;
+    for (const person of living()) if (!person.you && person !== liar) warm(person, liar, 3, "liar", reason);
+  }
+
   /**
    * The labyrinth showed what target was (sent out, or cursed): everyone knows it now. Whoever called a human a mimic
    * lied; whoever called a mimic human may have been fooled by a guise; whoever stood up for a mimic is weighed by it.
@@ -329,13 +439,12 @@ const guildMimic = () => {
   function shown(target) {
     target.revealed = target.role === "mimic" ? "mimic" : "human";
     for (const person of people) person.known.set(target.index, target.revealed);
-    for (const c of people) {
+    for (const c of living()) {
       for (const claim of c.claims.filter((one) => one.spell === "sight" && one.target === target.index)) {
-        if (claim.result === "mimic" && target.revealed === "human" && !c.exposed && c.alive) {
-          c.exposed = true;
+        if (claim.result === "mimic" && target.revealed === "human" && !c.exposed) {
           narrate(short(c) + "の看破はうそだった。" + nameOf(target) + "は人間だったのだから。", "air");
-          for (const person of living()) if (!person.you && person !== c) warm(person, c, 3, "liar", "看破でうそをついた");
-        } else if (claim.result === "human" && target.revealed === "mimic" && c.alive) {
+          expose(c, "看破でうそをついた");
+        } else if (claim.result === "human" && target.revealed === "mimic") {
           for (const person of living()) if (!person.you && person !== c) warm(person, c, 1, "missed:" + target.index, "ミミックを人間だと言っていた");
         }
       }
@@ -350,413 +459,170 @@ const guildMimic = () => {
     }
   }
 
-  // ---- Showing it (as the werewolf game does) -----------------------------------------------------------------------
+  // ---- The scene: what the traveller sees -------------------------------------------------------------------------
 
-  let fast = stored(FAST) === "1";
+  // Lines are read one at a time (a click, Enter or Space goes on); "skip" runs them through to the next choice. Changes
+  // to the scene are queued with them, so the place and who stands in it change when the line before is read.
   let queue = [];
   let pumping = false;
   let waiting = [];
+  let skipping = false;
+  let advanceLine = null;
   let page = null;
 
-  /** Shows a log item or makes a change to the table; how long to wait before the next. */
-  function reveal(entry) {
-    const run = (change) => {
-      try {
-        change?.();
-      } catch (failure) {
-        console.error(failure);
-      }
-    };
-    if (typeof entry === "function") {
-      run(entry);
-      return 0;
+  function run(change) {
+    try {
+      change();
+    } catch (failure) {
+      console.error(failure);
     }
-    entry.hidden = false;
-    run(entry.cue);
-    log.scrollTop = log.scrollHeight;
-    return entry.classList.contains("vote") ? 280 : entry.classList.contains("wolf-say") ? 1100 : 650;
   }
 
   function pump() {
     if (pumping) return;
     pumping = true;
-    const step = () => {
+    (async () => {
       while (queue.length) {
-        const wait = reveal(queue.shift());
-        if (wait && !fast) {
-          setTimeout(step, wait);
-          return;
-        }
+        const entry = queue.shift();
+        if (typeof entry === "function") run(entry);
+        else await showLine(entry);
       }
       pumping = false;
       waiting.splice(0).forEach((resolve) => resolve());
-    };
-    step();
+    })();
   }
 
   const drained = () => (queue.length || pumping ? new Promise((resolve) => waiting.push(resolve)) : Promise.resolve());
-
-  function post(item, change = null) {
-    if (!page) chapter("");
-    item.hidden = true;
-    item.cue = change;
-    page.append(item);
-    queue.push(item);
-    pump();
-  }
 
   function cue(change) {
     queue.push(change);
     pump();
   }
 
-  /** A new part of the log (a day), the earlier ones folded away. */
+  /** A line in the box: said by person (or told, when there is none), with the reason they give (why). */
+  function line(person, said, kind = "", why = null) {
+    queue.push({ person, said, kind, why });
+    pump();
+  }
+
+  const narrate = (said, kind = "") => line(null, said, kind);
+
+  async function showLine({ person, said, kind, why }) {
+    logLine(person, said, kind, why);
+    choices.replaceChildren();
+    messageBox.className = "mz-box" + (kind ? " " + kind : "") + (person ? " said" : "");
+    if (nameTag) nameTag.textContent = person ? person.name : "";
+    text.textContent = said;
+    if (why) text.append(el("small", "mz-why", "理由：" + why));
+    light(person);
+    if (skipping) return;
+    messageBox.classList.add("reading");
+    await new Promise((resolve) => { advanceLine = resolve; });
+    messageBox.classList.remove("reading");
+  }
+
+  function advance() {
+    const go = advanceLine;
+    advanceLine = null;
+    go?.();
+  }
+
+  messageBox.addEventListener("click", (event) => {
+    if (!event.target.closest("button")) advance();
+  });
+  messageBox.addEventListener("keydown", (event) => {
+    if ((event.key === "Enter" || event.key === " ") && !event.target.closest("button")) {
+      event.preventDefault();
+      advance();
+    }
+  });
+  skipButton?.addEventListener("click", () => {
+    skipping = true;
+    advance();
+  });
+
+  /** Lights the one speaking, if they stand in the scene; the others dim while someone there speaks. */
+  function light(person) {
+    let speaking = false;
+    for (const figure of cast.children) {
+      const on = !!person && figure.dataset.index === String(person.index);
+      figure.classList.toggle("speaking", on);
+      speaking ||= on;
+    }
+    cast.classList.toggle("has-speaker", speaking);
+  }
+
+  /** The place shown (a backdrop key) and who stands in it; solo: one face to face. */
+  function scene(key, figures = [], solo = false) {
+    const list = figures.filter((person) => !person.you);
+    cue(() => {
+      stage.dataset.bg = key;
+      cast.classList.toggle("solo", solo);
+      cast.replaceChildren(...list.map((person) => {
+        const figure = el("div", "mz-fig");
+        figure.dataset.index = person.index;
+        if (person.figure) figure.append(person.figure.cloneNode(true));
+        figure.append(el("b", "", person.name));
+        return figure;
+      }));
+    });
+  }
+
+  /** A flash of a colour over the scene (a spell, gathered mana, a death). */
+  const flash = (tone) => cue(() => {
+    if (!fx) return;
+    fx.className = "mz-fx";
+    void fx.offsetWidth;
+    fx.className = "mz-fx on " + tone;
+  });
+
+  /** One that leaves the scene (sent out, cursed). */
+  const fade = (person) => cue(() => cast.querySelector('[data-index="' + person.index + '"]')?.classList.add("leaving"));
+
+  // ---- The log ------------------------------------------------------------------------------------------------------
+
   function chapter(title) {
     for (const open of log.querySelectorAll("details[open]")) open.open = false;
-    const item = document.createElement("li");
-    item.className = "wolf-day";
-    const fold = document.createElement("details");
+    const item = el("li", "wolf-day");
+    const fold = el("details");
     fold.open = true;
-    const summary = document.createElement("summary");
-    summary.textContent = title;
-    page = document.createElement("ol");
-    fold.append(summary, page);
+    page = el("ol");
+    fold.append(el("summary", "", title), page);
     item.append(fold);
     log.append(item);
   }
 
-  /** A line of the story; the big ones (a new phase, a death, what only the traveller learns) also at the centre. */
-  function narrate(text, kind = "", change = null) {
-    const item = document.createElement("li");
-    item.className = "wolf-narr" + (kind ? " " + kind : "");
-    item.textContent = text;
-    const told = /^(big|death|secret)$/.test(kind);
-    post(item, () => {
-      if (told && headline) {
-        headline.textContent = text;
-        headline.className = "wolf-headline " + kind;
-      }
-      change?.();
-    });
+  function logLine(person, said, kind, why) {
+    if (!page) chapter("");
+    const item = el("li", person ? "wolf-say" + (person.you ? " you" : "") : "wolf-narr" + (kind ? " " + kind : ""));
+    if (person) {
+      item.append(el("b", "", person.name), el("span", "", said));
+      if (why) item.append(el("small", "wolf-why", "理由：" + why));
+    } else item.textContent = said;
+    page.append(item);
   }
 
-  /** A line said by person, with the reason they give (why): a bubble over their seat and an arrow to whom it is about. */
-  function speak(person, text, why = null, target = null, tone = "point") {
-    const item = document.createElement("li");
-    item.className = "wolf-say" + (person.you ? " you" : "");
-    const figure = person.seat.querySelector(".guild-sprite, .wolf-you-mark");
-    if (figure) {
-      const face = document.createElement("span");
-      face.className = "wolf-face";
-      face.append(figure.cloneNode(true));
-      item.append(face);
-    }
-    const name = document.createElement("b");
-    name.textContent = person.name;
-    const line = document.createElement("span");
-    line.textContent = text;
-    item.append(name, line);
-    if (why) {
-      const note = document.createElement("small");
-      note.className = "wolf-why";
-      note.textContent = "理由：" + why;
-      item.append(note);
-    }
-    post(item, () => {
-      bubble(person, text);
-      clearArrows("point", "cover");
-      if (target) arrow(person, target, tone);
-    });
-  }
+  // ---- Choices ------------------------------------------------------------------------------------------------------
 
-  /** A resident's line of this kind about target, one of its wordings. */
-  function say(person, kind, target = null, why = null) {
-    let text = pick((person.lines[kind] || "").split("\n")) || "……";
-    if (target) {
-      const name = nameOf(target);
-      text = text.replaceAll("{t}さん", target.you ? name : name + "さん").replaceAll("{t}", name);
-    }
-    speak(person, text, why, target, kind === "cover" ? "cover" : "point");
-  }
-
-  /** The seats around the table: the traveller nearest (at the bottom), the residents round from their left. */
-  function place() {
-    const order = [youSeat, ...seats];
-    order.forEach((seat, i) => {
-      const angle = Math.PI / 2 + (i * 2 * Math.PI) / order.length;
-      const x = 50 + 40 * Math.cos(angle);
-      const y = 50 + 37 * Math.sin(angle);
-      seat.style.left = x.toFixed(1) + "%";
-      seat.style.top = y.toFixed(1) + "%";
-      seat.dataset.side = x < 36 ? "left" : x > 64 ? "right" : "middle";
-      seat.dataset.half = y < 50 ? "top" : "bottom";
-    });
-  }
-
-  /** What part of the day it is, at the centre: mode day, vote, night or end. The table is cleared for it. */
-  function phase(title, mode) {
-    cue(() => {
-      clearTable();
-      if (phaseNote) phaseNote.textContent = title;
-      if (table) table.className = "wolf-table " + mode;
-    });
-  }
-
-  function clearTable() {
-    clearArrows();
-    bubble(null);
-    for (const person of people) showVotes(person, 0);
-    if (headline) headline.textContent = "";
-  }
-
-  function bubble(person, text = "") {
-    for (const seat of [...seats, youSeat]) {
-      seat.classList.remove("speaking");
-      seat.querySelector(".wolf-bubble")?.remove();
-    }
-    if (!person) return;
-    const note = document.createElement("span");
-    note.className = "wolf-bubble";
-    note.textContent = text;
-    person.seat.append(note);
-    person.seat.classList.add("speaking");
-  }
-
-  /** An arrow across the table from one seat to another, of a tone: vote, point or cover. */
-  function arrow(from, to, tone) {
-    if (!arrows || !table || from === to) return;
-    const frame = table.getBoundingClientRect();
-    if (!frame.width) return;
-    arrows.setAttribute("viewBox", "0 0 " + frame.width.toFixed(0) + " " + frame.height.toFixed(0));
-    const at = (person) => {
-      const figure = (person.seat.querySelector(".guild-sprite, .wolf-you-mark") || person.seat).getBoundingClientRect();
-      return [figure.left + figure.width / 2 - frame.left, figure.top + figure.height / 2 - frame.top];
-    };
-    const [x1, y1] = at(from);
-    const [x2, y2] = at(to);
-    const length = Math.hypot(x2 - x1, y2 - y1);
-    if (length < 70) return;
-    const ux = (x2 - x1) / length;
-    const uy = (y2 - y1) / length;
-    const bow = Math.min(36, length * 0.12);
-    const [sx, sy, ex, ey] = [x1 + ux * 28, y1 + uy * 28, x2 - ux * 32, y2 - uy * 32];
-    const [cx, cy] = [(sx + ex) / 2 - uy * bow, (sy + ey) / 2 + ux * bow];
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", [["M", sx, sy], ["Q", cx, cy], ["", ex, ey]].map(([c, x, y]) => c + x.toFixed(1) + " " + y.toFixed(1)).join(" "));
-    path.setAttribute("class", "wolf-arrow " + tone);
-    path.setAttribute("marker-end", "url(#wolf-head-" + tone + ")");
-    arrows.append(path);
-  }
-
-  function clearArrows(...tones) {
-    for (const path of [...(arrows?.querySelectorAll(".wolf-arrow") || [])]) {
-      if (!tones.length || tones.some((tone) => path.classList.contains(tone))) path.remove();
-    }
-  }
-
-  function showVotes(person, count) {
-    let badge = person.seat.querySelector(".wolf-votes");
-    if (!count) {
-      badge?.remove();
-      return;
-    }
-    if (!badge) {
-      badge = document.createElement("span");
-      badge.className = "wolf-votes";
-      person.seat.append(badge);
-    }
-    badge.textContent = count + "票";
-  }
-
-  /** The badges under a seat: what the sight results said of them (who said it, ○ human, ● mimic). */
-  function badges(person) {
-    const out = [];
-    if (person.claims.some((claim) => claim.spell === "sight")) out.push({ text: "看", kind: "claim", label: "看破の結果を話した" });
-    for (const teller of people) {
-      for (const claim of teller.claims.filter((one) => one.spell === "sight" && one.target === person.index)) {
-        out.push({ text: short(teller).slice(0, 1) + (claim.result === "mimic" ? "●" : "○"), kind: claim.result === "mimic" ? "black" : "white",
-          label: short(teller) + "の看破：" + (claim.result === "mimic" ? "ミミック" : "人間") });
-      }
-    }
-    return out;
-  }
-
-  function tag(person, text) {
-    const mark = person.seat.querySelector("[data-wolf-tag]");
-    if (mark) mark.textContent = text;
-  }
-
-  /** The traveller's own note on a seat: none, white, black or grey, changed by pressing it. */
-  function memoButton(person) {
-    if (person.you) return;
-    let button = person.seat.querySelector("[data-wolf-memo]");
-    if (!button) {
-      button = document.createElement("button");
-      button.type = "button";
-      button.className = "wolf-memo";
-      button.dataset.wolfMemo = "";
-      button.addEventListener("click", () => {
-        const owner = people.find((other) => other.seat === person.seat);
-        owner.memo = (owner.memo + 1) % MEMOS.length;
-        showMemo(owner);
-      });
-      person.seat.append(button);
-    }
-    showMemo(person);
-  }
-
-  function showMemo(person) {
-    const button = person.seat.querySelector("[data-wolf-memo]");
-    if (!button) return;
-    button.textContent = MEMOS[person.memo] || "メモ";
-    button.className = "wolf-memo" + (person.memo ? " m" + person.memo : "");
-    button.setAttribute("aria-label", person.name + "のメモ：" + (MEMOS[person.memo] || "なし"));
-  }
-
-  /** How many of the living residents would name each one right now. */
-  function mood() {
-    const counts = new Map();
-    for (const person of living().filter((npc) => !npc.you)) {
-      const target = choice(person);
-      if (target) counts.set(target, (counts.get(target) || 0) + 1);
-    }
-    return counts;
-  }
-
-  /** The seats, the traveller's mana, the places and the board as the traveller sees them now; shown in turn. */
-  function mark(counts = null) {
-    const self = you();
-    const looks = people.map((person) => {
-      const known = self.known.get(person.index);
-      const classes = { dead: !person.alive, "wolf-mark": person !== self && known === "mimic", "human-mark": person !== self && known === "human" };
-      if (counts || !person.alive) {
-        const heat = person.alive ? counts.get(person) || 0 : 0;
-        Object.assign(classes, { hot: heat >= 2, warm: heat === 1 });
-      }
-      const words = person.alive ? (today()?.places.get(person) ? placeOf(today().places.get(person)).name : "")
-        : (person.diedBy === "vote" ? "追放" : "呪殺") + "・" + (person.revealed === "mimic" ? "ミミック" : "人間");
-      return { person, classes, words, badges: badges(person) };
-    });
-    const line = (day === 0 ? "迷宮の入口" : day + "日目") + " ・ あなたは" + ROLES[self.role] + (self.alive ? "" : "（脱落）")
-      + " ・ 残り " + living().length + "人（ミミック残り" + mimics().length + "体）";
-    const sheet = drawBoard();
-    const mana = drawMana();
-    const places = drawMap();
-    cue(() => {
-      for (const look of looks) show(look);
-      status.textContent = line;
-      board?.replaceChildren(...(sheet ? [sheet] : []));
-      manaNote?.replaceChildren(...mana);
-      map?.replaceChildren(...places);
-    });
-  }
-
-  function show({ person, classes, words, badges }) {
-    for (const [name, on] of Object.entries(classes)) person.seat.classList.toggle(name, on);
-    tag(person, words);
-    person.seat.querySelector("[data-wolf-marks]")?.replaceChildren(...badges.map(({ text, kind, label }) => {
-      const badge = document.createElement("span");
-      badge.className = "wolf-badge " + kind;
-      badge.textContent = text;
-      badge.title = label;
-      return badge;
-    }));
-  }
-
-  const chip = (color, text) => {
-    const item = document.createElement("span");
-    item.className = "mana mana-" + color;
-    item.textContent = text;
-    return item;
-  };
-
-  /** The traveller's mana, and the spells it is enough for. */
-  function drawMana() {
-    const self = you();
-    const title = document.createElement("b");
-    title.textContent = "あなたのマナ";
-    const chips = Object.entries(COLORS).map(([key, name]) => chip(key, name + " " + self.mana[key]));
-    const castable = Object.keys(SPELLS).filter((key) => can(self, key)).map((key) => SPELLS[key].name);
-    const note = document.createElement("small");
-    note.textContent = castable.length ? "唱えられる魔法：" + castable.join("・") : "いまは唱えられる魔法がない";
-    return [title, ...chips, note];
-  }
-
-  /** The five places, their colours, and who went to each today (seen by all). */
-  function drawMap() {
-    const went = today()?.places || new Map();
-    return PLACES.map((spot) => {
-      const card = document.createElement("div");
-      card.className = "mimic-place";
-      const name = document.createElement("b");
-      name.textContent = spot.name;
-      const colors = document.createElement("span");
-      colors.append(...spot.colors.map((color) => chip(color, COLORS[color])));
-      const who = document.createElement("small");
-      const there = [...went].filter(([, key]) => key === spot.key).map(([person]) => short(person));
-      who.textContent = there.length ? there.join("・") : "だれも来ていない";
-      card.append(name, colors, who);
-      return card;
-    });
-  }
-
-  /** What each one said their spells showed, and who has left the party how (none when there is nothing yet). */
-  function drawBoard() {
-    const tellers = people.filter((person) => person.claims.length);
-    const gone = people.filter((person) => !person.alive);
-    if (!tellers.length && !gone.length) return null;
-    const list = document.createElement("dl");
-    for (const person of tellers) {
-      const term = document.createElement("dt");
-      term.textContent = short(person) + (person.exposed ? "（うそが発覚）" : "");
-      const said = document.createElement("dd");
-      for (const claim of person.claims) {
-        const item = document.createElement("span");
-        const black = claim.result === "mimic" || claim.result === "black";
-        item.className = "wolf-chip " + (black ? "black" : "white");
-        item.textContent = claim.day + "日目 " + SPELLS[claim.spell].name + "：" + short(people[claim.target])
-          + (claim.spell === "sight" ? (black ? " ●ミミック" : " ○人間") : (black ? " 黒魔法あり" : " 黒魔法なし"));
-        said.append(item);
-      }
-      list.append(term, said);
-    }
-    if (gone.length) {
-      const term = document.createElement("dt");
-      term.textContent = "いなくなった人";
-      const said = document.createElement("dd");
-      said.textContent = gone.map((person) => short(person) + "（" + (person.diedBy === "vote" ? "追放" : "呪殺") + "・"
-        + (person.revealed === "mimic" ? "ミミック" : "人間") + "）").join("、");
-      list.append(term, said);
-    }
-    return list;
-  }
-
-  /** Buttons for the traveller, once every line so far is shown; resolves with the value of the one pressed. */
+  /** Buttons in the box, once every line so far is read; resolves with the value of the one pressed. */
   async function ask(prompt, options) {
     await drained();
+    skipping = false;
     return new Promise((resolve) => {
-      actions.replaceChildren();
-      if (prompt) {
-        const text = document.createElement("p");
-        text.className = "wolf-prompt";
-        text.textContent = prompt;
-        actions.append(text);
-      }
-      const row = document.createElement("div");
-      row.className = "wolf-buttons";
-      for (const option of options) {
-        const button = document.createElement("button");
+      messageBox.className = "mz-box choosing";
+      if (nameTag) nameTag.textContent = "";
+      text.textContent = prompt || "";
+      light(null);
+      choices.replaceChildren(...options.map((option) => {
+        const button = el("button", "meal-button" + (option.quiet ? " quiet" : ""), option.label);
         button.type = "button";
-        button.className = "meal-button" + (option.quiet ? " quiet" : "");
-        button.textContent = option.label;
         button.addEventListener("click", () => {
-          actions.replaceChildren();
+          choices.replaceChildren();
           resolve(option.value);
         });
-        row.append(button);
-      }
-      actions.append(row);
-      row.querySelector("button")?.focus({ preventScroll: true });
+        return button;
+      }));
+      choices.querySelector("button")?.focus({ preventScroll: true });
     });
   }
 
@@ -764,15 +630,187 @@ const guildMimic = () => {
   const pickPerson = (prompt, list, back = false) =>
     ask(prompt, [...list.map((person) => ({ label: short(person), value: person })), ...(back ? [{ label: "やめる", value: null, quiet: true }] : [])]);
 
-  if (speed) {
-    const label = () => { speed.textContent = fast ? "ゆっくり表示" : "すぐ表示"; };
-    speed.hidden = false;
-    label();
-    speed.addEventListener("click", () => {
-      fast = !fast;
-      store(FAST, fast ? "1" : "0");
-      label();
+  // ---- The status, the chart and the notebook ---------------------------------------------------------------------
+
+  const chip = (color, words) => el("span", "mana mana-" + color, words);
+  const visible = (name) => tabs.find((tab) => tab.dataset.mzTab === name)?.getAttribute("aria-selected") === "true";
+
+  /** The day, the traveller's role and mana over the scene; the chart and notebook if open. Shown with the lines. */
+  function refresh() {
+    cue(() => {
+      const self = you();
+      if (status) status.textContent = (day === 0 ? "迷宮の入口" : day + "日目") + " ・ あなたは" + ROLES[self.role] + (self.alive ? "" : "（脱落）")
+        + " ・ 残り" + living().length + "人／ミミック" + mimics().length;
+      manaNote?.replaceChildren(...Object.entries(COLORS).map(([key, name]) => chip(key, name + self.mana[key])));
+      if (visible("chart")) drawChart();
+      if (visible("note")) drawNote();
     });
+  }
+
+  for (const tab of tabs) {
+    tab.addEventListener("click", () => {
+      for (const other of tabs) {
+        const on = other === tab;
+        other.setAttribute("aria-selected", on ? "true" : "false");
+        const panel = box.querySelector('[data-mz-panel="' + other.dataset.mzTab + '"]');
+        if (panel) panel.hidden = !on;
+      }
+      if (tab.dataset.mzTab === "chart") drawChart();
+      if (tab.dataset.mzTab === "note") drawNote();
+    });
+  }
+
+  const SVG = "http://www.w3.org/2000/svg";
+  const svg = (tag, attrs = {}, content = "") => {
+    const node = document.createElementNS(SVG, tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    if (content) node.textContent = content;
+    return node;
+  };
+
+  /**
+   * The chart: everyone in a ring; red arrows for whom each named today and why, blue for whom they stood up for,
+   * dashed white or black for what each sight said (all days). A press on someone keeps only the lines about them.
+   */
+  function drawChart() {
+    if (!graph || !people.length) return;
+    const width = 640;
+    const height = 460;
+    graph.setAttribute("viewBox", "0 0 " + width + " " + height);
+    const at = people.map((person, i) => {
+      const angle = Math.PI / 2 + (i * 2 * Math.PI) / people.length;
+      return [width / 2 + 230 * Math.cos(angle), height / 2 + 185 * Math.sin(angle)];
+    });
+    const record = story.at(-1);
+    const edges = [];
+    for (const { by, target, why } of record?.named || []) edges.push({ from: by, to: target, tone: "point", words: why || "" });
+    for (const { by, target } of record?.covers || []) edges.push({ from: by, to: target, tone: "cover", words: "かばった" });
+    for (const teller of people) {
+      for (const claim of teller.claims.filter((one) => one.spell === "sight")) {
+        edges.push({ from: teller, to: people[claim.target], tone: claim.result === "mimic" ? "black" : "white",
+          words: claim.day + "日目 看破：" + (claim.result === "mimic" ? "●ミミック" : "○人間") });
+      }
+    }
+    const kept = focus === null ? edges : edges.filter((edge) => edge.from.index === focus || edge.to.index === focus);
+    const defs = svg("defs");
+    for (const tone of ["point", "cover", "black", "white"]) {
+      const marker = svg("marker", { id: "mz-head-" + tone, viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "6", markerHeight: "6", orient: "auto" });
+      marker.append(svg("path", { d: "M0 0L10 5L0 10z", class: "mz-head " + tone }));
+      defs.append(marker);
+    }
+    const lines = kept.map((edge, i) => {
+      const [x1, y1] = at[edge.from.index];
+      const [x2, y2] = at[edge.to.index];
+      const length = Math.hypot(x2 - x1, y2 - y1) || 1;
+      const [ux, uy] = [(x2 - x1) / length, (y2 - y1) / length];
+      // Bowed by kind, so that lines between the same two lie apart.
+      const bow = 18 + 14 * ["point", "cover", "black", "white"].indexOf(edge.tone) + (i % 2) * 6;
+      const [sx, sy, ex, ey] = [x1 + ux * 34, y1 + uy * 34, x2 - ux * 38, y2 - uy * 38];
+      const [cx, cy] = [(sx + ex) / 2 - uy * bow, (sy + ey) / 2 + ux * bow];
+      const path = svg("path", { d: "M" + sx.toFixed(1) + " " + sy.toFixed(1) + " Q" + cx.toFixed(1) + " " + cy.toFixed(1) + " " + ex.toFixed(1) + " " + ey.toFixed(1),
+        class: "mz-edge " + edge.tone, "marker-end": "url(#mz-head-" + edge.tone + ")" });
+      path.append(svg("title", {}, short(edge.from) + "→" + short(edge.to) + "：" + edge.words));
+      return path;
+    });
+    const nodes = people.map((person) => {
+      const [x, y] = at[person.index];
+      const group = svg("g", { class: "mz-node" + (person.alive ? "" : " gone") + (person.revealed ? " " + person.revealed : "")
+        + (person.exposed ? " exposed" : "") + (focus === person.index ? " focus" : "") + (person.memo ? " memo" + person.memo : ""), tabindex: "0", role: "button" });
+      group.append(svg("circle", { cx: x, cy: y, r: "30" }));
+      group.append(svg("text", { x, y: y + 4, "text-anchor": "middle" }, short(person).slice(0, 5)));
+      const tag = person.revealed ? (person.revealed === "mimic" ? "ミミック" : "人間") + (person.diedBy === "vote" ? "・追放" : person.diedBy ? "・呪殺" : "")
+        : person.exposed ? "うそ発覚" : MEMOS[person.memo] ? "メモ：" + MEMOS[person.memo] : "";
+      if (tag) group.append(svg("text", { x, y: y + 46, "text-anchor": "middle", class: "mz-node-tag" }, tag));
+      const choose = () => {
+        focus = focus === person.index ? null : person.index;
+        drawChart();
+      };
+      group.addEventListener("click", choose);
+      group.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          choose();
+        }
+      });
+      return group;
+    });
+    graph.replaceChildren(defs, ...lines, ...nodes);
+    if (!graphList) return;
+    const section = (title, items) => {
+      if (!items.length) return [];
+      const list = el("ul");
+      list.append(...items.map((words) => el("li", "", words)));
+      return [el("h4", "", title), list];
+    };
+    graphList.replaceChildren(
+      ...section("看破の結果（白だし・黒だし）", kept.filter((edge) => edge.tone === "black" || edge.tone === "white").map((edge) => short(edge.from) + " → " + short(edge.to) + "：" + edge.words)),
+      ...section((record ? record.day + "日目の" : "") + "疑いの向き", kept.filter((edge) => edge.tone === "point").map((edge) => short(edge.from) + " → " + short(edge.to) + "：" + edge.words)),
+      ...section("かばった", kept.filter((edge) => edge.tone === "cover").map((edge) => short(edge.from) + " → " + short(edge.to))),
+      ...section("正体が分かった人", people.filter((person) => person.revealed && person.diedBy).map((person) => short(person) + "：" + (person.revealed === "mimic" ? "ミミック" : "人間") + "（" + (person.diedBy === "vote" ? "追放" : "呪殺") + "）")),
+      el("p", "mz-hint", focus === null ? "人物を押すと、その人に関わる線だけになります。" : "もう一度押すと、すべての線に戻ります。"),
+    );
+  }
+
+  /**
+   * The notebook: a row for each one, a column for each day. Where they went (seen by all), what they said they
+   * gathered and cast (once asked, or told by the fire), the traveller's own as it was. A press on a cell marks it.
+   */
+  function drawNote() {
+    if (!note || !people.length) return;
+    const days = story.map((record) => record.day);
+    const table = el("table", "mz-table");
+    const head = el("tr");
+    head.append(el("th", "", "人物"), ...days.map((d) => el("th", "", d + "日目")));
+    table.append(head);
+    for (const person of [...people.filter((one) => !one.you), you()]) {
+      const row = el("tr", person.alive ? "" : "gone");
+      const who = el("th");
+      who.append(el("b", "", short(person)));
+      const state = person.revealed && person.diedBy ? (person.revealed === "mimic" ? "ミミック" : "人間") + "・" + (person.diedBy === "vote" ? "追放" : "呪殺")
+        : person.revealed ? ROLES[person.role] : person.exposed ? "うそ発覚" : person.you ? ROLES[person.role] : "";
+      if (state) who.append(el("small", "", state));
+      if (!person.you) {
+        const memo = el("button", "wolf-memo" + (person.memo ? " m" + person.memo : ""), MEMOS[person.memo] || "メモ");
+        memo.type = "button";
+        memo.addEventListener("click", () => {
+          person.memo = (person.memo + 1) % MEMOS.length;
+          drawNote();
+        });
+        who.append(memo);
+      }
+      row.append(who);
+      for (const d of days) {
+        const cell = el("td", "mz-cell");
+        const key = person.index + ":" + d;
+        if (marks.has(key)) cell.classList.add("marked");
+        const went = person.history[d - 1];
+        if (went) {
+          const spot = placeOf(went);
+          const where = el("span", "mz-where", spot.name);
+          where.prepend(...spot.colors.map((color) => el("i", "dot " + color)));
+          cell.append(where);
+          const got = person.you ? person.gains[d - 1] : person.said.gains.get(d);
+          cell.append(el("span", "mz-got", got ? "得た：" + manaText(got) : "得た：？"));
+        } else if (!person.alive) cell.append(el("span", "mz-gone", "—"));
+        const spell = person.you ? person.spells[d - 1] : person.said.spells.get(d);
+        if (spell) {
+          const words = !spell.spell ? "夜：なし" : "夜：" + SPELLS[spell.spell].name + (spell.target !== undefined && spell.target !== null && !SPELLS[spell.spell].self ? "→" + short(people[spell.target]) : "")
+            + (spell.result === "mimic" ? "●" : spell.result === "human" ? "○" : spell.result === "black" ? "（黒）" : spell.result === "white" ? "（白）" : "");
+          cell.append(el("span", "mz-cast-note" + (spell.spell && SPELLS[spell.spell].black ? " black" : ""), words));
+        } else if (went && (d < day || story.at(-1).casts.length) && !(person.you && d <= day)) cell.append(el("span", "mz-cast-note unknown", "夜：？"));
+        else if (person.you && went && d < day) cell.append(el("span", "mz-cast-note", "夜：なし"));
+        cell.title = "押すと印を付けます";
+        cell.addEventListener("click", () => {
+          if (marks.has(key)) marks.delete(key);
+          else marks.add(key);
+          drawNote();
+        });
+        row.append(cell);
+      }
+      table.append(row);
+    }
+    const hint = el("p", "mz-hint", "「得た」と「夜」は本人の申告です（尋問で聞くか、焚き火で話した分）。最初は誰もマナを持っていないので、申告したマナで申告した魔法が唱えられなければ、その話はうそです。セルを押すと印が付きます。");
+    note.replaceChildren(table, hint);
   }
 
   // ---- The record (this browser only) -----------------------------------------------------------------------------
@@ -812,20 +850,21 @@ const guildMimic = () => {
     deal();
     const self = you();
     showRecord();
-    phase("迷宮の入口", "night");
-    mark();
-    narrate("気がつくと、" + people.length + "人は石造りの迷宮にいた。出口の扉には、こう刻まれている。「潜む者すべてが倒れるまで、この扉は開かない」", "big");
-    narrate("この中にミミックが2体、そしてミミックに味方する狂人が1人いる。昼は場所を巡ってマナを集め、焚き火で話し合って1人を追い出し、夜は魔法を唱える。");
+    scene("entrance", people);
+    refresh();
+    narrate("気がつくと、" + people.length + "人は石造りの迷宮にいた。出口の扉には、こう刻まれている。");
+    narrate("「潜む者すべてが倒れるまで、この扉は開かない」", "big");
+    narrate("この中にミミックが2体、そしてミミックに味方する狂人が1人いる。昼は場所を巡ってマナを集め、焚き火で話し合って1人を置いていき、夜は魔法を唱える。");
     let role = "あなたは【" + ROLES[self.role] + "】だ。";
     if (self.role === "mimic") {
       const partner = people.find((person) => person !== self && person.role === "mimic");
       role += "仲間のミミックは" + partner.name + "。正体を隠し、呪殺で人間を減らせ。人間と同じ数になれば勝ちだ。";
     }
     if (self.role === "madman") role += "人間だが、ミミックの勝ちを願っている。ミミックが誰かは知らない。囁きで探し当てれば、手を組める。";
-    if (self.role === "human") role += "マナを集めて看破を唱え、ミミックを2体とも追い出そう。";
+    if (self.role === "human") role += "皆の話を聞き、つじつまの合わない者を見つけ出そう。ミミックを2体とも追い出せば、扉が開く。";
     narrate(role, "secret");
-    narrate("あなたの手元には、" + manaText(self.mana) + "のマナがある。", "secret");
-    await next("探索に出る");
+    narrate("誰もまだマナを持っていない。どこで何を集め、何を唱えたか——その話の食い違いが、潜む者への手がかりになる。");
+    await next("迷宮へ踏み出す");
     for (day = 1; ; day++) {
       story.push({ day, places: new Map(), claims: [], named: [], covers: [], exiled: null, votes: 0, runoff: false, yourVote: null, casts: [], killed: null, blocked: null });
       chapter(day + "日目");
@@ -851,16 +890,17 @@ const guildMimic = () => {
     for (let i = 2 + (Math.random() < 0.25 ? 1 : 0); i > 0; i--) got[pick(spot.colors)]++;
     for (const color of Object.keys(got)) person.mana[color] += got[color];
     person.history.push(spot.key);
+    person.gains.push(got);
     return got;
   }
 
   async function explore() {
     const self = you();
-    phase(day + "日目の昼・探索", "day");
-    narrate(day + "日目の昼。それぞれが迷宮へ散っていく。", "big");
+    scene("corridor", living());
+    refresh();
+    narrate(day + "日目の朝。分かれ道の前で、それぞれが行き先を決める。", "big");
     const went = today().places;
     if (self.alive) {
-      mark();
       const spot = await ask("どこへ行く？（あなたのマナ：" + manaText(self.mana) + "）",
         PLACES.map((one) => ({ label: one.name + "（" + one.colors.map((color) => COLORS[color]).join("・") + "）", value: one })));
       went.set(self, spot.key);
@@ -877,34 +917,43 @@ const guildMimic = () => {
     }
     for (const [person, key] of went) {
       const got = gather(person, placeOf(key));
-      if (person.you) narrate(placeOf(key).name + "で、" + manaText(got) + "のマナを手に入れた。", "secret");
+      if (person.you) {
+        const here = [...went].filter(([other, there]) => there === key && !other.you).map(([other]) => other);
+        scene(key, here);
+        narrate(placeOf(key).name + "に着いた。" + (here.length ? here.map((other) => other.name).join("と") + "も来ている。" : "ほかには誰もいない。"));
+        flash("mana " + placeOf(key).colors.join(" "));
+        narrate(manaText(got) + "のマナが、手のひらに集まった。", "secret");
+      }
     }
-    narrate("行き先：" + PLACES.map((one) => one.name + "＝" + ([...went].filter(([, key]) => key === one.key).map(([person]) => short(person)).join("・") || "なし")).join("、"), "air");
-    mark();
+    if (!self.alive) scene("corridor", living());
+    refresh();
+    narrate("ほかの者たちの行き先：" + PLACES.map((one) => one.name + "＝" + ([...went].filter(([person, key]) => key === one.key && !person.you).map(([person]) => person.name).join("・") || "なし")).join("、"), "air");
   }
 
-  /** A spell result said aloud by person, true or not. */
+  /** A spell result said aloud by person, true or not; it becomes part of their story. */
   function claim(person, spell, target, result) {
     if (!person.claims.length) {
       for (const other of people) other.prior[person.index] = clamp(0.4 + Math.random() * 0.3 + 0.25 * fond(other, person), 0.05, 0.9);
     }
     person.claims.push({ day, spell, target: target.index, result });
+    if (!person.you) person.said.spells.set(day - 1, { spell, target: target.index, result });
     today().claims.push({ by: person, spell, target, result });
     const name = nameOf(target);
-    const text = spell === "sight" ? "昨夜、" + name + "を看破した。……" + (result === "mimic" ? "ミミックだ！" : "人間だった。")
+    const said = spell === "sight" ? "昨夜、" + name + "を看破した。……" + (result === "mimic" ? "ミミックだ！" : "人間だった。")
       : "昨夜、" + name + "に残り香をかけた。……" + (result === "black" ? "黒魔法の気配がした！" : "黒魔法の気配はなかった。");
+    line(person, said);
     const black = result === "mimic" || result === "black";
-    speak(person, text, null, target, black ? "point" : "cover");
     if (black) heard(person, target, spell === "sight" ? 0.5 : 0.3);
   }
 
   /**
-   * A made-up sight result from one on the mimics' side. A mimic calls a partner the room is set on human, or calls a
-   * human (one who has named a mimic, else the room's favourite) a mimic; the madman, without allies, calls a mimic one
-   * who reads others (a rival) or anyone; with allies, as a mimic would.
+   * A made-up sight result from one on the mimics' side, if their story can bear it (a careless one tells it anyway). A
+   * mimic calls a partner the room is set on human, or a human (one who has named a mimic, else the room's favourite) a
+   * mimic; the madman, without allies, calls a mimic one who reads others or anyone; with allies, as a mimic would.
    */
   function lie(liar) {
-    const told = (person) => liar.claims.some((claim) => claim.target === person.index);
+    if (!fits(liar, day - 1, "sight") && Math.random() < 0.65) return null;
+    const told = (person) => liar.claims.some((one) => one.target === person.index);
     const pool = others(liar).filter((person) => !told(person) && !person.revealed);
     if (!pool.length) return null;
     const partner = pool.find((person) => liar.allies.has(person.index) && roomOn(person) > 1.2);
@@ -918,10 +967,11 @@ const guildMimic = () => {
 
   async function fire() {
     const self = you();
-    phase(day + "日目の夕・焚き火", "day");
-    narrate("焚き火を囲み、" + day + "日目の話し合いが始まる。", "big");
     const npcs = shuffle(living().filter((person) => !person.you));
-    if (day === 1) for (const person of npcs.slice(0, 2)) say(person, "greet");
+    scene("fire", npcs);
+    refresh();
+    narrate("焚き火のまわりに、皆が戻ってきた。" + day + "日目の話し合いが始まる。", "big");
+    if (day === 1) for (const person of npcs.slice(0, 2)) line(person, pick(person.lines.greet.split("\n")) || "……");
     const speakers = [];
     // What last night's spells showed: the adventurers tell it as it was; those on the mimics' side may make one up.
     for (const person of npcs) {
@@ -937,75 +987,99 @@ const guildMimic = () => {
       }
       person.fresh = [];
     }
-    mark();
+    refresh();
 
     if (self.alive) await yourTurn();
     else await next("話し合いを見守る");
     self.fresh = [];
+    scene("fire", living().filter((person) => !person.you));
 
     // Everyone else names whom they suspect most, and why.
     const named = new Map();
-    for (const person of npcs.filter((npc) => !speakers.includes(npc))) {
+    for (const person of npcs.filter((npc) => !speakers.includes(npc) && npc.alive)) {
       const target = choice(person);
       if (!target) continue;
-      say(person, "suspect", target, reasonFor(person, target));
+      const why = reasonFor(person, target);
+      line(person, sayAbout(person, "suspect", target), "", why);
       heard(person, target);
       person.lastSuspect = target.index;
-      today().named.push({ by: person, target });
+      today().named.push({ by: person, target, why });
       named.set(target, (named.get(target) || 0) + 1);
     }
     // Someone who cares for one who was named stands up for them (at most two a day); a mimic may for its partner.
-    let covers = 0;
+    let covered = 0;
     for (const [target] of [...named].sort((a, b) => b[1] - a[1])) {
-      if (covers >= 2) break;
-      const friend = top(npcs.filter((npc) => npc !== target && !target.named.has(npc.index))
+      if (covered >= 2) break;
+      const friend = top(npcs.filter((npc) => npc !== target && npc.alive && !target.named.has(npc.index))
         .map((npc) => [npc, fond(npc, target) + (npc.allies.has(target.index) ? 0.8 : 0) + Math.random() * 0.3]).concat([[null, 0.75]]));
       if (!friend) continue;
-      say(friend, "cover", target);
+      line(friend, sayAbout(friend, "cover", target));
       vouched(friend, target);
-      covers++;
+      covered++;
     }
     // Whoever is named twice (or by the traveller) answers for themselves.
     for (const [target, count] of named) {
       if (target.you || count < 2 && !target.namedByYou) continue;
-      say(target, "defend");
+      line(target, pick(target.lines.defend.split("\n")) || "……");
       for (const person of people) if (person !== target) person.heat[target.index] = Math.max(0, person.heat[target.index] - 0.3);
     }
     for (const person of people) person.namedByYou = false;
-    const after = mood();
-    mark(after);
-    const ranked = [...after].sort((a, b) => b[1] - a[1]).slice(0, 2);
-    if (ranked.length) narrate("場の空気：" + ranked.map(([target, count]) => short(target) + "に" + count + "人").join("、") + "の疑いが向いている。", "air");
+    refresh();
     return vote();
   }
 
+  /** A resident's line of this kind about target, one of its wordings. */
+  function sayAbout(person, kind, target) {
+    const name = nameOf(target);
+    return (pick((person.lines[kind] || "").split("\n")) || "……").replaceAll("{t}さん", target.you ? name : name + "さん").replaceAll("{t}", name);
+  }
+
+  /**
+   * The traveller's turn by the fire: question a few of them (QUESTIONS a day), hold a story up to them, tell their own
+   * results, name or stand up for someone, until they let the talk go on.
+   */
   async function yourTurn() {
     const self = you();
+    let left = QUESTIONS;
+    let spoke = false;
     for (;;) {
-      const action = await ask("あなたの番だ。どうする？", [
-        { label: "看破の結果を伝える", value: "sight" },
-        { label: "残り香の結果を伝える", value: "scent" },
-        { label: "怪しい人を名指しする", value: "suspect" },
-        { label: "誰かをかばう", value: "cover" },
-        { label: "黙って聞いている", value: "quiet", quiet: true },
-      ]);
-      if (action === "quiet") {
-        narrate("あなたは黙って皆の話に耳を傾けた。");
-        return;
+      const options = [];
+      if (left > 0) options.push({ label: "尋問する（あと" + left + "回）", value: "question" });
+      options.push({ label: "矛盾を突きつける", value: "confront" });
+      if (!spoke) {
+        options.push({ label: "看破の結果を伝える", value: "sight" }, { label: "残り香の結果を伝える", value: "scent" },
+          { label: "怪しい人を名指しする", value: "suspect" }, { label: "誰かをかばう", value: "cover" });
+      }
+      options.push({ label: "話し合いを進める", value: "done", quiet: true });
+      const action = await ask("あなたの番だ。どうする？（推理ノートと相関図は上のタブで見られる）", options);
+      if (action === "done") return;
+      if (action === "question") {
+        const person = await pickPerson("誰に聞く？", others(self), true);
+        if (!person) continue;
+        if (await question(person)) left--;
+        scene("fire", living().filter((one) => !one.you));
+        continue;
+      }
+      if (action === "confront") {
+        await confront();
+        scene("fire", living().filter((one) => !one.you));
+        continue;
       }
       if (action === "suspect" || action === "cover") {
         const target = await pickPerson(action === "suspect" ? "誰を名指しする？" : "誰をかばう？", others(self), true);
         if (!target) continue;
         if (action === "suspect") {
-          speak(self, target.name + "が怪しいと思う。", null, target);
+          line(self, target.name + "が怪しいと思う。");
           heard(self, target);
-          today().named.push({ by: self, target });
+          today().named.push({ by: self, target, why: "あなたの推理" });
           target.namedByYou = true;
         } else {
-          speak(self, target.name + "はミミックじゃないと思う。", null, target, "cover");
+          line(self, target.name + "はミミックじゃないと思う。");
           vouched(self, target);
         }
-        return;
+        spoke = true;
+        refresh();
+        continue;
       }
       // A result is told as the traveller chooses: what they saw, or not.
       const seen = self.fresh.filter((found) => found.spell === action);
@@ -1018,10 +1092,83 @@ const guildMimic = () => {
         : [{ label: "黒魔法の気配はなかった", value: "white" }, { label: "黒魔法の気配がした", value: "black" }, { label: "やめる", value: null, quiet: true }]);
       if (!result) continue;
       claim(self, action, target, result);
-      self.fresh = [];
-      mark();
+      spoke = true;
+      refresh();
+    }
+  }
+
+  /** Questioning one, face to face; true when a question was asked. */
+  async function question(person) {
+    scene("fire", [person], true);
+    const what = await ask(person.name + "に何を聞く？", [
+      { label: "これまでに、どこで何色のマナを手に入れた？", value: "gains" },
+      { label: "これまでの夜、何を唱えた？", value: "spells" },
+      { label: "いま、誰を一番疑っている？", value: "suspect" },
+      { label: "やめる", value: null, quiet: true },
+    ]);
+    if (!what) return false;
+    if (what === "gains") {
+      line(you(), "これまでに、どこで何色のマナを手に入れた？");
+      const told = person.history.map((key, i) => (i + 1) + "日目は" + placeOf(key).name + "で" + manaText(toldGains(person, i + 1)));
+      line(person, told.join("。") + "。");
+    } else if (what === "spells") {
+      line(you(), "これまでの夜、何を唱えた？");
+      const nights = [];
+      for (let n = 1; n < day; n++) {
+        const told = toldSpell(person, n);
+        nights.push(n + "日目の夜は" + (!told.spell ? "何も唱えていない" : SPELLS[told.spell].name + (SPELLS[told.spell].self || told.target === undefined || told.target === null ? "" : "を" + nameOf(people[told.target]) + "に")
+          + (told.result === "mimic" ? "。ミミックだった" : told.result === "human" ? "。人間だった" : told.result === "black" ? "。黒魔法の気配がした" : told.result === "white" ? "。気配はなかった" : "")));
+      }
+      line(person, nights.length ? nights.join("。") + "。" : "まだ夜を越していない。");
+    } else {
+      line(you(), "いま、誰を一番疑っている？");
+      const target = choice(person);
+      line(person, target ? sayAbout(person, "suspect", target) : "……分からない。", "", target ? reasonFor(person, target) : null);
+    }
+    refresh();
+    return true;
+  }
+
+  /**
+   * Holding up one night of someone's story whose mana does not add up. Right, and they are found out before everyone;
+   * wrong (it adds up, or they have not said enough), and the room thinks less of the traveller.
+   */
+  async function confront() {
+    const self = you();
+    const tellers = others(self).filter((one) => [...one.said.spells.values()].some((told) => told.spell));
+    if (!tellers.length) {
+      narrate("まだ誰からも、魔法を唱えた話を聞いていない。尋問するか、焚き火で結果を話すのを待とう。", "air");
       return;
     }
+    const person = await pickPerson("誰の話を突きつける？", tellers, true);
+    if (!person) return;
+    const nights = [...person.said.spells].filter(([, told]) => told.spell).sort((a, b) => a[0] - b[0]);
+    const n = await ask("どの夜の話がおかしい？", [
+      ...nights.map(([night, told]) => ({ label: night + "日目の夜：" + SPELLS[told.spell].name + "（" + SPELLS[told.spell].cost.map((color) => COLORS[color]).join("＋") + "）", value: night })),
+      { label: "やめる", value: null, quiet: true },
+    ]);
+    if (!n) return;
+    scene("fire", [person], true);
+    const told = person.said.spells.get(n);
+    const missing = shortfall(person, n);
+    line(self, n + "日目の夜に" + SPELLS[told.spell].name + "を唱えたと言ったな。でも、あなたの話だと、そのときのマナが足りないはずだ。");
+    if (missing === null) {
+      line(person, "……何の話だ？ どこで何を手に入れたかは、まだ話していないだろう。");
+      narrate("まだ確かめられない。まずは手に入れたマナの話を聞く必要がありそうだ。", "air");
+      return;
+    }
+    if (!missing.length) {
+      line(person, "足りているさ。数え直してみるといい。");
+      narrate("確かに、" + person.name + "の話は帳尻が合っている。皆の視線が、あなたに冷たく向いた。", "air");
+      for (const other of living()) if (!other.you && other !== person) warm(other, self, 0.8, "baseless", "言いがかりをつけた");
+      return;
+    }
+    line(person, "そ、それは……");
+    narrate(person.name + "の話では、" + n + "日目の夜までに" + missing.map((color) => COLORS[color]).join("と") + "のマナが足りない。" + SPELLS[told.spell].name + "は唱えられなかったはずだ。", "secret");
+    flash("exposed");
+    narrate("焚き火のまわりがざわめいた。" + person.name + "の話は、うそだったのだ。", "air");
+    expose(person, "旅の人に話の矛盾を突かれた");
+    refresh();
   }
 
   /** One round of votes for someone in pool (not oneself); the tally and who voted whom. */
@@ -1029,7 +1176,7 @@ const guildMimic = () => {
     const self = you();
     const ballots = new Map();
     const tally = new Map();
-    const cast = (voter, target) => {
+    const tick = (voter, target) => {
       ballots.set(voter, target);
       tally.set(target, (tally.get(target) || 0) + 1);
       voter.votedFor.push(target.index);
@@ -1037,32 +1184,19 @@ const guildMimic = () => {
     const candidates = (voter) => pool.filter((person) => person !== voter);
     if (self.alive && candidates(self).length) {
       const target = await pickPerson(prompt, candidates(self));
-      cast(self, target);
+      tick(self, target);
       today().yourVote = target;
     }
     for (const person of shuffle(living().filter((npc) => !npc.you))) {
       const target = choice(person, candidates(person), tally, ballots);
-      if (target) cast(person, target);
+      if (target) tick(person, target);
     }
-    cue(() => {
-      clearArrows();
-      for (const person of people) showVotes(person, 0);
-    });
-    const counted = new Map();
-    for (const [voter, target] of ballots) {
-      const count = (counted.get(target) || 0) + 1;
-      counted.set(target, count);
-      narrate(short(voter) + " → " + short(target), "vote", () => {
-        arrow(voter, target, "vote");
-        showVotes(target, count);
-      });
-    }
+    narrate("票：" + [...ballots].map(([voter, target]) => short(voter) + "→" + short(target)).join("、"), "vote");
     return { tally, ballots };
   }
 
   /** The vote, with a run-off between those tied; the one sent out shows what they were. True when the game ended. */
   async function vote() {
-    phase(day + "日目の投票", "vote");
     narrate("投票の時間だ。迷宮に置いていく1人を決める。", "big");
     let { tally, ballots } = await ballot(living(), "誰に投票する？");
     let most = Math.max(...tally.values());
@@ -1070,7 +1204,7 @@ const guildMimic = () => {
     if (tied.length > 1) {
       today().runoff = true;
       narrate(tied.map((person) => short(person)).join("と") + "が" + most + "票で並んだ。決選投票だ。", "big");
-      for (const person of tied) if (!person.you) say(person, "defend");
+      for (const person of tied) if (!person.you) line(person, pick(person.lines.defend.split("\n")) || "……");
       ({ tally, ballots } = await ballot(tied, "決選投票。誰に入れる？"));
       most = Math.max(...tally.values());
       tied = [...tally].filter(([, count]) => count === most).map(([target]) => target);
@@ -1078,14 +1212,18 @@ const guildMimic = () => {
     }
     const exiled = pick(tied);
     const voiced = [...ballots].find(([voter, target]) => target === exiled && !voter.you);
-    if (voiced) say(voiced[0], "vote", exiled);
+    if (voiced) line(voiced[0], sayAbout(voiced[0], "vote", exiled));
     exiled.alive = false;
     exiled.diedBy = "vote";
+    exiled.diedOn = day;
     today().exiled = exiled;
     today().votes = most;
-    narrate(nameOf(exiled) + "は" + most + "票を集め、迷宮の壁に呑まれた。……その姿は" + (exiled.role === "mimic" ? "、ミミックだった！" : "、人間のままだった。"), "death");
+    narrate(nameOf(exiled) + "は" + most + "票を集め、迷宮の壁に呑まれていく。", "death");
+    fade(exiled);
+    flash(exiled.role === "mimic" ? "exposed" : "death");
+    narrate("……その姿は" + (exiled.role === "mimic" ? "、ミミックだった！" : "、人間のままだった。"), exiled.role === "mimic" ? "secret" : "death");
     shown(exiled);
-    mark();
+    refresh();
     return finish() || (await next("夜になる"), false);
   }
 
@@ -1094,7 +1232,7 @@ const guildMimic = () => {
     const pool = living().filter((person) => person.role !== "mimic" && !mimics().some((mimic) => mimic.allies.has(person.index)));
     if (!pool.length) return null;
     return draw(pool.map((person) => [person, Math.max(0.2, 1 + person.threat * 1.2
-      + 2 * person.claims.filter((claim) => claim.spell === "sight" && claim.result === "mimic" && people[claim.target].role === "mimic").length
+      + 2 * person.claims.filter((one) => one.spell === "sight" && one.result === "mimic" && people[one.target].role === "mimic").length
       + (person.claims.length ? 1.2 : 0) - mimics().reduce((total, mimic) => total + 0.4 * fond(mimic, person), 0))]));
   }
 
@@ -1102,7 +1240,7 @@ const guildMimic = () => {
   function intent(self) {
     const unknown = others(self).filter((person) => !self.known.has(person.index));
     const suspect = (pool) => top(pool.map((target) => [target, suspicion(self, target) + Math.random()]));
-    const reader = (pool) => top(pool.map((target) => [target, target.claims.filter((claim) => claim.spell === "sight").length * 1.5 + Math.random()]));
+    const reader = (pool) => top(pool.map((target) => [target, target.claims.filter((one) => one.spell === "sight").length * 1.5 + Math.random()]));
     if (self.role === "madman") {
       if (!self.allies.size && can(self, "whisper") && unknown.length) return { spell: "whisper", target: suspect(unknown) };
       const foes = others(self).filter((person) => !self.allies.has(person.index));
@@ -1118,7 +1256,7 @@ const guildMimic = () => {
     }
     if (can(self, "sight") && unknown.length) return { spell: "sight", target: suspect(unknown) };
     if (can(self, "veil") && Math.random() < 0.7) {
-      const target = top(others(self).map((person) => [person, person.claims.filter((claim) => claim.spell === "sight").length * trust(self, person) * 2
+      const target = top(others(self).map((person) => [person, person.claims.filter((one) => one.spell === "sight").length * trust(self, person) * 2
         + 0.5 * fond(self, person) + Math.random()]));
       if (target) return { spell: "veil", target };
     }
@@ -1131,10 +1269,10 @@ const guildMimic = () => {
     const self = you();
     const castable = Object.keys(SPELLS).filter((key) => can(self, key));
     const partner = mimics().find((mimic) => mimic !== self);
-    let note = "あなたのマナ：" + manaText(self.mana);
-    if (self.role === "mimic" && partner && !partner.you) note += can(partner, "curse") ? "。仲間の" + partner.name + "は呪殺を唱えられる" : "。仲間の" + partner.name + "は呪殺のマナが足りない";
+    let hint = "あなたのマナ：" + manaText(self.mana);
+    if (self.role === "mimic" && partner && !partner.you) hint += can(partner, "curse") ? "。仲間の" + partner.name + "は呪殺を唱えられる" : "。仲間の" + partner.name + "は呪殺のマナが足りない";
     for (;;) {
-      const key = await ask("今夜、どの魔法を唱える？（" + note + "）", [
+      const key = await ask("今夜、どの魔法を唱える？（" + hint + "）", [
         ...castable.map((one) => ({ label: SPELLS[one].name + "（" + SPELLS[one].cost.map((color) => COLORS[color]).join("＋") + "）：" + SPELLS[one].about, value: one })),
         { label: "何もしない", value: null, quiet: true },
       ]);
@@ -1149,8 +1287,9 @@ const guildMimic = () => {
   /** The night: everyone may cast one spell; seals first, then guises and veils, the curse, and what spells show. */
   async function night() {
     const self = you();
-    phase(day + "日目の夜", "night");
-    narrate("迷宮に" + day + "日目の夜が来た。それぞれが、ひそかに呪文を唱える。", "big");
+    scene("night");
+    refresh();
+    narrate("迷宮に" + day + "日目の夜が来た。焚き火が細り、それぞれがひそかに呪文を唱える。", "big");
     const casts = [];
     if (self.alive) {
       const mine = await yourSpell();
@@ -1175,7 +1314,10 @@ const guildMimic = () => {
     const sealed = new Set(casts.filter((one) => one.spell === "seal").map((one) => one.target));
     const black = new Set(casts.filter((one) => SPELLS[one.spell].black).map((one) => one.by));
     const active = casts.filter((one) => one.spell === "seal" || !sealed.has(one.by));
-    if (sealed.has(self) && casts.some((one) => one.by === self && one.spell !== "seal")) narrate("唱えた呪文が、何かにかき消された。", "secret");
+    for (const one of casts) one.by.spells[day - 1] = { spell: one.spell, target: one.target.index, result: null, sealed: one.spell !== "seal" && sealed.has(one.by) };
+    const mine = casts.find((one) => one.by === self);
+    if (mine) flash("cast " + mine.spell);
+    if (mine && mine.spell !== "seal" && sealed.has(self)) narrate("唱えた呪文が、何かにかき消された。", "secret");
     for (const one of active.filter((cast) => cast.spell === "guise")) one.by.guised = true;
     const veiled = new Set(active.filter((one) => one.spell === "veil").map((one) => one.target));
     let victim = null;
@@ -1187,12 +1329,14 @@ const guildMimic = () => {
       const fooled = one.target.role === "mimic" && one.target.guised;
       const result = one.target.role === "mimic" && !fooled ? "mimic" : "human";
       if (fooled) one.target.guised = false;
+      one.by.spells[day - 1].result = result;
       one.by.fresh.push({ spell: "sight", target: one.target.index, result });
       if (!one.by.known.has(one.target.index)) one.by.known.set(one.target.index, result);
       if (one.by.you) narrate(one.target.name + "を看破した。……" + (result === "mimic" ? "ミミックだ！" : "人間に見える。"), "secret");
     }
     for (const one of active.filter((cast) => cast.spell === "scent")) {
       const result = black.has(one.target) ? "black" : "white";
+      one.by.spells[day - 1].result = result;
       one.by.fresh.push({ spell: "scent", target: one.target.index, result });
       if (one.by.you) narrate(one.target.name + "の残り香は……" + (result === "black" ? "黒魔法の気配がする！" : "黒魔法の気配はない。"), "secret");
     }
@@ -1208,16 +1352,19 @@ const guildMimic = () => {
         mimic.known.set(one.by.index, "human");
       }
       if (one.by.you) narrate(one.target.name + "に囁いた。……低い声が返ってきた。ミミックだ。仲間は" + people.filter((person) => person.role === "mimic").map((person) => person.name).join("と") + "。", "secret");
-      if (one.target.you || self.role === "mimic") narrate(nameOf(one.by) + "が囁いてきた。狂人だ。これで手を組める。", "secret");
+      if (self.role === "mimic") narrate(nameOf(one.by) + "が囁いてきた。狂人だ。これで手を組める。", "secret");
     }
-    mark();
+    refresh();
     await next("朝を迎える");
-    phase((day + 1) + "日目の朝", "day");
+    scene("morning", living());
     narrate((day + 1) + "日目の朝。", "big");
     if (victim) {
       victim.alive = false;
       victim.diedBy = "curse";
+      victim.diedOn = day + 1;
       today().killed = victim;
+      flash("death");
+      fade(victim);
       narrate("目を覚ますと、" + nameOf(victim) + "が冷たくなっていた。……呪殺だ。", "death");
       shown(victim);
       // Whom the cursed one suspected is taken more seriously; and whoever could have gathered the curse's colours lately.
@@ -1227,13 +1374,13 @@ const guildMimic = () => {
         if (suspect?.alive && suspect !== person) warm(person, suspect, 0.45, "mourn:" + victim.index, "呪われた" + victim.name + "が疑っていた");
         for (const other of others(person)) {
           const colors = new Set(other.history.slice(-2).flatMap((key) => placeOf(key).colors));
-          if (["fire", "water", "dark"].every((color) => colors.has(color))) warm(person, other, 0.3, "colors", "呪殺に要るマナを集められた");
+          if (CURSE.every((color) => colors.has(color))) warm(person, other, 0.3, "colors", "呪殺に要るマナを集められた");
         }
       }
     } else {
       narrate("誰も欠けずに朝を迎えた。" + (today().blocked ? "どこかで呪いが帳に阻まれたらしい。" : ""));
     }
-    mark();
+    refresh();
     return finish();
   }
 
@@ -1245,22 +1392,16 @@ const guildMimic = () => {
     const partyWon = left === 0;
     const self = you();
     const won = partyWon === (side(self.role) === "party");
-    phase(partyWon ? "冒険者の勝利" : "ミミックの勝利", "end " + (partyWon ? "village" : "wolves"));
+    scene(partyWon ? "exit" : "night", people.filter((person) => person.role !== "human" || person.alive));
+    flash(partyWon ? "dawn" : "death");
     narrate(partyWon ? "最後のミミックが壁に呑まれ、出口の扉が重い音を立てて開いた。冒険者の勝利！" : "灯りが消えた。迷宮に残ったのは、潜む者たちだけ……ミミックの勝利。", "big");
     narrate(won ? "あなたの陣営の勝ちだ。" : "あなたの陣営の負けだ。", "secret");
     narrate("正体：" + people.filter((person) => !person.you).map((person) => person.name + "＝" + ROLES[person.role]).join("、") + "。");
-    const roles = people.map((person) => [person, ROLES[person.role] + (person.alive ? "" : person.diedBy === "vote" ? "・追放" : "・呪殺")]);
-    cue(() => {
-      for (const [person, words] of roles) {
-        person.seat.classList.add("revealed", "role-" + person.role);
-        person.seat.classList.remove("hot", "warm");
-        tag(person, words);
-      }
-      status.textContent = "決着 ・ あなたは" + ROLES[self.role];
-    });
     review();
     keepRecord(won);
-    ask(null, [{ label: "もう一度挑む", value: true }]).then(play);
+    for (const person of people) person.revealed ||= person.role === "mimic" ? "mimic" : "human";
+    refresh();
+    ask("振り返りは「記録」のタブに。推理ノートには、皆の本当の行動も載った。", [{ label: "もう一度挑む", value: true }]).then(play);
     return true;
   }
 
@@ -1268,29 +1409,33 @@ const guildMimic = () => {
 
   const lab = (person) => short(person) + "〔" + ROLES[person.role] + "〕";
 
-  /** Who went where, said what and cast what each day, with every role shown. */
+  /** Who went where, said what and cast what each day, with every role shown; and the truth into the notebook. */
   function review() {
-    chapter("振り返り");
+    cue(() => chapter("振り返り"));
+    const add = (said, kind = "review") => cue(() => logLine(null, said, kind));
     for (const record of story) {
-      narrate(record.day + "日目", "big review");
-      narrate("行き先：" + [...record.places].map(([person, key]) => short(person) + "→" + placeOf(key).name).join("、"), "review");
+      add(record.day + "日目", "big review");
+      add("行き先：" + [...record.places].map(([person, key]) => short(person) + "→" + placeOf(key).name).join("、"));
       for (const said of record.claims) {
         const truth = said.spell === "sight" ? (said.target.role === "mimic" ? "mimic" : "human") : null;
         const lying = truth && said.result !== truth;
-        narrate(SPELLS[said.spell].name + "の報告：" + lab(said.by) + "→" + lab(said.target) + "は" + ({ mimic: "ミミック", human: "人間", black: "黒魔法あり", white: "黒魔法なし" })[said.result]
-          + (lying ? (said.result === "human" && said.target.role === "mimic" && said.by.role === "human" ? "（擬態に騙された）" : "（うそ）") : ""), "review");
+        add(SPELLS[said.spell].name + "の報告：" + lab(said.by) + "→" + lab(said.target) + "は" + ({ mimic: "ミミック", human: "人間", black: "黒魔法あり", white: "黒魔法なし" })[said.result]
+          + (lying ? (said.result === "human" && said.target.role === "mimic" && said.by.role === "human" ? "（擬態に騙された）" : "（うそ）") : ""));
       }
-      if (record.named.length) narrate("名指し：" + record.named.map(({ by, target }) => short(by) + "→" + short(target)).join("、"), "review");
-      if (record.exiled) narrate("追放：" + lab(record.exiled) + "（" + record.votes + "票" + (record.runoff ? "・決選投票" : "") + "）" + (record.yourVote ? " ・ あなたの票：" + lab(record.yourVote) : ""), "review");
-      if (record.casts.length) narrate("夜の魔法：" + record.casts.map((one) => short(one.by) + "の" + SPELLS[one.spell].name + (SPELLS[one.spell].self ? "" : "→" + short(one.target))).join("、"), "review");
-      if (record.killed) narrate("呪殺：" + lab(record.killed), "review");
-      if (record.blocked) narrate("帳が呪いを防いだ：" + lab(record.blocked), "review");
+      if (record.named.length) add("名指し：" + record.named.map(({ by, target }) => short(by) + "→" + short(target)).join("、"));
+      if (record.exiled) add("追放：" + lab(record.exiled) + "（" + record.votes + "票" + (record.runoff ? "・決選投票" : "") + "）" + (record.yourVote ? " ・ あなたの票：" + lab(record.yourVote) : ""));
+      if (record.casts.length) add("夜の魔法：" + record.casts.map((one) => short(one.by) + "の" + SPELLS[one.spell].name + (SPELLS[one.spell].self ? "" : "→" + short(one.target))).join("、"));
+      if (record.killed) add("呪殺：" + lab(record.killed));
+      if (record.blocked) add("帳が呪いを防いだ：" + lab(record.blocked));
+    }
+    // The notebook shows what everyone really gathered and cast.
+    for (const person of people) {
+      if (person.you) continue;
+      person.gains.forEach((got, i) => person.said.gains.set(i + 1, got));
+      person.spells.forEach((done, i) => done && person.said.spells.set(i + 1, done));
     }
   }
 
-  actions.replaceChildren();
-  place();
-  addEventListener("resize", () => clearArrows());
   play();
 };
 guildMimic();
